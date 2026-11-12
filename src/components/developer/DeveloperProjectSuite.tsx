@@ -1418,28 +1418,28 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2.5">
       {/* ===================================================================== */}
-      {/* SINGLE-COMPANY INTEGRATED HEADER & AT-A-GLANCE KPI STRIP              */}
+      {/* SINGLE-COMPANY DAYLIGHT-READABLE HEADER & AT-A-GLANCE KPI STRIP       */}
       {/* ===================================================================== */}
-      <div className="bg-slate-900 text-white rounded-2xl p-3.5 border border-slate-800 shadow-md">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-          <div className="flex items-center gap-2.5">
+      <div className="bg-white text-slate-900 rounded-xl p-3 border border-slate-200 shadow-2xs">
+        <div className="flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
+          <div className="flex items-center gap-2 min-w-0">
             {onBackToPortfolio && (
               <button
                 type="button"
                 onClick={onBackToPortfolio}
-                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 cursor-pointer shrink-0"
+                className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold border border-slate-300 cursor-pointer shrink-0 whitespace-nowrap"
               >
                 ← Geri
               </button>
             )}
-            <div>
-              <h2 className="text-base sm:text-lg font-black tracking-tight text-white">
+            <div className="min-w-0">
+              <h2 className="text-sm sm:text-base font-black tracking-tight text-slate-950 truncate">
                 {companyDisplayName}
               </h2>
-              <p className="text-[11px] text-slate-400">
-                Proje Klasörleri, Bağımsız Bölüm & Kapı No Matrisi, 3D Blok & Drone Görünümü, Medya Havuzu ve Ekip Yönetimi
+              <p className="text-[11px] text-slate-600 truncate">
+                Proje Klasörleri, Bağımsız Bölüm & Kapı No Matrisi, 2D Mimari Kat Planları, Medya Havuzu ve Ekip Yönetimi
               </p>
             </div>
           </div>
@@ -1471,7 +1471,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                 });
                 setIsProjectFormOpen(true);
               }}
-              className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap"
+              className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0 shadow-2xs"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Yeni Proje Ekle</span>
@@ -1479,102 +1479,102 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
           </div>
         </div>
 
-        {/* 4-Column Single-Glance Quantitative KPI Strip */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 pt-3 border-t border-slate-800">
-          <div className="bg-slate-800/70 rounded-xl px-3 py-2 border border-slate-700/70">
-            <div className="text-[10px] text-slate-400 font-semibold">Aktif Projeler</div>
-            <div className="text-base font-black text-white font-mono tabular-nums mt-0.5">
+        {/* 4-Column Single-Glance Daylight KPI Strip */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2.5 pt-2.5 border-t border-slate-200">
+          <div className="bg-slate-50 rounded-lg px-2.5 py-1.5 border border-slate-200">
+            <div className="text-[10px] text-slate-600 font-bold">Aktif Projeler</div>
+            <div className="text-sm font-black text-slate-950 font-mono tabular-nums">
               {projects.length} Proje Klasörü
             </div>
-            <div className="text-[10px] text-slate-400 mt-0.5">
+            <div className="text-[10px] text-slate-500 truncate">
               Esentepe, Tatlısu, Bahçeli & Edremit
             </div>
           </div>
 
-          <div className="bg-slate-800/70 rounded-xl px-3 py-2 border border-slate-700/70">
-            <div className="text-[10px] text-slate-400 font-semibold">Bağımsız Bölüm Durumu</div>
-            <div className="text-base font-black text-emerald-300 font-mono tabular-nums mt-0.5">
+          <div className="bg-emerald-50/70 rounded-lg px-2.5 py-1.5 border border-emerald-200">
+            <div className="text-[10px] text-emerald-800 font-bold">Bağımsız Bölüm Durumu</div>
+            <div className="text-sm font-black text-emerald-900 font-mono tabular-nums">
               {portfolioStats.availableUnits} Müsait{" "}
-              <span className="text-xs text-slate-400 font-normal">/ {portfolioStats.totalUnits}</span>
+              <span className="text-xs text-slate-600 font-semibold">/ {portfolioStats.totalUnits}</span>
             </div>
-            <div className="text-[10px] text-slate-400 mt-0.5">
-              {portfolioStats.optionedUnits} Opsiyon & Sözleşme · {portfolioStats.soldUnits} Satıldı
+            <div className="text-[10px] text-emerald-800 truncate">
+              {portfolioStats.optionedUnits} Opsiyon · {portfolioStats.soldUnits} Satıldı
             </div>
           </div>
 
-          <div className="bg-slate-800/70 rounded-xl px-3 py-2 border border-slate-700/70">
-            <div className="text-[10px] text-slate-400 font-semibold">Medya & Teknik Dosyalar</div>
-            <div className="text-base font-black text-amber-300 font-mono tabular-nums mt-0.5">
+          <div className="bg-amber-50/70 rounded-lg px-2.5 py-1.5 border border-amber-200">
+            <div className="text-[10px] text-amber-900 font-bold">Medya & Mimari Dosyalar</div>
+            <div className="text-sm font-black text-slate-950 font-mono tabular-nums">
               {portfolioStats.totalFiles} Dosya
             </div>
-            <div className="text-[10px] text-slate-400 mt-0.5">
-              Masterplan, Kat Planı, Fiyat, Render & Video
+            <div className="text-[10px] text-amber-900 truncate">
+              Masterplan, 2D Kat Planı, Fiyat & Video
             </div>
           </div>
 
-          <div className="bg-slate-800/70 rounded-xl px-3 py-2 border border-slate-700/70">
-            <div className="text-[10px] text-slate-400 font-semibold">Şirket Ekibi & Yetkiler</div>
-            <div className="text-base font-black text-indigo-300 font-mono tabular-nums mt-0.5">
+          <div className="bg-indigo-50/70 rounded-lg px-2.5 py-1.5 border border-indigo-200">
+            <div className="text-[10px] text-indigo-900 font-bold">Şirket Ekibi & Yetkiler</div>
+            <div className="text-sm font-black text-indigo-950 font-mono tabular-nums">
               {internalStaff.length} Yetkili Kullanıcı
             </div>
-            <div className="text-[10px] text-slate-400 mt-0.5">
+            <div className="text-[10px] text-indigo-800 truncate">
               Yönetim · Teknik · Satış · PR
             </div>
           </div>
         </div>
 
-        {/* COLLAPSIBLE CREATE / EDIT PROJECT FORM */}
+        {/* COLLAPSIBLE CREATE / EDIT PROJECT FORM (Daylight High-Contrast) */}
         {isProjectFormOpen && (
           <form
             onSubmit={handleSaveProject}
-            className="mt-3 pt-3 border-t border-slate-800 space-y-2"
+            className="mt-2.5 pt-2.5 border-t border-slate-200 bg-slate-50 p-2.5 rounded-xl border space-y-2"
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-amber-300">
+              <span className="text-xs font-black text-indigo-950">
                 {editingProjectId ? `Projeyi Düzenle: ${projectForm.name}` : "Yeni Proje Tanımla"}
               </span>
               <button
                 type="button"
                 onClick={() => setIsProjectFormOpen(false)}
-                className="text-slate-400 hover:text-white text-xs font-bold cursor-pointer"
+                className="text-slate-600 hover:text-slate-950 text-xs font-bold cursor-pointer"
               >
                 Kapat ✕
               </button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-2">
               <div>
-                <label className="block text-[9px] text-slate-400 uppercase font-bold">Proje Adı *</label>
+                <label className="block text-[9px] text-slate-700 uppercase font-bold">Proje Adı *</label>
                 <input
                   type="text"
                   required
                   value={projectForm.name}
                   onChange={e => setProjectForm({ ...projectForm, name: e.target.value })}
                   placeholder="Örn: Santorini Villas"
-                  className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
+                  className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-semibold"
                 />
               </div>
               <div>
-                <label className="block text-[9px] text-slate-400 uppercase font-bold">Klasör Kodu</label>
+                <label className="block text-[9px] text-slate-700 uppercase font-bold">Klasör Kodu</label>
                 <input
                   type="text"
                   value={projectForm.folder_prefix}
                   onChange={e => setProjectForm({ ...projectForm, folder_prefix: e.target.value })}
                   placeholder="Örn: 11. Santorini Homes"
-                  className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
+                  className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-semibold"
                 />
               </div>
               <div>
-                <label className="block text-[9px] text-slate-400 uppercase font-bold">Bölge</label>
+                <label className="block text-[9px] text-slate-700 uppercase font-bold">Bölge</label>
                 <input
                   type="text"
                   value={projectForm.sub_region}
                   onChange={e => setProjectForm({ ...projectForm, sub_region: e.target.value })}
                   placeholder="Esentepe / Tatlısu"
-                  className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
+                  className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-semibold"
                 />
               </div>
               <div>
-                <label className="block text-[9px] text-slate-400 uppercase font-bold">
+                <label className="block text-[9px] text-slate-700 uppercase font-bold">
                   Başlangıç Fiyatı (GBP £)
                 </label>
                 <input
@@ -1583,11 +1583,11 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                   onChange={e =>
                     setProjectForm({ ...projectForm, starting_price: Number(e.target.value) || 0 })
                   }
-                  className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-amber-300 font-black"
+                  className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-950 font-black"
                 />
               </div>
               <div>
-                <label className="block text-[9px] text-slate-400 uppercase font-bold">
+                <label className="block text-[9px] text-slate-700 uppercase font-bold">
                   Peşinat % / Taksit (Ay)
                 </label>
                 <div className="flex items-center gap-1">
@@ -1600,7 +1600,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                         down_payment_percent: Number(e.target.value) || 35
                       })
                     }
-                    className="w-16 px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
+                    className="w-16 px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-bold"
                     title="Peşinat %"
                   />
                   <input
@@ -1612,13 +1612,13 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                         installment_months: Number(e.target.value) || 36
                       })
                     }
-                    className="w-20 px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
+                    className="w-20 px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-bold"
                     title="Faizsiz Vade (Ay)"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-[9px] text-slate-400 uppercase font-bold">
+                <label className="block text-[9px] text-slate-700 uppercase font-bold">
                   Teslim & İnşaat %
                 </label>
                 <div className="flex items-center gap-1">
@@ -1626,7 +1626,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                     type="text"
                     value={projectForm.completion_date}
                     onChange={e => setProjectForm({ ...projectForm, completion_date: e.target.value })}
-                    className="w-24 px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
+                    className="w-24 px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-bold"
                     placeholder="Q4 2027"
                   />
                   <input
@@ -1638,7 +1638,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                         construction_progress: Number(e.target.value) || 0
                       })
                     }
-                    className="w-14 px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-emerald-300 font-bold"
+                    className="w-14 px-2 py-1 bg-white border border-slate-300 rounded text-xs text-emerald-800 font-black"
                     title="İnşaat %"
                   />
                 </div>
@@ -1650,14 +1650,14 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                 value={projectForm.concept_tagline}
                 onChange={e => setProjectForm({ ...projectForm, concept_tagline: e.target.value })}
                 placeholder="Proje Konsept Özeti"
-                className="px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
+                className="px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900"
               />
               <input
                 type="text"
                 value={projectForm.payment_notes}
                 onChange={e => setProjectForm({ ...projectForm, payment_notes: e.target.value })}
                 placeholder="Ödeme Planı Açıklaması"
-                className="px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
+                className="px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900"
               />
               <div className="flex items-center gap-1.5">
                 <input
@@ -1665,11 +1665,11 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                   value={projectForm.cover_image}
                   onChange={e => setProjectForm({ ...projectForm, cover_image: e.target.value })}
                   placeholder="Kapak Görseli URL"
-                  className="flex-1 px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
+                  className="flex-1 px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900"
                 />
                 <button
                   type="submit"
-                  className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-black flex items-center gap-1 cursor-pointer shrink-0"
+                  className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-black flex items-center gap-1 cursor-pointer shrink-0 whitespace-nowrap"
                 >
                   <Save className="w-3.5 h-3.5" />
                   <span>Kaydet</span>
@@ -1679,11 +1679,11 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
           </form>
         )}
 
-        {/* 5-TAB INTERNAL WORKSPACE NAVIGATION */}
-        <div className="flex items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-800 overflow-x-auto no-scrollbar">
+        {/* 5-TAB SINGLE-LINE DAYLIGHT WORKSPACE NAVIGATION */}
+        <div className="flex items-center gap-1.5 mt-2.5 pt-2 border-t border-slate-200 overflow-x-auto no-scrollbar">
           {[
             { id: "showcase", label: `Projeler & Dosyalar (${projects.length})`, icon: FolderOpen },
-            { id: "inventory", label: `Üniteler, Kapı No & 3D (${units.length})`, icon: Layers },
+            { id: "inventory", label: `Ünite, Kapı No & 2D Mimari (${units.length})`, icon: Layers },
             { id: "compare", label: "Proje Karşılaştırma", icon: ArrowLeftRight },
             { id: "events", label: `Etkinlik & Lansmanlar (${events.length})`, icon: Calendar },
             { id: "agencies", label: `Ekip & Yetkiler (${internalStaff.length})`, icon: Users }
@@ -1695,10 +1695,10 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id as SuiteTab)}
-                className={`px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shrink-0 cursor-pointer ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shrink-0 whitespace-nowrap cursor-pointer border ${
                   isActive
-                    ? "bg-amber-400 text-slate-950 shadow-xs"
-                    : "bg-slate-800/90 text-slate-300 hover:bg-slate-800 hover:text-white"
+                    ? "bg-indigo-600 text-white border-indigo-600 shadow-2xs"
+                    : "bg-slate-100 text-slate-800 border-slate-200 hover:bg-slate-200"
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" />
@@ -1713,9 +1713,9 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
       {/* TAB 1: PROJELER & DOSYA / MEDYA HAVUZU                                */}
       {/* ===================================================================== */}
       {activeTab === "showcase" && (
-        <div className="space-y-3">
-          {/* 10 Project Folders Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+        <div className="space-y-2.5">
+          {/* 10 Project Folders Grid (Daylight High-Contrast) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
             {projects.map(proj => {
               const isSelected = activeProjectDetail?.id === proj.id;
               const soldPct = Math.round(
@@ -1731,85 +1731,77 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                   }}
                   className={`rounded-xl border transition-all overflow-hidden flex flex-col justify-between cursor-pointer ${
                     isSelected
-                      ? "border-indigo-600 ring-2 ring-indigo-600/20 bg-slate-900 text-white shadow-md"
+                      ? "border-indigo-600 ring-2 ring-indigo-600/25 bg-indigo-50/40 text-slate-950 shadow-sm"
                       : "border-slate-200 bg-white hover:border-slate-300 text-slate-900"
                   }`}
                 >
                   <div>
-                    <div className="relative h-28 w-full overflow-hidden bg-slate-800">
+                    <div className="relative h-24 w-full overflow-hidden bg-slate-100">
                       <img
                         src={proj.cover_image}
                         alt={proj.name}
                         className="w-full h-full object-cover"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/25 to-transparent" />
-                      <div className="absolute top-2 left-2 right-2 flex items-center justify-between gap-1">
-                        <span className="px-1.5 py-0.5 rounded bg-slate-950/85 text-amber-300 font-mono text-[9px] font-black border border-amber-400/30 truncate">
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/20 to-transparent" />
+                      <div className="absolute top-1.5 left-1.5 right-1.5 flex items-center justify-between gap-1">
+                        <span className="px-1.5 py-0.5 rounded bg-white/95 text-slate-950 font-mono text-[9px] font-black border border-slate-200 truncate">
                           {proj.folder_prefix || proj.name}
                         </span>
                         <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-emerald-500 text-slate-950 shrink-0">
-                          %{proj.construction_progress} İnşaat
+                          %{proj.construction_progress}
                         </span>
                       </div>
-                      <div className="absolute bottom-2 left-2 right-2 flex items-end justify-between">
-                        <div>
-                          <h3 className="text-xs font-black text-white leading-tight">{proj.name}</h3>
-                          <p className="text-[10px] text-slate-300 flex items-center gap-0.5">
-                            <MapPin className="w-2.5 h-2.5 text-amber-400" />
-                            <span>{proj.sub_region}</span>
+                      <div className="absolute bottom-1.5 left-2 right-2 flex items-end justify-between">
+                        <div className="min-w-0">
+                          <h3 className="text-xs font-black text-white leading-tight truncate">{proj.name}</h3>
+                          <p className="text-[10px] text-slate-200 flex items-center gap-0.5 truncate">
+                            <MapPin className="w-2.5 h-2.5 text-amber-400 shrink-0" />
+                            <span className="truncate">{proj.sub_region}</span>
                           </p>
                         </div>
-                        <span className="text-xs font-black text-amber-300">
+                        <span className="text-xs font-black text-amber-300 shrink-0 ml-1">
                           {formatGbp(proj.starting_price)}+
                         </span>
                       </div>
                     </div>
 
-                    <div className="p-2 space-y-1.5">
-                      <div className="space-y-0.5">
-                        <div className="flex justify-between text-[9px] font-bold">
-                          <span className={isSelected ? "text-emerald-300" : "text-emerald-700"}>
-                            {proj.available_units} Müsait
-                          </span>
-                          <span className={isSelected ? "text-amber-300" : "text-amber-700"}>
-                            {proj.optioned_units} Opsiyon
-                          </span>
-                          <span className={isSelected ? "text-slate-300" : "text-slate-500"}>
-                            %{soldPct} Satıldı
-                          </span>
-                        </div>
-                        <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden flex">
-                          <div
-                            className="bg-emerald-500 h-full"
-                            style={{
-                              width: `${Math.round(
-                                ((proj.available_units || 0) / Math.max(1, proj.total_units || 1)) * 100
-                              )}%`
-                            }}
-                          />
-                          <div
-                            className="bg-amber-500 h-full"
-                            style={{
-                              width: `${Math.round(
-                                ((proj.optioned_units || 0) / Math.max(1, proj.total_units || 1)) * 100
-                              )}%`
-                            }}
-                          />
-                          <div className="bg-indigo-600 h-full flex-1" />
-                        </div>
+                    <div className="p-2 space-y-1">
+                      <div className="flex justify-between text-[9px] font-bold">
+                        <span className="text-emerald-800">{proj.available_units} Müsait</span>
+                        <span className="text-amber-800">{proj.optioned_units} Opsiyon</span>
+                        <span className="text-slate-600">%{soldPct} Satıldı</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden flex">
+                        <div
+                          className="bg-emerald-500 h-full"
+                          style={{
+                            width: `${Math.round(
+                              ((proj.available_units || 0) / Math.max(1, proj.total_units || 1)) * 100
+                            )}%`
+                          }}
+                        />
+                        <div
+                          className="bg-amber-500 h-full"
+                          style={{
+                            width: `${Math.round(
+                              ((proj.optioned_units || 0) / Math.max(1, proj.total_units || 1)) * 100
+                            )}%`
+                          }}
+                        />
+                        <div className="bg-indigo-600 h-full flex-1" />
                       </div>
                     </div>
                   </div>
 
                   <div
-                    className={`px-2 py-1.5 border-t flex items-center justify-between text-[10px] font-bold ${
+                    className={`px-2 py-1 border-t flex items-center justify-between text-[10px] font-bold ${
                       isSelected
-                        ? "border-slate-800 bg-slate-950/60 text-amber-300"
+                        ? "border-indigo-200 bg-indigo-100/70 text-indigo-950"
                         : "border-slate-100 bg-slate-50 text-slate-700"
                     }`}
                   >
-                    <span className="flex items-center gap-1">
-                      <FolderOpen className="w-3 h-3" />
+                    <span className="flex items-center gap-1 whitespace-nowrap">
+                      <FolderOpen className="w-3 h-3 text-indigo-600" />
                       <span>{fileCount} Dosya</span>
                     </span>
                     <button
@@ -1818,7 +1810,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                         e.stopPropagation();
                         openEditProject(proj);
                       }}
-                      className="underline hover:opacity-80 flex items-center gap-0.5 cursor-pointer"
+                      className="underline hover:opacity-80 flex items-center gap-0.5 cursor-pointer whitespace-nowrap"
                     >
                       <Edit3 className="w-2.5 h-2.5" />
                       <span>Düzenle</span>
@@ -1831,28 +1823,28 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
 
           {/* SELECTED PROJECT WORKSPACE: FILES, MEDIA, SPECS & PAYMENT PLAN */}
           {activeProjectDetail && (
-            <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs space-y-3">
-              {/* OPTIMIZED SINGLE-ROW PROJECT HEADER & COMPACT ACTION TOOLBAR */}
-              <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-2.5 pb-2.5 border-b border-slate-200">
+            <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-2xs space-y-2.5">
+              {/* SINGLE-ROW PROJECT HEADER & COMPACT ACTION TOOLBAR */}
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2 pb-2 border-b border-slate-200">
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="px-2 py-0.5 bg-slate-900 text-amber-300 rounded text-[10px] font-mono font-black shrink-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="px-2 py-0.5 bg-indigo-50 text-indigo-900 border border-indigo-200 rounded text-[10px] font-mono font-black shrink-0">
                       {activeProjectDetail.folder_prefix || activeProjectDetail.project_code}
                     </span>
                     <h3 className="text-sm sm:text-base font-black text-slate-950 truncate">
                       {activeProjectDetail.name}
                     </h3>
-                    <span className="text-[11px] text-slate-500 font-semibold">
+                    <span className="text-[11px] text-slate-600 font-semibold truncate">
                       · {activeProjectDetail.sub_region} · Teslim: {activeProjectDetail.completion_date} · İnşaat: %{activeProjectDetail.construction_progress}
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-600 mt-0.5 line-clamp-1">
+                  <p className="text-[11px] text-slate-600 mt-0.5 truncate">
                     {activeProjectDetail.concept_tagline}
                   </p>
                 </div>
 
-                {/* Single-row non-wrapping compact action buttons */}
-                <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap shrink-0">
+                {/* Guaranteed Single-Row Action Bar (Scrollable on tiny screens, never wraps into 2 rows) */}
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
                   <button
                     type="button"
                     onClick={() => setIsAddMediaOpen(prev => !prev)}
@@ -1866,6 +1858,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                     type="button"
                     onClick={() => {
                       setSelectedProjectId(activeProjectDetail.id);
+                      setInventoryViewMode("grouped_types");
                       setActiveTab("inventory");
                     }}
                     className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-bold cursor-pointer flex items-center gap-1 whitespace-nowrap shrink-0"
@@ -1883,10 +1876,10 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                       setInventoryViewMode("drone_3d");
                       setActiveTab("inventory");
                     }}
-                    className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-amber-300 rounded-lg text-[11px] font-bold cursor-pointer flex items-center gap-1 whitespace-nowrap shrink-0"
+                    className="px-2.5 py-1 bg-sky-50 hover:bg-sky-100 text-sky-900 border border-sky-300 rounded-lg text-[11px] font-bold cursor-pointer flex items-center gap-1 whitespace-nowrap shrink-0"
                   >
-                    <Compass className="w-3 h-3" />
-                    <span>3D & Drone</span>
+                    <Compass className="w-3 h-3 text-sky-700" />
+                    <span>2D Mimari Plan</span>
                   </button>
 
                   <button
@@ -1904,26 +1897,26 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                     className="px-2.5 py-1 bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-lg text-[11px] font-bold cursor-pointer flex items-center gap-1 whitespace-nowrap shrink-0"
                   >
                     <Printer className="w-3 h-3" />
-                    <span>Yazdır</span>
+                    <span>Bilgi Formu</span>
                   </button>
                 </div>
               </div>
 
-              {/* UPGRADED FILE / MEDIA UPLOAD WORKSPACE (Device Upload + Custom Folder + Duplicate Resolution) */}
+              {/* UPGRADED FILE / MEDIA UPLOAD WORKSPACE (Daylight High-Contrast) */}
               {isAddMediaOpen && (
                 <form
                   onSubmit={handleAddMediaToProject}
-                  className="p-3 bg-slate-900 text-white rounded-xl border border-slate-800 space-y-2.5"
+                  className="p-3 bg-slate-50 text-slate-900 rounded-xl border border-slate-300 space-y-2.5"
                 >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 border-b border-slate-800 pb-2">
-                    <span className="text-xs font-black text-amber-300 flex items-center gap-1.5">
-                      <Upload className="w-3.5 h-3.5" />
+                  <div className="flex items-center justify-between gap-1.5 border-b border-slate-200 pb-1.5">
+                    <span className="text-xs font-black text-indigo-950 flex items-center gap-1.5">
+                      <Upload className="w-3.5 h-3.5 text-emerald-600" />
                       <span>{activeProjectDetail.name} — Yeni Dosya / Medya Yükle</span>
                     </span>
                     <button
                       type="button"
                       onClick={() => setIsAddMediaOpen(false)}
-                      className="text-slate-400 hover:text-white text-xs font-bold cursor-pointer self-end sm:self-auto"
+                      className="text-slate-500 hover:text-slate-900 text-xs font-bold cursor-pointer"
                     >
                       Kapat ✕
                     </button>
@@ -1931,7 +1924,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
 
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
                     <div className="md:col-span-3">
-                      <label className="block text-[10px] text-slate-400 font-bold uppercase mb-1">
+                      <label className="block text-[10px] text-slate-700 font-bold uppercase mb-1">
                         Bilgisayar / Mobilden Dosya Seç
                       </label>
                       <input
@@ -1945,7 +1938,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
                         disabled={uploadingLocalFile}
-                        className="w-full px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer border border-indigo-400/30"
+                        className="w-full px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
                       >
                         {uploadingLocalFile ? (
                           <>
@@ -1963,13 +1956,13 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
 
                     <div className="md:col-span-3">
                       <div className="flex items-center justify-between mb-1">
-                        <label className="text-[10px] text-slate-400 font-bold uppercase">
+                        <label className="text-[10px] text-slate-700 font-bold uppercase">
                           Klasör / Kategori
                         </label>
                         <button
                           type="button"
                           onClick={() => setIsCustomFolderMode(prev => !prev)}
-                          className="text-[10px] text-amber-300 hover:underline font-bold flex items-center gap-0.5 cursor-pointer"
+                          className="text-[10px] text-indigo-700 hover:underline font-bold flex items-center gap-0.5 cursor-pointer whitespace-nowrap"
                         >
                           <FolderPlus className="w-3 h-3" />
                           <span>{isCustomFolderMode ? "Listeden Seç" : "+ Yeni Klasör Tanımla"}</span>
@@ -1980,10 +1973,10 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                         <input
                           type="text"
                           required
-                          placeholder="Yeni klasör adı yazın (Örn: Sözleşme Şablonları)"
+                          placeholder="Yeni klasör adı yazın..."
                           value={customFolderName}
                           onChange={e => setCustomFolderName(e.target.value)}
-                          className="w-full px-2.5 py-1.5 bg-slate-800 border border-amber-400/60 rounded-lg text-amber-200 text-xs font-bold"
+                          className="w-full px-2.5 py-1.5 bg-white border border-indigo-400 rounded-lg text-slate-900 text-xs font-bold"
                         />
                       ) : (
                         <select
@@ -1995,7 +1988,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                             }
                             setNewMediaForm({ ...newMediaForm, category: e.target.value });
                           }}
-                          className="w-full px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-amber-300 text-xs font-bold"
+                          className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 text-xs font-bold"
                         >
                           {availableProjectFolders.map(folder => (
                             <option key={folder} value={folder}>
@@ -2008,7 +2001,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                     </div>
 
                     <div className="md:col-span-3">
-                      <label className="block text-[10px] text-slate-400 font-bold uppercase mb-1">
+                      <label className="block text-[10px] text-slate-700 font-bold uppercase mb-1">
                         Dosya Adı *
                       </label>
                       <input
@@ -2017,27 +2010,27 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                         placeholder="Örn: Kat Planları 2026.pdf"
                         value={newMediaForm.name}
                         onChange={e => setNewMediaForm({ ...newMediaForm, name: e.target.value })}
-                        className="w-full px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs"
+                        className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 text-xs font-semibold"
                       />
                     </div>
 
                     <div className="md:col-span-3 flex items-end gap-1.5">
                       <div className="flex-1 min-w-0">
-                        <label className="block text-[10px] text-slate-400 font-bold uppercase mb-1">
-                          Dosya Yolu / Harici Link (Opsiyonel)
+                        <label className="block text-[10px] text-slate-700 font-bold uppercase mb-1">
+                          Dosya Yolu / Harici Link
                         </label>
                         <input
                           type="text"
                           placeholder="Cihazdan seçildi veya link girin"
                           value={newMediaForm.url}
                           onChange={e => setNewMediaForm({ ...newMediaForm, url: e.target.value })}
-                          className="w-full px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 text-xs"
+                          className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 text-xs"
                         />
                       </div>
                       <button
                         type="submit"
                         disabled={uploadingLocalFile}
-                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold cursor-pointer shrink-0"
+                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold cursor-pointer shrink-0 whitespace-nowrap"
                       >
                         Kaydet
                       </button>
@@ -2045,35 +2038,35 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                   </div>
 
                   {existingDuplicateFile && (
-                    <div className="p-2.5 rounded-lg bg-amber-500/15 border border-amber-400/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 text-xs text-amber-200">
-                        <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                    <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 text-xs text-amber-950">
+                        <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
                         <span>
-                          <strong>"{existingDuplicateFile.name}"</strong> isimli bir dosya bu projede zaten mevcut ({existingDuplicateFile.category}). Nasıl kaydedilsin?
+                          <strong>"{existingDuplicateFile.name}"</strong> isimli dosya bu projede mevcut ({existingDuplicateFile.category}). Nasıl kaydedilsin?
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
                         <button
                           type="button"
                           onClick={() => setDuplicateConflictMode("overwrite")}
-                          className={`px-2.5 py-1 rounded text-[11px] font-bold cursor-pointer transition-colors ${
+                          className={`px-2.5 py-1 rounded text-[11px] font-bold cursor-pointer whitespace-nowrap transition-colors ${
                             duplicateConflictMode === "overwrite"
-                              ? "bg-amber-400 text-slate-950"
-                              : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                              ? "bg-amber-500 text-slate-950"
+                              : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
                           }`}
                         >
-                          Eski Dosyanın Üzerine Yaz (Güncelle)
+                          Üzerine Yaz (Güncelle)
                         </button>
                         <button
                           type="button"
                           onClick={() => setDuplicateConflictMode("new_version")}
-                          className={`px-2.5 py-1 rounded text-[11px] font-bold cursor-pointer transition-colors ${
+                          className={`px-2.5 py-1 rounded text-[11px] font-bold cursor-pointer whitespace-nowrap transition-colors ${
                             duplicateConflictMode === "new_version"
-                              ? "bg-indigo-500 text-white"
-                              : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                              ? "bg-indigo-600 text-white"
+                              : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
                           }`}
                         >
-                          Yeni Dosya Olarak Kaydet (Versiyonla)
+                          Yeni Versiyon Kaydet
                         </button>
                       </div>
                     </div>
@@ -2085,17 +2078,17 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                 {/* Left 7 Cols: Project Folder Explorer */}
                 <div className="lg:col-span-7 bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2.5">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <h4 className="text-xs font-black uppercase text-slate-900 flex items-center gap-1.5">
+                    <h4 className="text-xs font-black uppercase text-slate-900 flex items-center gap-1.5 shrink-0">
                       <FolderOpen className="w-4 h-4 text-indigo-600" />
-                      <span>{activeProjectDetail.name} — Proje Klasörleri & Dosyalar</span>
+                      <span>{activeProjectDetail.name} — Klasörler & Dosyalar</span>
                     </h4>
-                    <div className="flex items-center gap-1 flex-wrap">
+                    <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
                       <button
                         type="button"
                         onClick={() => setMediaCategoryFilter("all")}
-                        className={`px-2 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition-colors ${
+                        className={`px-2 py-1 rounded-lg text-[10px] font-bold cursor-pointer whitespace-nowrap shrink-0 transition-colors ${
                           mediaCategoryFilter === "all"
-                            ? "bg-slate-900 text-white"
+                            ? "bg-indigo-600 text-white"
                             : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-100"
                         }`}
                       >
@@ -2106,9 +2099,9 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                           key={folderName}
                           type="button"
                           onClick={() => setMediaCategoryFilter(folderName)}
-                          className={`px-2 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition-colors ${
+                          className={`px-2 py-1 rounded-lg text-[10px] font-bold cursor-pointer whitespace-nowrap shrink-0 transition-colors ${
                             mediaCategoryFilter === folderName
-                              ? "bg-slate-900 text-white"
+                              ? "bg-indigo-600 text-white"
                               : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-100"
                           }`}
                         >
@@ -2122,16 +2115,16 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                     {filteredProjectMedia.map((doc: any) => (
                       <div
                         key={doc.id}
-                        className="bg-white border border-slate-200 rounded-xl p-2.5 flex items-center justify-between gap-2 hover:border-indigo-400 transition-all"
+                        className="bg-white border border-slate-200 rounded-xl p-2 flex items-center justify-between gap-2 hover:border-indigo-400 transition-all"
                       >
                         <div className="flex items-center gap-2 min-w-0">
-                          <div className="p-2 bg-slate-100 rounded-lg text-indigo-600 shrink-0">
+                          <div className="p-1.5 bg-indigo-50 rounded-lg text-indigo-600 shrink-0">
                             {doc.type === "video" ? (
-                              <Play className="w-4 h-4" />
+                              <Play className="w-3.5 h-3.5" />
                             ) : doc.type === "photos" ? (
-                              <ImageIcon className="w-4 h-4" />
+                              <ImageIcon className="w-3.5 h-3.5" />
                             ) : (
-                              <FileText className="w-4 h-4" />
+                              <FileText className="w-3.5 h-3.5" />
                             )}
                           </div>
                           <div className="min-w-0">
@@ -2159,7 +2152,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                                 projectName: activeProjectDetail.name
                               })
                             }
-                            className="px-2 py-1 bg-slate-100 hover:bg-slate-900 text-slate-800 hover:text-white rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                            className="px-2 py-1 bg-slate-100 hover:bg-indigo-600 text-slate-800 hover:text-white rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap transition-colors"
                           >
                             <Eye className="w-3 h-3" />
                             <span>Önizle</span>
@@ -2188,7 +2181,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
 
                   {/* Shared Company-Wide Media & Master Map */}
                   {driveMeta?.rootMediaFiles && (
-                    <div className="pt-2 border-t border-slate-200 space-y-2">
+                    <div className="pt-2 border-t border-slate-200 space-y-1.5">
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] font-bold text-slate-800">
                           Ortak Kurumsal Medya, Harita & Tanıtım Filmleri ({driveMeta.rootMediaFiles.length})
@@ -2219,7 +2212,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                                   projectName: companyDisplayName
                                 })
                               }
-                              className="px-2.5 py-1 bg-white hover:bg-slate-900 text-slate-800 hover:text-white border border-slate-200 rounded-lg text-[10px] font-semibold transition-colors cursor-pointer flex items-center gap-1"
+                              className="px-2 py-1 bg-white hover:bg-indigo-600 text-slate-800 hover:text-white border border-slate-200 rounded-lg text-[10px] font-semibold transition-colors cursor-pointer flex items-center gap-1 whitespace-nowrap"
                             >
                               <Eye className="w-3 h-3 text-indigo-600" />
                               <span>{label}</span>
@@ -2231,39 +2224,39 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                   )}
                 </div>
 
-                {/* Right 5 Cols: Technical Specs, Payment Plan & Social Facilities Summary */}
+                {/* Right 5 Cols: Daylight High-Contrast Technical Specs & Payment Plan */}
                 <div className="lg:col-span-5 space-y-2.5">
-                  <div className="bg-indigo-950 text-white border border-indigo-900 rounded-xl p-3 space-y-2">
+                  <div className="bg-indigo-50/70 text-slate-900 border border-indigo-200 rounded-xl p-3 space-y-2">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-xs font-black uppercase text-amber-300 flex items-center gap-1">
-                        <TrendingUp className="w-3.5 h-3.5" />
+                      <h4 className="text-xs font-black uppercase text-indigo-950 flex items-center gap-1">
+                        <TrendingUp className="w-3.5 h-3.5 text-indigo-600" />
                         <span>Satış & Ödeme Planı Özeti</span>
                       </h4>
-                      <span className="px-2 py-0.5 bg-white/10 rounded text-[10px] font-bold text-white">
+                      <span className="px-2 py-0.5 bg-white border border-indigo-200 rounded text-[10px] font-black text-indigo-950">
                         Başlangıç: {formatGbp(activeProjectDetail.starting_price)}
                       </span>
                     </div>
                     <div className="grid grid-cols-3 gap-2 text-center pt-1">
-                      <div className="bg-white/10 rounded-lg p-2">
-                        <div className="text-[10px] text-indigo-200 font-semibold">Peşinat</div>
-                        <div className="text-sm font-black text-white">
+                      <div className="bg-white border border-indigo-100 rounded-lg p-2">
+                        <div className="text-[10px] text-slate-600 font-bold">Peşinat</div>
+                        <div className="text-sm font-black text-slate-950">
                           %{activeProjectDetail.payment_plan?.down_payment_percent || 35}
                         </div>
                       </div>
-                      <div className="bg-white/10 rounded-lg p-2">
-                        <div className="text-[10px] text-indigo-200 font-semibold">Faizsiz Vade</div>
-                        <div className="text-sm font-black text-amber-300">
+                      <div className="bg-white border border-indigo-100 rounded-lg p-2">
+                        <div className="text-[10px] text-slate-600 font-bold">Faizsiz Vade</div>
+                        <div className="text-sm font-black text-indigo-700">
                           {activeProjectDetail.payment_plan?.installment_months || 36} Ay
                         </div>
                       </div>
-                      <div className="bg-white/10 rounded-lg p-2">
-                        <div className="text-[10px] text-indigo-200 font-semibold">Kira Getirisi</div>
-                        <div className="text-sm font-black text-emerald-300">
+                      <div className="bg-white border border-indigo-100 rounded-lg p-2">
+                        <div className="text-[10px] text-slate-600 font-bold">Kira Getirisi</div>
+                        <div className="text-sm font-black text-emerald-700">
                           %{activeProjectDetail.investment_metrics?.annual_rental_yield_percent || 9.8}
                         </div>
                       </div>
                     </div>
-                    <p className="text-[11px] text-indigo-100 leading-relaxed pt-1">
+                    <p className="text-[11px] text-slate-700 font-medium leading-relaxed pt-1">
                       {activeProjectDetail.payment_plan?.notes}
                     </p>
                   </div>
@@ -2290,19 +2283,19 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
       )}
 
       {/* ===================================================================== */}
-      {/* TAB 2: ÜNİTELER, BAĞIMSIZ BÖLÜM KAPI NO MATRİSİ & 3D DRONE SİMÜLASYONU */}
+      {/* TAB 2: ÜNİTELER, BAĞIMSIZ BÖLÜM KAPI NO MATRİSİ & 2D MİMARİ PLAN      */}
       {/* ===================================================================== */}
       {activeTab === "inventory" && (
-        <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-2xs space-y-3">
-          {/* TOP TOOLBAR: VIEW MODES + FILTERS + BATCH SERIES GENERATOR */}
-          <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-2.5 pb-2.5 border-b border-slate-200">
-            {/* 4 Architectural View Modes */}
-            <div className="flex items-center gap-1 flex-wrap">
+        <div className="bg-white border border-slate-200 rounded-xl p-2.5 shadow-2xs space-y-2.5">
+          {/* SINGLE-LINE COMPACT TOOLBAR: VIEW MODES + FILTERS + ACTIONS (Never wraps into messy multi-rows) */}
+          <div className="flex items-center justify-between gap-1.5 pb-2 border-b border-slate-200 overflow-x-auto no-scrollbar">
+            {/* 4 Architectural View Modes (Single-line segmented control) */}
+            <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200 shrink-0">
               {[
-                { id: "grouped_types", label: "Tip & Grup Özeti", icon: ListFilter },
-                { id: "block_matrix", label: "Blok & Kat Matrisi (Kapı No)", icon: Grid },
-                { id: "drone_3d", label: "3D Mimari & Drone Uçuşu", icon: Compass },
-                { id: "table_list", label: `Detaylı Liste & Revizyon (${filteredUnits.length})`, icon: Layers }
+                { id: "grouped_types", label: "Tip & Grup", icon: ListFilter },
+                { id: "block_matrix", label: "Blok & Kat Şeması", icon: Grid },
+                { id: "drone_3d", label: "2D Mimari Plan", icon: Compass },
+                { id: "table_list", label: `Liste (${filteredUnits.length})`, icon: Layers }
               ].map(vm => {
                 const VIcon = vm.icon;
                 const active = inventoryViewMode === vm.id;
@@ -2311,34 +2304,33 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                     key={vm.id}
                     type="button"
                     onClick={() => setInventoryViewMode(vm.id as InventoryViewMode)}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-all ${
+                    className={`px-2 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0 transition-all ${
                       active
-                        ? "bg-slate-900 text-amber-300 shadow-xs"
-                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                        ? "bg-indigo-600 text-white shadow-2xs"
+                        : "text-slate-700 hover:text-slate-950 hover:bg-white/70"
                     }`}
                   >
-                    <VIcon className="w-3.5 h-3.5" />
+                    <VIcon className="w-3 h-3 shrink-0" />
                     <span>{vm.label}</span>
                   </button>
                 );
               })}
             </div>
 
-            {/* Filters & Action Buttons */}
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <div className="flex items-center gap-1 bg-amber-50 border border-amber-300 rounded-lg px-2 py-0.5">
-                <Percent className="w-3 h-3 text-amber-700" />
-                <span className="text-[10px] font-black text-amber-900">Toplu %:</span>
+            {/* Single-Line Compact Filters & Action Buttons */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <div className="flex items-center gap-1 bg-amber-50 border border-amber-300 rounded-lg px-1.5 py-0.5 shrink-0">
+                <span className="text-[10px] font-black text-amber-950 whitespace-nowrap">% Fiyat:</span>
                 <input
                   type="number"
                   value={bulkPricePercent}
                   onChange={e => setBulkPricePercent(Number(e.target.value))}
-                  className="w-12 px-1 py-0.5 bg-white border border-amber-300 rounded text-[11px] font-black text-slate-900"
+                  className="w-10 px-1 py-0.5 bg-white border border-amber-300 rounded text-[11px] font-black text-slate-900 text-center"
                 />
                 <button
                   type="button"
                   onClick={handleBulkPriceUpdate}
-                  className="px-2 py-0.5 bg-slate-900 hover:bg-slate-800 text-amber-300 rounded text-[10px] font-black cursor-pointer"
+                  className="px-1.5 py-0.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded text-[10px] font-black cursor-pointer whitespace-nowrap"
                 >
                   Uygula
                 </button>
@@ -2351,7 +2343,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                   setUnitBlockFilter("all");
                   setUnitTypeFilter("all");
                 }}
-                className="px-2 py-1 bg-slate-50 border border-slate-300 rounded-lg text-[11px] font-bold text-slate-900 outline-none"
+                className="w-36 px-2 py-1 bg-slate-50 border border-slate-300 rounded-lg text-[11px] font-bold text-slate-900 outline-none shrink-0"
               >
                 <option value="all">Tüm Projeler ({units.length})</option>
                 {projects.map(p => (
@@ -2364,7 +2356,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
               <select
                 value={unitBlockFilter}
                 onChange={e => setUnitBlockFilter(e.target.value)}
-                className="px-2 py-1 bg-slate-50 border border-slate-300 rounded-lg text-[11px] font-bold text-slate-900 outline-none"
+                className="w-28 px-2 py-1 bg-slate-50 border border-slate-300 rounded-lg text-[11px] font-bold text-slate-900 outline-none shrink-0"
               >
                 <option value="all">Tüm Bloklar</option>
                 {availableBlocks.map(b => (
@@ -2377,23 +2369,23 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
               <select
                 value={unitStatusFilter}
                 onChange={e => setUnitStatusFilter(e.target.value)}
-                className="px-2 py-1 bg-slate-50 border border-slate-300 rounded-lg text-[11px] font-bold text-slate-900 outline-none"
+                className="w-28 px-2 py-1 bg-slate-50 border border-slate-300 rounded-lg text-[11px] font-bold text-slate-900 outline-none shrink-0"
               >
                 <option value="all">Tüm Statüler</option>
                 <option value="available">Müsait</option>
-                <option value="negotiation">Sonuçlanmakta (Sözleşme)</option>
+                <option value="negotiation">Sonuçlanmakta</option>
                 <option value="optioned">Opsiyonlu</option>
                 <option value="sold">Satıldı</option>
               </select>
 
-              <div className="relative">
+              <div className="relative shrink-0">
                 <Search className="w-3 h-3 text-slate-400 absolute left-2 top-2" />
                 <input
                   type="text"
                   value={unitSearch}
                   onChange={e => setUnitSearch(e.target.value)}
-                  placeholder="Kapı no, blok, tip, manzara..."
-                  className="pl-6 pr-2 py-1 bg-slate-50 border border-slate-300 rounded-lg text-[11px] font-medium text-slate-900 outline-none w-40"
+                  placeholder="Kapı no, tip, cephe..."
+                  className="pl-6 pr-2 py-1 bg-slate-50 border border-slate-300 rounded-lg text-[11px] font-semibold text-slate-900 outline-none w-32"
                 />
               </div>
 
@@ -2403,10 +2395,11 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                   setIsBatchGeneratorOpen(prev => !prev);
                   setIsAddUnitOpen(false);
                 }}
-                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap"
+                className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
+                title="Büyük Projeler İçin Toplu Blok, Kat & Kapı No Serisi Üret"
               >
-                <Building2 className="w-3 h-3" />
-                <span>+ Toplu Blok / Kapı No Serisi Üret</span>
+                <Building2 className="w-3 h-3 shrink-0" />
+                <span>+ Seri Üret</span>
               </button>
 
               <button
@@ -2415,33 +2408,33 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                   setIsAddUnitOpen(prev => !prev);
                   setIsBatchGeneratorOpen(false);
                 }}
-                className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap"
+                className="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
               >
-                <Plus className="w-3 h-3" />
-                <span>Tekil Ünite</span>
+                <Plus className="w-3 h-3 shrink-0" />
+                <span>+ Ünite</span>
               </button>
             </div>
           </div>
 
-          {/* SMART BATCH BLOCK / FLOOR / DOOR-NUMBER SERIES GENERATOR (For Large Projects) */}
+          {/* SMART BATCH BLOCK / FLOOR / DOOR-NUMBER SERIES GENERATOR (Daylight High-Contrast) */}
           {isBatchGeneratorOpen && (
             <form
               onSubmit={handleBatchGenerateUnits}
-              className="p-3 bg-slate-900 text-white rounded-xl border border-slate-800 space-y-2.5"
+              className="p-3 bg-slate-50 text-slate-900 rounded-xl border border-slate-300 space-y-2.5"
             >
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
                 <div>
-                  <span className="text-xs font-black text-amber-300">
+                  <span className="text-xs font-black text-indigo-950">
                     Büyük Projeler İçin Otomatik Blok, Kat & Kapı No Serisi Üretici
                   </span>
-                  <p className="text-[10px] text-slate-400">
-                    Yüzlerce daireyi tek tek girmek yerine; blok, kat aralığı, kat başına kapı adedi ve kat/köşe şerefiye kurallarını girerek tüm bağımsız bölümleri tek tıkla oluşturun.
+                  <p className="text-[10px] text-slate-600">
+                    Blok, kat aralığı, kat başına kapı adedi ve kat/köşe şerefiye kurallarını girerek tüm bağımsız bölümleri tek tıkla oluşturun.
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setIsBatchGeneratorOpen(false)}
-                  className="text-slate-400 hover:text-white text-xs font-bold cursor-pointer"
+                  className="text-slate-500 hover:text-slate-950 text-xs font-bold cursor-pointer"
                 >
                   Kapat ✕
                 </button>
@@ -2449,11 +2442,11 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
 
               <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2">
                 <div>
-                  <label className="block text-[9px] text-slate-400 uppercase font-bold">Proje</label>
+                  <label className="block text-[9px] text-slate-700 uppercase font-bold">Proje</label>
                   <select
                     value={batchForm.project_id}
                     onChange={e => setBatchForm({ ...batchForm, project_id: Number(e.target.value) })}
-                    className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-amber-300 font-bold"
+                    className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-bold"
                   >
                     {projects.map(p => (
                       <option key={p.id} value={p.id}>
@@ -2464,18 +2457,18 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[9px] text-slate-400 uppercase font-bold">Blok Adı</label>
+                  <label className="block text-[9px] text-slate-700 uppercase font-bold">Blok Adı</label>
                   <input
                     type="text"
                     value={batchForm.block_name}
                     onChange={e => setBatchForm({ ...batchForm, block_name: e.target.value })}
                     placeholder="Örn: C Blok (Lagün)"
-                    className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
+                    className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-semibold"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[9px] text-slate-400 uppercase font-bold">
+                  <label className="block text-[9px] text-slate-700 uppercase font-bold">
                     Kapı No Öneki (C-101)
                   </label>
                   <input
@@ -2483,23 +2476,23 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                     value={batchForm.door_prefix}
                     onChange={e => setBatchForm({ ...batchForm, door_prefix: e.target.value })}
                     placeholder="C"
-                    className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-emerald-300 font-mono font-bold"
+                    className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-indigo-700 font-mono font-black"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[9px] text-slate-400 uppercase font-bold">Ünite Tipi</label>
+                  <label className="block text-[9px] text-slate-700 uppercase font-bold">Ünite Tipi</label>
                   <input
                     type="text"
                     value={batchForm.unit_type}
                     onChange={e => setBatchForm({ ...batchForm, unit_type: e.target.value })}
                     placeholder="1+1 Loft Penthouse"
-                    className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
+                    className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-semibold"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[9px] text-slate-400 uppercase font-bold">
+                  <label className="block text-[9px] text-slate-700 uppercase font-bold">
                     Kat Aralığı (Başlangıç - Bitiş)
                   </label>
                   <div className="flex items-center gap-1">
@@ -2509,24 +2502,24 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                       max={30}
                       value={batchForm.start_floor}
                       onChange={e => setBatchForm({ ...batchForm, start_floor: Number(e.target.value) })}
-                      className="w-14 px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
+                      className="w-14 px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-bold"
                       title="Başlangıç Katı (0 = Zemin)"
                     />
-                    <span className="text-slate-400">-</span>
+                    <span className="text-slate-500">-</span>
                     <input
                       type="number"
                       min={0}
                       max={30}
                       value={batchForm.end_floor}
                       onChange={e => setBatchForm({ ...batchForm, end_floor: Number(e.target.value) })}
-                      className="w-14 px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
+                      className="w-14 px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-bold"
                       title="Bitiş Katı"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-[9px] text-slate-400 uppercase font-bold">
+                  <label className="block text-[9px] text-slate-700 uppercase font-bold">
                     Kattaki Daire Adedi
                   </label>
                   <input
@@ -2535,14 +2528,14 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                     max={20}
                     value={batchForm.units_per_floor}
                     onChange={e => setBatchForm({ ...batchForm, units_per_floor: Number(e.target.value) })}
-                    className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-amber-300 font-black"
+                    className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-950 font-black"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2 items-end">
                 <div>
-                  <label className="block text-[9px] text-slate-400 uppercase font-bold">
+                  <label className="block text-[9px] text-slate-700 uppercase font-bold">
                     Brüt / Net / Teras m²
                   </label>
                   <div className="flex items-center gap-1">
@@ -2550,40 +2543,40 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                       type="number"
                       value={batchForm.gross_sqm}
                       onChange={e => setBatchForm({ ...batchForm, gross_sqm: Number(e.target.value) })}
-                      className="w-14 px-1.5 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
+                      className="w-14 px-1.5 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-semibold"
                       title="Brüt m²"
                     />
                     <input
                       type="number"
                       value={batchForm.net_sqm}
                       onChange={e => setBatchForm({ ...batchForm, net_sqm: Number(e.target.value) })}
-                      className="w-14 px-1.5 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
+                      className="w-14 px-1.5 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-semibold"
                       title="Net m²"
                     />
                     <input
                       type="number"
                       value={batchForm.terrace_sqm}
                       onChange={e => setBatchForm({ ...batchForm, terrace_sqm: Number(e.target.value) })}
-                      className="w-12 px-1.5 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
+                      className="w-12 px-1.5 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-semibold"
                       title="Teras m²"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-[9px] text-slate-400 uppercase font-bold">
+                  <label className="block text-[9px] text-slate-700 uppercase font-bold">
                     Baz Fiyat (GBP £)
                   </label>
                   <input
                     type="number"
                     value={batchForm.base_price}
                     onChange={e => setBatchForm({ ...batchForm, base_price: Number(e.target.value) })}
-                    className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-amber-300 font-black"
+                    className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-950 font-black"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[9px] text-slate-400 uppercase font-bold">
+                  <label className="block text-[9px] text-slate-700 uppercase font-bold">
                     Kat Şerefiye Artışı (+£/Kat)
                   </label>
                   <input
@@ -2592,12 +2585,12 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                     onChange={e =>
                       setBatchForm({ ...batchForm, floor_price_increment: Number(e.target.value) })
                     }
-                    className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-emerald-300 font-bold"
+                    className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-emerald-700 font-bold"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[9px] text-slate-400 uppercase font-bold">
+                  <label className="block text-[9px] text-slate-700 uppercase font-bold">
                     Köşe Cephe Farkı (+£)
                   </label>
                   <input
@@ -2606,19 +2599,19 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                     onChange={e =>
                       setBatchForm({ ...batchForm, corner_price_bonus: Number(e.target.value) })
                     }
-                    className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
+                    className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-semibold"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[9px] text-slate-400 uppercase font-bold">
+                  <label className="block text-[9px] text-slate-700 uppercase font-bold">
                     Manzara & Konum Değişkeni
                   </label>
                   <input
                     type="text"
                     value={batchForm.view_direction}
                     onChange={e => setBatchForm({ ...batchForm, view_direction: e.target.value })}
-                    className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
+                    className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-semibold"
                   />
                 </div>
 
@@ -2626,7 +2619,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                   <button
                     type="submit"
                     disabled={generatingBatch}
-                    className="w-full py-1.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-black cursor-pointer flex items-center justify-center gap-1"
+                    className="w-full py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-black cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap"
                   >
                     {generatingBatch ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -2644,18 +2637,18 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
             </form>
           )}
 
-          {/* SINGLE UNIT ADD DRAWER */}
+          {/* SINGLE UNIT ADD DRAWER (Daylight High-Contrast) */}
           {isAddUnitOpen && (
             <form
               onSubmit={handleAddUnit}
-              className="p-2.5 bg-slate-900 text-white rounded-xl grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-9 gap-2 items-end"
+              className="p-2.5 bg-slate-50 text-slate-900 border border-slate-300 rounded-xl grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-9 gap-2 items-end"
             >
               <div>
-                <label className="block text-[9px] text-slate-400 uppercase font-bold">Proje</label>
+                <label className="block text-[9px] text-slate-700 uppercase font-bold">Proje</label>
                 <select
                   value={newUnitForm.project_id}
                   onChange={e => setNewUnitForm({ ...newUnitForm, project_id: Number(e.target.value) })}
-                  className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-amber-300 font-bold"
+                  className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-bold"
                 >
                   {projects.map(p => (
                     <option key={p.id} value={p.id}>
@@ -2665,87 +2658,87 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                 </select>
               </div>
               <div>
-                <label className="block text-[9px] text-slate-400 uppercase font-bold">Blok</label>
+                <label className="block text-[9px] text-slate-700 uppercase font-bold">Blok</label>
                 <input
                   type="text"
                   value={newUnitForm.block_name}
                   onChange={e => setNewUnitForm({ ...newUnitForm, block_name: e.target.value })}
-                  className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
+                  className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-semibold"
                 />
               </div>
               <div>
-                <label className="block text-[9px] text-slate-400 uppercase font-bold">Kapı No</label>
+                <label className="block text-[9px] text-slate-700 uppercase font-bold">Kapı No</label>
                 <input
                   type="text"
                   value={newUnitForm.unit_number}
                   onChange={e => setNewUnitForm({ ...newUnitForm, unit_number: e.target.value })}
-                  className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white font-mono"
+                  className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-indigo-700 font-mono font-black"
                 />
               </div>
               <div>
-                <label className="block text-[9px] text-slate-400 uppercase font-bold">Ünite Tipi</label>
+                <label className="block text-[9px] text-slate-700 uppercase font-bold">Ünite Tipi</label>
                 <input
                   type="text"
                   value={newUnitForm.unit_type}
                   onChange={e => setNewUnitForm({ ...newUnitForm, unit_type: e.target.value })}
-                  className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
+                  className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-semibold"
                 />
               </div>
               <div>
-                <label className="block text-[9px] text-slate-400 uppercase font-bold">Kat & Konum</label>
+                <label className="block text-[9px] text-slate-700 uppercase font-bold">Kat & Konum</label>
                 <input
                   type="text"
                   value={newUnitForm.floor_level}
                   onChange={e => setNewUnitForm({ ...newUnitForm, floor_level: e.target.value })}
-                  className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
+                  className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-semibold"
                 />
               </div>
               <div>
-                <label className="block text-[9px] text-slate-400 uppercase font-bold">Manzara / Cephe</label>
+                <label className="block text-[9px] text-slate-700 uppercase font-bold">Manzara / Cephe</label>
                 <input
                   type="text"
                   value={newUnitForm.view_direction}
                   onChange={e => setNewUnitForm({ ...newUnitForm, view_direction: e.target.value })}
-                  className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
+                  className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-semibold"
                 />
               </div>
               <div>
-                <label className="block text-[9px] text-slate-400 uppercase font-bold">Brüt / Net m²</label>
+                <label className="block text-[9px] text-slate-700 uppercase font-bold">Brüt / Net m²</label>
                 <div className="flex gap-1">
                   <input
                     type="number"
                     value={newUnitForm.gross_sqm}
                     onChange={e => setNewUnitForm({ ...newUnitForm, gross_sqm: Number(e.target.value) })}
-                    className="w-14 px-1.5 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
+                    className="w-14 px-1.5 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-semibold"
                   />
                   <input
                     type="number"
                     value={newUnitForm.net_sqm}
                     onChange={e => setNewUnitForm({ ...newUnitForm, net_sqm: Number(e.target.value) })}
-                    className="w-14 px-1.5 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
+                    className="w-14 px-1.5 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-semibold"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-[9px] text-slate-400 uppercase font-bold">Fiyat (GBP £)</label>
+                <label className="block text-[9px] text-slate-700 uppercase font-bold">Fiyat (GBP £)</label>
                 <input
                   type="number"
                   value={newUnitForm.price}
                   onChange={e => setNewUnitForm({ ...newUnitForm, price: Number(e.target.value) })}
-                  className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-amber-300 font-black"
+                  className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-950 font-black"
                 />
               </div>
               <div className="flex gap-1">
                 <button
                   type="submit"
-                  className="flex-1 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-black cursor-pointer"
+                  className="flex-1 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-black cursor-pointer whitespace-nowrap"
                 >
                   Ekle
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsAddUnitOpen(false)}
-                  className="px-2 py-1 bg-slate-800 text-slate-300 rounded text-xs font-bold cursor-pointer"
+                  className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded text-xs font-bold cursor-pointer"
                 >
                   ✕
                 </button>
@@ -2753,37 +2746,37 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
             </form>
           )}
 
-          {/* UNIT REVISION DRAWER (Edit Block, Door No, Type, Floor, View, SQM, Price, Status + Auto GD Sync) */}
+          {/* UNIT REVISION DRAWER (Daylight High-Contrast + Auto Google Drive Sync) */}
           {revisingUnit && (
             <form
               onSubmit={handleSaveUnitRevision}
-              className="p-3 bg-indigo-950 text-white rounded-xl border border-indigo-700 space-y-2.5 shadow-lg"
+              className="p-3 bg-indigo-50/80 text-slate-900 rounded-xl border-2 border-indigo-300 space-y-2.5 shadow-sm"
             >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-indigo-800 pb-2">
-                <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded bg-amber-400 text-slate-950 font-mono text-xs font-black">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-indigo-200 pb-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="px-2 py-0.5 rounded bg-indigo-600 text-white font-mono text-xs font-black">
                     Kapı No: {revisingUnit.unit_number}
                   </span>
-                  <span className="text-xs font-black text-white">
+                  <span className="text-xs font-black text-slate-950">
                     Bağımsız Bölüm & Blok Revizyonu ({revisingUnit.project_name})
                   </span>
-                  <span className="text-[10px] text-emerald-300 font-semibold">
+                  <span className="text-[10px] text-emerald-800 font-bold">
                     · Kaydedildiğinde Google Drive üzerinde otomatik revize edilir
                   </span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     type="button"
                     onClick={() => triggerDroneFlyToUnit(revisingUnit)}
-                    className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-amber-300 rounded text-[11px] font-bold flex items-center gap-1 cursor-pointer border border-amber-400/30"
+                    className="px-2.5 py-1 bg-white hover:bg-indigo-600 text-indigo-800 hover:text-white rounded text-[11px] font-bold flex items-center gap-1 cursor-pointer border border-indigo-300 whitespace-nowrap"
                   >
                     <Compass className="w-3 h-3" />
-                    <span>3D Drone ile Binada Göster</span>
+                    <span>2D Mimari Planda Göster</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setRevisingUnit(null)}
-                    className="text-indigo-200 hover:text-white text-xs font-bold cursor-pointer"
+                    className="text-slate-600 hover:text-slate-950 text-xs font-bold cursor-pointer px-1"
                   >
                     Kapat ✕
                   </button>
@@ -2792,18 +2785,18 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
 
               <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
                 <div>
-                  <label className="block text-[9px] text-indigo-200 uppercase font-bold">Blok Adı</label>
+                  <label className="block text-[9px] text-slate-700 uppercase font-bold">Blok Adı</label>
                   <input
                     type="text"
                     required
                     value={revisingUnit.block_name || ""}
                     onChange={e => setRevisingUnit({ ...revisingUnit, block_name: e.target.value })}
-                    className="w-full px-2 py-1 bg-slate-900 border border-indigo-700 rounded text-xs text-white font-bold"
+                    className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-bold"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[9px] text-indigo-200 uppercase font-bold">
+                  <label className="block text-[9px] text-slate-700 uppercase font-bold">
                     Bağımsız Kapı No
                   </label>
                   <input
@@ -2811,57 +2804,57 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                     required
                     value={revisingUnit.unit_number || ""}
                     onChange={e => setRevisingUnit({ ...revisingUnit, unit_number: e.target.value })}
-                    className="w-full px-2 py-1 bg-slate-900 border border-indigo-700 rounded text-xs text-amber-300 font-mono font-black"
+                    className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-indigo-700 font-mono font-black"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[9px] text-indigo-200 uppercase font-bold">Ünite Tipi</label>
+                  <label className="block text-[9px] text-slate-700 uppercase font-bold">Ünite Tipi</label>
                   <input
                     type="text"
                     required
                     value={revisingUnit.unit_type || ""}
                     onChange={e => setRevisingUnit({ ...revisingUnit, unit_type: e.target.value })}
-                    className="w-full px-2 py-1 bg-slate-900 border border-indigo-700 rounded text-xs text-white"
+                    className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-semibold"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[9px] text-indigo-200 uppercase font-bold">Kat / Kot</label>
+                  <label className="block text-[9px] text-slate-700 uppercase font-bold">Kat / Kot</label>
                   <input
                     type="text"
                     value={revisingUnit.floor_level || ""}
                     onChange={e => setRevisingUnit({ ...revisingUnit, floor_level: e.target.value })}
-                    className="w-full px-2 py-1 bg-slate-900 border border-indigo-700 rounded text-xs text-white"
+                    className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-semibold"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[9px] text-indigo-200 uppercase font-bold">
-                    Manzara & Cephe Değişkeni
+                  <label className="block text-[9px] text-slate-700 uppercase font-bold">
+                    Manzara & Cephe
                   </label>
                   <input
                     type="text"
                     value={revisingUnit.view_direction || ""}
                     onChange={e => setRevisingUnit({ ...revisingUnit, view_direction: e.target.value })}
-                    className="w-full px-2 py-1 bg-slate-900 border border-indigo-700 rounded text-xs text-white"
+                    className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-semibold"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[9px] text-indigo-200 uppercase font-bold">
+                  <label className="block text-[9px] text-slate-700 uppercase font-bold">
                     Konum / Aks (Köşe/Orta)
                   </label>
                   <input
                     type="text"
                     value={revisingUnit.position_tag || "Panoramik Aks"}
                     onChange={e => setRevisingUnit({ ...revisingUnit, position_tag: e.target.value })}
-                    className="w-full px-2 py-1 bg-slate-900 border border-indigo-700 rounded text-xs text-white"
+                    className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-semibold"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[9px] text-indigo-200 uppercase font-bold">
+                  <label className="block text-[9px] text-slate-700 uppercase font-bold">
                     Brüt / Net / Teras m²
                   </label>
                   <div className="flex items-center gap-1">
@@ -2871,7 +2864,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                       onChange={e =>
                         setRevisingUnit({ ...revisingUnit, gross_sqm: Number(e.target.value) })
                       }
-                      className="w-12 px-1 py-1 bg-slate-900 border border-indigo-700 rounded text-xs text-white"
+                      className="w-12 px-1 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-semibold"
                       title="Brüt m²"
                     />
                     <input
@@ -2880,7 +2873,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                       onChange={e =>
                         setRevisingUnit({ ...revisingUnit, net_sqm: Number(e.target.value) })
                       }
-                      className="w-12 px-1 py-1 bg-slate-900 border border-indigo-700 rounded text-xs text-white"
+                      className="w-12 px-1 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-semibold"
                       title="Net m²"
                     />
                     <input
@@ -2889,34 +2882,34 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                       onChange={e =>
                         setRevisingUnit({ ...revisingUnit, terrace_sqm: Number(e.target.value) })
                       }
-                      className="w-10 px-1 py-1 bg-slate-900 border border-indigo-700 rounded text-xs text-white"
+                      className="w-10 px-1 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-semibold"
                       title="Teras m²"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-[9px] text-indigo-200 uppercase font-bold">
+                  <label className="block text-[9px] text-slate-700 uppercase font-bold">
                     Liste Fiyatı (GBP £)
                   </label>
                   <input
                     type="number"
                     value={revisingUnit.price || 0}
                     onChange={e => setRevisingUnit({ ...revisingUnit, price: Number(e.target.value) })}
-                    className="w-full px-2 py-1 bg-slate-900 border border-indigo-700 rounded text-xs text-amber-300 font-mono font-black"
+                    className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-950 font-mono font-black"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-end pt-1">
                 <div>
-                  <label className="block text-[9px] text-indigo-200 uppercase font-bold">
+                  <label className="block text-[9px] text-slate-700 uppercase font-bold">
                     Bağımsız Bölüm Satış Statüsü
                   </label>
                   <select
                     value={revisingUnit.status || "available"}
                     onChange={e => setRevisingUnit({ ...revisingUnit, status: e.target.value })}
-                    className="w-full px-2 py-1 bg-slate-900 border border-indigo-700 rounded text-xs font-bold text-emerald-300"
+                    className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs font-bold text-slate-900"
                   >
                     <option value="available">MÜSAİT (Satışa Açık)</option>
                     <option value="negotiation">SONUÇLANMAKTA (Sözleşme / Kaparo Aşamasında)</option>
@@ -2926,8 +2919,8 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[9px] text-indigo-200 uppercase font-bold">
-                    Alıcı / Sözleşme Aşama Notu (Opsiyonel)
+                  <label className="block text-[9px] text-slate-700 uppercase font-bold">
+                    Alıcı / Sözleşme Notu (Opsiyonel)
                   </label>
                   <input
                     type="text"
@@ -2936,7 +2929,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                     onChange={e =>
                       setRevisingUnit({ ...revisingUnit, optioned_client_name: e.target.value })
                     }
-                    className="w-full px-2 py-1 bg-slate-900 border border-indigo-700 rounded text-xs text-white"
+                    className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900"
                   />
                 </div>
 
@@ -2944,7 +2937,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                   <button
                     type="button"
                     onClick={() => handleDeleteUnit(revisingUnit.id)}
-                    className="px-2.5 py-1.5 bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/40 rounded-lg text-xs font-bold cursor-pointer flex items-center gap-1"
+                    className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-300 rounded-lg text-xs font-bold cursor-pointer flex items-center gap-1 whitespace-nowrap"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     <span>Sil</span>
@@ -2952,13 +2945,13 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                   <button
                     type="submit"
                     disabled={savingUnitRevision}
-                    className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-black cursor-pointer flex items-center gap-1.5"
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-black cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
                   >
                     <Save className="w-3.5 h-3.5" />
                     <span>
                       {savingUnitRevision
                         ? "Kaydediliyor..."
-                        : "Revizyonu Kaydet & Google Drive'a İşle"}
+                        : "Revizyonu Kaydet & Drive'a İşle"}
                     </span>
                   </button>
                 </div>
@@ -2966,27 +2959,27 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
             </form>
           )}
 
-          {/* GROUP BULK REVISION DRAWER */}
+          {/* GROUP BULK REVISION DRAWER (Daylight High-Contrast) */}
           {revisingGroup && (
             <form
               onSubmit={handleSaveGroupBulkRevision}
-              className="p-3 bg-slate-900 text-white rounded-xl border border-amber-400/50 space-y-2.5"
+              className="p-3 bg-amber-50/80 text-slate-900 rounded-xl border border-amber-300 space-y-2.5"
             >
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                <span className="text-xs font-black text-amber-300">
+              <div className="flex items-center justify-between border-b border-amber-200 pb-1.5">
+                <span className="text-xs font-black text-amber-950">
                   Toplu Grup Revizyonu: {revisingGroup.title} ({revisingGroup.unitIds.length} Bağımsız Bölüm)
                 </span>
                 <button
                   type="button"
                   onClick={() => setRevisingGroup(null)}
-                  className="text-slate-400 hover:text-white text-xs font-bold cursor-pointer"
+                  className="text-slate-600 hover:text-slate-950 text-xs font-bold cursor-pointer"
                 >
                   Kapat ✕
                 </button>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-2 items-end">
                 <div>
-                  <label className="block text-[9px] text-slate-400 uppercase font-bold">
+                  <label className="block text-[9px] text-slate-700 uppercase font-bold">
                     Blok Adını Değiştir
                   </label>
                   <input
@@ -2994,22 +2987,22 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                     placeholder="Değiştirmek için yazın"
                     value={revisingGroup.block_name}
                     onChange={e => setRevisingGroup({ ...revisingGroup, block_name: e.target.value })}
-                    className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
+                    className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-semibold"
                   />
                 </div>
                 <div>
-                  <label className="block text-[9px] text-slate-400 uppercase font-bold">
+                  <label className="block text-[9px] text-slate-700 uppercase font-bold">
                     Ünite Tipini Değiştir
                   </label>
                   <input
                     type="text"
                     value={revisingGroup.unit_type}
                     onChange={e => setRevisingGroup({ ...revisingGroup, unit_type: e.target.value })}
-                    className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
+                    className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-semibold"
                   />
                 </div>
                 <div>
-                  <label className="block text-[9px] text-slate-400 uppercase font-bold">
+                  <label className="block text-[9px] text-slate-700 uppercase font-bold">
                     Manzara / Cephe Değiştir
                   </label>
                   <input
@@ -3019,11 +3012,11 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                     onChange={e =>
                       setRevisingGroup({ ...revisingGroup, view_direction: e.target.value })
                     }
-                    className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
+                    className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-semibold"
                   />
                 </div>
                 <div>
-                  <label className="block text-[9px] text-slate-400 uppercase font-bold">
+                  <label className="block text-[9px] text-slate-700 uppercase font-bold">
                     Sabit Fiyat Ata (GBP £)
                   </label>
                   <input
@@ -3031,17 +3024,17 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                     placeholder="Boş bırakılırsa değişmez"
                     value={revisingGroup.price}
                     onChange={e => setRevisingGroup({ ...revisingGroup, price: e.target.value })}
-                    className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-amber-300 font-black"
+                    className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-950 font-black"
                   />
                 </div>
                 <div>
-                  <label className="block text-[9px] text-slate-400 uppercase font-bold">
+                  <label className="block text-[9px] text-slate-700 uppercase font-bold">
                     Toplu Statü Ata
                   </label>
                   <select
                     value={revisingGroup.status}
                     onChange={e => setRevisingGroup({ ...revisingGroup, status: e.target.value })}
-                    className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
+                    className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-bold"
                   >
                     <option value="">Mevcut Statüleri Koru</option>
                     <option value="available">Tümü Müsait</option>
@@ -3053,7 +3046,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                 <button
                   type="submit"
                   disabled={savingUnitRevision}
-                  className="py-1.5 px-3 bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-lg text-xs font-black cursor-pointer"
+                  className="py-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-black cursor-pointer whitespace-nowrap"
                 >
                   Grubu Revize Et & Drive'a İşle
                 </button>
@@ -3069,9 +3062,9 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
               <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200 text-xs">
                 <span className="font-bold text-slate-700">
                   Aynı tipteki bağımsız bölümler gruplanmıştır. Herhangi bir{" "}
-                  <strong className="text-slate-950">Kapı Numarasına</strong> tıklayarak o dairenin blok, kat, manzara, fiyat veya satış statüsünü revize edebilir ya da 3D Drone ile binadaki yerini görebilirsiniz.
+                  <strong className="text-slate-950">Kapı Numarasına</strong> tıklayarak dairenin blok, kat, manzara, fiyat veya statüsünü revize edebilir ya da 2D Mimari Kat Planını açabilirsiniz.
                 </span>
-                <div className="flex items-center gap-2 text-[10px] font-black">
+                <div className="flex items-center gap-1.5 text-[10px] font-black shrink-0">
                   <span className="px-2 py-0.5 rounded bg-emerald-500 text-slate-950">MÜSAİT</span>
                   <span className="px-2 py-0.5 rounded bg-sky-400 text-slate-950">SONUÇLANMAKTA</span>
                   <span className="px-2 py-0.5 rounded bg-amber-400 text-slate-950">OPSİYONLU</span>
@@ -3079,17 +3072,17 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                 {unitTypeGroups.map(grp => (
                   <div
                     key={grp.key}
-                    className="rounded-xl border border-slate-200 bg-white p-3 shadow-2xs flex flex-col justify-between space-y-2.5 hover:border-indigo-300 transition-all"
+                    className="rounded-xl border border-slate-200 bg-white p-3 shadow-2xs flex flex-col justify-between space-y-2 hover:border-indigo-300 transition-all"
                   >
                     <div className="space-y-2">
                       <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-2">
                         <div>
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="px-2 py-0.5 rounded bg-slate-900 text-amber-300 text-[10px] font-black">
+                            <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-900 border border-indigo-200 text-[10px] font-black">
                               {grp.project_name}
                             </span>
                             <h4 className="text-sm font-black text-slate-950">{grp.unit_type}</h4>
@@ -3103,8 +3096,8 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                         </div>
 
                         <div className="text-right shrink-0">
-                          <div className="text-[10px] font-bold text-slate-400 uppercase">Fiyat Aralığı</div>
-                          <div className="text-xs font-black text-slate-900 font-mono">
+                          <div className="text-[10px] font-bold text-slate-500 uppercase">Fiyat Aralığı</div>
+                          <div className="text-xs font-black text-slate-950 font-mono">
                             {grp.minPrice === grp.maxPrice
                               ? formatGbp(grp.minPrice)
                               : `${formatGbp(grp.minPrice)} – ${formatGbp(grp.maxPrice)}`}
@@ -3129,7 +3122,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                       </div>
 
                       {/* Variables of this unit type (Blocks, Floors, Views) */}
-                      <div className="bg-slate-50 rounded-lg p-2 border border-slate-200/80 text-[11px] space-y-1">
+                      <div className="bg-slate-50 rounded-lg p-2 border border-slate-200 text-[11px] space-y-1">
                         <div className="flex flex-wrap gap-1">
                           <span className="font-bold text-slate-700">Bloklar:</span>
                           <span className="text-slate-900 font-semibold">
@@ -3162,7 +3155,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                                 type="button"
                                 onClick={() => setRevisingUnit({ ...u })}
                                 title={`${u.block_name} | Kapı: ${u.unit_number} | Kat: ${u.floor_level} | Manzara: ${u.view_direction} | Fiyat: ${formatGbp(u.price)} (${meta.label})`}
-                                className={`px-2 py-0.5 rounded text-[10px] font-mono font-black border cursor-pointer transition-transform hover:scale-105 flex items-center gap-1 ${meta.chipBg}`}
+                                className={`px-2 py-0.5 rounded text-[10px] font-mono font-black border cursor-pointer transition-transform hover:scale-105 flex items-center gap-1 whitespace-nowrap ${meta.chipBg}`}
                               >
                                 <span>{u.unit_number}</span>
                                 <span className="opacity-75 text-[9px] font-sans">
@@ -3190,10 +3183,10 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                             price: ""
                           })
                         }
-                        className="px-2.5 py-1 bg-slate-100 hover:bg-slate-900 text-slate-800 hover:text-white rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                        className="px-2.5 py-1 bg-slate-100 hover:bg-indigo-600 text-slate-800 hover:text-white rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap transition-colors"
                       >
                         <Edit3 className="w-3 h-3" />
-                        <span>Bu Grubu Toplu Revize Et</span>
+                        <span>Grubu Toplu Revize Et</span>
                       </button>
 
                       <button
@@ -3201,10 +3194,10 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                         onClick={() => {
                           if (grp.units[0]) triggerDroneFlyToUnit(grp.units[0]);
                         }}
-                        className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-600 text-indigo-800 hover:text-white rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                        className="px-2.5 py-1 bg-sky-50 hover:bg-sky-600 text-sky-900 hover:text-white border border-sky-200 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap transition-colors"
                       >
                         <Compass className="w-3 h-3" />
-                        <span>3D Drone ile İncele</span>
+                        <span>2D Mimari Kat Planı</span>
                       </button>
                     </div>
                   </div>
@@ -3225,13 +3218,13 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                 >
                   <div className="flex items-center justify-between border-b border-slate-200 pb-2">
                     <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded bg-slate-900 text-amber-300 text-[10px] font-black">
+                      <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-900 border border-indigo-200 text-[10px] font-black">
                         {blk.projectName}
                       </span>
                       <h4 className="text-sm font-black text-slate-950">{blk.blockTitle}</h4>
                     </div>
-                    <span className="text-[11px] font-semibold text-slate-500">
-                      Kat Planı & Bağımsız Bölüm Kapı No Şeması
+                    <span className="text-[11px] font-semibold text-slate-600">
+                      Kat Kesiti & Bağımsız Bölüm Kapı No Şeması
                     </span>
                   </div>
 
@@ -3241,8 +3234,8 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                         key={fIdx}
                         className="grid grid-cols-1 lg:grid-cols-12 gap-2 items-center bg-white p-2 rounded-xl border border-slate-200"
                       >
-                        <div className="lg:col-span-2 px-2 py-1.5 bg-slate-900 text-white rounded-lg text-center">
-                          <div className="text-[10px] text-amber-300 font-bold uppercase">Kat / Kot</div>
+                        <div className="lg:col-span-2 px-2 py-1.5 bg-indigo-50 text-indigo-950 border border-indigo-200 rounded-lg text-center">
+                          <div className="text-[10px] text-indigo-700 font-bold uppercase">Kat / Kot</div>
                           <div className="text-xs font-black">{fl.floorName}</div>
                         </div>
 
@@ -3270,7 +3263,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                                   <div className="text-[10px] text-slate-500 truncate" title={u.view_direction}>
                                     {u.view_direction}
                                   </div>
-                                  <div className="text-[10px] text-slate-500 font-mono">
+                                  <div className="text-[10px] text-slate-600 font-mono">
                                     {u.gross_sqm} m² Brüt / {u.net_sqm} m² Net
                                   </div>
                                 </div>
@@ -3283,17 +3276,17 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                                     <button
                                       type="button"
                                       onClick={() => setRevisingUnit({ ...u })}
-                                      className="px-1.5 py-0.5 bg-slate-900 hover:bg-indigo-600 text-white rounded text-[9px] font-bold cursor-pointer"
+                                      className="px-1.5 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[9px] font-bold cursor-pointer whitespace-nowrap"
                                     >
                                       Revize Et
                                     </button>
                                     <button
                                       type="button"
                                       onClick={() => triggerDroneFlyToUnit(u)}
-                                      className="p-1 bg-amber-400 hover:bg-amber-300 text-slate-950 rounded cursor-pointer"
-                                      title="3D Drone ile Bu Bağımsız Bölüme Uç"
+                                      className="px-1.5 py-0.5 bg-sky-100 hover:bg-sky-200 text-sky-900 border border-sky-300 rounded text-[9px] font-bold cursor-pointer whitespace-nowrap"
+                                      title="2D Mimari Kat Planını Göster"
                                     >
-                                      <Compass className="w-3 h-3" />
+                                      2D Plan
                                     </button>
                                   </div>
                                 </div>
@@ -3310,63 +3303,76 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
           )}
 
           {/* ================================================================= */}
-          {/* VIEW MODE 3: 3D MİMARİ BLOK MODELLEMESİ & DRONE GEÇİŞ SİMÜLASYONU */}
+          {/* VIEW MODE 3: 2D MİMARİ VAZİYET, BLOK KESİTİ & CAD KAT PLANI       */}
           {/* ================================================================= */}
           {inventoryViewMode === "drone_3d" && (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
-              {/* Left 4 Cols: Unit / Door Selector & Live Drone Telemetry Control */}
-              <div className="lg:col-span-4 bg-slate-900 text-white rounded-xl p-3 border border-slate-800 flex flex-col justify-between space-y-3">
+              {/* Left 4 Cols: Google Drive Architectural Files + Independent Unit Selector */}
+              <div className="lg:col-span-4 bg-slate-50 text-slate-900 rounded-xl p-3 border border-slate-200 flex flex-col justify-between space-y-2.5">
                 <div className="space-y-2.5">
-                  <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-2">
                     <div className="flex items-center gap-1.5">
-                      <Compass className="w-4 h-4 text-amber-400 animate-pulse" />
-                      <h4 className="text-xs font-black uppercase text-white">
-                        3D Blok & Drone Kamera Kontrolü
+                      <Compass className="w-4 h-4 text-indigo-600" />
+                      <h4 className="text-xs font-black uppercase text-slate-950">
+                        2D Mimari Vaziyet & Kat Planı
                       </h4>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setDroneNightMode(prev => !prev)}
-                      className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 text-[10px] font-bold flex items-center gap-1 cursor-pointer"
-                    >
-                      {droneNightMode ? <Sun className="w-3 h-3" /> : <Moon className="w-3 h-3" />}
-                      <span>{droneNightMode ? "Gündüz Modu" : "Gece / Lagün Işıklandırma"}</span>
-                    </button>
+                    <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-800 border border-indigo-200 text-[10px] font-bold">
+                      CAD / Blueprint
+                    </span>
                   </div>
 
-                  {/* Camera Angle Presets */}
-                  <div className="grid grid-cols-4 gap-1">
-                    {[
-                      { id: "isometric", label: "3D İzometrik" },
-                      { id: "sea_front", label: "Deniz Cephesi" },
-                      { id: "close_up", label: "Daireye Yaklaş" },
-                      { id: "top_down", label: "Masterplan Kuşbakışı" }
-                    ].map(cam => (
-                      <button
-                        key={cam.id}
-                        type="button"
-                        onClick={() => {
-                          setDroneFlying(true);
-                          setDroneCameraAngle(cam.id as any);
-                          setTimeout(() => setDroneFlying(false), 550);
-                        }}
-                        className={`px-1.5 py-1 rounded text-[10px] font-bold cursor-pointer transition-all ${
-                          droneCameraAngle === cam.id
-                            ? "bg-amber-400 text-slate-950"
-                            : "bg-slate-800 text-slate-300 hover:bg-slate-700"
-                        }`}
-                      >
-                        {cam.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Door Number Quick Jump Grid */}
-                  <div>
-                    <div className="text-[10px] font-bold uppercase text-slate-400 mb-1.5">
-                      Drone İle Odaklanılacak Bağımsız Bölümü Seçin ({filteredUnits.length})
+                  {/* Direct Access to Google Drive Architectural Drawings of the Project */}
+                  <div className="bg-white rounded-xl p-2.5 border border-slate-200 space-y-1.5">
+                    <div className="text-[10px] font-black uppercase text-slate-600 flex items-center justify-between">
+                      <span>Proje Mimari Çizim Paftaları (GD)</span>
+                      <span className="text-emerald-700">Senkronize</span>
                     </div>
-                    <div className="max-h-52 overflow-y-auto pr-1 grid grid-cols-2 gap-1.5">
+                    <div className="flex flex-wrap gap-1.5">
+                      {(() => {
+                        const targetProj =
+                          projects.find(p => Number(p.id) === Number(droneTargetUnit?.project_id)) ||
+                          activeProjectDetail ||
+                          projects[0];
+                        const archDocs = (targetProj?.media_vault || []).filter(
+                          (d: any) =>
+                            String(d.category || "").includes("Masterplan") ||
+                            String(d.category || "").includes("Kat Plan") ||
+                            String(d.name || "").toLowerCase().includes("plan") ||
+                            String(d.name || "").toLowerCase().includes("master")
+                        );
+                        const listToShow =
+                          archDocs.length > 0 ? archDocs : (targetProj?.media_vault || []).slice(0, 2);
+                        return listToShow.map((doc: any, idx: number) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() =>
+                              setPreviewAsset({
+                                name: doc.name,
+                                category: doc.category || "2D Mimari Pafta",
+                                type: doc.type || "pdf",
+                                url: doc.url,
+                                cover: targetProj?.cover_image,
+                                projectName: targetProj?.name || companyDisplayName
+                              })
+                            }
+                            className="px-2 py-1 bg-slate-50 hover:bg-indigo-600 text-slate-800 hover:text-white border border-slate-200 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap transition-colors"
+                          >
+                            <FileText className="w-3 h-3 text-indigo-600 shrink-0" />
+                            <span className="truncate max-w-[200px]">{doc.name}</span>
+                          </button>
+                        ));
+                      })()}
+                    </div>
+                  </div>
+
+                  {/* Door Number Quick Jump Grid (Daylight High-Contrast) */}
+                  <div>
+                    <div className="text-[10px] font-bold uppercase text-slate-600 mb-1.5">
+                      Bağımsız Bölüm Kapı Numarası Seçin ({filteredUnits.length})
+                    </div>
+                    <div className="max-h-60 overflow-y-auto pr-1 grid grid-cols-2 gap-1.5">
                       {filteredUnits.map(u => {
                         const isTarget = droneTargetUnit?.id === u.id;
                         const meta = getStatusBadgeMeta(u.status);
@@ -3374,30 +3380,25 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                           <button
                             key={u.id}
                             type="button"
-                            onClick={() => {
-                              setDroneFlying(true);
-                              setDroneTargetUnit(u);
-                              setDroneCameraAngle("close_up");
-                              setTimeout(() => setDroneFlying(false), 600);
-                            }}
+                            onClick={() => setDroneTargetUnit(u)}
                             className={`p-2 rounded-lg border text-left transition-all cursor-pointer ${
                               isTarget
-                                ? "bg-indigo-600/30 border-amber-400 ring-1 ring-amber-400"
-                                : "bg-slate-800/80 border-slate-700 hover:border-slate-500"
+                                ? "bg-indigo-50 border-indigo-600 ring-2 ring-indigo-600/20"
+                                : "bg-white border-slate-200 hover:border-slate-300"
                             }`}
                           >
-                            <div className="flex items-center justify-between">
-                              <span className="font-mono text-xs font-black text-amber-300">
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="font-mono text-xs font-black text-indigo-900">
                                 {u.unit_number}
                               </span>
                               <span className={`px-1.5 py-0.2 rounded text-[8px] font-black ${meta.chipBg}`}>
                                 {meta.label}
                               </span>
                             </div>
-                            <div className="text-[10px] text-white font-bold truncate mt-0.5">
+                            <div className="text-[10px] text-slate-900 font-bold truncate mt-0.5">
                               {u.block_name}
                             </div>
-                            <div className="text-[9px] text-slate-400 truncate">
+                            <div className="text-[9px] text-slate-600 truncate">
                               {u.unit_type} · {formatGbp(u.price)}
                             </div>
                           </button>
@@ -3407,211 +3408,352 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                   </div>
                 </div>
 
-                {/* Selected Unit Instant Inspector & Revision Card inside Drone Cockpit */}
+                {/* Selected Unit Instant Inspector & Revision Card */}
                 {droneTargetUnit && (
-                  <div className="bg-slate-950/90 border border-slate-800 rounded-xl p-2.5 space-y-2">
+                  <div className="bg-white border border-indigo-200 rounded-xl p-2.5 space-y-2 shadow-2xs">
                     <div className="flex items-center justify-between">
                       <div>
-                        <span className="text-[10px] text-amber-300 font-mono font-bold">
-                          HEDEF BAĞIMSIZ BÖLÜM
+                        <span className="text-[10px] text-indigo-700 font-mono font-bold">
+                          SEÇİLİ BAĞIMSIZ BÖLÜM
                         </span>
-                        <h5 className="text-sm font-black text-white">
+                        <h5 className="text-xs font-black text-slate-950">
                           {droneTargetUnit.block_name} — Kapı No: {droneTargetUnit.unit_number}
                         </h5>
                       </div>
-                      <span className="text-sm font-black text-emerald-300 font-mono">
+                      <span className="text-xs font-black text-emerald-700 font-mono">
                         {formatGbp(droneTargetUnit.price)}
                       </span>
                     </div>
-                    <div className="grid grid-cols-2 gap-1.5 text-[10px] text-slate-300">
+                    <div className="grid grid-cols-2 gap-1 text-[10px] text-slate-700">
                       <div>
-                        <strong className="text-slate-400">Tip:</strong> {droneTargetUnit.unit_type}
+                        <strong className="text-slate-900">Tip:</strong> {droneTargetUnit.unit_type}
                       </div>
                       <div>
-                        <strong className="text-slate-400">Kat:</strong> {droneTargetUnit.floor_level}
+                        <strong className="text-slate-900">Kat:</strong> {droneTargetUnit.floor_level}
                       </div>
                       <div>
-                        <strong className="text-slate-400">Alan:</strong> {droneTargetUnit.gross_sqm}m² /{" "}
-                        {droneTargetUnit.net_sqm}m²
+                        <strong className="text-slate-900">Alan:</strong> {droneTargetUnit.gross_sqm}m² Brüt /{" "}
+                        {droneTargetUnit.net_sqm}m² Net
                       </div>
                       <div>
-                        <strong className="text-slate-400">Manzara:</strong> {droneTargetUnit.view_direction}
+                        <strong className="text-slate-900">Cephe:</strong> {droneTargetUnit.view_direction}
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5 pt-1">
-                      <button
-                        type="button"
-                        onClick={() => setRevisingUnit({ ...droneTargetUnit })}
-                        className="flex-1 py-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-lg text-[11px] font-black cursor-pointer flex items-center justify-center gap-1"
-                      >
-                        <Edit3 className="w-3 h-3" />
-                        <span>Bu Bağımsız Bölümü Revize Et</span>
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setRevisingUnit({ ...droneTargetUnit })}
+                      className="w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-black cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap"
+                    >
+                      <Edit3 className="w-3 h-3" />
+                      <span>Bu Bağımsız Bölümü Revize Et</span>
+                    </button>
                   </div>
                 )}
               </div>
 
-              {/* Right 8 Cols: 3D Architectural Building & Lagoon Stage with Drone Fly-To Animation */}
-              <div
-                className={`lg:col-span-8 rounded-xl border border-slate-800 relative overflow-hidden min-h-[430px] flex flex-col justify-between p-4 transition-colors duration-700 ${
-                  droneNightMode
-                    ? "bg-gradient-to-b from-slate-950 via-indigo-950 to-slate-900"
-                    : "bg-gradient-to-b from-sky-900 via-cyan-900 to-slate-900"
-                }`}
-              >
-                {/* Top Drone HUD Telemetry Bar */}
-                <div className="relative z-10 flex flex-wrap items-center justify-between gap-2 bg-slate-950/75 backdrop-blur-xs px-3 py-2 rounded-xl border border-white/10 text-white text-[11px]">
+              {/* Right 8 Cols: Crisp 2D Architectural Site Elevation + Dimensioned 2D CAD Floorplan */}
+              <div className="lg:col-span-8 rounded-xl border border-slate-200 bg-white p-3 space-y-3">
+                {/* Top Architectural Sheet Title Bar */}
+                <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 px-3 py-2 rounded-lg border border-slate-200 text-[11px]">
                   <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono text-[10px] font-bold border border-emerald-400/30">
-                      <Navigation className="w-3 h-3 animate-bounce" />
-                      <span>{droneFlying ? "DRONE UÇUŞ GEÇİŞİ AKTİF..." : "DRONE KAMERA KİLİTLİ"}</span>
+                    <span className="px-2 py-0.5 rounded bg-indigo-600 text-white font-mono text-[10px] font-black">
+                      2D MİMARİ PAFTA
                     </span>
-                    <span className="font-bold text-amber-300">
-                      {droneTargetUnit?.project_name || activeProjectDetail?.name || "Proje Yerleşkesi"}
+                    <span className="font-black text-slate-950">
+                      {droneTargetUnit?.project_name || activeProjectDetail?.name || "Proje Vaziyet & Kat Planı"}
                     </span>
                   </div>
-
-                  <div className="flex items-center gap-3 font-mono text-[10px] text-slate-300">
+                  <div className="flex items-center gap-3 font-mono text-[10px] text-slate-700">
                     <span>
-                      RAKIM: <strong>{droneCameraAngle === "close_up" ? "18m" : droneCameraAngle === "top_down" ? "85m" : "42m"}</strong>
+                      BLOK: <strong>{droneTargetUnit?.block_name || "-"}</strong>
                     </span>
                     <span>
-                      CEPHE: <strong>{droneTargetUnit?.facade_orientation || "Kuzey Akdeniz"}</strong>
+                      KAPI NO: <strong className="text-indigo-700">{droneTargetUnit?.unit_number || "-"}</strong>
                     </span>
                     <span>
-                      KAPI NO: <strong className="text-amber-300">{droneTargetUnit?.unit_number || "-"}</strong>
+                      ÖLÇEK: <strong>1:100 CAD</strong>
                     </span>
                   </div>
                 </div>
 
-                {/* 3D Perspective Building & Resort Stage */}
-                <div className="relative my-auto py-6 flex items-center justify-center overflow-hidden">
-                  {/* Mediterranean Sea & Lagoon Pool Horizon */}
-                  <div className="absolute inset-x-6 bottom-3 h-16 rounded-2xl bg-gradient-to-r from-cyan-500/30 via-teal-400/40 to-blue-500/30 border border-cyan-300/30 backdrop-blur-xs flex items-center justify-between px-6 text-[10px] font-black tracking-widest text-cyan-100 uppercase">
-                    <span>🌊 AKDENİZ SAHİL ŞERİDİ & ÖZEL PLAJ</span>
-                    <span>🏊 INFINITY LAGÜN HAVUZU</span>
+                {/* SECTION A: 2D ARCHITECTURAL SITE & BLOCK ELEVATION DIAGRAM */}
+                <div className="rounded-xl border border-slate-300 bg-slate-50/70 p-3 space-y-2.5">
+                  {/* North Sea Coastline Axis */}
+                  <div className="w-full py-1.5 px-3 rounded-lg bg-sky-50 border border-sky-200 flex items-center justify-between text-[10px] font-black text-sky-900">
+                    <span>↑ KUZEY CEPHE — AKDENİZ SAHİL ŞERİDİ & PANORAMİK DENİZ HATTI</span>
+                    <span>🏊 MERKEZİ INFINITY LAGÜN HAVUZU & PEYZAJ AKSI</span>
                   </div>
 
-                  {/* 3D Transformed Architectural Complex */}
-                  <div
-                    className="w-full max-w-3xl transition-all duration-700 ease-out"
-                    style={{
-                      transform:
-                        droneCameraAngle === "close_up"
-                          ? "perspective(1100px) rotateX(10deg) rotateZ(-2deg) scale(1.06)"
-                          : droneCameraAngle === "sea_front"
-                          ? "perspective(1100px) rotateX(6deg) rotateZ(0deg) scale(1)"
-                          : droneCameraAngle === "top_down"
-                          ? "perspective(1100px) rotateX(38deg) rotateZ(0deg) scale(0.94)"
-                          : "perspective(1100px) rotateX(18deg) rotateZ(-6deg) scale(0.98)"
-                    }}
-                  >
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-12">
-                      {blockStackingMatrix.slice(0, 4).map((blk, bIdx) => (
-                        <div
-                          key={bIdx}
-                          className="rounded-2xl bg-slate-900/90 border-2 border-slate-600/80 shadow-2xl p-3 space-y-2 backdrop-blur-md"
-                        >
-                          <div className="flex items-center justify-between border-b border-slate-700 pb-1.5">
-                            <span className="text-xs font-black text-white flex items-center gap-1.5">
-                              <Building2 className="w-3.5 h-3.5 text-amber-400" />
-                              <span>{blk.blockTitle}</span>
-                            </span>
-                            <span className="text-[10px] font-mono text-cyan-300">
-                              {blk.projectName}
-                            </span>
-                          </div>
+                  {/* 2D Architectural Building Elevations (Floor-by-Floor CAD Stacking) */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {blockStackingMatrix.slice(0, 4).map((blk, bIdx) => (
+                      <div
+                        key={bIdx}
+                        className="rounded-xl bg-white border-2 border-slate-300 p-2.5 space-y-1.5 shadow-2xs"
+                      >
+                        {/* Architectural Roof Line */}
+                        <div className="flex items-center justify-between border-b-2 border-slate-800 pb-1">
+                          <span className="text-xs font-black text-slate-950 flex items-center gap-1">
+                            <Building2 className="w-3.5 h-3.5 text-indigo-600" />
+                            <span>{blk.blockTitle} — 2D Cephe Kesiti</span>
+                          </span>
+                          <span className="text-[10px] font-mono font-bold text-slate-600">
+                            {blk.projectName}
+                          </span>
+                        </div>
 
-                          <div className="space-y-1.5">
-                            {blk.floors.map((fl, fIdx) => (
-                              <div
-                                key={fIdx}
-                                className="flex items-center gap-1.5 bg-slate-950/80 p-1.5 rounded-lg border border-slate-800"
-                              >
-                                <span className="w-16 text-[9px] font-bold text-slate-400 truncate shrink-0">
-                                  {fl.floorName}
-                                </span>
-                                <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-                                  {fl.units.map((u: any) => {
-                                    const isFocused = droneTargetUnit?.id === u.id;
-                                    const meta = getStatusBadgeMeta(u.status);
-                                    return (
-                                      <button
-                                        key={u.id}
-                                        type="button"
-                                        onClick={() => {
-                                          setDroneFlying(true);
-                                          setDroneTargetUnit(u);
-                                          setDroneCameraAngle("close_up");
-                                          setTimeout(() => setDroneFlying(false), 550);
-                                        }}
-                                        className={`px-2 py-1.5 rounded-lg border text-left transition-all cursor-pointer relative ${
-                                          isFocused
-                                            ? "bg-amber-400 text-slate-950 border-white ring-4 ring-amber-400/50 scale-105 z-10 shadow-xl"
-                                            : `${meta.chipBg} opacity-90 hover:opacity-100`
-                                        }`}
-                                      >
-                                        {isFocused && (
-                                          <span className="absolute -top-2 -right-2 px-1.5 py-0.2 rounded-full bg-indigo-600 text-white text-[8px] font-black shadow">
-                                            DRONE HEDEFİ
-                                          </span>
-                                        )}
-                                        <div className="font-mono text-[10px] font-black leading-none">
-                                          {u.unit_number}
-                                        </div>
-                                        <div className="text-[9px] font-bold truncate mt-0.5">
-                                          {u.unit_type?.split(" ")[0]} · {formatGbp(u.price)}
-                                        </div>
-                                      </button>
-                                    );
-                                  })}
-                                </div>
+                        <div className="space-y-1">
+                          {blk.floors.map((fl, fIdx) => (
+                            <div
+                              key={fIdx}
+                              className="flex items-center gap-1.5 bg-slate-50 p-1.5 rounded border border-slate-200"
+                            >
+                              <span className="w-20 text-[9px] font-black text-slate-700 uppercase truncate shrink-0 border-r border-slate-200 pr-1">
+                                {fl.floorName}
+                              </span>
+                              <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-1">
+                                {fl.units.map((u: any) => {
+                                  const isFocused = droneTargetUnit?.id === u.id;
+                                  const meta = getStatusBadgeMeta(u.status);
+                                  return (
+                                    <button
+                                      key={u.id}
+                                      type="button"
+                                      onClick={() => setDroneTargetUnit(u)}
+                                      className={`px-2 py-1 rounded border text-left transition-all cursor-pointer ${
+                                        isFocused
+                                          ? "bg-indigo-600 text-white border-indigo-900 ring-2 ring-indigo-600/30 font-black"
+                                          : `${meta.pillBg} hover:opacity-90`
+                                      }`}
+                                    >
+                                      <div className="font-mono text-[10px] font-black leading-none flex items-center justify-between">
+                                        <span>{u.unit_number}</span>
+                                        <span className="text-[8px]">{u.gross_sqm}m²</span>
+                                      </div>
+                                      <div className="text-[9px] font-bold truncate mt-0.5">
+                                        {u.unit_type?.split(" ")[0]} · {formatGbp(u.price)}
+                                      </div>
+                                    </button>
+                                  );
+                                })}
                               </div>
-                            ))}
-                          </div>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
-                {/* Bottom Drone Spotlight Bar */}
+                {/* SECTION B: 2D DIMENSIONED CAD FLOORPLAN OF SELECTED UNIT TYPE */}
                 {droneTargetUnit && (
-                  <div className="relative z-10 bg-slate-950/85 backdrop-blur-md border border-amber-400/40 rounded-xl p-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-white">
-                    <div className="flex items-center gap-2.5">
-                      <div className="px-2.5 py-1 rounded-lg bg-amber-400 text-slate-950 font-mono text-xs font-black">
-                        {droneTargetUnit.unit_number}
-                      </div>
+                  <div className="rounded-xl border-2 border-slate-300 bg-white p-3 space-y-2.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2">
                       <div>
-                        <div className="text-xs font-black">
-                          {droneTargetUnit.project_name} · {droneTargetUnit.block_name} ·{" "}
-                          {droneTargetUnit.floor_level}
-                        </div>
-                        <div className="text-[10px] text-cyan-300">
-                          Manzara: {droneTargetUnit.view_direction} · Alan: {droneTargetUnit.gross_sqm} m² Brüt
-                        </div>
+                        <span className="text-[10px] font-mono font-bold text-indigo-700 uppercase">
+                          2D ÖLÇEKLİ MİMARİ KAT PLANI ŞEMASI — {droneTargetUnit.unit_type}
+                        </span>
+                        <h5 className="text-xs font-black text-slate-950">
+                          {droneTargetUnit.block_name} · Bağımsız Bölüm Kapı No: {droneTargetUnit.unit_number} ({droneTargetUnit.floor_level})
+                        </h5>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <select
+                          value={droneTargetUnit.status}
+                          onChange={e => handleUnitStatusChange(droneTargetUnit.id, e.target.value)}
+                          className="px-2 py-1 bg-slate-50 border border-slate-300 rounded-lg text-[11px] font-bold text-slate-900 cursor-pointer"
+                        >
+                          <option value="available">Müsait</option>
+                          <option value="negotiation">Sonuçlanmakta (Sözleşme)</option>
+                          <option value="optioned">Opsiyonlu</option>
+                          <option value="sold">Satıldı</option>
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => setRevisingUnit({ ...droneTargetUnit })}
+                          className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-bold cursor-pointer whitespace-nowrap"
+                        >
+                          Detaylı Revize Et
+                        </button>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <select
-                        value={droneTargetUnit.status}
-                        onChange={e => handleUnitStatusChange(droneTargetUnit.id, e.target.value)}
-                        className="px-2 py-1 bg-slate-900 border border-slate-700 rounded-lg text-[11px] font-bold text-amber-300 cursor-pointer"
-                      >
-                        <option value="available">Müsait</option>
-                        <option value="negotiation">Sonuçlanmakta (Sözleşme)</option>
-                        <option value="optioned">Opsiyonlu</option>
-                        <option value="sold">Satıldı</option>
-                      </select>
-                      <button
-                        type="button"
-                        onClick={() => setRevisingUnit({ ...droneTargetUnit })}
-                        className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[11px] font-bold cursor-pointer"
-                      >
-                        Detaylı Revize Et
-                      </button>
+                    {/* 2D Architectural Blueprint SVG + Room Schedule */}
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+                      <div className="md:col-span-7 bg-slate-50 border border-slate-300 rounded-lg p-2">
+                        <svg
+                          viewBox="0 0 520 260"
+                          className="w-full h-auto"
+                          role="img"
+                          aria-label="2D Mimari Kat Planı"
+                        >
+                          {/* Blueprint Grid Background */}
+                          <defs>
+                            <pattern id="cadGrid" width="20" height="20" patternUnits="userSpaceOnUse">
+                              <path
+                                d="M 20 0 L 0 0 0 20"
+                                fill="none"
+                                stroke="#e2e8f0"
+                                strokeWidth="0.7"
+                              />
+                            </pattern>
+                          </defs>
+                          <rect width="520" height="260" fill="url(#cadGrid)" />
+
+                          {/* North / Sea Terrace Zone (Top) */}
+                          <rect
+                            x="20"
+                            y="14"
+                            width="480"
+                            height="56"
+                            fill="#e0f2fe"
+                            stroke="#0284c7"
+                            strokeWidth="2"
+                            strokeDasharray="5,3"
+                          />
+                          <text x="260" y="36" textAnchor="middle" fill="#0369a1" fontSize="11" fontWeight="800">
+                            PANORAMİK TERAS &amp; BALKON ({droneTargetUnit.terrace_sqm || 18} m²) — {droneTargetUnit.view_direction}
+                          </text>
+                          <text x="260" y="54" textAnchor="middle" fill="#0284c7" fontSize="9" fontWeight="700">
+                            ↑ SÜRGÜLÜ CAM CEPHE (DENİZ &amp; HAVUZ MANZARASI)
+                          </text>
+
+                          {/* Main Structural Outer Walls */}
+                          <rect
+                            x="20"
+                            y="70"
+                            width="480"
+                            height="170"
+                            fill="#ffffff"
+                            stroke="#0f172a"
+                            strokeWidth="3.5"
+                          />
+
+                          {/* Living Room + Open Kitchen (Left Wing) */}
+                          <rect
+                            x="20"
+                            y="70"
+                            width="235"
+                            height="170"
+                            fill="#f8fafc"
+                            stroke="#0f172a"
+                            strokeWidth="2"
+                          />
+                          <text x="137" y="135" textAnchor="middle" fill="#0f172a" fontSize="12" fontWeight="800">
+                            SALON + AÇIK MUTFAK
+                          </text>
+                          <text x="137" y="155" textAnchor="middle" fill="#475569" fontSize="10" fontWeight="700">
+                            {Math.round((Number(droneTargetUnit.net_sqm) || 60) * 0.48)} m² Net
+                          </text>
+                          <rect x="30" y="205" width="95" height="24" fill="#e2e8f0" stroke="#64748b" strokeWidth="1" />
+                          <text x="77" y="221" textAnchor="middle" fill="#334155" fontSize="8" fontWeight="700">
+                            ANKASTRE MUTFAK ADA
+                          </text>
+
+                          {/* Master Bedroom (Top Right Wing) */}
+                          <rect
+                            x="255"
+                            y="70"
+                            width="165"
+                            height="105"
+                            fill="#eef2ff"
+                            stroke="#0f172a"
+                            strokeWidth="2"
+                          />
+                          <text x="337" y="118" textAnchor="middle" fill="#1e1b4b" fontSize="11" fontWeight="800">
+                            YATAK ODASI 1 (EBEVEYN)
+                          </text>
+                          <text x="337" y="136" textAnchor="middle" fill="#4338ca" fontSize="10" fontWeight="700">
+                            {Math.round((Number(droneTargetUnit.net_sqm) || 60) * 0.3)} m² Net
+                          </text>
+
+                          {/* En-Suite / Main Bathroom (Far Right Top) */}
+                          <rect
+                            x="420"
+                            y="70"
+                            width="80"
+                            height="105"
+                            fill="#f1f5f9"
+                            stroke="#0f172a"
+                            strokeWidth="2"
+                          />
+                          <text x="460" y="118" textAnchor="middle" fill="#0f172a" fontSize="10" fontWeight="800">
+                            BANYO / WC
+                          </text>
+                          <text x="460" y="134" textAnchor="middle" fill="#64748b" fontSize="9" fontWeight="700">
+                            {Math.max(5, Math.round((Number(droneTargetUnit.net_sqm) || 60) * 0.1))} m²
+                          </text>
+
+                          {/* Second Room / Study / Hallway (Bottom Right Wing) */}
+                          <rect
+                            x="255"
+                            y="175"
+                            width="155"
+                            height="65"
+                            fill="#f8fafc"
+                            stroke="#0f172a"
+                            strokeWidth="2"
+                          />
+                          <text x="332" y="205" textAnchor="middle" fill="#0f172a" fontSize="10" fontWeight="800">
+                            ODA / GİYİNME &amp; HOL
+                          </text>
+                          <text x="332" y="220" textAnchor="middle" fill="#475569" fontSize="9" fontWeight="700">
+                            {Math.max(8, Math.round((Number(droneTargetUnit.net_sqm) || 60) * 0.12))} m²
+                          </text>
+
+                          {/* Entry Hall & Independent Door Number */}
+                          <rect
+                            x="410"
+                            y="175"
+                            width="90"
+                            height="65"
+                            fill="#fef3c7"
+                            stroke="#d97706"
+                            strokeWidth="2"
+                          />
+                          <text x="455" y="202" textAnchor="middle" fill="#92400e" fontSize="9" fontWeight="800">
+                            BAĞIMSIZ GİRİŞ
+                          </text>
+                          <text x="455" y="218" textAnchor="middle" fill="#78350f" fontSize="11" fontWeight="900">
+                            KAPI: {droneTargetUnit.unit_number}
+                          </text>
+                        </svg>
+                      </div>
+
+                      {/* Room & Technical Dimension Schedule */}
+                      <div className="md:col-span-5 space-y-2 text-xs">
+                        <div className="bg-slate-50 border border-slate-200 rounded-lg p-2.5 space-y-1.5">
+                          <div className="text-[10px] font-black uppercase text-slate-700 border-b border-slate-200 pb-1">
+                            Bağımsız Bölüm Metrekare Cetveli
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-600">Toplam Brüt Alan:</span>
+                            <strong className="font-mono text-slate-950">{droneTargetUnit.gross_sqm} m²</strong>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-600">Kapalı Net Kullanım:</span>
+                            <strong className="font-mono text-slate-950">{droneTargetUnit.net_sqm} m²</strong>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-600">Teras / Balkon Alanı:</span>
+                            <strong className="font-mono text-sky-800">{droneTargetUnit.terrace_sqm} m²</strong>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-600">Kat / Konum Değişkeni:</span>
+                            <strong className="text-slate-950">{droneTargetUnit.floor_level}</strong>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-600">Cephe / Manzara:</span>
+                            <strong className="text-indigo-800">{droneTargetUnit.view_direction}</strong>
+                          </div>
+                          <div className="flex justify-between pt-1 border-t border-slate-200">
+                            <span className="font-bold text-slate-900">Güncel Liste Fiyatı:</span>
+                            <strong className="font-mono text-sm font-black text-emerald-700">
+                              {formatGbp(droneTargetUnit.price)}
+                            </strong>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -3626,7 +3768,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-slate-900 text-white text-[10px] font-black uppercase tracking-wider">
+                  <tr className="bg-slate-100 text-slate-900 border-b border-slate-200 text-[10px] font-black uppercase tracking-wider">
                     <th className="py-2 px-2.5 rounded-tl-lg">Proje</th>
                     <th className="py-2 px-2.5">Blok & Bağımsız Kapı No</th>
                     <th className="py-2 px-2.5">Ünite Tipi</th>
@@ -3634,7 +3776,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                     <th className="py-2 px-2.5">Kat, Konum & Manzara</th>
                     <th className="py-2 px-2.5">Liste Fiyatı (GBP)</th>
                     <th className="py-2 px-2.5">Statü</th>
-                    <th className="py-2 px-2.5 text-right rounded-tr-lg">Revizyon & 3D</th>
+                    <th className="py-2 px-2.5 text-right rounded-tr-lg">Revizyon & 2D Plan</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 text-[11px]">
@@ -3643,8 +3785,10 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                     const meta = getStatusBadgeMeta(unit.status);
                     return (
                       <tr key={unit.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="py-2 px-2.5 font-black text-slate-900">{unit.project_name}</td>
-                        <td className="py-2 px-2.5">
+                        <td className="py-2 px-2.5 font-black text-slate-900 whitespace-nowrap">
+                          {unit.project_name}
+                        </td>
+                        <td className="py-2 px-2.5 whitespace-nowrap">
                           <div className="flex items-center gap-1.5">
                             <span className="font-mono font-black text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200">
                               {unit.unit_number}
@@ -3652,8 +3796,10 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                             <span className="text-slate-700 font-bold">{unit.block_name}</span>
                           </div>
                         </td>
-                        <td className="py-2 px-2.5 font-bold text-slate-800">{unit.unit_type}</td>
-                        <td className="py-2 px-2.5 text-slate-600 font-semibold font-mono tabular-nums">
+                        <td className="py-2 px-2.5 font-bold text-slate-800 whitespace-nowrap">
+                          {unit.unit_type}
+                        </td>
+                        <td className="py-2 px-2.5 text-slate-600 font-semibold font-mono tabular-nums whitespace-nowrap">
                           {unit.gross_sqm} m² / {unit.net_sqm} m²{" "}
                           <span className="text-[10px] text-slate-400">(+{unit.terrace_sqm}m²)</span>
                         </td>
@@ -3661,7 +3807,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                           <span className="font-bold text-slate-900">{unit.floor_level}</span> •{" "}
                           <span>{unit.view_direction}</span>
                         </td>
-                        <td className="py-2 px-2.5">
+                        <td className="py-2 px-2.5 whitespace-nowrap">
                           <div className="flex items-center gap-1">
                             <span className="text-slate-400 font-bold">£</span>
                             <input
@@ -3679,14 +3825,14 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                               <button
                                 type="button"
                                 onClick={() => handleUnitPriceSave(unit.id)}
-                                className="px-1.5 py-0.5 bg-emerald-600 text-white rounded text-[9px] font-black cursor-pointer"
+                                className="px-1.5 py-0.5 bg-emerald-600 text-white rounded text-[9px] font-black cursor-pointer whitespace-nowrap"
                               >
                                 Kaydet
                               </button>
                             )}
                           </div>
                         </td>
-                        <td className="py-2 px-2.5">
+                        <td className="py-2 px-2.5 whitespace-nowrap">
                           <span
                             className={`px-2 py-0.5 rounded-full font-black text-[10px] border ${meta.pillBg}`}
                           >
@@ -3698,12 +3844,12 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                             </div>
                           )}
                         </td>
-                        <td className="py-2 px-2.5 text-right">
+                        <td className="py-2 px-2.5 text-right whitespace-nowrap">
                           <div className="inline-flex items-center gap-1">
                             <button
                               type="button"
                               onClick={() => setRevisingUnit({ ...unit })}
-                              className="px-2 py-0.5 bg-slate-900 hover:bg-indigo-600 text-white rounded text-[10px] font-bold cursor-pointer flex items-center gap-1"
+                              className="px-2 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[10px] font-bold cursor-pointer flex items-center gap-1 whitespace-nowrap"
                               title="Blok, Kapı No, Tip, Kat, Manzara ve Fiyatı Revize Et"
                             >
                               <Edit3 className="w-2.5 h-2.5" />
@@ -3712,10 +3858,10 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                             <button
                               type="button"
                               onClick={() => triggerDroneFlyToUnit(unit)}
-                              className="p-1 bg-amber-400 hover:bg-amber-300 text-slate-950 rounded cursor-pointer"
-                              title="3D Drone ile Göster"
+                              className="px-1.5 py-0.5 bg-sky-100 hover:bg-sky-200 text-sky-900 border border-sky-300 rounded text-[10px] font-bold cursor-pointer whitespace-nowrap"
+                              title="2D Mimari Kat Planını Göster"
                             >
-                              <Compass className="w-3 h-3" />
+                              2D Plan
                             </button>
                             <select
                               value={unit.status}
@@ -3759,7 +3905,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-slate-900 text-white text-[10px] font-black uppercase">
+                  <tr className="bg-slate-100 text-slate-900 border-b border-slate-200 text-[10px] font-black uppercase">
                     <th className="py-2 px-2.5 rounded-tl-lg">Proje</th>
                     <th className="py-2 px-2.5">Bölge</th>
                     <th className="py-2 px-2.5">Teslim & İnşaat</th>
@@ -3772,33 +3918,33 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                 <tbody className="divide-y divide-slate-200 text-xs">
                   {projects.map(p => (
                     <tr key={p.id} className="hover:bg-slate-50">
-                      <td className="py-2 px-2.5 font-black text-slate-900">
+                      <td className="py-2 px-2.5 font-black text-slate-900 whitespace-nowrap">
                         {p.folder_prefix || p.name}
                       </td>
                       <td className="py-2 px-2.5 text-slate-600">{p.sub_region}</td>
-                      <td className="py-2 px-2.5">
+                      <td className="py-2 px-2.5 whitespace-nowrap">
                         <span className="font-semibold text-slate-900">{p.completion_date}</span>
                         <span className="ml-1.5 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold">
                           %{p.construction_progress}
                         </span>
                       </td>
-                      <td className="py-2 px-2.5 font-mono tabular-nums">
+                      <td className="py-2 px-2.5 font-mono tabular-nums whitespace-nowrap">
                         <strong className="text-emerald-700">{p.available_units}</strong> / {p.total_units}
                       </td>
-                      <td className="py-2 px-2.5 font-mono font-black text-slate-900 tabular-nums">
+                      <td className="py-2 px-2.5 font-mono font-black text-slate-900 tabular-nums whitespace-nowrap">
                         {formatGbp(p.starting_price)}
                       </td>
-                      <td className="py-2 px-2.5 text-slate-700">
+                      <td className="py-2 px-2.5 text-slate-700 whitespace-nowrap">
                         %{p.payment_plan?.down_payment_percent || 35} Peşinat ·{" "}
                         {p.payment_plan?.installment_months || 36} Ay (%0 Faiz)
                       </td>
-                      <td className="py-2 px-2.5 text-right">
+                      <td className="py-2 px-2.5 text-right whitespace-nowrap">
                         <button
                           type="button"
                           onClick={() => handlePrintProjectSheet(p)}
-                          className="px-2.5 py-1 bg-slate-100 hover:bg-slate-900 text-slate-800 hover:text-white rounded text-[10px] font-bold cursor-pointer transition-colors"
+                          className="px-2.5 py-1 bg-slate-100 hover:bg-indigo-600 text-slate-800 hover:text-white rounded text-[10px] font-bold cursor-pointer whitespace-nowrap transition-colors"
                         >
-                          Yazdır
+                          Bilgi Formu
                         </button>
                       </td>
                     </tr>
@@ -3814,11 +3960,11 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                 İkili Proje & Ödeme Planı Simülatörü
               </h3>
 
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
                 <select
                   value={compareLeftId}
                   onChange={e => setCompareLeftId(Number(e.target.value))}
-                  className="px-2.5 py-1 bg-indigo-50 border border-indigo-200 rounded-lg text-xs font-black text-indigo-950"
+                  className="px-2.5 py-1 bg-indigo-50 border border-indigo-200 rounded-lg text-xs font-black text-indigo-950 shrink-0"
                 >
                   {projects.map(p => (
                     <option key={p.id} value={p.id}>
@@ -3826,11 +3972,11 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                     </option>
                   ))}
                 </select>
-                <span className="text-xs font-black text-slate-400">VS</span>
+                <span className="text-xs font-black text-slate-400 shrink-0">VS</span>
                 <select
                   value={compareRightId}
                   onChange={e => setCompareRightId(Number(e.target.value))}
-                  className="px-2.5 py-1 bg-amber-50 border border-amber-200 rounded-lg text-xs font-black text-amber-950"
+                  className="px-2.5 py-1 bg-amber-50 border border-amber-200 rounded-lg text-xs font-black text-amber-950 shrink-0"
                 >
                   {projects.map(p => (
                     <option key={p.id} value={p.id}>
@@ -3839,9 +3985,9 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                   ))}
                 </select>
 
-                <div className="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-lg border border-slate-200">
+                <div className="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-lg border border-slate-200 shrink-0">
                   <Calculator className="w-3.5 h-3.5 text-slate-700" />
-                  <span className="text-[10px] font-bold text-slate-600">Bütçe (GBP):</span>
+                  <span className="text-[10px] font-bold text-slate-600 whitespace-nowrap">Bütçe (GBP):</span>
                   <input
                     type="number"
                     value={simulatorPriceGbp}
@@ -3887,26 +4033,26 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                         </div>
                       </div>
 
-                      <div className="bg-slate-900 text-white rounded-xl p-2.5 space-y-1.5">
-                        <div className="text-[10px] font-black text-amber-300 uppercase">
+                      <div className="bg-white border border-indigo-200 text-slate-900 rounded-xl p-2.5 space-y-1.5">
+                        <div className="text-[10px] font-black text-indigo-900 uppercase">
                           {formatGbp(simulatorPriceGbp)} İçin Ödeme Planı Hesaplaması
                         </div>
                         <div className="grid grid-cols-3 gap-2 text-center">
-                          <div className="bg-slate-800 rounded-lg p-1.5">
-                            <div className="text-[9px] text-slate-400">Peşinat (%{downPct})</div>
-                            <div className="text-xs font-black text-white font-mono">
+                          <div className="bg-slate-50 border border-slate-200 rounded-lg p-1.5">
+                            <div className="text-[9px] text-slate-600 font-bold">Peşinat (%{downPct})</div>
+                            <div className="text-xs font-black text-slate-950 font-mono">
                               {formatGbp(downAmount)}
                             </div>
                           </div>
-                          <div className="bg-slate-800 rounded-lg p-1.5">
-                            <div className="text-[9px] text-slate-400">Kalan (%{100 - downPct})</div>
-                            <div className="text-xs font-black text-amber-300 font-mono">
+                          <div className="bg-slate-50 border border-slate-200 rounded-lg p-1.5">
+                            <div className="text-[9px] text-slate-600 font-bold">Kalan (%{100 - downPct})</div>
+                            <div className="text-xs font-black text-indigo-700 font-mono">
                               {formatGbp(remainAmount)}
                             </div>
                           </div>
-                          <div className="bg-slate-800 rounded-lg p-1.5">
-                            <div className="text-[9px] text-slate-400">{months} Ay Taksit</div>
-                            <div className="text-xs font-black text-emerald-300 font-mono">
+                          <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-1.5">
+                            <div className="text-[9px] text-emerald-800 font-bold">{months} Ay Taksit</div>
+                            <div className="text-xs font-black text-emerald-900 font-mono">
                               {formatGbp(monthlyInstallment)}/ay
                             </div>
                           </div>
@@ -3955,21 +4101,21 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                 });
                 setIsNewEventOpen(prev => !prev);
               }}
-              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer shrink-0"
+              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Yeni Etkinlik / Lansman Oluştur</span>
+              <span>Yeni Etkinlik Oluştur</span>
             </button>
           </div>
 
-          {/* CREATE / EDIT EVENT DRAWER WITH IMAGE & VIDEO UPLOAD */}
+          {/* CREATE / EDIT EVENT DRAWER WITH IMAGE & VIDEO UPLOAD (Daylight High-Contrast) */}
           {isNewEventOpen && (
             <form
               onSubmit={handleSaveEvent}
-              className="p-3.5 bg-slate-900 text-white rounded-xl border border-slate-800 space-y-3"
+              className="p-3.5 bg-slate-50 text-slate-900 rounded-xl border border-slate-300 space-y-3"
             >
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                <span className="text-xs font-black text-amber-300">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                <span className="text-xs font-black text-indigo-950">
                   {editingEventId
                     ? `Etkinlik & Medya Düzenle: ${newEventForm.title}`
                     : "Yeni Etkinlik / Lansman Oluştur (Resim & Video Destekli)"}
@@ -3980,7 +4126,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                     setIsNewEventOpen(false);
                     setEditingEventId(null);
                   }}
-                  className="text-slate-400 hover:text-white text-xs font-bold cursor-pointer"
+                  className="text-slate-500 hover:text-slate-950 text-xs font-bold cursor-pointer"
                 >
                   Kapat ✕
                 </button>
@@ -3988,7 +4134,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
                 <div className="lg:col-span-2">
-                  <label className="block text-[9px] text-slate-400 uppercase font-bold mb-0.5">
+                  <label className="block text-[9px] text-slate-700 uppercase font-bold mb-0.5">
                     Etkinlik / Lansman Başlığı *
                   </label>
                   <input
@@ -3997,18 +4143,18 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                     placeholder="Örn: Mykonos Homes Yaz Lansmanı & Gala Gecesi"
                     value={newEventForm.title}
                     onChange={e => setNewEventForm({ ...newEventForm, title: e.target.value })}
-                    className="w-full px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
+                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 font-semibold"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[9px] text-slate-400 uppercase font-bold mb-0.5">
+                  <label className="block text-[9px] text-slate-700 uppercase font-bold mb-0.5">
                     İlgili Proje
                   </label>
                   <select
                     value={newEventForm.project_name}
                     onChange={e => setNewEventForm({ ...newEventForm, project_name: e.target.value })}
-                    className="w-full px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-amber-300 font-black"
+                    className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 font-black"
                   >
                     <option value="Tüm Projeler">Tüm Projeler</option>
                     {projects.map(p => (
@@ -4020,7 +4166,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[9px] text-slate-400 uppercase font-bold mb-0.5">
+                  <label className="block text-[9px] text-slate-700 uppercase font-bold mb-0.5">
                     Tarih & Saat
                   </label>
                   <input
@@ -4028,12 +4174,12 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                     placeholder="2026-07-10 19:30"
                     value={newEventForm.event_date}
                     onChange={e => setNewEventForm({ ...newEventForm, event_date: e.target.value })}
-                    className="w-full px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
+                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 font-semibold"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[9px] text-slate-400 uppercase font-bold mb-0.5">
+                  <label className="block text-[9px] text-slate-700 uppercase font-bold mb-0.5">
                     Konum / Mekan
                   </label>
                   <input
@@ -4041,15 +4187,15 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                     placeholder="Esentepe Sahil Satış Ofisi"
                     value={newEventForm.location}
                     onChange={e => setNewEventForm({ ...newEventForm, location: e.target.value })}
-                    className="w-full px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
+                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 font-semibold"
                   />
                 </div>
               </div>
 
               {/* IMAGE & VIDEO UPLOAD CONTROLS FOR EVENT */}
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 items-end bg-slate-950/70 p-2.5 rounded-xl border border-slate-800">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 items-end bg-white p-2.5 rounded-xl border border-slate-200">
                 <div className="md:col-span-3">
-                  <label className="block text-[9px] text-slate-400 uppercase font-bold mb-1">
+                  <label className="block text-[9px] text-slate-700 uppercase font-bold mb-1">
                     Fotoğraf / Görsel Ekle (Cihazdan)
                   </label>
                   <input
@@ -4064,19 +4210,19 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                     type="button"
                     onClick={() => eventImageInputRef.current?.click()}
                     disabled={uploadingEventMedia}
-                    className="w-full px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="w-full px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
                   >
                     {uploadingEventMedia ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     ) : (
                       <ImageIcon className="w-3.5 h-3.5" />
                     )}
-                    <span>+ Resim / Fotoğraf Yükle</span>
+                    <span>+ Resim Yükle</span>
                   </button>
                 </div>
 
                 <div className="md:col-span-3">
-                  <label className="block text-[9px] text-slate-400 uppercase font-bold mb-1">
+                  <label className="block text-[9px] text-slate-700 uppercase font-bold mb-1">
                     Lansman Videosu Ekle (Cihazdan)
                   </label>
                   <input
@@ -4091,7 +4237,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                     type="button"
                     onClick={() => eventVideoInputRef.current?.click()}
                     disabled={uploadingEventMedia}
-                    className="w-full px-2.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-lg text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="w-full px-2.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-lg text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
                   >
                     {uploadingEventMedia ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -4103,8 +4249,8 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                 </div>
 
                 <div className="md:col-span-3">
-                  <label className="block text-[9px] text-slate-400 uppercase font-bold mb-1">
-                    Harici Video / Görsel Linki (Opsiyonel)
+                  <label className="block text-[9px] text-slate-700 uppercase font-bold mb-1">
+                    Harici Video / Görsel Linki
                   </label>
                   <input
                     type="text"
@@ -4117,13 +4263,13 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                         media_preview_url: e.target.value
                       })
                     }
-                    className="w-full px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
+                    className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900"
                   />
                 </div>
 
                 <div className="md:col-span-3 flex items-end gap-1.5">
                   <div className="flex-1">
-                    <label className="block text-[9px] text-slate-400 uppercase font-bold mb-1">
+                    <label className="block text-[9px] text-slate-700 uppercase font-bold mb-1">
                       Etkinlik Açıklaması
                     </label>
                     <input
@@ -4131,13 +4277,13 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                       placeholder="Kısa açıklama / program özeti"
                       value={newEventForm.description}
                       onChange={e => setNewEventForm({ ...newEventForm, description: e.target.value })}
-                      className="w-full px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
+                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900"
                     />
                   </div>
                   <button
                     type="submit"
                     disabled={uploadingEventMedia}
-                    className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-black cursor-pointer shrink-0"
+                    className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-black cursor-pointer shrink-0 whitespace-nowrap"
                   >
                     Kaydet
                   </button>
@@ -4147,19 +4293,19 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
               {/* Attached Event Media Gallery Preview Strip */}
               {newEventForm.media_gallery.length > 0 && (
                 <div className="space-y-1.5">
-                  <div className="text-[10px] font-bold text-amber-300 uppercase">
+                  <div className="text-[10px] font-bold text-indigo-900 uppercase">
                     Eklenen Etkinlik Medyaları ({newEventForm.media_gallery.length})
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {newEventForm.media_gallery.map(item => (
                       <div
                         key={item.id}
-                        className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-xs"
+                        className="flex items-center gap-2 bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs text-slate-900 font-semibold"
                       >
                         {item.type === "video" ? (
-                          <Video className="w-3.5 h-3.5 text-amber-400" />
+                          <Video className="w-3.5 h-3.5 text-amber-600" />
                         ) : (
-                          <ImageIcon className="w-3.5 h-3.5 text-emerald-400" />
+                          <ImageIcon className="w-3.5 h-3.5 text-emerald-600" />
                         )}
                         <span className="truncate max-w-[180px]">{item.name}</span>
                         <button
@@ -4170,7 +4316,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                               media_gallery: prev.media_gallery.filter(m => m.id !== item.id)
                             }))
                           }
-                          className="text-slate-400 hover:text-rose-400 cursor-pointer"
+                          className="text-slate-400 hover:text-rose-600 cursor-pointer"
                         >
                           ✕
                         </button>
@@ -4208,7 +4354,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                 >
                   <div>
                     {/* Event Visual Cover & Media Counter */}
-                    <div className="relative h-36 w-full bg-slate-900 overflow-hidden">
+                    <div className="relative h-36 w-full bg-slate-100 overflow-hidden">
                       {coverImg && (
                         <img
                           src={coverImg}
@@ -4216,18 +4362,18 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                           className="w-full h-full object-cover"
                         />
                       )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/30 to-transparent" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/25 to-transparent" />
                       <div className="absolute top-2 left-2 right-2 flex items-center justify-between gap-1">
-                        <span className="px-2 py-0.5 bg-slate-950/85 text-amber-300 rounded text-[10px] font-bold truncate">
+                        <span className="px-2 py-0.5 bg-white/95 text-slate-950 rounded text-[10px] font-bold truncate">
                           {ev.project_name}
                         </span>
-                        <span className="px-2 py-0.5 bg-indigo-600/90 text-white rounded text-[10px] font-mono font-bold shrink-0">
+                        <span className="px-2 py-0.5 bg-indigo-600 text-white rounded text-[10px] font-mono font-bold shrink-0">
                           {ev.event_date}
                         </span>
                       </div>
                       <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
-                        <span className="px-2 py-0.5 rounded bg-white/15 backdrop-blur-xs text-white text-[10px] font-bold flex items-center gap-1">
-                          <Video className="w-3 h-3 text-amber-300" />
+                        <span className="px-2 py-0.5 rounded bg-white/90 text-slate-950 text-[10px] font-bold flex items-center gap-1">
+                          <Video className="w-3 h-3 text-indigo-600" />
                           <span>
                             {gallery.length > 0
                               ? `${gallery.length} Medya (Resim & Video)`
@@ -4251,10 +4397,10 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                       <button
                         type="button"
                         onClick={() => handleOpenEditEvent(ev)}
-                        className="px-2 py-1 bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 rounded-lg text-[10px] font-bold cursor-pointer flex items-center gap-1"
+                        className="px-2 py-1 bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 rounded-lg text-[10px] font-bold cursor-pointer flex items-center gap-1 whitespace-nowrap"
                       >
                         <Edit3 className="w-3 h-3 text-indigo-600" />
-                        <span>Resim/Video Ekle & Düzenle</span>
+                        <span>Medya Ekle / Düzenle</span>
                       </button>
                       <button
                         type="button"
@@ -4279,9 +4425,9 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                           projectName: ev.project_name
                         })
                       }
-                      className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[10px] font-bold cursor-pointer flex items-center gap-1 shrink-0"
+                      className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-bold cursor-pointer flex items-center gap-1 shrink-0 whitespace-nowrap"
                     >
-                      <Play className="w-3 h-3 text-amber-300" />
+                      <Play className="w-3 h-3" />
                       <span>Medyayı Aç</span>
                     </button>
                   </div>
@@ -4307,15 +4453,15 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
               </p>
             </div>
 
-            <div className="flex items-center gap-1.5 flex-wrap">
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
               {["all", "Yönetim", "Teknik & Mimari", "Satış", "PR & Pazarlama"].map(dept => (
                 <button
                   key={dept}
                   type="button"
                   onClick={() => setStaffDeptFilter(dept)}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer transition-colors ${
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer whitespace-nowrap shrink-0 transition-colors ${
                     staffDeptFilter === dept
-                      ? "bg-slate-900 text-white"
+                      ? "bg-indigo-600 text-white"
                       : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                   }`}
                 >
@@ -4326,7 +4472,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
               <button
                 type="button"
                 onClick={() => setIsNewStaffOpen(prev => !prev)}
-                className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer shrink-0"
+                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer shrink-0 whitespace-nowrap"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Kullanıcı Ekle</span>
@@ -4337,7 +4483,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
           {isNewStaffOpen && (
             <form
               onSubmit={handleCreateInternalStaff}
-              className="p-3 bg-slate-900 text-white rounded-xl border border-slate-800 space-y-2.5"
+              className="p-3 bg-slate-50 text-slate-900 rounded-xl border border-slate-300 space-y-2.5"
             >
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
                 <input
@@ -4346,7 +4492,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                   placeholder="Ad Soyad *"
                   value={newStaffForm.full_name}
                   onChange={e => setNewStaffForm({ ...newStaffForm, full_name: e.target.value })}
-                  className="px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
+                  className="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 font-semibold"
                 />
                 <select
                   value={newStaffForm.department}
@@ -4363,7 +4509,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                       }
                     });
                   }}
-                  className="px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-amber-300 font-bold"
+                  className="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 font-bold"
                 >
                   <option value="Yönetim">Yönetim</option>
                   <option value="Teknik & Mimari">Teknik & Mimari</option>
@@ -4375,14 +4521,14 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                   placeholder="Görev / Unvan"
                   value={newStaffForm.title_role}
                   onChange={e => setNewStaffForm({ ...newStaffForm, title_role: e.target.value })}
-                  className="px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
+                  className="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 font-semibold"
                 />
                 <input
                   type="email"
                   placeholder="Kurumsal E-Posta *"
                   value={newStaffForm.email}
                   onChange={e => setNewStaffForm({ ...newStaffForm, email: e.target.value })}
-                  className="px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
+                  className="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 font-semibold"
                 />
                 <div className="flex items-center gap-1.5">
                   <input
@@ -4392,11 +4538,11 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                     onChange={e =>
                       setNewStaffForm({ ...newStaffForm, assigned_regions: e.target.value })
                     }
-                    className="flex-1 px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
+                    className="flex-1 px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 font-semibold"
                   />
                   <button
                     type="submit"
-                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold cursor-pointer shrink-0"
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold cursor-pointer shrink-0 whitespace-nowrap"
                   >
                     Kaydet
                   </button>
@@ -4408,7 +4554,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-900 text-white text-[10px] font-black uppercase">
+                <tr className="bg-slate-100 text-slate-900 border-b border-slate-200 text-[10px] font-black uppercase">
                   <th className="py-2 px-2.5 rounded-tl-lg">Ad Soyad & E-Posta</th>
                   <th className="py-2 px-2.5">Departman & Görev</th>
                   <th className="py-2 px-2.5">Sorumlu Alan</th>
@@ -4435,7 +4581,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                         <div className="text-[10px] text-slate-500 font-mono">{st.email}</div>
                       </td>
                       <td className="py-2 px-2.5">
-                        <span className="px-2 py-0.5 bg-slate-900 text-amber-300 rounded text-[10px] font-bold">
+                        <span className="px-2 py-0.5 bg-indigo-50 text-indigo-900 border border-indigo-200 rounded text-[10px] font-bold">
                           {st.department}
                         </span>
                         <div className="text-[11px] font-semibold text-slate-700 mt-0.5">
@@ -4459,7 +4605,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                             <button
                               type="button"
                               onClick={() => handleToggleStaffPermission(st, permKey)}
-                              className={`px-2 py-0.5 rounded text-[10px] font-bold cursor-pointer border transition-colors ${
+                              className={`px-2 py-0.5 rounded text-[10px] font-bold cursor-pointer border whitespace-nowrap transition-colors ${
                                 enabled
                                   ? "bg-emerald-50 text-emerald-800 border-emerald-300"
                                   : "bg-slate-100 text-slate-400 border-slate-200"
@@ -4494,24 +4640,24 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
       {/* ===================================================================== */}
       {previewAsset && (
         <div
-          className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-3"
+          className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-3"
           onClick={() => setPreviewAsset(null)}
         >
           <div
             className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-2xl overflow-hidden"
             onClick={e => e.stopPropagation()}
           >
-            <div className="bg-slate-900 text-white px-4 py-3 flex items-center justify-between">
+            <div className="bg-slate-50 border-b border-slate-200 text-slate-900 px-4 py-3 flex items-center justify-between">
               <div>
-                <h4 className="text-sm font-black text-white">{previewAsset.name}</h4>
-                <p className="text-[11px] text-slate-400">
+                <h4 className="text-sm font-black text-slate-950">{previewAsset.name}</h4>
+                <p className="text-[11px] text-slate-600">
                   {previewAsset.projectName} · {previewAsset.category}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setPreviewAsset(null)}
-                className="p-1 text-slate-400 hover:text-white rounded-lg cursor-pointer"
+                className="p-1 text-slate-500 hover:text-slate-950 rounded-lg cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -4534,13 +4680,13 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                 </div>
               ) : (
                 previewAsset.cover && (
-                  <div className="h-64 w-full rounded-xl overflow-hidden bg-slate-900 border border-slate-200 relative">
+                  <div className="h-64 w-full rounded-xl overflow-hidden bg-slate-100 border border-slate-200 relative">
                     <img
                       src={previewAsset.cover}
                       alt={previewAsset.name}
                       className="w-full h-full object-cover"
                     />
-                    <div className="absolute bottom-2 left-2 px-2.5 py-1 rounded bg-slate-950/85 text-white text-[11px] font-bold">
+                    <div className="absolute bottom-2 left-2 px-2.5 py-1 rounded bg-white/95 text-slate-950 text-[11px] font-bold border border-slate-200">
                       {previewAsset.projectName} — {previewAsset.category}
                     </div>
                   </div>
@@ -4566,7 +4712,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                             cover: gItem.type === "image" ? gItem.url : previewAsset.cover
                           })
                         }
-                        className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-900 text-slate-800 hover:text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                        className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-indigo-600 text-slate-800 hover:text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
                       >
                         {gItem.type === "video" ? (
                           <Play className="w-3 h-3 text-amber-500" />
@@ -4591,7 +4737,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                       href={previewAsset.url}
                       target="_blank"
                       rel="noreferrer"
-                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5"
+                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 whitespace-nowrap"
                     >
                       <Download className="w-3.5 h-3.5" />
                       <span>Dosyayı İndir / Aç</span>
@@ -4600,7 +4746,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                   <button
                     type="button"
                     onClick={() => setPreviewAsset(null)}
-                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold cursor-pointer"
+                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold cursor-pointer whitespace-nowrap"
                   >
                     Kapat
                   </button>
