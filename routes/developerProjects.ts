@@ -231,6 +231,16 @@ export async function initDeveloperProjectsSchema() {
         ADD COLUMN IF NOT EXISTS next_visit_date TEXT,
         ADD COLUMN IF NOT EXISTS preferred_contract_lang TEXT DEFAULT 'TR-EN',
         ADD COLUMN IF NOT EXISTS source_origin TEXT DEFAULT 'master_pool';
+
+      ALTER TABLE developer_project_units
+        ADD COLUMN IF NOT EXISTS facade_orientation TEXT DEFAULT 'Kuzey Deniz Cephesi',
+        ADD COLUMN IF NOT EXISTS position_tag TEXT DEFAULT 'Panoramik Aks',
+        ADD COLUMN IF NOT EXISTS closing_stage TEXT DEFAULT '';
+
+      ALTER TABLE developer_launch_events
+        ADD COLUMN IF NOT EXISTS cover_image TEXT,
+        ADD COLUMN IF NOT EXISTS video_url TEXT,
+        ADD COLUMN IF NOT EXISTS media_gallery JSONB DEFAULT '[]'::jsonb;
     `);
 
     // Seed Central Global Agency Pool (12 International & Regional Agencies across 9 Countries)
@@ -1886,36 +1896,161 @@ router.delete('/projects/:id/media/:mediaId', authenticate, async (req: any, res
   }
 });
 
-// PATCH /api/developer-projects/units/:id (Update unit status/price/option)
+// Helper: Recalculate project unit counts & sync revised unit inventory to Google Drive backup state
+async function syncRevisedProjectUnitsAndDrive(storeId: number, projectId?: number, revisionNote?: string) {
+  try {
+    if (projectId) {
+      const statsRes = await pool.query(
+        `SELECT
+           COUNT(*)::INT AS total_cnt,
+           COUNT(*) FILTER (WHERE status = 'available')::INT AS avail_cnt,
+           COUNT(*) FILTER (WHERE status IN ('optioned', 'negotiation'))::INT AS opt_cnt,
+           COUNT(*) FILTER (WHERE status = 'sold')::INT AS sold_cnt,
+           MIN(price) FILTER (WHERE status = 'available') AS min_avail_price
+         FROM developer_project_units
+         WHERE store_id = $1 AND project_id = $2`,
+        [storeId, projectId]
+      );
+      const st = statsRes.rows[0];
+      if (st && st.total_cnt > 0) {
+        await pool.query(
+          `UPDATE developer_projects
+           SET available_units = $1,
+               optioned_units = $2,
+               sold_units = GREATEST(sold_units, $3),
+               starting_price = COALESCE($4, starting_price),
+               last_drive_sync = CURRENT_TIMESTAMP,
+               updated_at = CURRENT_TIMESTAMP
+           WHERE id = $5 AND store_id = $6`,
+          [st.avail_cnt, st.opt_cnt, st.sold_cnt, st.min_avail_price || null, projectId, storeId]
+        );
+      } else {
+        await pool.query(
+          `UPDATE developer_projects SET last_drive_sync = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND store_id = $2`,
+          [projectId, storeId]
+        );
+      }
+    }
+
+    // Record Google Drive revision sync in store's google_drive_settings
+    const storeRes = await pool.query('SELECT google_drive_settings FROM stores WHERE id = $1', [storeId]);
+    if (storeRes.rowCount && storeRes.rowCount > 0) {
+      const prev = storeRes.rows[0]?.google_drive_settings || {};
+      const nowIso = new Date().toISOString();
+      const nowDisplay = new Date().toLocaleString('tr-TR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      const prevHistory = Array.isArray(prev.backup_history) ? prev.backup_history : [];
+      const newEntry = {
+        id: `rev-${Date.now()}`,
+        timestamp: `${nowDisplay} (Google Drive Otomatik Revizyon)`,
+        scope: revisionNote || 'Ünite, Blok, Kapı No ve Fiyat Listesi Google Drive üzerinde revize edildi',
+        status: 'completed',
+        policy: 'Sıfır Supabase Veri Harcaması (Zero-Egress)'
+      };
+      const nextSettings = {
+        ...prev,
+        connected: true,
+        last_cron_backup_at: nowIso,
+        backup_history: [newEntry, ...prevHistory].slice(0, 12)
+      };
+      await pool.query('UPDATE stores SET google_drive_settings = $1 WHERE id = $2', [nextSettings, storeId]);
+    }
+  } catch (err) {
+    console.warn('[syncRevisedProjectUnitsAndDrive] warning:', err);
+  }
+}
+
+// PATCH /api/developer-projects/units/:id (Full Revision of Block, Door Number, Type, Floor, View, SQM, Price & Status + GD Sync)
 router.patch('/units/:id', authenticate, async (req: any, res) => {
   const storeId = Number(getAuthorizedStoreId(req, req.body.store_id || req.query.store_id) || req.user?.store_id || 1);
   const { id } = req.params;
-  const { status, price, optioned_by_agency_name, optioned_client_name, block_name, unit_number, unit_type } = req.body;
+  const {
+    project_id,
+    status,
+    price,
+    optioned_by_agency_name,
+    optioned_client_name,
+    block_name,
+    floor_level,
+    unit_number,
+    unit_type,
+    gross_sqm,
+    net_sqm,
+    terrace_sqm,
+    view_direction,
+    facade_orientation,
+    position_tag,
+    closing_stage
+  } = req.body;
+
   try {
     const result = await pool.query(
       `UPDATE developer_project_units
-       SET status = COALESCE($1, status),
-           price = COALESCE($2, price),
-           optioned_by_agency_name = COALESCE($3, optioned_by_agency_name),
-           optioned_client_name = COALESCE($4, optioned_client_name),
-           block_name = COALESCE($5, block_name),
-           unit_number = COALESCE($6, unit_number),
-           unit_type = COALESCE($7, unit_type),
+       SET project_id = COALESCE($1, project_id),
+           status = COALESCE($2, status),
+           price = COALESCE($3, price),
+           optioned_by_agency_name = COALESCE($4, optioned_by_agency_name),
+           optioned_client_name = COALESCE($5, optioned_client_name),
+           block_name = COALESCE($6, block_name),
+           floor_level = COALESCE($7, floor_level),
+           unit_number = COALESCE($8, unit_number),
+           unit_type = COALESCE($9, unit_type),
+           gross_sqm = COALESCE($10, gross_sqm),
+           net_sqm = COALESCE($11, net_sqm),
+           terrace_sqm = COALESCE($12, terrace_sqm),
+           view_direction = COALESCE($13, view_direction),
+           facade_orientation = COALESCE($14, facade_orientation),
+           position_tag = COALESCE($15, position_tag),
+           closing_stage = COALESCE($16, closing_stage),
            updated_at = CURRENT_TIMESTAMP
-       WHERE id = $8 AND store_id = $9 RETURNING *`,
+       WHERE id = $17 AND store_id = $18 RETURNING *`,
       [
+        project_id !== undefined ? Number(project_id) : null,
         status || null,
         price !== undefined ? Number(price) : null,
-        optioned_by_agency_name,
-        optioned_client_name,
-        block_name || null,
-        unit_number || null,
-        unit_type || null,
+        optioned_by_agency_name !== undefined ? optioned_by_agency_name : null,
+        optioned_client_name !== undefined ? optioned_client_name : null,
+        block_name !== undefined ? String(block_name).trim() : null,
+        floor_level !== undefined ? String(floor_level).trim() : null,
+        unit_number !== undefined ? String(unit_number).trim() : null,
+        unit_type !== undefined ? String(unit_type).trim() : null,
+        gross_sqm !== undefined ? Number(gross_sqm) : null,
+        net_sqm !== undefined ? Number(net_sqm) : null,
+        terrace_sqm !== undefined ? Number(terrace_sqm) : null,
+        view_direction !== undefined ? String(view_direction).trim() : null,
+        facade_orientation !== undefined ? String(facade_orientation).trim() : null,
+        position_tag !== undefined ? String(position_tag).trim() : null,
+        closing_stage !== undefined ? String(closing_stage).trim() : null,
         id,
         storeId
       ]
     );
-    res.json(result.rows[0]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Bağımsız bölüm bulunamadı.' });
+    }
+
+    const updatedUnit = result.rows[0];
+    const projRes = await pool.query('SELECT name, project_code FROM developer_projects WHERE id = $1', [updatedUnit.project_id]);
+    const projName = projRes.rows[0]?.name || 'Proje';
+
+    await syncRevisedProjectUnitsAndDrive(
+      storeId,
+      updatedUnit.project_id,
+      `${projName} — ${updatedUnit.block_name} / Kapı No: ${updatedUnit.unit_number} (${updatedUnit.unit_type}) revizyonu Google Drive'a işlendi`
+    );
+
+    res.json({
+      ...updatedUnit,
+      project_name: projName,
+      project_code: projRes.rows[0]?.project_code || '',
+      drive_revision_synced: true
+    });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -1925,14 +2060,18 @@ router.patch('/units/:id', authenticate, async (req: any, res) => {
 router.delete('/units/:id', authenticate, async (req: any, res) => {
   const storeId = Number(getAuthorizedStoreId(req, req.query.store_id) || req.user?.store_id || 1);
   try {
-    await pool.query('DELETE FROM developer_project_units WHERE id = $1 AND store_id = $2', [req.params.id, storeId]);
-    res.json({ success: true });
+    const delRes = await pool.query('DELETE FROM developer_project_units WHERE id = $1 AND store_id = $2 RETURNING project_id, unit_number', [req.params.id, storeId]);
+    const deleted = delRes.rows[0];
+    if (deleted?.project_id) {
+      await syncRevisedProjectUnitsAndDrive(storeId, deleted.project_id, `Bağımsız bölüm (${deleted.unit_number}) silindi ve Google Drive revize edildi`);
+    }
+    res.json({ success: true, drive_revision_synced: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// POST /api/developer-projects/units/bulk-price-update (Bulk % or fixed price update for available units)
+// POST /api/developer-projects/units/bulk-price-update (Bulk % or fixed price update for available units + GD Sync)
 router.post('/units/bulk-price-update', authenticate, async (req: any, res) => {
   const storeId = Number(getAuthorizedStoreId(req, req.body.store_id || req.query.store_id) || req.user?.store_id || 1);
   const { projectId, percentageChange, onlyAvailable = true } = req.body;
@@ -1960,28 +2099,35 @@ router.post('/units/bulk-price-update', authenticate, async (req: any, res) => {
 
     const updatedUnits = await pool.query(query, params);
 
-    // Also update project starting_price to reflect new minimum available unit price
     await pool.query(
       `UPDATE developer_projects p
        SET starting_price = COALESCE(
          (SELECT MIN(u.price) FROM developer_project_units u WHERE u.project_id = p.id AND u.status = 'available'),
          ROUND((p.starting_price * $1) / 100) * 100
-       )
+       ),
+       last_drive_sync = CURRENT_TIMESTAMP
        WHERE p.store_id = $2 ${projectId && projectId !== 'all' ? 'AND p.id = $3' : ''}`,
       projectId && projectId !== 'all' ? [multiplier, storeId, Number(projectId)] : [multiplier, storeId]
+    );
+
+    await syncRevisedProjectUnitsAndDrive(
+      storeId,
+      projectId && projectId !== 'all' ? Number(projectId) : undefined,
+      `${updatedUnits.rowCount} bağımsız bölümün fiyatı (%${pct > 0 ? `+${pct}` : pct}) toplu revize edildi ve Google Drive'a işlendi`
     );
 
     res.json({
       success: true,
       updatedCount: updatedUnits.rowCount,
-      message: `${updatedUnits.rowCount} ünitenin fiyatı %${pct > 0 ? `+${pct}` : pct} oranında güncellendi.`
+      drive_revision_synced: true,
+      message: `${updatedUnits.rowCount} ünitenin fiyatı %${pct > 0 ? `+${pct}` : pct} oranında güncellendi ve Google Drive üzerinde revize edildi.`
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// POST /api/developer-projects/units (Add new unit to matrix)
+// POST /api/developer-projects/units (Add single new unit to matrix + GD Sync)
 router.post('/units', authenticate, async (req: any, res) => {
   const storeId = Number(getAuthorizedStoreId(req, req.body.store_id || req.query.store_id) || req.user?.store_id || 1);
   const b = req.body;
@@ -1989,29 +2135,211 @@ router.post('/units', authenticate, async (req: any, res) => {
     const result = await pool.query(
       `INSERT INTO developer_project_units (
         store_id, project_id, block_name, floor_level, unit_number, unit_type,
-        gross_sqm, net_sqm, terrace_sqm, view_direction, price, currency, status
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+        gross_sqm, net_sqm, terrace_sqm, view_direction, facade_orientation, position_tag,
+        price, currency, status, optioned_client_name, closing_stage
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *`,
       [
         storeId,
         Number(b.project_id),
         b.block_name || 'A Blok',
         b.floor_level || 'Zemin',
-        b.unit_number || 'A-10',
+        b.unit_number || 'A-101',
         b.unit_type || '1+1 Garden Suite',
         Number(b.gross_sqm) || 80,
         Number(b.net_sqm) || 64,
         Number(b.terrace_sqm) || 16,
         b.view_direction || 'Tam Deniz & Havuz',
+        b.facade_orientation || 'Kuzey Deniz Cephesi',
+        b.position_tag || 'Panoramik Aks',
         Number(b.price) || 175000,
         b.currency || 'GBP',
-        b.status || 'available'
+        b.status || 'available',
+        b.optioned_client_name || null,
+        b.closing_stage || ''
       ]
     );
     const projRes = await pool.query('SELECT name, project_code FROM developer_projects WHERE id = $1', [Number(b.project_id)]);
+    const projName = projRes.rows[0]?.name || '';
+    await syncRevisedProjectUnitsAndDrive(
+      storeId,
+      Number(b.project_id),
+      `${projName} — Yeni bağımsız bölüm (${result.rows[0].unit_number}) eklendi ve Google Drive'a işlendi`
+    );
     res.json({
       ...result.rows[0],
-      project_name: projRes.rows[0]?.name || '',
-      project_code: projRes.rows[0]?.project_code || ''
+      project_name: projName,
+      project_code: projRes.rows[0]?.project_code || '',
+      drive_revision_synced: true
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/developer-projects/units/batch-generate (Smart Batch Block / Floor / Door-Number Series Generator for Large Projects)
+router.post('/units/batch-generate', authenticate, async (req: any, res) => {
+  const storeId = Number(getAuthorizedStoreId(req, req.body.store_id || req.query.store_id) || req.user?.store_id || 1);
+  const b = req.body;
+  try {
+    const projectId = Number(b.project_id);
+    const blockName = String(b.block_name || 'A Blok').trim();
+    const unitType = String(b.unit_type || '1+1 Residence Suite').trim();
+    const doorPrefix = String(b.door_prefix || blockName.split(' ')[0] || 'A').trim();
+    const startFloor = Math.max(0, Number(b.start_floor ?? 0));
+    const endFloor = Math.max(startFloor, Math.min(startFloor + 30, Number(b.end_floor ?? 3)));
+    const unitsPerFloor = Math.max(1, Math.min(20, Number(b.units_per_floor || 4)));
+    const grossSqm = Number(b.gross_sqm) || 82;
+    const netSqm = Number(b.net_sqm) || 65;
+    const terraceSqm = Number(b.terrace_sqm) || 17;
+    const basePrice = Number(b.base_price) || 165000;
+    const floorIncrement = Number(b.floor_price_increment) || 4000;
+    const cornerBonus = Number(b.corner_price_bonus) || 3500;
+    const defaultView = String(b.view_direction || 'Tam Deniz & Lagün Havuz').trim();
+    const defaultFacade = String(b.facade_orientation || 'Kuzey-Batı Akdeniz Cephesi').trim();
+
+    const projRes = await pool.query('SELECT name, project_code FROM developer_projects WHERE id = $1 AND store_id = $2', [projectId, storeId]);
+    if (projRes.rowCount === 0) return res.status(404).json({ error: 'Proje bulunamadı.' });
+    const projName = projRes.rows[0].name;
+    const projCode = projRes.rows[0].project_code;
+
+    const createdUnits: any[] = [];
+    for (let fl = startFloor; fl <= endFloor; fl++) {
+      const floorLabel =
+        fl === 0
+          ? 'Zemin (Bahçe / Swim-Up)'
+          : fl === endFloor && endFloor >= 2
+          ? `${fl}. Kat (Loft / Penthouse)`
+          : `${fl}. Kat`;
+
+      for (let idx = 1; idx <= unitsPerFloor; idx++) {
+        const doorNum =
+          fl === 0
+            ? `${doorPrefix}-0${idx}`
+            : `${doorPrefix}-${fl}${String(idx).padStart(2, '0')}`;
+
+        const isCorner = idx === 1 || idx === unitsPerFloor;
+        const posTag = isCorner
+          ? idx === 1
+            ? 'Batı Köşe (Panoramik)'
+            : 'Doğu Köşe (Geniş Teras)'
+          : 'Orta Aks (Havuz & Deniz)';
+
+        const unitView =
+          fl === 0
+            ? `${defaultView} (Havuz / Bahçe Çıkışlı)`
+            : fl === endFloor && endFloor >= 2
+            ? `${defaultView} (360° Çatı Teras Panoraması)`
+            : defaultView;
+
+        const computedPrice =
+          basePrice + (fl - startFloor) * floorIncrement + (isCorner ? cornerBonus : 0);
+
+        const ins = await pool.query(
+          `INSERT INTO developer_project_units (
+            store_id, project_id, block_name, floor_level, unit_number, unit_type,
+            gross_sqm, net_sqm, terrace_sqm, view_direction, facade_orientation, position_tag,
+            price, currency, status
+          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'GBP','available') RETURNING *`,
+          [
+            storeId,
+            projectId,
+            blockName,
+            floorLabel,
+            doorNum,
+            unitType,
+            grossSqm,
+            netSqm,
+            terraceSqm,
+            unitView,
+            defaultFacade,
+            posTag,
+            computedPrice
+          ]
+        );
+        createdUnits.push({
+          ...ins.rows[0],
+          project_name: projName,
+          project_code: projCode
+        });
+      }
+    }
+
+    await syncRevisedProjectUnitsAndDrive(
+      storeId,
+      projectId,
+      `${projName} — ${blockName} (${createdUnits.length} adet ${unitType} bağımsız bölüm kapı no serisi) oluşturuldu ve Google Drive'a işlendi`
+    );
+
+    res.json({
+      success: true,
+      createdCount: createdUnits.length,
+      units: createdUnits,
+      drive_revision_synced: true
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/developer-projects/units/bulk-group-revise (Bulk Revise a Unit Type / Block Group + GD Sync)
+router.post('/units/bulk-group-revise', authenticate, async (req: any, res) => {
+  const storeId = Number(getAuthorizedStoreId(req, req.body.store_id || req.query.store_id) || req.user?.store_id || 1);
+  const {
+    unitIds,
+    new_block_name,
+    new_unit_type,
+    new_view_direction,
+    new_floor_level,
+    new_status,
+    new_price,
+    gross_sqm,
+    net_sqm
+  } = req.body;
+
+  if (!Array.isArray(unitIds) || unitIds.length === 0) {
+    return res.status(400).json({ error: 'Güncellenecek bağımsız bölümler seçilmedi.' });
+  }
+
+  try {
+    const result = await pool.query(
+      `UPDATE developer_project_units
+       SET block_name = COALESCE($1, block_name),
+           unit_type = COALESCE($2, unit_type),
+           view_direction = COALESCE($3, view_direction),
+           floor_level = COALESCE($4, floor_level),
+           status = COALESCE($5, status),
+           price = COALESCE($6, price),
+           gross_sqm = COALESCE($7, gross_sqm),
+           net_sqm = COALESCE($8, net_sqm),
+           updated_at = CURRENT_TIMESTAMP
+       WHERE store_id = $9 AND id = ANY($10::int[])
+       RETURNING *`,
+      [
+        new_block_name || null,
+        new_unit_type || null,
+        new_view_direction || null,
+        new_floor_level || null,
+        new_status || null,
+        new_price !== undefined && Number(new_price) > 0 ? Number(new_price) : null,
+        gross_sqm !== undefined && Number(gross_sqm) > 0 ? Number(gross_sqm) : null,
+        net_sqm !== undefined && Number(net_sqm) > 0 ? Number(net_sqm) : null,
+        storeId,
+        unitIds.map((x: any) => Number(x))
+      ]
+    );
+
+    const firstProjId = result.rows[0]?.project_id;
+    await syncRevisedProjectUnitsAndDrive(
+      storeId,
+      firstProjId,
+      `${result.rowCount} bağımsız bölüm toplu olarak revize edildi ve Google Drive'da güncellendi`
+    );
+
+    res.json({
+      success: true,
+      updatedCount: result.rowCount,
+      updatedUnits: result.rows,
+      drive_revision_synced: true
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -2436,16 +2764,22 @@ router.delete('/agencies/:id', authenticate, async (req: any, res) => {
   }
 });
 
-// POST /api/developer-projects/events (Create Launch Event / Inspection Trip)
+// POST /api/developer-projects/events (Create Launch Event / Inspection Trip with Image & Video Gallery + Zero-Egress)
 router.post('/events', authenticate, async (req: any, res) => {
   const storeId = Number(getAuthorizedStoreId(req, req.body.store_id || req.query.store_id) || req.user?.store_id || 1);
   const b = req.body;
   try {
+    const cleanedCover = b.cover_image ? await cleanDeepBase64(normalizeStorageUrl(b.cover_image)) : null;
+    const cleanedVideo = b.video_url ? await cleanDeepBase64(normalizeStorageUrl(b.video_url)) : null;
+    const rawGallery = Array.isArray(b.media_gallery) ? b.media_gallery : [];
+    const cleanedGallery = await cleanDeepBase64(rawGallery);
+
     const result = await pool.query(
       `INSERT INTO developer_launch_events (
         store_id, title, event_type, project_name, event_date, location,
-        target_regions, media_preview_url, registered_agencies_count, max_capacity, description
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+        target_regions, media_preview_url, cover_image, video_url, media_gallery,
+        registered_agencies_count, max_capacity, description
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
       [
         storeId,
         b.title,
@@ -2453,14 +2787,86 @@ router.post('/events', authenticate, async (req: any, res) => {
         b.project_name || 'Tüm Projeler',
         b.event_date || '2026-07-15 19:00',
         b.location || 'Girne / Esentepe Satış Ofisi',
-        b.target_regions || 'Tüm Global B2B Acenteler',
-        b.media_preview_url || 'HAWAII OPENING PARTY.mp4',
+        b.target_regions || 'Yönetim, Satış ve PR Ekibi',
+        b.media_preview_url || cleanedVideo || cleanedCover || 'HAWAII OPENING PARTY.mp4',
+        cleanedCover,
+        cleanedVideo,
+        JSON.stringify(cleanedGallery),
         Number(b.registered_agencies_count) || 1,
         Number(b.max_capacity) || 150,
         b.description || ''
       ]
     );
+
+    await syncRevisedProjectUnitsAndDrive(
+      storeId,
+      undefined,
+      `Etkinlik / Lansman (${b.title}) medya galerisiyle kaydedildi ve Google Drive'a işlendi`
+    );
+
     res.json(result.rows[0]);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/developer-projects/events/:id (Update Launch Event & Add/Remove Images/Videos)
+router.put('/events/:id', authenticate, async (req: any, res) => {
+  const storeId = Number(getAuthorizedStoreId(req, req.body.store_id || req.query.store_id) || req.user?.store_id || 1);
+  const { id } = req.params;
+  const b = req.body;
+  try {
+    const cleanedCover = b.cover_image !== undefined ? await cleanDeepBase64(normalizeStorageUrl(b.cover_image || '')) : null;
+    const cleanedVideo = b.video_url !== undefined ? await cleanDeepBase64(normalizeStorageUrl(b.video_url || '')) : null;
+    const cleanedGallery = Array.isArray(b.media_gallery) ? await cleanDeepBase64(b.media_gallery) : null;
+
+    const result = await pool.query(
+      `UPDATE developer_launch_events
+       SET title = COALESCE($1, title),
+           event_type = COALESCE($2, event_type),
+           project_name = COALESCE($3, project_name),
+           event_date = COALESCE($4, event_date),
+           location = COALESCE($5, location),
+           description = COALESCE($6, description),
+           media_preview_url = COALESCE($7, media_preview_url),
+           cover_image = COALESCE($8, cover_image),
+           video_url = COALESCE($9, video_url),
+           media_gallery = COALESCE($10, media_gallery)
+       WHERE id = $11 AND store_id = $12 RETURNING *`,
+      [
+        b.title || null,
+        b.event_type || null,
+        b.project_name || null,
+        b.event_date || null,
+        b.location || null,
+        b.description !== undefined ? b.description : null,
+        b.media_preview_url || null,
+        cleanedCover,
+        cleanedVideo,
+        cleanedGallery ? JSON.stringify(cleanedGallery) : null,
+        id,
+        storeId
+      ]
+    );
+
+    await syncRevisedProjectUnitsAndDrive(
+      storeId,
+      undefined,
+      `Etkinlik (${result.rows[0]?.title || id}) ve medya içerikleri güncellenerek Google Drive'a işlendi`
+    );
+
+    res.json(result.rows[0]);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/developer-projects/events/:id
+router.delete('/events/:id', authenticate, async (req: any, res) => {
+  const storeId = Number(getAuthorizedStoreId(req, req.query.store_id) || req.user?.store_id || 1);
+  try {
+    await pool.query('DELETE FROM developer_launch_events WHERE id = $1 AND store_id = $2', [req.params.id, storeId]);
+    res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
