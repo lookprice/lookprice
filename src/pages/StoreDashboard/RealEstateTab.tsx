@@ -14,6 +14,7 @@ import { RealEstateModalsContainer } from "./realestate/RealEstateModalsContaine
 import { handlePrintProperty } from "./realestate/RealEstatePrintPoster";
 import { DealCommissionModal } from "@/components/DealCommissionModal";
 import { ExternalPartnerPortalModal } from "@/components/ExternalPartnerPortalModal";
+import { DeveloperProjectSuite } from "@/components/developer/DeveloperProjectSuite";
 
 export const RealEstateTab: React.FC<RealEstateTabProps> = ({
   properties,
@@ -61,7 +62,7 @@ export const RealEstateTab: React.FC<RealEstateTabProps> = ({
     };
   }, [storeId, user?.store_id]);
 
-  const [viewMode, setViewMode] = useState<RealEstateViewMode>('list');
+  const [viewMode, setViewMode] = useState<RealEstateViewMode>('grid');
   const [filterBranch, setFilterBranch] = useState("all");
   const [branches, setBranches] = useState<any[]>([]);
   const [filterScope, setFilterScope] = useState("all");
@@ -217,6 +218,17 @@ export const RealEstateTab: React.FC<RealEstateTabProps> = ({
             setIsTourModalOpen(true);
           }}
           onRefreshProperties={fetchTasks}
+        />
+      ) : viewMode === 'developer_projects' ? (
+        <DeveloperProjectSuite
+          storeId={storeId || user?.store_id}
+          branding={branding}
+          user={user}
+          onBackToPortfolio={() => setViewMode('grid')}
+          onConvertUnitToProperty={(unitPayload) => {
+            setSelectedProperty(unitPayload);
+            setIsModalOpen(true);
+          }}
         />
       ) : viewMode === 'pipeline' ? (
         <RealEstateCRM

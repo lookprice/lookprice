@@ -39,9 +39,11 @@ export const ImportModal = ({
   const isTr = lang === "tr";
 
   const fieldLabels: Record<string, { label: string; required?: boolean; isImage?: boolean }> = {
-    barcode: { label: isTr ? "Barkod / Ürün Kodu *" : "Barcode / SKU *", required: true },
+    barcode: { label: isTr ? "Barkod (EAN / GTIN) *" : "Barcode (EAN) *", required: true },
+    sku: { label: isTr ? "Stok Kodu / SKU (Ürün Kodu)" : "Stock Code / SKU" },
     name: { label: isTr ? "Ürün Adı *" : "Product Name *", required: true },
     price: { label: isTr ? "Satış Fiyatı *" : "Sale Price *", required: true },
+    currency: { label: isTr ? "Fiyat Para Birimi (TRY, USD, EUR, GBP)" : "Price Currency (TRY, USD, EUR, GBP)" },
     stock_quantity: { label: isTr ? "Stok Miktarı" : "Stock Quantity" },
     category: { label: isTr ? "Ana Kategori" : "Category" },
     sub_category: { label: isTr ? "Alt Kategori" : "Sub Category" },
@@ -55,7 +57,8 @@ export const ImportModal = ({
     image_url_4: { label: isTr ? "4. Ekstra Resim Linki" : "4. Extra Image URL", isImage: true },
     image_url_5: { label: isTr ? "5. Ekstra Resim Linki" : "5. Extra Image URL", isImage: true },
     variant_name: { label: isTr ? "Varyant Adı / Seçeneği (örn: Siyah / M, 256GB)" : "Variant Name / Option" },
-    variant_barcode: { label: isTr ? "Varyant Barkodu / Özel SKU" : "Variant Barcode / SKU" },
+    variant_barcode: { label: isTr ? "Varyant Barkodu" : "Variant Barcode" },
+    variant_sku: { label: isTr ? "Varyant Stok Kodu (SKU)" : "Variant SKU" },
     variant_price: { label: isTr ? "Varyant Satış Fiyatı" : "Variant Sale Price" },
     variant_stock: { label: isTr ? "Varyant Stok Miktarı" : "Variant Stock Quantity" },
     variant_color: { label: isTr ? "Varyant Rengi" : "Variant Color" },
@@ -67,15 +70,18 @@ export const ImportModal = ({
     const sampleRows = [
       {
         "Barkod": "8690000000001",
+        "Stok Kodu / SKU": "SKU-PROD-1001",
         "Ürün Adı": "Örnek Kablosuz Kulaklık Pro",
         "Kategori": "Elektronik",
         "Alt Kategori": "Ses Sistemleri",
         "Marka": "LookTech",
         "Satış Fiyatı": 1499.90,
+        "Para Birimi": "TRY",
         "Stok Miktarı": 25,
         "Birim": "Adet",
         "Varyant Adı / Seçeneği": "",
         "Varyant Barkodu": "",
+        "Varyant Stok Kodu / SKU": "",
         "Varyant Satış Fiyatı": "",
         "Varyant Stok Miktarı": "",
         "Varyant Rengi": "",
@@ -89,15 +95,18 @@ export const ImportModal = ({
       },
       {
         "Barkod": "8690000000002",
+        "Stok Kodu / SKU": "SKU-TSHIRT-2002",
         "Ürün Adı": "Örnek Pamuklu Polo Tişört",
         "Kategori": "Giyim",
         "Alt Kategori": "Tişört",
         "Marka": "LookStyle",
         "Satış Fiyatı": 599.90,
+        "Para Birimi": "TRY",
         "Stok Miktarı": 30,
         "Birim": "Adet",
         "Varyant Adı / Seçeneği": "Siyah / S",
         "Varyant Barkodu": "8690000000021",
+        "Varyant Stok Kodu / SKU": "SKU-TSHIRT-2002-BLK-S",
         "Varyant Satış Fiyatı": 599.90,
         "Varyant Stok Miktarı": 10,
         "Varyant Rengi": "Siyah",
@@ -111,15 +120,18 @@ export const ImportModal = ({
       },
       {
         "Barkod": "8690000000002",
+        "Stok Kodu / SKU": "SKU-TSHIRT-2002",
         "Ürün Adı": "Örnek Pamuklu Polo Tişört",
         "Kategori": "Giyim",
         "Alt Kategori": "Tişört",
         "Marka": "LookStyle",
         "Satış Fiyatı": 599.90,
+        "Para Birimi": "TRY",
         "Stok Miktarı": 30,
         "Birim": "Adet",
         "Varyant Adı / Seçeneği": "Siyah / M",
         "Varyant Barkodu": "8690000000022",
+        "Varyant Stok Kodu / SKU": "SKU-TSHIRT-2002-BLK-M",
         "Varyant Satış Fiyatı": 599.90,
         "Varyant Stok Miktarı": 12,
         "Varyant Rengi": "Siyah",
@@ -133,15 +145,18 @@ export const ImportModal = ({
       },
       {
         "Barkod": "8690000000002",
+        "Stok Kodu / SKU": "SKU-TSHIRT-2002",
         "Ürün Adı": "Örnek Pamuklu Polo Tişört",
         "Kategori": "Giyim",
         "Alt Kategori": "Tişört",
         "Marka": "LookStyle",
         "Satış Fiyatı": 599.90,
+        "Para Birimi": "TRY",
         "Stok Miktarı": 30,
         "Birim": "Adet",
         "Varyant Adı / Seçeneği": "Beyaz / L",
         "Varyant Barkodu": "8690000000023",
+        "Varyant Stok Kodu / SKU": "SKU-TSHIRT-2002-WHT-L",
         "Varyant Satış Fiyatı": 599.90,
         "Varyant Stok Miktarı": 8,
         "Varyant Rengi": "Beyaz",
@@ -160,9 +175,9 @@ export const ImportModal = ({
     XLSX.writeFile(wb, isTr ? "Ornek_Toplu_Urun_Sablonu.xlsx" : "Sample_Product_Import_Template.xlsx");
   };
 
-  const standardKeys = ["barcode", "name", "price", "stock_quantity", "category", "sub_category", "brand", "author", "unit", "description"];
+  const standardKeys = ["barcode", "sku", "name", "price", "currency", "stock_quantity", "category", "sub_category", "brand", "author", "unit", "description"];
   const imageKeys = ["image_url", "image_url_2", "image_url_3", "image_url_4", "image_url_5"];
-  const variantKeys = ["variant_name", "variant_barcode", "variant_price", "variant_stock", "variant_color", "variant_size", "variant_image"];
+  const variantKeys = ["variant_name", "variant_barcode", "variant_sku", "variant_price", "variant_stock", "variant_color", "variant_size", "variant_image"];
 
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-md">

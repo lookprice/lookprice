@@ -1680,9 +1680,9 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
           onClose();
         }
       }}
-      className="fixed inset-0 z-[120] flex items-center justify-center p-2 sm:p-4 bg-slate-900/75 backdrop-blur-xs overflow-hidden animate-in fade-in duration-200"
+      className="fixed inset-0 z-[120] flex items-center justify-center p-1 sm:p-4 bg-slate-900/75 backdrop-blur-xs overflow-hidden animate-in fade-in duration-200"
     >
-      <div className="bg-white rounded-2xl w-full max-w-[96vw] xl:max-w-[1440px] h-[92vh] max-h-[92dvh] flex flex-col md:flex-row overflow-hidden shadow-2xl relative border-2 border-slate-300 text-slate-950">
+      <div className="bg-white rounded-2xl w-full max-w-[98vw] sm:max-w-[96vw] xl:max-w-[1440px] h-[95vh] sm:h-[92vh] max-h-[95dvh] sm:max-h-[92dvh] flex flex-col md:flex-row overflow-hidden shadow-2xl relative border-2 border-slate-300 text-slate-950">
         
         {/* Mobile Tab Bar & Header */}
         <div className="md:hidden flex items-center justify-between bg-slate-900 border-b border-slate-800 p-2 shrink-0 gap-2">
@@ -1719,7 +1719,7 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
         </div>
 
         {/* Left Side: Parameters Form - High-Contrast Daylight Corporate Theme */}
-        <div className={`w-full md:w-[40%] lg:w-[38%] shrink-0 bg-slate-50 p-3.5 sm:p-4 flex-col justify-between border-r-2 border-slate-300 overflow-y-auto text-slate-950 ${
+        <div className={`w-full flex-1 min-h-0 h-full md:h-auto md:flex-initial md:w-[40%] lg:w-[38%] md:shrink-0 bg-slate-50 p-3.5 sm:p-4 flex-col justify-between border-b-2 md:border-b-0 md:border-r-2 border-slate-300 overflow-y-auto text-slate-950 ${
           activeMobileTab === 'params' ? 'flex' : 'hidden md:flex'
         }`}>
           <div className="space-y-3.5">
@@ -4454,7 +4454,7 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
         </div>
 
         {/* Right Side: Contract Live Rendering */}
-        <div className={`flex-1 min-w-0 bg-white flex-col justify-between overflow-hidden ${
+        <div className={`w-full flex-1 min-w-0 min-h-0 h-full bg-white flex-col justify-between overflow-hidden ${
           activeMobileTab === 'preview' ? 'flex' : 'hidden md:flex'
         }`}>
           
@@ -4539,7 +4539,7 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
           </div>
 
           {/* RENDERED CONTENT */}
-          <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-100/50">
+          <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 md:p-8 bg-slate-100/50">
             <div className="bg-white shadow-lg rounded-3xl border border-slate-200/80 overflow-hidden mx-auto max-w-3xl">
               <div dangerouslySetInnerHTML={{ __html: html }} />
             </div>

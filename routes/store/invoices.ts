@@ -1259,7 +1259,8 @@ router.put("/sales/:id", async (req: any, res) => {
       notes, items, payment_method, currency, exchange_rate, 
       invoice_type, invoice_profile, status, is_tax_inclusive,
       tax_number, tax_office, address,
-      gi_invoice_type, gi_exemption_reason_code, gi_withholding_tax_code
+      gi_invoice_type, gi_exemption_reason_code, gi_withholding_tax_code,
+      customer_name: reqCustomerName, company_title: reqCompanyTitle, customer_title: reqCustomerTitle
     } = req.body;
 
     const finalIsTaxInclusive = is_tax_inclusive !== undefined ? is_tax_inclusive : true;
@@ -1290,15 +1291,28 @@ router.put("/sales/:id", async (req: any, res) => {
       "SELECT * FROM sales_invoice_items WHERE sales_invoice_id = $1",
       [req.params.id]
     );
-    
-    let displayName = 'Müşteri';
-    if (company_id) {
-      const companyRes = await client.query("SELECT title FROM companies WHERE id = $1", [company_id]);
-      if (companyRes.rows.length > 0) displayName = companyRes.rows[0].title;
-    } else if (customer_id) {
-      const custRes = await client.query("SELECT full_name FROM customers WHERE id = $1", [customer_id]);
-      if (custRes.rows.length > 0) displayName = custRes.rows[0].full_name;
+
+    let finalCustomerTitle = (reqCustomerTitle || reqCustomerName || reqCompanyTitle || '').trim();
+    if (!finalCustomerTitle || finalCustomerTitle.startsWith('Amazon Kurumsal Alıcı') || finalCustomerTitle.startsWith('Amazon Alıcısı') || finalCustomerTitle === 'Müşteri') {
+      if (company_id) {
+        const companyRes = await client.query("SELECT title FROM companies WHERE id = $1", [company_id]);
+        if (companyRes.rows.length > 0 && companyRes.rows[0].title) {
+          finalCustomerTitle = companyRes.rows[0].title;
+        }
+      }
+      if ((!finalCustomerTitle || finalCustomerTitle.startsWith('Amazon Kurumsal Alıcı') || finalCustomerTitle.startsWith('Amazon Alıcısı')) && customer_id) {
+        const custRes = await client.query("SELECT full_name, name, surname FROM customers WHERE id = $1", [customer_id]);
+        if (custRes.rows.length > 0) {
+          const cName = custRes.rows[0].full_name || `${custRes.rows[0].name || ''} ${custRes.rows[0].surname || ''}`.trim();
+          if (cName && !cName.startsWith('Amazon Kurumsal Alıcı') && !cName.startsWith('Amazon Alıcısı')) {
+            finalCustomerTitle = cName;
+          }
+        }
+      }
     }
+    if (!finalCustomerTitle) finalCustomerTitle = oldInvoice.company_title || oldInvoice.customer_name || 'Müşteri';
+    
+    let displayName = finalCustomerTitle;
 
     const affectedProductIds: number[] = [];
     for (const item of oldItemsResult.rows) {
@@ -1468,8 +1482,10 @@ router.put("/sales/:id", async (req: any, res) => {
         integration_message = CASE WHEN integration_status = 'HATALI' THEN NULL ELSE integration_message END,
         due_date = $29,
         due_days = $30,
-        late_interest_rate = $31
-    WHERE id = $32 AND store_id = $33`,
+        late_interest_rate = $31,
+        customer_name = $32,
+        company_title = $33
+    WHERE id = $34 AND store_id = $35`,
     [
       company_id || null, customer_id || null, invoice_number, waybill_number || null, invoice_date, 
       total_amount, tax_amount, grand_total, currency || 'TRY', exchange_rate || 1, 
@@ -1486,6 +1502,8 @@ router.put("/sales/:id", async (req: any, res) => {
       inputDueDate || null,
       inputDueDays || 0,
       inputLateRate || 0,
+      finalCustomerTitle,
+      finalCustomerTitle,
       req.params.id, storeId
     ]
     );
@@ -1503,6 +1521,10 @@ router.put("/sales/:id", async (req: any, res) => {
         const updateValues: any[] = [];
         let valIdx = 1;
 
+        if (finalCustomerTitle && (!comp.title || comp.title.trim() === "" || comp.title.startsWith('Amazon Kurumsal Alıcı') || comp.title.startsWith('Amazon Alıcısı'))) {
+          updateFields.push(`title = $${valIdx++}`);
+          updateValues.push(finalCustomerTitle);
+        }
         if (currentTaxNum && (!comp.tax_number || comp.tax_number.trim() === "")) {
           updateFields.push(`tax_number = $${valIdx++}`);
           updateValues.push(currentTaxNum);
@@ -1536,6 +1558,10 @@ router.put("/sales/:id", async (req: any, res) => {
         const updateValues: any[] = [];
         let valIdx = 1;
 
+        if (finalCustomerTitle && (!cust.full_name || cust.full_name.trim() === "" || cust.full_name.startsWith('Amazon Kurumsal Alıcı') || cust.full_name.startsWith('Amazon Alıcısı'))) {
+          updateFields.push(`full_name = $${valIdx++}`);
+          updateValues.push(finalCustomerTitle);
+        }
         if (currentTaxNum && (!cust.tax_number || cust.tax_number.trim() === "")) {
           updateFields.push(`tax_number = $${valIdx++}`);
           updateValues.push(currentTaxNum);

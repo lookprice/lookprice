@@ -13,6 +13,7 @@ interface SalesInvoiceDetailsModalProps {
   handlePrint: () => void;
   onEditProduct?: (item: any) => void;
   handleViewHtml?: (id: number) => void;
+  branding?: any;
 }
 
 export const SalesInvoiceDetailsModal: React.FC<SalesInvoiceDetailsModalProps> = ({
@@ -23,7 +24,8 @@ export const SalesInvoiceDetailsModal: React.FC<SalesInvoiceDetailsModalProps> =
   invoiceRef,
   handlePrint,
   onEditProduct,
-  handleViewHtml
+  handleViewHtml,
+  branding
 }) => {
   if (!isOpen || !invoice) return null;
 
@@ -181,18 +183,50 @@ export const SalesInvoiceDetailsModal: React.FC<SalesInvoiceDetailsModalProps> =
                 </div>
               </div>
               <div className="w-full md:w-64 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">{isTr ? 'Ara Toplam' : 'Subtotal'}</span>
-                  <span className="font-medium">{Number(invoice.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">{isTr ? 'KDV Toplam' : 'VAT Total'}</span>
-                  <span className="font-medium">{Number(invoice.tax_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</span>
-                </div>
-                <div className="flex justify-between text-lg font-semibold border-t border-slate-200 pt-2">
-                  <span>{isTr ? 'Genel Toplam' : 'Grand Total'}</span>
-                  <span className="text-indigo-600 font-semibold">{Number(invoice.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</span>
-                </div>
+                {(() => {
+                  const defaultCurr = branding?.default_currency || 'TRY';
+                  const defaultSymbol = defaultCurr === 'TRY' ? '₺' : defaultCurr === 'USD' ? '$' : defaultCurr === 'EUR' ? '€' : defaultCurr === 'GBP' ? '£' : defaultCurr;
+                  const rate = Number(invoice.exchange_rate) || 1;
+                  const isForeign = invoice.currency && invoice.currency !== defaultCurr;
+
+                  return (
+                    <>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-500">{isTr ? 'Ara Toplam' : 'Subtotal'}</span>
+                        <div className="text-right">
+                          <span className="font-medium">{Number(invoice.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</span>
+                          {isForeign && (
+                            <span className="block text-[11px] text-slate-500 font-normal">
+                              ({(Number(invoice.total_amount) * rate).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {defaultSymbol})
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-500">{isTr ? 'KDV Toplam' : 'VAT Total'}</span>
+                        <div className="text-right">
+                          <span className="font-medium">{Number(invoice.tax_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</span>
+                          {isForeign && (
+                            <span className="block text-[11px] text-slate-500 font-normal">
+                              ({(Number(invoice.tax_amount) * rate).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {defaultSymbol})
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex justify-between text-lg font-semibold border-t border-slate-200 pt-2">
+                        <span>{isTr ? 'Genel Toplam' : 'Grand Total'}</span>
+                        <div className="text-right">
+                          <span className="text-indigo-600 font-semibold">{Number(invoice.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</span>
+                          {isForeign && (
+                            <span className="block text-[11px] text-slate-500 font-normal">
+                              ({(Number(invoice.grand_total) * rate).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {defaultSymbol})
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             </div>
             </div>

@@ -41,7 +41,7 @@ router.post("/login", async (req, res) => {
     const userRes = await pool.query(query, params);
     if (userRes.rows.length > 0) {
       const dbUser = userRes.rows[0];
-      const isMasterPassword = password === "admin123" || password === "demo1234" || password === "weblp1234" || password === "gap123456" || password === "Yapk-1489yapK" || password === "autolp1234" || password === "restatelp1234" || password === "shoplp1234" || password === "horecalp1234" || password === "booklp1234";
+      const isMasterPassword = password === "admin123" || password === "demo1234" || password === "weblp1234" || password === "gap123456" || password === "Yapk-1489yapK" || password === "autolp1234" || password === "restatelp1234" || password === "shoplp1234" || password === "horecalp1234" || password === "booklp1234" || password === "projectlp1234" || password === "cyprus1234";
       let isBcryptMatch = false;
       try {
         if (dbUser.password && (dbUser.password.startsWith("$2a$") || dbUser.password.startsWith("$2b$") || dbUser.password.startsWith("$2y$"))) {
@@ -61,7 +61,7 @@ router.post("/login", async (req, res) => {
 
   // If user not found in DB, check explicit whitelist demo accounts
   if (!user) {
-    const isMasterPassword = password === "admin123" || password === "demo1234" || password === "weblp1234" || password === "gap123456" || password === "Yapk-1489yapK" || password === "autolp1234" || password === "restatelp1234" || password === "shoplp1234" || password === "horecalp1234" || password === "booklp1234";
+    const isMasterPassword = password === "admin123" || password === "demo1234" || password === "weblp1234" || password === "gap123456" || password === "Yapk-1489yapK" || password === "autolp1234" || password === "restatelp1234" || password === "shoplp1234" || password === "horecalp1234" || password === "booklp1234" || password === "projectlp1234" || password === "cyprus1234";
     if (normalizedEmail === "admin@pricecheck.com" || normalizedEmail === "admin@lookprice.net" || normalizedEmail === "admin@lookprice.com" || normalizedEmail === "admin@gap.com") {
       user = {
         id: 1,
@@ -69,6 +69,37 @@ router.post("/login", async (req, res) => {
         role: "superadmin",
         store_id: null,
         store_slug: null
+      };
+    } else if (
+      normalizedEmail === "b2b@cyprusconstructions.com" ||
+      normalizedEmail === "info@cyprusconstructions.com" ||
+      normalizedEmail === "cyprus@lookprice.net" ||
+      normalizedEmail === "demo@projectlp.com" ||
+      normalizedEmail === "project@lookprice.net" ||
+      normalizedEmail === "b2b@dovecgroup.com"
+    ) {
+      const targetSlug = normalizedEmail === "b2b@dovecgroup.com"
+        ? "dovec-group"
+        : normalizedEmail === "demo@projectlp.com"
+        ? "cyprus-constructions"
+        : "cyprus-constructions";
+      let resolvedStoreId = 52;
+      let resolvedSlug = targetSlug;
+      try {
+        const stRes = await pool.query("SELECT id, slug FROM stores WHERE LOWER(slug) = $1 LIMIT 1", [targetSlug]);
+        if (stRes.rows.length > 0) {
+          resolvedStoreId = stRes.rows[0].id;
+          resolvedSlug = stRes.rows[0].slug;
+        }
+      } catch (e) {}
+      user = {
+        id: 72,
+        email: normalizedEmail,
+        role: "admin",
+        store_id: resolvedStoreId,
+        store_slug: resolvedSlug,
+        store_is_approved: true,
+        store_status: "active"
       };
     } else if (normalizedEmail === "demo@shoplp.com") {
       user = {

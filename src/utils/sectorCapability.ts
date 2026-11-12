@@ -20,6 +20,7 @@ export type DomainId =
   | "HORECA" 
   | "HOTEL" 
   | "REAL_ESTATE" 
+  | "DEVELOPER_PROJECT"
   | "AUTOMOTIVE"
   | "CORPORATE";
 
@@ -34,18 +35,18 @@ export type SectorCapabilityKey =
   | "digital_qr_menu"            // QR Dijital Menü & Masa Siparişi -> SADECE horecaLP & HotelLP
   | "recipes_costing"            // Reçete & Hammadde Maliyetlendirme -> SADECE horecaLP & HotelLP
   | "hotel_reservations"         // Oda Tipleri, Giriş/Çıkış Takvimi, Rezervasyon Motoru -> SADECE HotelLP
-  | "real_estate_specs"          // Tapu türü, İmar, KAKS, Bölge Filtreleri -> SADECE Emlak
-  | "real_estate_map_idx"        // Harita IDX, Bölünmüş Harita Portföy Arama -> SADECE Emlak
-  | "real_estate_poster"         // A4 Standart Portre Vitrin Posteri -> SADECE Emlak
+  | "real_estate_specs"          // Tapu türü, İmar, KAKS, Bölge Filtreleri -> SADECE Emlak & projectLP
+  | "real_estate_map_idx"        // Harita IDX, Bölünmüş Harita Portföy Arama -> SADECE Emlak & projectLP
+  | "real_estate_poster"         // A4 Standart Portre Vitrin Posteri -> SADECE Emlak & projectLP
   | "automotive_specs"           // Şasi, Plaka, KM, Yakıt, Vites, Tramer, Ekspertiz -> SADECE Otomotiv
-  | "contracts_legal"            // Emlak/Otomotiv Resmi Sözleşme Şablonları -> SADECE Emlak & Otomotiv
-  | "portfolio_showcase"         // İlan & Portföy Vitrini -> SADECE Emlak & Otomotiv
+  | "contracts_legal"            // Emlak/Otomotiv Resmi Sözleşme Şablonları -> SADECE Emlak, projectLP & Otomotiv
+  | "portfolio_showcase"         // İlan & Portföy Vitrini -> SADECE Emlak, projectLP & Otomotiv
   | "tcmb_currency"              // TCMB Canlı Döviz Kuru & Çapraz Kur -> TÜM SEKTÖRLER
   | "multi_branch"               // Şube / Lokasyon Yönetimi -> TÜM SEKTÖRLER
   | "sms_whatsapp";              // SMS & WhatsApp Bildirimleri -> TÜM SEKTÖRLER
 
 /**
- * 6-Sector Positive Capability Matrix (Zero-Trust Whitelist)
+ * Positive Capability Matrix (Zero-Trust Whitelist)
  * Bir özellik burada açıkça TRUE değilse, o sektör o özelliğe KESİNLİKLE erişemez.
  */
 export const SECTOR_CAPABILITY_MATRIX: Record<DomainId, Record<SectorCapabilityKey, boolean>> = {
@@ -141,7 +142,7 @@ export const SECTOR_CAPABILITY_MATRIX: Record<DomainId, Record<SectorCapabilityK
     sms_whatsapp: true,
   },
 
-  // 5. Emlak (Gayrimenkul Portföyü)
+  // 5. Emlak (Gayrimenkul Portföyü - REstateLP)
   REAL_ESTATE: {
     marketplaces: false, // KATI YASAK: İlan mağazalarında pazaryeri olamaz
     einvoice_purchases_sales: false, // KATI YASAK: İlan mağazalarında e-fatura/e-irsaliye gizlidir
@@ -164,7 +165,30 @@ export const SECTOR_CAPABILITY_MATRIX: Record<DomainId, Record<SectorCapabilityK
     sms_whatsapp: true,
   },
 
-  // 6. Otomotiv (Motorlu Araçlar / Galeri)
+  // 6. projectLP (İnşaat & Konut Projesi Üreticisi Firmalar - Gözlemci-Paydaş Emlakçı Ağı)
+  DEVELOPER_PROJECT: {
+    marketplaces: false, // KATI YASAK: Proje üreticilerinde pazaryeri olamaz
+    einvoice_purchases_sales: false, // KATI YASAK: Proje üreticilerinde perakende e-fatura gizlidir
+    fast_pos: false,
+    variants_inventory: false,
+    google_merchant_xml: false,
+    book_metadata: false,
+    tables_kds_orders: false,
+    digital_qr_menu: false,
+    recipes_costing: false,
+    hotel_reservations: false,
+    real_estate_specs: true,
+    real_estate_map_idx: true,
+    real_estate_poster: true,
+    automotive_specs: false,
+    contracts_legal: true,
+    portfolio_showcase: true,
+    tcmb_currency: true,
+    multi_branch: true,
+    sms_whatsapp: true,
+  },
+
+  // 7. Otomotiv (Motorlu Araçlar / Galeri)
   AUTOMOTIVE: {
     marketplaces: false, // KATI YASAK: Galeri mağazalarında pazaryeri olamaz
     einvoice_purchases_sales: false, // KATI YASAK: Galeri mağazalarında e-fatura/e-irsaliye gizlidir
@@ -187,7 +211,7 @@ export const SECTOR_CAPABILITY_MATRIX: Record<DomainId, Record<SectorCapabilityK
     sms_whatsapp: true,
   },
 
-  // 7. Kurumsal Web Sitesi (Sadece Tanıtım, Hizmetler, Hakkımızda, İletişim & SEO - Satışsız / Sepetsiz Tam İzole)
+  // 8. Kurumsal Web Sitesi (Sadece Tanıtım, Hizmetler, Hakkımızda, İletişim & SEO - Satışsız / Sepetsiz Tam İzole)
   CORPORATE: {
     marketplaces: false,
     einvoice_purchases_sales: false,
@@ -213,7 +237,7 @@ export const SECTOR_CAPABILITY_MATRIX: Record<DomainId, Record<SectorCapabilityK
 
 /**
  * Deterministik Domain ID Çözücü (SSOT Domain Resolver)
- * Bir mağazanın veya branding objesinin hangi 7 sektörden birine ait olduğunu
+ * Bir mağazanın veya branding objesinin hangi sektöre ait olduğunu
  * yanılmasız, deterministik ve geriye dönük tam uyumlu şekilde tespit eder.
  */
 export const resolveDomainId = (store: StoreInfo | any | null): DomainId => {
@@ -246,7 +270,25 @@ export const resolveDomainId = (store: StoreInfo | any | null): DomainId => {
     return "RETAIL";
   }
 
-  // 2. Automotive (Otomotiv / Galeri / Araç Portföy) Tespiti
+  // 2. projectLP (İnşaat & Konut Projesi Üreticisi Firma) Tespiti
+  if (
+    rawStoreType === "developer_project" ||
+    rawStoreType === "projectlp" ||
+    rawStoreType === "construction_developer" ||
+    rawSector === "developer_project" ||
+    rawSector === "projectlp" ||
+    rawSubSector === "developer_project" ||
+    slug === "projectlp-demo" ||
+    slug === "cyprus-constructions" ||
+    slug === "dovec-group" ||
+    slug.startsWith("projectlp-") ||
+    name.includes("CYPRUS CONSTRUCTIONS") ||
+    name.includes("PROJECTLP")
+  ) {
+    return "DEVELOPER_PROJECT";
+  }
+
+  // 3. Automotive (Otomotiv / Galeri / Araç Portföy) Tespiti
   if (
     rawStoreType === "motor_vehicle" ||
     rawStoreType === "automotive" ||
@@ -271,7 +313,7 @@ export const resolveDomainId = (store: StoreInfo | any | null): DomainId => {
     return "AUTOMOTIVE";
   }
 
-  // 3. Real Estate (Emlak / Gayrimenkul Portföy) Tespiti
+  // 4. Real Estate (Emlak / Gayrimenkul Portföy - REstateLP) Tespiti
   if (
     rawStoreType === "real_estate" ||
     rawStoreType === "portfolio" ||
@@ -286,7 +328,7 @@ export const resolveDomainId = (store: StoreInfo | any | null): DomainId => {
     return "REAL_ESTATE";
   }
 
-  // 4. HotelLP (Otel / Rezervasyon) Tespiti
+  // 5. HotelLP (Otel / Rezervasyon) Tespiti
   const isHotelActive = Boolean(
     s.hotel_module_enabled === true ||
     s.branding?.hotel_module_enabled === true ||
@@ -302,7 +344,7 @@ export const resolveDomainId = (store: StoreInfo | any | null): DomainId => {
     return "HOTEL";
   }
 
-  // 5. horecaLP (Kafe / Restoran / Yeme-İçme) Tespiti
+  // 6. horecaLP (Kafe / Restoran / Yeme-İçme) Tespiti
   if (
     rawStoreType === "cafe_restaurant" ||
     rawStoreType === "horeca" ||
@@ -323,7 +365,7 @@ export const resolveDomainId = (store: StoreInfo | any | null): DomainId => {
     return "HORECA";
   }
 
-  // 6. BookLP (Kitapçı / Yayınevi) Tespiti (Sadece perakende alt dalı olarak - Kesin İzolasyon Kuralı)
+  // 7. BookLP (Kitapçı / Yayınevi) Tespiti (Sadece perakende alt dalı olarak - Kesin İzolasyon Kuralı)
   const isBookActive = Boolean(
     s.bookstore_module_enabled === true ||
     s.branding?.bookstore_module_enabled === true ||
@@ -375,9 +417,11 @@ export const getDomainMeta = (domainId: DomainId) => {
     case "HOTEL":
       return { id: "HOTEL", name: "HotelLP Konaklama & Otel", category: "Otel & Rezervasyon", badgeColor: "amber" };
     case "REAL_ESTATE":
-      return { id: "REAL_ESTATE", name: "Emlak Portföy Mağazası", category: "Gayrimenkul & İlan", badgeColor: "sky" };
+      return { id: "REAL_ESTATE", name: "REstateLP Emlak Ofisi", category: "Gayrimenkul & İlan", badgeColor: "sky" };
+    case "DEVELOPER_PROJECT":
+      return { id: "DEVELOPER_PROJECT", name: "projectLP İnşaat & Proje Üreticisi", category: "Konut Projesi & Paydaş Ağı", badgeColor: "cyan" };
     case "AUTOMOTIVE":
-      return { id: "AUTOMOTIVE", name: "Otomotiv Galeri Mağazası", category: "Vasıta & İlan", badgeColor: "emerald" };
+      return { id: "AUTOMOTIVE", name: "AutoLP Otomotiv Galeri", category: "Vasıta & İlan", badgeColor: "emerald" };
     case "CORPORATE":
       return { id: "CORPORATE", name: "Kurumsal Web Sitesi", category: "Tanıtım & Hizmet Sitesi", badgeColor: "indigo" };
   }

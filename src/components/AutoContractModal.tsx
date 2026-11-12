@@ -516,7 +516,7 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
         </div>
 
         {/* Left Side Parameters */}
-        <div className={`w-full md:w-[40%] bg-slate-950 p-4 sm:p-6 flex-col justify-between border-r border-slate-800 overflow-y-auto ${
+        <div className={`w-full flex-1 min-h-0 h-full md:h-auto md:flex-initial md:w-[40%] md:shrink-0 bg-slate-950 p-4 sm:p-6 flex-col justify-between border-b md:border-b-0 md:border-r border-slate-800 overflow-y-auto ${
           activeMobileTab === 'params' ? 'flex' : 'hidden md:flex'
         }`}>
           <div className="space-y-6">
@@ -792,7 +792,7 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
         </div>
 
         {/* Right Side Rendering */}
-        <div className={`flex-1 bg-white flex-col justify-between overflow-hidden ${
+        <div className={`w-full flex-1 min-w-0 min-h-0 h-full bg-white flex-col justify-between overflow-hidden ${
           activeMobileTab === 'preview' ? 'flex' : 'hidden md:flex'
         }`}>
           
@@ -841,7 +841,7 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-100/50">
+          <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 md:p-8 bg-slate-100/50">
             <div className="bg-white shadow-lg rounded-3xl border border-slate-200/80 overflow-hidden mx-auto max-w-3xl">
               <div dangerouslySetInnerHTML={{ __html: htmlContent }} />
             </div>

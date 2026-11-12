@@ -17,6 +17,7 @@ import integrationRoutes from "./routes/integrations";
 import instagramRoutes from "./routes/instagram";
 import einvoiceRoutes, { runGlobalEInvoiceSync, initCargoSchema } from "./routes/einvoice";
 import realEstateRoutes, { initRealEstateSchema } from "./routes/real_estate";
+import developerProjectsRoutes, { initDeveloperProjectsSchema } from "./routes/developerProjects";
 import { initProductSchema } from "./routes/store/products";
 import { initPurchaseInvoiceSchema } from "./routes/store/invoices";
 import { initTasksNotesSchema } from "./routes/store/tasksNotes";
@@ -1111,6 +1112,7 @@ function sanitizeFilename(originalName: string): string {
   app.use("/api/store", authenticate, storeRoutes);
   app.use("/api/fleet", authenticate, fleetRoutes);
   app.use("/api/real-estate", authenticate, realEstateRoutes);
+  app.use("/api/developer-projects", developerProjectsRoutes);
   app.use("/api/ai-jobs", authenticate, aiJobsRoutes);
   app.use("/api/google-drive", googleDriveRoutes);
   app.use("/api/payment", paymentRoutes);
@@ -1765,6 +1767,7 @@ function sanitizeFilename(originalName: string): string {
         try { await initPurchaseInvoiceSchema(); } catch (e) { console.error("Error in initPurchaseInvoiceSchema:", e); }
         try { await initCargoSchema(); } catch (e) { console.error("Error in initCargoSchema:", e); }
         try { await initRealEstateSchema(); } catch (e) { console.error("Error in initRealEstateSchema:", e); }
+        try { await initDeveloperProjectsSchema(); } catch (e) { console.error("Error in initDeveloperProjectsSchema:", e); }
         try { await initFleetSchema(); } catch (e) { console.error("Error in initFleetSchema:", e); }
         try { await initTasksNotesSchema(); } catch (e) { console.error("Error in initTasksNotesSchema:", e); }
         try { await ensureEnrakipsizTables(); } catch (e) { console.error("Error in ensureEnrakipsizTables:", e); }

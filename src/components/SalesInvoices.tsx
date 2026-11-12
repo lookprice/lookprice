@@ -872,11 +872,18 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
       return;
     }
 
+    const selectedNameOrTitle = customerSearch.trim() || 
+      (selectedCustomer ? (selectedCustomer.full_name || `${selectedCustomer.name || ''} ${selectedCustomer.surname || ''}`.trim()) : "") || 
+      (selectedCompany ? selectedCompany.title : "");
+
     const payload = {
       storeId: role === 'superadmin' ? (storeId || undefined) : undefined,
       sale_id: saleId,
       customer_id: customerId || null,
       company_id: companyId || null,
+      customer_name: selectedNameOrTitle,
+      company_title: selectedCompany ? selectedCompany.title : selectedNameOrTitle,
+      customer_title: selectedNameOrTitle,
       invoice_number: invoiceNumber,
       waybill_number: waybillNumber,
       invoice_date: invoiceDate,
@@ -1830,6 +1837,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
         invoiceRef={invoiceRef}
         handlePrint={handlePrint}
         onEditProduct={onEditProduct}
+        branding={branding}
       />
 
       <SalesInvoiceWaybillModal 

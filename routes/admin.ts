@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { pool } from "../models/db";
 import { authenticate } from "../middleware/auth";
 import { seedStoreSectorTaxonomy } from "./store/hepsiburadaTaxonomyService";
+import { syncGlobalPoolToStore } from "./developerProjects";
 
 const router = express.Router();
 
@@ -355,6 +356,7 @@ router.post("/stores", async (req: any, res) => {
     await pool.query("BEGIN");
     // Initialize branding based on store_type & store info
     const isCorporate = store_type === 'corporate_website';
+    const isDeveloperProject = store_type === 'developer_project';
     const isBookstore = !!(req.body.store_concept === 'bookstore' || (Array.isArray(req.body.sector_taxonomy_packages) && req.body.sector_taxonomy_packages.includes('bookstore')));
     
     const defaultBranding = {
@@ -365,14 +367,14 @@ router.post("/stores", async (req: any, res) => {
       address: address || '',
       email: email || '',
       country: country || 'TR',
-      default_currency: default_currency || 'TRY',
+      default_currency: default_currency || (isDeveloperProject ? 'GBP' : 'TRY'),
       language: language || 'tr',
       store_type: store_type || 'product',
-      sub_sector: sub_sector || (isCorporate ? 'corporate_website' : null),
+      sub_sector: sub_sector || (isCorporate ? 'corporate_website' : isDeveloperProject ? 'developer_project' : null),
       hotel_module_enabled: !!hotel_module_enabled,
       hotel_license_enabled: !!hotel_module_enabled,
       bookstore_module_enabled: isBookstore,
-      store_concept: isCorporate ? 'corporate_website' : (isBookstore ? 'bookstore' : 'product'),
+      store_concept: isCorporate ? 'corporate_website' : isDeveloperProject ? 'developer_project' : (isBookstore ? 'bookstore' : 'product'),
       page_layout_settings: {
         sector: store_type || 'product',
         is_book_store: isBookstore
@@ -387,14 +389,14 @@ router.post("/stores", async (req: any, res) => {
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23) RETURNING id`,
       [
         name, cleanSlug, address, contact_person, phone, country || 'TR', email, subscription_end, 
-        default_currency || 'TRY', language || 'tr', plan || 'free', parent_id || null, store_type || 'product', sub_sector || (isCorporate ? 'corporate_website' : null), !!hotel_module_enabled,
+        default_currency || (isDeveloperProject ? 'GBP' : 'TRY'), language || 'tr', plan || 'free', parent_id || null, store_type || 'product', sub_sector || (isCorporate ? 'corporate_website' : isDeveloperProject ? 'developer_project' : null), !!hotel_module_enabled,
         status !== undefined ? status : 'approved',
         is_approved !== undefined ? is_approved : true,
         max_products !== undefined ? Number(max_products) : 100,
-        max_properties !== undefined ? Number(max_properties) : 20,
+        max_properties !== undefined ? Number(max_properties) : (isDeveloperProject ? 500 : 20),
         max_vehicles !== undefined ? Number(max_vehicles) : 20,
-        max_users !== undefined ? Number(max_users) : 5,
-        max_customers !== undefined ? Number(max_customers) : 50,
+        max_users !== undefined ? Number(max_users) : (isDeveloperProject ? 10 : 5),
+        max_customers !== undefined ? Number(max_customers) : (isDeveloperProject ? 1000 : 50),
         JSON.stringify(defaultBranding)
       ]
     );
@@ -404,6 +406,40 @@ router.post("/stores", async (req: any, res) => {
     const hashedPassword = bcrypt.hashSync(finalPassword, 10);
     await pool.query("INSERT INTO users (store_id, email, password, role) VALUES ($1, $2, $3, $4)", [storeId, cleanAdminEmail || `admin@${cleanSlug}.com`, hashedPassword, "storeadmin"]);
     await pool.query("COMMIT");
+
+    // If this is a projectLP (Construction Project Developer) store, initialize its developer_companies record
+    if (isDeveloperProject) {
+      try {
+        await pool.query(
+          `INSERT INTO developer_companies (
+            store_id, company_code, company_name, headquarters_region, license_grade,
+            contact_director, phone, email, website, drive_folder_id, drive_folder_url,
+            default_commission_rate, lead_protection_days, option_hold_hours, active_projects_count
+          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+          [
+            storeId,
+            `DEV-${storeId}`,
+            name,
+            address || 'Girne / Esentepe, KKTC',
+            '1. Sınıf Müteahhitlik & Gayrimenkul Proje Geliştirme',
+            contact_person || 'Proje Satış Direktörlüğü',
+            phone || '+90 548 860 00 00',
+            email || cleanAdminEmail || `b2b@${cleanSlug}.com`,
+            `https://lookprice.net/s/${cleanSlug}`,
+            '1oZDbLanKWW2ZkfF6WQkfRU2rlDyn0fDM',
+            'https://drive.google.com/drive/folders/1oZDbLanKWW2ZkfF6WQkfRU2rlDyn0fDM',
+            8,
+            60,
+            72,
+            5
+          ]
+        );
+        // Automatically set/provision all agencies from Central Global Agency Pool for this new projectLP store
+        await syncGlobalPoolToStore(storeId);
+      } catch (devErr) {
+        console.warn("[Admin/Stores] Could not seed initial developer_companies row:", devErr);
+      }
+    }
 
     // Sector Taxonomy Packages: Only seed if the operator EXPLICITLY selected packages.
     // If the operator selects NO packages, store starts with ZERO categories (clean slate).

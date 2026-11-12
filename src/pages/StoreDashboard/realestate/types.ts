@@ -10,7 +10,7 @@ export interface RealEstateTabProps {
   storeId?: number;
 }
 
-export type RealEstateViewMode = 'grid' | 'list' | 'calendar' | 'pipeline';
+export type RealEstateViewMode = 'grid' | 'list' | 'calendar' | 'pipeline' | 'developer_projects';
 export type RealEstateStatusFilter = 'all' | 'sale' | 'rent' | 'optioned' | 'sold' | 'rented';
 
 export interface ShowingWaitlistItem {

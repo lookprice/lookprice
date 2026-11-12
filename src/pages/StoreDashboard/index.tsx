@@ -106,6 +106,7 @@ const EWaybillsTab = React.lazy(() => import("../../components/EWaybillsTab"));
 const FaqTab = React.lazy(() => import("./FaqTab"));
 const HotelRoomManagement = React.lazy(() => import("../../components/horeca/HotelRoomManagement").then(m => ({ default: m.HotelRoomManagement })));
 const CorporateWebsiteStudioTab = React.lazy(() => import("./CorporateWebsiteStudioTab"));
+const DeveloperProjectSuite = React.lazy(() => import("../../components/developer/DeveloperProjectSuite").then(m => ({ default: m.DeveloperProjectSuite })));
 
 import ShippingSlip from "../../components/ShippingSlip";
 import { ChangePasswordModal } from "../../components/ChangePasswordModal";
@@ -150,7 +151,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const domainId = resolveDomainId({ ...branding, slug: slug || branding?.slug || user?.store_slug });
   const isRealEstate = domainId === 'REAL_ESTATE';
   const isAutomotive = domainId === 'AUTOMOTIVE';
-  const isPortfolio = isRealEstate || isAutomotive;
+  const isDeveloperProject = domainId === 'DEVELOPER_PROJECT';
+  const isPortfolio = isRealEstate || isAutomotive || isDeveloperProject;
   const isCafeRestaurant = domainId === 'HORECA' || domainId === 'HOTEL';
   const isHotelModuleActive = domainId === 'HOTEL';
   const isBookstoreModuleActive = domainId === 'BOOKSTORE';
@@ -872,6 +874,25 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       { id: "analytics", label: txt('Ziyaretçi İstatistikleri', 'Visitor Analytics', 'Στατιστικά Επισκεπτών'), icon: BarChart3 },
     ]},
     { type: 'item', id: "settings", label: txt('Domain & Site Ayarları', 'Domain & Site Settings', 'Ρυθμίσεις Domain & Ιστοσελίδας'), icon: SettingsIcon }
+  ] : isDeveloperProject ? [
+    { type: 'category', key: "project_hub", title: txt('İnşaat Projeleri & Veri Odası', 'Projects & Data Room', 'Έργα & Data Room'), items: [
+      { id: "dev_showcase", label: txt('Proje Vitrini & Google Drive', 'Project Showcase & Drive', 'Βιτρίνα Έργων & Drive'), icon: Building2 },
+      { id: "dev_inventory", label: txt('Canlı Ünite & Fiyat Matrisi', 'Live Unit & Price Matrix', 'Ζωντανός Πίνακας Μονάδων'), icon: Home },
+      { id: "dev_compare", label: txt('Proje & Ödeme Planı Kıyaslama', 'Project & Payment Comparison', 'Σύγκριση Έργων & Πληρωμών'), icon: ArrowLeftRight },
+    ]},
+    { type: 'category', key: "stakeholder_network", title: txt('Gözlemci-Paydaş Emlakçı Ağı', 'Observer-Stakeholder Agency Network', 'Δίκτυο Συνεργατών Μεσιτών'), items: [
+      { id: "dev_agencies", label: txt('İç Ekip & Gözlemci-Paydaş Emlakçılar', 'Internal Team & Observer Agencies', 'Εσωτερική Ομάδα & Μεσίτες'), icon: Users },
+      { id: "dev_leads", label: txt('Müşteri Zimmetleme & Sözleşmeler', 'Lead Protection & B2B Contracts', 'Κατοχύρωση Πελατών & Συμβάσεις'), icon: ShieldCheck },
+      { id: "dev_events", label: txt('Lansman & Roadshow Takvimi', 'Launch & Roadshow Events', 'Εκδηλώσεις & Παρουσιάσεις'), icon: Sparkles },
+      { id: "dev_portal", label: txt('★ Gözlemci-Paydaş Emlakçı Ekranı', '★ Observer Agency Portal & REstateLP', '★ Πύλη Μεσιτών & REstateLP'), icon: Globe },
+    ]},
+    { type: 'category', key: "corporate_ops", title: txt('Finans, Web & Kurumsal', 'Finance, Web & Corporate', 'Οικονομικά & Εταιρικά'), items: [
+      { id: "portfolio_finances", label: txt('Tahsilat & Komisyon Kasası', 'Collections & Commission Cash Flow', 'Ταμείο & Προμήθειες'), icon: Wallet },
+      { id: "analytics", label: txt('Paydaş & Satış İstatistikleri', 'Stakeholder & Sales Analytics', 'Στατιστικά Πωλήσεων'), icon: BarChart3 },
+      { id: "website-generator", label: txt('Proje Firması Web Vitrini', 'Developer Website Showcase', 'Ιστοσελίδα Κατασκευαστικής'), icon: Globe },
+      { id: "audit-logs", label: t.auditLogs, icon: History },
+    ]},
+    { type: 'item', id: "settings", label: txt('Firma & Google Drive Ayarları', 'Company & Google Drive Settings', 'Ρυθμίσεις Εταιρείας & Drive'), icon: SettingsIcon }
   ] : isPortfolio ? [
     { type: 'category', key: "real_estate", title: txt('Portföy & İlan', 'Portfolios & Listings', 'Χαρτοφυλάκιο & Αγγελίες'), items: [
       ...(isRealEstate ? [
@@ -1069,6 +1090,11 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         return;
       }
 
+      if (isDeveloperProject && permittedTabIds.has('dev_showcase')) {
+        setActiveTab('dev_showcase');
+        return;
+      }
+
       // If we are in portfolio, prefer real_estate/fleet over fast-pos or default
       if (isPortfolio) {
         if (isAutomotive && !isRealEstate && permittedTabIds.has('fleet')) {
@@ -1093,7 +1119,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         setActiveTab(firstTab);
       }
     }
-  }, [permittedTabIds, activeTab, setActiveTab, isCorporateWebsite, isPortfolio, isAutomotive, isRealEstate, isCafeRestaurant]);
+  }, [permittedTabIds, activeTab, setActiveTab, isCorporateWebsite, isDeveloperProject, isPortfolio, isAutomotive, isRealEstate, isCafeRestaurant]);
 
   return (
     <DashboardLayout
@@ -1429,6 +1455,23 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   savingBranding={savingBranding}
                   onLogoUpload={(e) => handleFileUpload(e, 'logo')}
                   onFaviconUpload={(e) => handleFileUpload(e, 'favicon')}
+                />
+              )}
+              {["dev_showcase", "dev_inventory", "dev_compare", "dev_agencies", "dev_leads", "dev_events", "dev_portal"].includes(activeTab) && permittedTabIds.has(activeTab) && (
+                <DeveloperProjectSuite
+                  storeId={currentStoreId!}
+                  branding={branding}
+                  user={user}
+                  isStandaloneDeveloperStore={true}
+                  initialSection={
+                    activeTab === "dev_inventory" ? "inventory" :
+                    activeTab === "dev_compare" ? "compare" :
+                    activeTab === "dev_agencies" ? "agencies" :
+                    activeTab === "dev_leads" ? "leads_contracts" :
+                    activeTab === "dev_events" ? "events" :
+                    activeTab === "dev_portal" ? "b2b_portal_preview" :
+                    "showcase"
+                  }
                 />
               )}
               {activeTab === "faq" && (isCafeRestaurant || isCorporateWebsite || isShopLp) && permittedTabIds.has("faq") && <FaqTab branding={branding} />}

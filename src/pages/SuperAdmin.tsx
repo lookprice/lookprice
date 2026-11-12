@@ -11,7 +11,8 @@ import {
   Layers,
   Sparkles,
   Inbox,
-  Handshake
+  Handshake,
+  Globe
 } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { translations } from "@/translations";
@@ -32,6 +33,7 @@ import { SuperAdminAuditLogs } from "../components/superadmin/SuperAdminAuditLog
 import { SuperAdminProfile } from "../components/superadmin/SuperAdminProfile";
 import { SuperAdminMarketingHub } from "../components/superadmin/SuperAdminMarketingHub";
 import { SuperAdminReferencesPartners } from "../components/superadmin/SuperAdminReferencesPartners";
+import { SuperAdminGlobalAgencyPool } from "../components/superadmin/SuperAdminGlobalAgencyPool";
 import { 
   SlideModal, 
   AdModal, 
@@ -89,14 +91,14 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
     return 'commercial';
   });
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'requests' | 'marketing' | 'references' | 'enrakipsiz' | 'videos' | 'integrator' | 'audit' | 'profile'>(() => {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'requests' | 'marketing' | 'references' | 'agency_pool' | 'enrakipsiz' | 'videos' | 'integrator' | 'audit' | 'profile'>(() => {
     if (typeof window !== 'undefined') {
       const urlTab = new URLSearchParams(window.location.search).get('saTab');
-      if (urlTab && ['dashboard', 'requests', 'marketing', 'references', 'enrakipsiz', 'videos', 'integrator', 'audit', 'profile'].includes(urlTab)) {
+      if (urlTab && ['dashboard', 'requests', 'marketing', 'references', 'agency_pool', 'enrakipsiz', 'videos', 'integrator', 'audit', 'profile'].includes(urlTab)) {
         return urlTab as any;
       }
       const saved = localStorage.getItem('superAdminActiveTab');
-      if (saved && ['dashboard', 'requests', 'marketing', 'references', 'enrakipsiz', 'videos', 'integrator', 'audit', 'profile'].includes(saved)) {
+      if (saved && ['dashboard', 'requests', 'marketing', 'references', 'agency_pool', 'enrakipsiz', 'videos', 'integrator', 'audit', 'profile'].includes(saved)) {
         return saved as any;
       }
     }
@@ -830,6 +832,18 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
             </button>
 
             <button
+              onClick={() => setActiveTab('agency_pool')}
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold tracking-tight transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                activeTab === 'agency_pool'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <Globe className="h-3.5 w-3.5 text-emerald-400" />
+              <span>Global Emlakçı Havuzu</span>
+            </button>
+
+            <button
               onClick={() => setActiveTab('enrakipsiz')}
               className={`px-2.5 py-1.5 rounded-lg text-xs font-bold tracking-tight transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
                 activeTab === 'enrakipsiz'
@@ -920,6 +934,8 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
           <SuperAdminMarketingHub lang={lang} />
         ) : activeTab === 'references' ? (
           <SuperAdminReferencesPartners />
+        ) : activeTab === 'agency_pool' ? (
+          <SuperAdminGlobalAgencyPool />
         ) : activeTab === 'enrakipsiz' ? (
           <EnrakipsizPortalManager 
             lang={lang}

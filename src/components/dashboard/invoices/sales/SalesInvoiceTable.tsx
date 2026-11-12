@@ -154,6 +154,21 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
     }
   };
 
+  const defaultCurrency = branding?.default_currency || 'TRY';
+  const defaultSymbol = defaultCurrency === 'TRY' ? '₺' : defaultCurrency === 'USD' ? '$' : defaultCurrency === 'EUR' ? '€' : defaultCurrency === 'GBP' ? '£' : defaultCurrency;
+
+  const renderConvertedBaseAmount = (amount: any, invCurrency: string, rate: any) => {
+    if (!invCurrency || invCurrency === defaultCurrency) return null;
+    const effectiveRate = Number(rate) || 1;
+    const num = Number(amount) || 0;
+    const baseVal = num * effectiveRate;
+    return (
+      <div className="text-[10px] text-slate-500 font-normal font-mono tabular-nums leading-tight mt-0.5" title={`Kur: ${effectiveRate}`}>
+        ({baseVal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {defaultSymbol})
+      </div>
+    );
+  };
+
   const formatCurrency = (amount: any, curr: string = 'TRY') => {
     const num = Number(amount) || 0;
     const symbol = curr === 'TRY' ? '₺' : curr === 'USD' ? '$' : curr === 'EUR' ? '€' : curr === 'GBP' ? '£' : curr;
@@ -471,16 +486,19 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                         <div className="text-xs font-medium text-slate-700 font-mono tabular-nums">
                           {Number(inv.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
+                        {renderConvertedBaseAmount(inv.total_amount, inv.currency, inv.exchange_rate)}
                       </td>
                       <td className="px-2 py-2 text-right whitespace-nowrap">
                         <div className="text-xs font-medium text-slate-600 font-mono tabular-nums">
                           {Number(inv.tax_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
+                        {renderConvertedBaseAmount(inv.tax_amount, inv.currency, inv.exchange_rate)}
                       </td>
                       <td className="px-2 py-2 text-right whitespace-nowrap">
                         <div className="text-xs font-medium text-slate-900 font-mono tabular-nums">
                           {Number(inv.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
+                        {renderConvertedBaseAmount(inv.grand_total, inv.currency, inv.exchange_rate)}
                       </td>
                       <td className="px-1.5 py-2 text-center text-xs font-medium text-slate-500 whitespace-nowrap">
                         {inv.currency}
@@ -667,7 +685,8 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                                             {qty.toLocaleString('tr-TR')}
                                           </td>
                                           <td className="py-2.5 px-3 text-right font-mono text-slate-700">
-                                            {formatCurrency(unitPrice, inv.currency)}
+                                            <div>{formatCurrency(unitPrice, inv.currency)}</div>
+                                            {renderConvertedBaseAmount(unitPrice, inv.currency, inv.exchange_rate)}
                                           </td>
                                           <td className="py-2.5 px-3 text-center">
                                             <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-md font-medium text-[10px] border border-indigo-100">
@@ -675,10 +694,12 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                                             </span>
                                           </td>
                                           <td className="py-2.5 px-3 text-right font-mono text-slate-600">
-                                            {formatCurrency(taxAmt, inv.currency)}
+                                            <div>{formatCurrency(taxAmt, inv.currency)}</div>
+                                            {renderConvertedBaseAmount(taxAmt, inv.currency, inv.exchange_rate)}
                                           </td>
                                           <td className="py-2.5 px-3 text-right font-mono font-medium text-slate-900">
-                                            {formatCurrency(lineTotal, inv.currency)}
+                                            <div>{formatCurrency(lineTotal, inv.currency)}</div>
+                                            {renderConvertedBaseAmount(lineTotal, inv.currency, inv.exchange_rate)}
                                           </td>
                                         </tr>
                                       );
@@ -705,16 +726,19 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                                 <div>
                                   <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">{isTr ? 'Matrah' : 'Subtotal'}</span>
                                   <span className="font-mono font-medium text-slate-700">{formatCurrency(inv.total_amount, inv.currency)}</span>
+                                  {renderConvertedBaseAmount(inv.total_amount, inv.currency, inv.exchange_rate)}
                                 </div>
                                 <div className="w-px h-6 bg-slate-200" />
                                 <div>
                                   <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">{isTr ? 'KDV Toplamı' : 'VAT Total'}</span>
                                   <span className="font-mono font-medium text-indigo-700">{formatCurrency(inv.tax_amount, inv.currency)}</span>
+                                  {renderConvertedBaseAmount(inv.tax_amount, inv.currency, inv.exchange_rate)}
                                 </div>
                                 <div className="w-px h-6 bg-slate-200" />
                                 <div>
                                   <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">{isTr ? 'Genel Toplam' : 'Grand Total'}</span>
                                   <span className="font-mono font-medium text-slate-900">{formatCurrency(inv.grand_total, inv.currency)}</span>
+                                  {renderConvertedBaseAmount(inv.grand_total, inv.currency, inv.exchange_rate)}
                                 </div>
                               </div>
                             </div>

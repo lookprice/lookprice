@@ -194,7 +194,7 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
       )}
 
       {/* ULTRA-COMPACT HIGH-DENSITY PORTFOLIO CONTROL BAR */}
-      {viewMode !== 'pipeline' && viewMode !== 'calendar' && (
+      {viewMode !== 'pipeline' && viewMode !== 'calendar' && viewMode !== 'developer_projects' && (
         <div className="bg-white border border-slate-200/90 rounded-xl p-2 shadow-2xs space-y-1.5">
           {/* Row 1: Single-Line Header + Collapsible Stats/Ref + Collapsible Filter Trigger + Actions */}
           <div className="flex items-center justify-between gap-1.5 flex-wrap">
@@ -341,6 +341,16 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
                   <span className="hidden sm:inline">Paydaşlar</span>
                 </button>
               )}
+
+              <button
+                type="button"
+                onClick={() => setViewMode('developer_projects')}
+                className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-amber-300 border border-slate-800 rounded-lg text-[10px] font-black transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
+                title="İnşaat / Proje Üreticisi Vitrini, Google Drive Veri Odası & Global B2B Emlakçı Portalı"
+              >
+                <Building2 className="w-3 h-3 text-amber-400" />
+                <span>Proje & B2B Acente Merkezi</span>
+              </button>
 
               <button
                 onClick={() => setViewMode('calendar')}

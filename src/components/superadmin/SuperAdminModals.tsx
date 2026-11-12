@@ -525,14 +525,33 @@ export const EditStoreModal: React.FC<{
         <select 
           className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
           value={store.store_type || "product"} 
-          onChange={e => setStore({...store, store_type: e.target.value as any})}
+          onChange={e => setStore({
+            ...store,
+            store_type: e.target.value as any,
+            default_currency: e.target.value === 'developer_project' && (!store.default_currency || store.default_currency === 'TRY') ? 'GBP' : store.default_currency
+          })}
         >
-          <option value="product">Ürün & Perakende (Standart Satış)</option>
-          <option value="real_estate">Emlak (Gayrimenkul)</option>
-          <option value="motor_vehicle">Motorlu Taşıtlar (Oto, Moto, Deniz, İş, Tarım)</option>
-          <option value="cafe_restaurant">Cafe & Restaurant</option>
-          <option value="corporate_website">Kurumsal Web Sitesi (Tanıtım, Hizmet & İletişim)</option>
+          <option value="product">Ürün & Perakende (Standart Satış — shopLP)</option>
+          <option value="real_estate">Emlak & Gayrimenkul Ofisi (REstateLP)</option>
+          <option value="developer_project">🏗️ İnşaat & Konut Projesi Üreticisi Firma (projectLP)</option>
+          <option value="motor_vehicle">Motorlu Taşıtlar & Galeri (AutoLP)</option>
+          <option value="cafe_restaurant">Cafe, Restoran & Otel (HorecaLP)</option>
+          <option value="corporate_website">Kurumsal Web Sitesi (Tanıtım, Hizmet & İletişim — WebLP)</option>
         </select>
+
+        {store.store_type === 'developer_project' && (
+          <div className="p-3.5 bg-cyan-50/90 rounded-xl border border-cyan-300/80 mt-2">
+            <div className="flex items-start gap-2.5">
+              <span className="text-base leading-none mt-0.5">🏗️</span>
+              <div>
+                <span className="text-xs font-black text-cyan-950 block">projectLP — İzole İnşaat & Konut Projesi Üreticisi Hesabı</span>
+                <span className="text-[10px] text-cyan-900 font-medium block mt-0.5 leading-relaxed">
+                  İnşaat ve proje geliştirici firmalar için bağımsız komuta merkezi açar. Firma kendi 8-10 kişilik iç yönetim ekibiyle konut projelerini, canlı ünite/fiyat matrisini, Google Drive veri odasını, lansman/etkinliklerini ve <strong>Gözlemci-Paydaş (Observer-Stakeholder)</strong> emlakçı ağını yönetir. Anlaşmalı emlakçılar bu firmanın verilerini Gözlemci-Paydaş olarak izler ve <strong>REstateLP</strong> hesaplarıyla entegre olarak portföylerini çoğaltır.
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {store.store_type === 'corporate_website' && (
           <div className="p-3 bg-indigo-50/80 rounded-xl border border-indigo-200/80 mt-2">
@@ -884,18 +903,37 @@ export const AddStoreModal: React.FC<{
               <div className="space-y-3">
                 <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{st.storeInformation}</h3>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700">Mağaza Türü</label>
+                  <label className="block text-xs font-medium text-gray-700">Mağaza Türü / Sektörü</label>
                   <select 
                     className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
                     value={newStore.store_type || "product"} 
-                    onChange={e => setNewStore({...newStore, store_type: e.target.value as any})}
+                    onChange={e => setNewStore({
+                      ...newStore,
+                      store_type: e.target.value as any,
+                      default_currency: e.target.value === 'developer_project' ? 'GBP' : newStore.default_currency,
+                      max_users: e.target.value === 'developer_project' ? 10 : newStore.max_users
+                    })}
                   >
-                    <option value="product">Ürün & Perakende (Standart Satış)</option>
-                    <option value="real_estate">Emlak (Gayrimenkul)</option>
-                    <option value="motor_vehicle">Motorlu Taşıtlar (Oto, Moto, Deniz, İş, Tarım)</option>
-                    <option value="cafe_restaurant">Cafe & Restaurant</option>
-                    <option value="corporate_website">Kurumsal Web Sitesi (Tanıtım, Hizmet & İletişim)</option>
+                    <option value="product">Ürün & Perakende (Standart Satış — shopLP)</option>
+                    <option value="real_estate">Emlak & Gayrimenkul Ofisi (REstateLP)</option>
+                    <option value="developer_project">🏗️ İnşaat & Konut Projesi Üreticisi Firma (projectLP)</option>
+                    <option value="motor_vehicle">Motorlu Taşıtlar & Galeri (AutoLP)</option>
+                    <option value="cafe_restaurant">Cafe, Restoran & Otel (HorecaLP)</option>
+                    <option value="corporate_website">Kurumsal Web Sitesi (Tanıtım, Hizmet & İletişim — WebLP)</option>
                   </select>
+                  {newStore.store_type === 'developer_project' && (
+                    <div className="p-3.5 bg-cyan-50/90 rounded-xl border border-cyan-300/80 mt-2">
+                      <div className="flex items-start gap-2.5">
+                        <span className="text-base leading-none mt-0.5">🏗️</span>
+                        <div>
+                          <span className="text-xs font-black text-cyan-950 block">projectLP — İzole İnşaat & Proje Üreticisi Hesabı</span>
+                          <span className="text-[10px] text-cyan-900 font-medium block mt-0.5 leading-relaxed">
+                            İnşaat proje firması için bağımsız hesap açılır. Firma 8-10 kişilik iç yönetim ekibiyle projelerini, canlı ünite/fiyat matrisini, Google Drive veri havuzunu ve <strong>Gözlemci-Paydaş (Observer-Stakeholder)</strong> emlakçı ağını yönetir. Emlakçılar bu verileri Gözlemci-Paydaş olarak görür ve isterlerse <strong>REstateLP</strong> hesaplarıyla birçok proje firmasına tek tıkla entegre olur.
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   {newStore.store_type === 'corporate_website' && (
                     <div className="p-3 bg-indigo-50/80 rounded-xl border border-indigo-200/80 mt-2">
                       <div className="flex items-start gap-2.5">

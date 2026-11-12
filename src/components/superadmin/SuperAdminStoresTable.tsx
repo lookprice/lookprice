@@ -138,6 +138,7 @@ export const SuperAdminStoresTable: React.FC<SuperAdminStoresTableProps> = ({
       product: 0,
       cafe_restaurant: 0,
       real_estate: 0,
+      developer_project: 0,
       motor_vehicle: 0,
       corporate_website: 0,
     };
@@ -145,6 +146,7 @@ export const SuperAdminStoresTable: React.FC<SuperAdminStoresTableProps> = ({
       const t = s.store_type || "product";
       if (t === "cafe_restaurant") counts.cafe_restaurant++;
       else if (t === "real_estate") counts.real_estate++;
+      else if (t === "developer_project") counts.developer_project++;
       else if (t === "motor_vehicle") counts.motor_vehicle++;
       else if (t === "corporate_website" || t === "portfolio")
         counts.corporate_website++;
@@ -184,6 +186,7 @@ export const SuperAdminStoresTable: React.FC<SuperAdminStoresTableProps> = ({
             [
               "cafe_restaurant",
               "real_estate",
+              "developer_project",
               "motor_vehicle",
               "corporate_website",
               "portfolio",
@@ -243,6 +246,14 @@ export const SuperAdminStoresTable: React.FC<SuperAdminStoresTableProps> = ({
         sub: "Gayrimenkul",
         cls: "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/70",
         dot: "bg-emerald-500",
+      };
+    }
+    if (type === "developer_project") {
+      return {
+        label: "projectLP",
+        sub: "İnşaat & Proje Üreticisi",
+        cls: "bg-cyan-50 dark:bg-cyan-950/60 text-cyan-700 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800/70",
+        dot: "bg-cyan-500",
       };
     }
     if (type === "motor_vehicle") {
@@ -471,6 +482,11 @@ export const SuperAdminStoresTable: React.FC<SuperAdminStoresTableProps> = ({
                 count: sectorCounts.real_estate,
               },
               {
+                id: "developer_project",
+                label: "🏗️ projectLP (İnşaat Proje)",
+                count: sectorCounts.developer_project,
+              },
+              {
                 id: "motor_vehicle",
                 label: "🚗 AutoLP (Otomotiv)",
                 count: sectorCounts.motor_vehicle,
@@ -560,6 +576,7 @@ export const SuperAdminStoresTable: React.FC<SuperAdminStoresTableProps> = ({
                 const isRetailStore = ![
                   "cafe_restaurant",
                   "real_estate",
+                  "developer_project",
                   "motor_vehicle",
                   "corporate_website",
                   "portfolio",

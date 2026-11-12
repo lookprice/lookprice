@@ -95,30 +95,46 @@ router.post("/", upload.single("file"), async (req: any, res) => {
       return parseFloat(s) || 0;
     };
 
-    // Group rows by barcode to support variant rows sharing the same parent barcode
+    // Group rows by barcode or sku to support variant rows sharing the same parent barcode/sku
     const groupedMap = new Map<string, any[]>();
     for (const item of data as any[]) {
       const barcode = String(item[mapping.barcode] || "").trim();
-      if (!barcode) continue;
-      if (!groupedMap.has(barcode)) {
-        groupedMap.set(barcode, []);
+      const sku = String((mapping.sku && item[mapping.sku]) || item["Stok Kodu"] || item["SKU"] || item["Ürün Kodu"] || "").trim();
+      const groupKey = barcode || sku;
+      if (!groupKey) continue;
+      if (!groupedMap.has(groupKey)) {
+        groupedMap.set(groupKey, []);
       }
-      groupedMap.get(barcode)!.push(item);
+      groupedMap.get(groupKey)!.push(item);
     }
 
-    for (const [barcode, items] of groupedMap.entries()) {
+    for (const [groupKey, items] of groupedMap.entries()) {
       const item = items[0];
+      const barcode = String(item[mapping.barcode] || "").trim();
+      const sku = String((mapping.sku && item[mapping.sku]) || item["Stok Kodu"] || item["SKU"] || item["Ürün Kodu"] || "").trim();
       const name = String(item[mapping.name] || "").trim();
       let price = parsePriceVal(item[mapping.price]);
 
       if (importLogs.length < 20) {
-        importLogs.push({ barcode, name, price, rawPrice: item[mapping.price] });
+        importLogs.push({ groupKey, barcode, sku, name, price, rawPrice: item[mapping.price] });
       }
 
-      if (barcode) {
-        const existing = await client.query("SELECT id, stock_quantity FROM products WHERE store_id = $1 AND barcode = $2", [storeId, barcode]);
+      if (barcode || sku) {
+        let existing;
+        if (barcode && sku) {
+          existing = await client.query("SELECT id, stock_quantity FROM products WHERE store_id = $1 AND (barcode = $2 OR (sku = $3 AND $3 != ''))", [storeId, barcode, sku]);
+        } else if (barcode) {
+          existing = await client.query("SELECT id, stock_quantity FROM products WHERE store_id = $1 AND barcode = $2", [storeId, barcode]);
+        } else {
+          existing = await client.query("SELECT id, stock_quantity FROM products WHERE store_id = $1 AND sku = $2", [storeId, sku]);
+        }
 
-        let currency = item[mapping.currency] || mapping.currency || 'TRY';
+        let rawCurrency = String(item[mapping.currency] || mapping.currency || 'TRY').trim().toUpperCase();
+        if (rawCurrency === 'TL' || rawCurrency === '₺' || rawCurrency === 'TURKISH LIRA' || rawCurrency === 'TÜRK LİRASI') rawCurrency = 'TRY';
+        if (rawCurrency === '$') rawCurrency = 'USD';
+        if (rawCurrency === '€') rawCurrency = 'EUR';
+        if (rawCurrency === '£') rawCurrency = 'GBP';
+        let currency = rawCurrency || 'TRY';
         
         if (convertCurrencyFlag && currency !== defaultCurrency) {
           const rate = currencyRates[currency];
@@ -208,6 +224,14 @@ router.post("/", upload.single("file"), async (req: any, res) => {
             row["Varyant Barkod"] || 
             ""
           ).trim();
+          const vSku = String(
+            (mapping.variant_sku && row[mapping.variant_sku]) || 
+            row["Varyant Stok Kodu / SKU"] || 
+            row["Varyant Stok Kodu"] || 
+            row["Varyant SKU"] || 
+            row["Varyant Kodu"] || 
+            ""
+          ).trim();
           const vRawPrice = (mapping.variant_price && row[mapping.variant_price] !== undefined) 
             ? row[mapping.variant_price] 
             : (row["Varyant Satış Fiyatı"] || row["Varyant Fiyatı"]);
@@ -221,14 +245,15 @@ router.post("/", upload.single("file"), async (req: any, res) => {
             ""
           ).trim();
 
-          if (vName || vColor || vSize || vBarcode || items.length > 1) {
+          if (vName || vColor || vSize || vBarcode || vSku || items.length > 1) {
             const parsedVPrice = parsePriceVal(vRawPrice);
             const parsedVStock = parseInt(String(vRawStock)) || 0;
             const finalVName = vName || [vColor, vSize].filter(Boolean).join(" / ") || `Varyant ${idx + 1}`;
             variantsList.push({
               id: "var_" + Date.now().toString(36) + "_" + idx + "_" + Math.random().toString(36).substring(2, 6),
               name: finalVName,
-              barcode: vBarcode || (vName ? `${barcode}-${idx + 1}` : ""),
+              barcode: vBarcode || (vName ? `${barcode || sku}-${idx + 1}` : ""),
+              sku: vSku || undefined,
               price: parsedVPrice > 0 ? parsedVPrice : (price > 0 ? price : undefined),
               stock_quantity: parsedVStock,
               color_name: vColor || undefined,
@@ -274,6 +299,12 @@ router.post("/", upload.single("file"), async (req: any, res) => {
             paramIdx++;
           }
 
+          if (sku) {
+            updateQuery += `, sku = $${paramIdx}`;
+            updateParams.push(sku);
+            paramIdx++;
+          }
+
           if (hasStockUpdate || hasVariants) {
             updateQuery += `, stock_quantity = $${paramIdx}`;
             updateParams.push(stockQuantity);
@@ -316,9 +347,9 @@ router.post("/", upload.single("file"), async (req: any, res) => {
             paramIdx++;
           }
 
-          if (mapping.currency && item[mapping.currency] !== undefined && String(item[mapping.currency]).trim() !== "") {
+          if (currency) {
             updateQuery += `, currency = $${paramIdx}`;
-            updateParams.push(String(item[mapping.currency]).trim());
+            updateParams.push(currency);
             paramIdx++;
           }
 
@@ -356,11 +387,12 @@ router.post("/", upload.single("file"), async (req: any, res) => {
           const price_2 = price / (1 + effectiveTaxRate / 100.0);
 
           await client.query(`
-            INSERT INTO products (store_id, barcode, name, price, currency, description, stock_quantity, min_stock_level, unit, category, sub_category, brand, author, tax_rate, price_2, price_2_currency, image_url, images, has_variants, variants, updated_at) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18::jsonb, $19, $20::jsonb, CURRENT_TIMESTAMP)
+            INSERT INTO products (store_id, barcode, sku, name, price, currency, description, stock_quantity, min_stock_level, unit, category, sub_category, brand, author, tax_rate, price_2, price_2_currency, image_url, images, has_variants, variants, updated_at) 
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19::jsonb, $20, $21::jsonb, CURRENT_TIMESTAMP)
           `, [
             storeId,
             barcode,
+            sku || null,
             name || 'İsimsiz Ürün',
             price,
             currency,

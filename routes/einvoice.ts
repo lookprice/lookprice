@@ -99,6 +99,19 @@ export function extractSenderTitleFromUblOrDetails(source: any, defaultTitle: st
   return defaultTitle;
 }
 
+export function isPlaceholderCustomerTitle(title: string | null | undefined): boolean {
+  if (!title) return true;
+  const t = title.trim();
+  if (!t) return true;
+  if (t === 'Müşteri' || t === 'Bilinmeyen Müşteri' || t === 'Amazon Müşterisi' || t === 'Bireysel Web Müşterisi') return true;
+  if (/^Amazon\s*(Kurumsal\s*Alıcı|Alıcısı|Müşterisi)/i.test(t)) return true;
+  if (/^Trendyol\s*Müşterisi/i.test(t)) return true;
+  if (/^Hepsiburada\s*Müşterisi/i.test(t)) return true;
+  if (/^N11\s*Müşterisi/i.test(t)) return true;
+  if (/^Pazarama\s*Müşterisi/i.test(t)) return true;
+  return false;
+}
+
 // Self-Healing database schema updates for e_waybills and sales_invoices cargo fields
 export async function initCargoSchema() {
   try {
@@ -434,8 +447,8 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
       invoice = invRes.rows[0];
     }
 
-    // Dynamically fallback to linked companies or customers details if blank on the invoice itself
-    if (invoice.company_id && (!invoice.tax_number || !invoice.address || !invoice.company_title)) {
+    // Dynamically fallback to linked companies or customers details if blank or placeholder on the invoice itself
+    if (invoice.company_id) {
       const compRes = await pool.query(
         "SELECT title, tax_number, tax_office, address, email FROM companies WHERE id = $1",
         [invoice.company_id]
@@ -445,10 +458,15 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
         invoice.tax_number = invoice.tax_number || comp.tax_number;
         invoice.tax_office = invoice.tax_office || comp.tax_office;
         invoice.address = invoice.address || comp.address;
-        invoice.company_title = invoice.company_title || comp.title;
+        if (comp.title && (isPlaceholderCustomerTitle(invoice.company_title) || isPlaceholderCustomerTitle(invoice.customer_name))) {
+          invoice.company_title = comp.title;
+          invoice.customer_name = comp.title;
+        }
         invoice.customer_email = invoice.customer_email || comp.email;
       }
-    } else if (invoice.customer_id) {
+    }
+    
+    if (invoice.customer_id) {
       const custRes = await pool.query(
         "SELECT name, surname, full_name, tax_number, tax_office, address, city, email FROM customers WHERE id = $1",
         [invoice.customer_id]
@@ -460,8 +478,13 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
         invoice.address = invoice.address || cust.address;
         invoice.customer_city = cust.city;
         const realName = cust.full_name || `${cust.name || ''} ${cust.surname || ''}`.trim();
-        if (realName && (!invoice.customer_name || invoice.customer_name === 'Amazon Müşterisi' || invoice.customer_name === 'Bireysel Web Müşterisi')) {
-          invoice.customer_name = realName;
+        if (realName && !isPlaceholderCustomerTitle(realName)) {
+          if (isPlaceholderCustomerTitle(invoice.customer_name)) {
+            invoice.customer_name = realName;
+          }
+          if (isPlaceholderCustomerTitle(invoice.company_title)) {
+            invoice.company_title = realName;
+          }
         }
         invoice.customer_email = invoice.customer_email || cust.email;
       }
@@ -738,11 +761,45 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     console.log("[DEBUG-INVOICE-DATA] Invoice Object:", JSON.stringify(invoice, null, 2));
 
     const isCorporate = taxNumber.length === 10;
-    // Prioritize explicitly stored title or name, fallback to generic
-    let customerName = invoice.company_title || invoice.customer_name || invoice.sale_customer_name || 'Bilinmeyen Müşteri';
+    
+    let resolvedTitle = '';
+    if (!isPlaceholderCustomerTitle(invoice.company_title)) {
+      resolvedTitle = invoice.company_title;
+    } else if (!isPlaceholderCustomerTitle(invoice.customer_name)) {
+      resolvedTitle = invoice.customer_name;
+    } else if (!isPlaceholderCustomerTitle(invoice.sale_customer_name)) {
+      resolvedTitle = invoice.sale_customer_name;
+    } else if (invoice.company_id) {
+      const compRes = await pool.query("SELECT title FROM companies WHERE id = $1", [invoice.company_id]);
+      if (compRes.rows.length > 0 && compRes.rows[0].title && !isPlaceholderCustomerTitle(compRes.rows[0].title)) {
+        resolvedTitle = compRes.rows[0].title;
+      }
+    } else if (invoice.customer_id) {
+      const custRes = await pool.query("SELECT full_name, name, surname FROM customers WHERE id = $1", [invoice.customer_id]);
+      if (custRes.rows.length > 0) {
+        const rName = custRes.rows[0].full_name || `${custRes.rows[0].name || ''} ${custRes.rows[0].surname || ''}`.trim();
+        if (rName && !isPlaceholderCustomerTitle(rName)) resolvedTitle = rName;
+      }
+    }
+
+    if (!resolvedTitle) {
+      resolvedTitle = invoice.company_title || invoice.customer_name || invoice.sale_customer_name || 'Bilinmeyen Müşteri';
+    }
+
+    let customerName = resolvedTitle;
     let customerTitle = customerName;
     let taxOffice = invoice.tax_office || "BilinmeyenVD";
     let address = invoice.address || "Girilmemiş Adres, Türkiye";
+
+    // Persist non-placeholder customer title back to sales_invoices table to guarantee clean DB record
+    if (customerTitle && (invoice.company_title !== customerTitle || invoice.customer_name !== customerTitle)) {
+      await pool.query(
+        "UPDATE sales_invoices SET customer_name = $1, company_title = $2 WHERE id = $3",
+        [customerTitle, customerTitle, invoiceId]
+      );
+      invoice.customer_name = customerTitle;
+      invoice.company_title = customerTitle;
+    }
     
     console.log(`[DEBUG-CUSTOMER] Name: ${customerName}, Title: ${customerTitle}`);
 

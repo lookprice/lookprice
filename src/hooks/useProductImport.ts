@@ -12,12 +12,14 @@ export const useProductImport = (user: any, currentStoreId: number | undefined, 
   const [importColumns, setImportColumns] = useState<string[]>([]);
   const [mapping, setMapping] = useState<any>({
     barcode: "",
+    sku: "",
     name: "",
     category: "",
     sub_category: "",
     brand: "",
     author: "",
     price: "",
+    currency: "",
     description: "",
     stock_quantity: "",
     unit: "",
@@ -28,6 +30,7 @@ export const useProductImport = (user: any, currentStoreId: number | undefined, 
     image_url_5: "",
     variant_name: "",
     variant_barcode: "",
+    variant_sku: "",
     variant_price: "",
     variant_stock: "",
     variant_color: "",
@@ -39,12 +42,14 @@ export const useProductImport = (user: any, currentStoreId: number | undefined, 
   const autoDetectMapping = (cols: string[]) => {
     const next: any = {
       barcode: "",
+      sku: "",
       name: "",
       category: "",
       sub_category: "",
       brand: "",
       author: "",
       price: "",
+      currency: "",
       description: "",
       stock_quantity: "",
       unit: "",
@@ -55,6 +60,7 @@ export const useProductImport = (user: any, currentStoreId: number | undefined, 
       image_url_5: "",
       variant_name: "",
       variant_barcode: "",
+      variant_sku: "",
       variant_price: "",
       variant_stock: "",
       variant_color: "",
@@ -74,9 +80,11 @@ export const useProductImport = (user: any, currentStoreId: number | undefined, 
       return "";
     };
 
-    next.barcode = findMatch([/^(barkod|barcode|ean|isbn|ürün kodu|urun kodu|stok kodu|sku)$/i, /barkod|barcode|isbn|ean/i]);
+    next.barcode = findMatch([/^(barkod|barcode|ean|isbn)$/i, /barkod|barcode|isbn|ean/i]);
+    next.sku = findMatch([/^(stok kodu|stok kodu \/ sku|ürün kodu|urun kodu|sku|product code|code|kod)$/i, /stok kodu|sku|ürün kodu|urun kodu/i]);
     next.name = findMatch([/^(ürün adı|urun adi|ürün|name|product name|title|başlık|baslik|eser adı|kitap adı)$/i, /ürün adı|urun adi|product name|isim|ad/i]);
     next.price = findMatch([/^(fiyat|satış fiyatı|satis fiyati|price|birim fiyat|liste fiyatı|tutar)$/i, /fiyat|price/i]);
+    next.currency = findMatch([/^(para birimi|fiyat para birimi|döviz|doviz|döviz cinsi|currency|para birim)$/i, /para birimi|döviz|doviz|currency/i]);
     next.stock_quantity = findMatch([/^(stok|stok miktarı|stok adedi|miktar|adet|quantity|stock)$/i, /stok|stock|miktar/i]);
     next.category = findMatch([/^(kategori|ana kategori|category)$/i, /^kategori|category/i]);
     next.sub_category = findMatch([/^(alt kategori|sub_category|subcategory|alt_kategori)$/i, /alt kategori|sub.?cat/i]);
@@ -113,8 +121,12 @@ export const useProductImport = (user: any, currentStoreId: number | undefined, 
       /varyant adı|variant name|varyant|variant/i
     ]);
     next.variant_barcode = findMatch([
-      /^(varyant barkod|varyant barkodu|variant barcode|alt barkod|varyant sku)$/i,
+      /^(varyant barkod|varyant barkodu|variant barcode|alt barkod)$/i,
       /varyant barkod|variant barcode/i
+    ]);
+    next.variant_sku = findMatch([
+      /^(varyant stok kodu|varyant sku|variant sku|alt sku|varyant kodu)$/i,
+      /varyant sku|variant sku/i
     ]);
     next.variant_price = findMatch([
       /^(varyant fiyatı|varyant fiyati|varyant satış fiyatı|variant price)$/i,
