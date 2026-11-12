@@ -1,6 +1,7 @@
 import express from 'express';
 import { pool } from '../models/db';
 import { authenticate, getAuthorizedStoreId } from '../middleware/auth';
+import { cleanDeepBase64, normalizeStorageUrl } from './utils/imageStorage';
 
 const router = express.Router();
 
@@ -244,9 +245,9 @@ export async function initDeveloperProjectsSchema() {
         { code: 'AG-RU-509', name: 'Eurasia Prime Overseas Realty', broker: 'Dmitry Volkov', email: 'd.volkov@eurasiaprime.ru', phone: '+7 916 550 19 88', country: 'Rusya & CIS', city: 'Moskova & Almatı', langs: ['RU', 'EN'], spec: 'CIS Yatırımcıları, Oturum İzni & Toplu Alım', agents: 45, tier: 'VIP', comm: 10, bonus: 2, restate: 'invited', slug: '', source: 'superadmin_master', contributor: 'LookPrice SuperAdmin Havuzu', notes: 'Rusya ve Kazakistan pazarında en güçlü lüks proje distribütörü.' },
         { code: 'AG-SE-601', name: 'Nordic Sun & Sea Homes AB', broker: 'Astrid Lindholm', email: 'astrid@nordicsunhomes.se', phone: '+46 70 882 41 10', country: 'İskandinavya', city: 'Stockholm & Oslo', langs: ['SV', 'EN', 'DE'], spec: 'Kış Güneşi, Golf & Wellness Resort Konutları', agents: 16, tier: 'Silver', comm: 8, bonus: 1, restate: 'prospect', slug: '', source: 'superadmin_master', contributor: 'LookPrice SuperAdmin Havuzu', notes: 'İsveç ve Norveçli emekli/uzaktan çalışan kitleye Phuket Wellness & Maldives projelerini satıyor.' },
         { code: 'AG-AE-703', name: 'Gulf Horizon Wealth & Real Estate', broker: 'Tariq Al-Mansoor', email: 'tariq@gulfhorizon.ae', phone: '+971 50 912 4400', country: 'BAE & Orta Doğu', city: 'Dubai & Abu Dabi', langs: ['AR', 'EN'], spec: 'Körfez Fonları & Çoklu Ünite Blok Yatırımı', agents: 38, tier: 'VIP', comm: 10, bonus: 2, restate: 'invited', slug: '', source: 'superadmin_master', contributor: 'LookPrice SuperAdmin Havuzu', notes: 'Dubai merkezli portföy yönetim firması; Akdeniz sahil projelerinde toplu kat alımı yapıyor.' },
-        { code: 'AG-IR-802', name: 'Caspian Royal Property Group', broker: 'Kambiz Rostami', email: 'rostami@caspianroyal.com', phone: '+90 548 844 77 12', country: 'İran & Körfez', city: 'Tahran & Girne', langs: ['FA', 'EN', 'TR'], spec: 'Aile Oturumu & Döviz Taksitli Rezidanslar', agents: 22, tier: 'Gold', comm: 8, bonus: 2, restate: 'prospect', slug: '', source: 'operator_reverse_feed', contributor: 'Cyprus Constructions (projectLP)', notes: 'Proje firması operatörü tarafından sahada eklendi ve merkezi havuza geri beslendi.' },
+        { code: 'AG-IR-802', name: 'Caspian Royal Property Group', broker: 'Kambiz Rostami', email: 'rostami@caspianroyal.com', phone: '+90 548 844 77 12', country: 'İran & Körfez', city: 'Tahran & Girne', langs: ['FA', 'EN', 'TR'], spec: 'Aile Oturumu & Döviz Taksitli Rezidanslar', agents: 22, tier: 'Gold', comm: 8, bonus: 2, restate: 'prospect', slug: '', source: 'operator_reverse_feed', contributor: 'Cyprus Constructions', notes: 'Proje firması operatörü tarafından sahada eklendi ve merkezi havuza geri beslendi.' },
         { code: 'AG-ES-904', name: 'Marbella & Med Prestige Brokers SL', broker: 'Carlos Mendoza', email: 'c.mendoza@marbellamed.es', phone: '+34 612 884 190', country: 'İspanya & Avrupa', city: 'Marbella & Madrid', langs: ['ES', 'EN', 'DE'], spec: 'Costa del Sol & Doğu Akdeniz Kıyaslamalı Yatırım', agents: 19, tier: 'Gold', comm: 8, bonus: 1.5, restate: 'prospect', slug: '', source: 'superadmin_master', contributor: 'LookPrice SuperAdmin Havuzu', notes: 'Avrupalı yatırımcılara İspanya alternatifli yüksek kira çarpanlı KKTC projeleri sunuyor.' },
-        { code: 'AG-UA-512', name: 'Kyiv & Warsaw Overseas Property Hub', broker: 'Oksana Shevchenko', email: 'oksana@overseashub.ua', phone: '+48 512 904 331', country: 'Rusya & CIS', city: 'Varşova & Kiev', langs: ['RU', 'EN'], spec: 'Avrupa & Doğu Avrupa Aile Konut Yatırımları', agents: 21, tier: 'Gold', comm: 8, bonus: 2, restate: 'prospect', slug: '', source: 'operator_reverse_feed', contributor: 'Döveç Construction Group (projectLP)', notes: 'Polonya ve Ukrayna mukimi yatırımcılar için saha ekibi tarafından havuza kazandırıldı.' },
+        { code: 'AG-UA-512', name: 'Kyiv & Warsaw Overseas Property Hub', broker: 'Oksana Shevchenko', email: 'oksana@overseashub.ua', phone: '+48 512 904 331', country: 'Rusya & CIS', city: 'Varşova & Kiev', langs: ['RU', 'EN'], spec: 'Avrupa & Doğu Avrupa Aile Konut Yatırımları', agents: 21, tier: 'Gold', comm: 8, bonus: 2, restate: 'prospect', slug: '', source: 'operator_reverse_feed', contributor: 'Döveç Construction Group', notes: 'Polonya ve Ukrayna mukimi yatırımcılar için saha ekibi tarafından havuza kazandırıldı.' },
         { code: 'AG-TR-415', name: 'Ankara Diplomasi & Yatırım Gayrimenkul', broker: 'Hakan Çelikkol', email: 'hakan@ankaradiplomasi.com.tr', phone: '+90 532 611 40 50', country: 'Türkiye', city: 'Ankara & Antalya', langs: ['TR', 'EN', 'RU'], spec: 'Bürokrat, Doktor & Kurumsal Yatırımcı Portföyü', agents: 15, tier: 'Gold', comm: 8, bonus: 1.5, restate: 'active_member', slug: 'ankara-diplomasi', source: 'superadmin_master', contributor: 'LookPrice SuperAdmin Havuzu', notes: 'Ankara Çankaya ve Antalya Lara şubeleriyle düzenli Kıbrıs yatırım seminerleri yapıyor.' }
       ];
 
@@ -1785,32 +1786,80 @@ router.delete('/projects/:id', authenticate, async (req: any, res) => {
   }
 });
 
-// POST /api/developer-projects/projects/:id/media (Add Media/Document to Project Data Room)
+// POST /api/developer-projects/projects/:id/media (Add Media/Document to Project Data Room with Zero Supabase Egress & Conflict Resolution)
 router.post('/projects/:id/media', authenticate, async (req: any, res) => {
   const storeId = Number(getAuthorizedStoreId(req, req.body.store_id || req.query.store_id) || req.user?.store_id || 1);
   const { id } = req.params;
-  const { name, type, size, category, url } = req.body;
+  const { name, type, category, url, conflictMode } = req.body;
   try {
     const existingRes = await pool.query('SELECT media_vault FROM developer_projects WHERE id = $1 AND store_id = $2', [id, storeId]);
     if (existingRes.rowCount === 0) return res.status(404).json({ error: 'Proje bulunamadı' });
 
-    const currentMedia = Array.isArray(existingRes.rows[0].media_vault) ? existingRes.rows[0].media_vault : [];
-    const newMediaItem = {
-      id: `media_${Date.now()}`,
-      name: name || 'Yeni Proje Dosyası.pdf',
-      type: type || 'masterplan',
-      size: size || '12.5 MB',
-      category: category || 'Masterplan & Kat Planları',
-      url: url || 'https://drive.google.com/drive/folders/1oZDbLanKWW2ZkfF6WQkfRU2rlDyn0fDM',
-      drive_synced: true
-    };
-    const nextMedia = [newMediaItem, ...currentMedia];
+    const currentMedia: any[] = Array.isArray(existingRes.rows[0].media_vault) ? [...existingRes.rows[0].media_vault] : [];
+    const rawName = String(name || 'Yeni Proje Dosyası.pdf').trim();
+    const cleanedUrl = await cleanDeepBase64(normalizeStorageUrl(url || ''));
+    const targetCategory = String(category || 'Teknik & Mimari Planlar').trim();
+    const targetType = type || 'masterplan';
+
+    const existingIndex = currentMedia.findIndex(
+      (m: any) => String(m?.name || '').trim().toLowerCase() === rawName.toLowerCase()
+    );
+
+    let nextMedia: any[];
+    let resolutionAction: 'created' | 'overwritten' | 'versioned' = 'created';
+
+    if (existingIndex !== -1 && conflictMode === 'overwrite') {
+      // Overwrite existing file in-place
+      const prev = currentMedia[existingIndex];
+      currentMedia[existingIndex] = {
+        ...prev,
+        name: rawName,
+        type: targetType,
+        category: targetCategory,
+        url: cleanedUrl || prev.url,
+        size: '',
+        drive_synced: true,
+        updated_at: new Date().toISOString()
+      };
+      nextMedia = currentMedia;
+      resolutionAction = 'overwritten';
+    } else {
+      let finalName = rawName;
+      if (existingIndex !== -1) {
+        // Save as new versioned file: e.g. "Kat Planı (v2).pdf"
+        const dotIdx = rawName.lastIndexOf('.');
+        const base = dotIdx > 0 ? rawName.slice(0, dotIdx) : rawName;
+        const ext = dotIdx > 0 ? rawName.slice(dotIdx) : '';
+        let v = 2;
+        while (
+          currentMedia.some(
+            (m: any) => String(m?.name || '').trim().toLowerCase() === `${base} (v${v})${ext}`.toLowerCase()
+          )
+        ) {
+          v++;
+        }
+        finalName = `${base} (v${v})${ext}`;
+        resolutionAction = 'versioned';
+      }
+
+      const newMediaItem = {
+        id: `media_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+        name: finalName,
+        type: targetType,
+        size: '',
+        category: targetCategory,
+        url: cleanedUrl || 'https://drive.google.com/drive/folders/1oZDbLanKWW2ZkfF6WQkfRU2rlDyn0fDM',
+        drive_synced: true,
+        created_at: new Date().toISOString()
+      };
+      nextMedia = [newMediaItem, ...currentMedia];
+    }
 
     const updated = await pool.query(
       'UPDATE developer_projects SET media_vault = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND store_id = $3 RETURNING *',
       [JSON.stringify(nextMedia), id, storeId]
     );
-    res.json(updated.rows[0]);
+    res.json({ ...updated.rows[0], resolutionAction });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

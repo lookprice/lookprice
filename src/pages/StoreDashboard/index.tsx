@@ -882,9 +882,10 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       { id: "dev_events", label: txt('Etkinlik & Lansmanlar', 'Events & Launches', 'Εκδηλώσεις'), icon: Sparkles },
     ]},
     { type: 'category', key: "corporate_ops", title: txt('Ekip & Kurumsal', 'Team & Corporate', 'Ομάδα & Εταιρικά'), items: [
-      { id: "dev_agencies", label: txt('Ekip, Yetkiler & Yedekleme', 'Team, Permissions & Backup', 'Ομάδα & Αντίγραφα'), icon: Users },
+      { id: "dev_agencies", label: txt('Ekip & Yetkiler', 'Team & Permissions', 'Ομάδα & Δικαιώματα'), icon: Users },
       { id: "portfolio_finances", label: txt('Finans & Kasa', 'Finance & Cash', 'Ταμείο'), icon: Wallet },
       { id: "website-generator", label: txt('Web Vitrini', 'Web Showcase', 'Ιστοσελίδα'), icon: Globe },
+      { id: "settings_yedekleme", label: txt('Yedekleme', 'Backup', 'Δημιουργία Αντιγράφων'), icon: Database },
       { id: "audit-logs", label: t.auditLogs, icon: History },
     ]},
     { type: 'item', id: "settings", label: txt('Firma Ayarları', 'Company Settings', 'Ρυθμίσεις Εταιρείας'), icon: SettingsIcon }

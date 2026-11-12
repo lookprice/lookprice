@@ -748,9 +748,9 @@ function sanitizeFilename(originalName: string): string {
       return res.status(400).json({ error: "No file uploaded" });
     }
 
-    // Check file size (15MB limit for high-resolution mobile camera uploads)
-    if (req.file.size > 15 * 1024 * 1024) {
-      return res.status(400).json({ error: "File size exceeds 15MB limit" });
+    // Check file size (50MB limit for project PDFs, catalogs, videos & high-resolution uploads)
+    if (req.file.size > 50 * 1024 * 1024) {
+      return res.status(400).json({ error: "Dosya boyutu 50MB sınırını aşamaz." });
     }
 
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);

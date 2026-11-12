@@ -1,12 +1,8 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
-  Building2,
   FolderSync,
-  ShieldCheck,
   Users,
   Layers,
-  Sparkles,
-  FileCheck2,
   Calendar,
   CheckCircle2,
   Plus,
@@ -25,14 +21,50 @@ import {
   Trash2,
   Percent,
   Save,
-  Settings2,
   Eye,
   Upload,
   FolderOpen,
-  CloudCheck,
+  FolderPlus,
+  AlertTriangle,
+  Loader2,
   X
 } from "lucide-react";
 import { toast } from "sonner";
+import { api } from "../../services/api";
+
+async function compressImageFile(file: File, maxWidth = 1600, quality = 0.84): Promise<File> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      let { width, height } = img;
+      if (width > maxWidth) {
+        height = Math.round((height * maxWidth) / width);
+        width = maxWidth;
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return resolve(file);
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) return resolve(file);
+          resolve(new File([blob], file.name, { type: file.type || "image/jpeg" }));
+        },
+        file.type || "image/jpeg",
+        quality
+      );
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(file);
+    };
+    img.src = objectUrl;
+  });
+}
 
 export type SuiteTab =
   | "showcase"
@@ -53,14 +85,14 @@ interface DeveloperProjectSuiteProps {
   onConvertUnitToProperty?: (unitPayload: any) => void;
 }
 
-interface BackupLogEntry {
-  id: string;
-  timestamp: string;
-  department: string;
-  action: string;
-  target: string;
-  status: "synced";
-}
+const DEFAULT_FOLDER_CATEGORIES = [
+  "Teknik & Mimari Planlar",
+  "Masterplan & Kat Planları",
+  "Fiyat Listesi & Ödeme Planı",
+  "4K Görsel & Render Paketi",
+  "Sosyal Medya & Tanıtım Videoları",
+  "Ruhsat & Hukuki Belgeler"
+];
 
 export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
   storeId,
@@ -78,7 +110,6 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
 
   const [activeTab, setActiveTab] = useState<SuiteTab>(normalizeTab(initialSection));
   const [loading, setLoading] = useState<boolean>(true);
-  const [syncingDrive, setSyncingDrive] = useState<boolean>(false);
 
   const [companies, setCompanies] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
@@ -86,58 +117,6 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
   const [internalStaff, setInternalStaff] = useState<any[]>([]);
   const [events, setEvents] = useState<any[]>([]);
   const [driveMeta, setDriveMeta] = useState<any>(null);
-
-  // Automatic Background Google Drive Backup Log
-  const [backupLogs, setBackupLogs] = useState<BackupLogEntry[]>([
-    {
-      id: "bk-1",
-      timestamp: "Bugün 14:20",
-      department: "Teknik & Mimari",
-      action: "Masterplan & Kat Planları (PDF) yüklendi",
-      target: "1. Maldives Homes / Teknik Planlar",
-      status: "synced"
-    },
-    {
-      id: "bk-2",
-      timestamp: "Bugün 13:05",
-      department: "Satış",
-      action: "Ünite stok ve liste fiyatları güncellendi",
-      target: "3. Mykonos Homes / Fiyat Listesi",
-      status: "synced"
-    },
-    {
-      id: "bk-3",
-      timestamp: "Bugün 11:40",
-      department: "PR & Pazarlama",
-      action: "4K Drone Çekimi ve Lansman Videosu eklendi",
-      target: "7. Hawaii Homes / Medya Havuzu",
-      status: "synced"
-    },
-    {
-      id: "bk-4",
-      timestamp: "Dün 17:15",
-      department: "Yönetim",
-      action: "Tüm Projeler Karşılaştırma Tablosu güncellendi",
-      target: "Ana Klasör / All Projects Comparison Table",
-      status: "synced"
-    }
-  ]);
-
-  const recordBackupLog = (department: string, action: string, target: string) => {
-    const now = new Date();
-    const timeStr = `Bugün ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-    setBackupLogs(prev => [
-      {
-        id: `bk-${Date.now()}`,
-        timestamp: timeStr,
-        department,
-        action,
-        target,
-        status: "synced"
-      },
-      ...prev
-    ]);
-  };
 
   useEffect(() => {
     if (initialSection) {
@@ -148,22 +127,8 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
   // Selected project for deep inspection in Showcase & Inventory
   const [selectedProjectId, setSelectedProjectId] = useState<number | "all">("all");
   const [activeProjectDetail, setActiveProjectDetail] = useState<any | null>(null);
-  const [mediaCategoryFilter, setMediaCategoryFilter] = useState<
-    "all" | "technical" | "sales" | "pr_media"
-  >("all");
+  const [mediaCategoryFilter, setMediaCategoryFilter] = useState<string>("all");
   const [previewAsset, setPreviewAsset] = useState<any | null>(null);
-
-  // Company Settings Drawer (Single Company Info & Backup Account)
-  const [isCompanySettingsOpen, setIsCompanySettingsOpen] = useState(false);
-  const [companySettingsForm, setCompanySettingsForm] = useState({
-    company_name: "",
-    headquarters_region: "Girne — Esentepe & Tatlısu Sahil Hattı, KKTC",
-    contact_director: "Salih Kayım / Yönetim Kurulu",
-    phone: "+90 548 860 00 01",
-    email: "info@cyprusconstructions.com",
-    backup_drive_email: "archive@cyprusconstructions.com",
-    auto_backup_enabled: true
-  });
 
   // Project Create / Edit Drawer State
   const [isProjectFormOpen, setIsProjectFormOpen] = useState(false);
@@ -189,12 +154,17 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
       "%35 Peşinat, kalan %65 için teslim tarihine kadar 36 ay %0 faiz şirket içi taksit."
   });
 
-  // Project File / Media Upload State (Directly into projectLP, auto-backed up to Drive)
+  // Project File / Media Upload State (Computer/Mobile Upload, Custom Folders, Duplicate Conflict Resolution)
   const [isAddMediaOpen, setIsAddMediaOpen] = useState(false);
+  const [uploadingLocalFile, setUploadingLocalFile] = useState(false);
+  const [isCustomFolderMode, setIsCustomFolderMode] = useState(false);
+  const [customFolderName, setCustomFolderName] = useState("");
+  const [duplicateConflictMode, setDuplicateConflictMode] = useState<"overwrite" | "new_version">("overwrite");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   const [newMediaForm, setNewMediaForm] = useState({
     name: "",
     type: "masterplan",
-    size: "18.5 MB",
     category: "Teknik & Mimari Planlar",
     url: ""
   });
@@ -292,18 +262,6 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
       setEvents(Array.isArray(data.events) ? data.events : []);
       setDriveMeta(data.driveSyncMeta || null);
 
-      if (loadedCompanies[0]) {
-        const c = loadedCompanies[0];
-        setCompanySettingsForm(prev => ({
-          ...prev,
-          company_name: String(c.company_name || "").replace(/\s*\(projectLP\)\s*/gi, "").trim(),
-          headquarters_region: c.headquarters_region || prev.headquarters_region,
-          contact_director: c.contact_director || prev.contact_director,
-          phone: c.phone || prev.phone,
-          email: c.email || prev.email
-        }));
-      }
-
       if (loadedProjects.length > 0) {
         setActiveProjectDetail((prev: any) =>
           prev ? loadedProjects.find((p: any) => p.id === prev.id) || loadedProjects[0] : loadedProjects[0]
@@ -332,58 +290,97 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
     fetchOverview();
   }, [storeId]);
 
-  const handleTriggerBackupNow = async () => {
-    setSyncingDrive(true);
-    try {
-      const sid = storeId || user?.store_id || 1;
-      const res = await fetch("/api/developer-projects/sync-drive", {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          store_id: sid,
-          driveFolderUrl:
-            driveMeta?.folderUrl ||
-            "https://drive.google.com/drive/folders/1oZDbLanKWW2ZkfF6WQkfRU2rlDyn0fDM"
-        })
-      });
-      if (res.ok) {
-        recordBackupLog("Sistem", "Tüm proje klasörleri, medya ve fiyat listeleri yedeklendi", "Tam Yedekleme");
-        toast.success("Tüm proje verileri bağlı Google Drive hesabınıza yedeklendi.");
-        await fetchOverview();
-      } else {
-        toast.error("Yedekleme sırasında hata oluştu.");
+  // All available folders for the active project (merges defaults + any custom folders already in project)
+  const availableProjectFolders = useMemo(() => {
+    const set = new Set<string>(DEFAULT_FOLDER_CATEGORIES);
+    const list: any[] = activeProjectDetail?.media_vault || [];
+    list.forEach(item => {
+      if (item?.category && String(item.category).trim()) {
+        set.add(String(item.category).trim());
       }
-    } catch (e) {
-      toast.error("Yedekleme bağlantı hatası.");
-    } finally {
-      setSyncingDrive(false);
+    });
+    return Array.from(set);
+  }, [activeProjectDetail]);
+
+  // Check if the entered file name already exists in the current project's media_vault
+  const existingDuplicateFile = useMemo(() => {
+    if (!activeProjectDetail || !newMediaForm.name.trim()) return null;
+    const target = newMediaForm.name.trim().toLowerCase();
+    const list: any[] = activeProjectDetail.media_vault || [];
+    return list.find((m: any) => String(m?.name || "").trim().toLowerCase() === target) || null;
+  }, [activeProjectDetail, newMediaForm.name]);
+
+  // Infer file type from filename or category
+  const inferMediaType = (fileName: string, folderCategory: string) => {
+    const lower = fileName.toLowerCase();
+    if (lower.endsWith(".mp4") || lower.endsWith(".mov") || lower.endsWith(".webm") || folderCategory.toLowerCase().includes("video")) {
+      return "video";
     }
+    if (
+      lower.endsWith(".jpg") ||
+      lower.endsWith(".jpeg") ||
+      lower.endsWith(".png") ||
+      lower.endsWith(".webp") ||
+      folderCategory.toLowerCase().includes("görsel") ||
+      folderCategory.toLowerCase().includes("render")
+    ) {
+      return "photos";
+    }
+    if (folderCategory.toLowerCase().includes("fiyat") || lower.includes("price")) {
+      return "pricelist";
+    }
+    if (folderCategory.toLowerCase().includes("ruhsat") || folderCategory.toLowerCase().includes("hukuk")) {
+      return "legal";
+    }
+    return "masterplan";
   };
 
-  const handleSaveCompanySettings = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeCompany?.id) {
-      setIsCompanySettingsOpen(false);
-      return;
-    }
+  // Direct File Upload from Computer or Mobile (Follows LookPrice Zero-Supabase-Egress Policy)
+  const handleDeviceFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const file = files[0];
+
     try {
-      const sid = storeId || user?.store_id || 1;
-      const res = await fetch(`/api/developer-projects/companies/${activeCompany.id}`, {
-        method: "PUT",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          ...companySettingsForm,
-          store_id: sid
-        })
-      });
-      if (res.ok) {
-        const updated = await res.json();
-        setCompanies([updated]);
-        setIsCompanySettingsOpen(false);
-        toast.success("Firma ve otomatik yedekleme ayarları kaydedildi.");
+      setUploadingLocalFile(true);
+      let fileToUpload: File = file;
+
+      // Apply LookPrice image compression policy for images to minimize storage & bandwidth
+      if (file.type.startsWith("image/") && !file.type.includes("svg")) {
+        try {
+          fileToUpload = await compressImageFile(file, 1600, 0.84);
+        } catch {
+          fileToUpload = file;
+        }
+      }
+
+      const formData = new FormData();
+      formData.append("file", fileToUpload);
+
+      const uploadRes = await api.upload("/api/upload", formData);
+      if (uploadRes && uploadRes.url) {
+        const resolvedFolder = isCustomFolderMode && customFolderName.trim()
+          ? customFolderName.trim()
+          : newMediaForm.category;
+        const inferredType = inferMediaType(file.name, resolvedFolder);
+
+        setNewMediaForm(prev => ({
+          ...prev,
+          name: prev.name.trim() ? prev.name : file.name,
+          url: uploadRes.url,
+          type: inferredType
+        }));
+        toast.success(`"${file.name}" yüklendi.`);
+      } else {
+        toast.error(uploadRes?.error || "Dosya yüklenemedi.");
       }
     } catch (err) {
-      toast.error("Ayarlar kaydedilemedi.");
+      toast.error("Dosya yükleme sırasında hata oluştu.");
+    } finally {
+      setUploadingLocalFile(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
   };
 
@@ -410,18 +407,16 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
         if (editingProjectId) {
           setProjects(prev => prev.map(p => (p.id === saved.id ? saved : p)));
           if (activeProjectDetail?.id === saved.id) setActiveProjectDetail(saved);
-          recordBackupLog("Yönetim", `${saved.name} proje bilgileri güncellendi`, saved.folder_prefix || saved.name);
-          toast.success(`${saved.name} güncellendi (Otomatik yedeklendi).`);
+          toast.success(`${saved.name} güncellendi.`);
         } else {
           setProjects(prev => [...prev, saved]);
           setActiveProjectDetail(saved);
-          recordBackupLog("Yönetim", `Yeni proje klasörü oluşturuldu: ${saved.name}`, saved.folder_prefix || saved.name);
           toast.success(`${saved.name} projesi oluşturuldu.`);
         }
         setIsProjectFormOpen(false);
         setEditingProjectId(null);
       }
-    } catch (err) {
+    } catch {
       toast.error("Proje kaydedilemedi.");
     }
   };
@@ -452,15 +447,29 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
   // Add Media / Document to Project Vault
   const handleAddMediaToProject = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeProjectDetail || !newMediaForm.name.trim()) return;
+    if (!activeProjectDetail || !newMediaForm.name.trim()) {
+      toast.error("Lütfen bir dosya seçin veya dosya adını girin.");
+      return;
+    }
+
+    const finalCategory =
+      isCustomFolderMode && customFolderName.trim()
+        ? customFolderName.trim()
+        : newMediaForm.category || "Teknik & Mimari Planlar";
+
+    const finalType = inferMediaType(newMediaForm.name, finalCategory);
+
     try {
       const sid = storeId || user?.store_id || 1;
       const res = await fetch(`/api/developer-projects/projects/${activeProjectDetail.id}/media`, {
         method: "POST",
         headers: getAuthHeaders(),
         body: JSON.stringify({
-          ...newMediaForm,
+          name: newMediaForm.name.trim(),
+          type: finalType,
+          category: finalCategory,
           url: newMediaForm.url || activeProjectDetail.cover_image,
+          conflictMode: duplicateConflictMode,
           store_id: sid
         })
       });
@@ -469,25 +478,24 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
         setProjects(prev => prev.map(p => (p.id === updatedProj.id ? updatedProj : p)));
         setActiveProjectDetail(updatedProj);
         setIsAddMediaOpen(false);
-        recordBackupLog(
-          newMediaForm.category.includes("Teknik")
-            ? "Teknik & Mimari"
-            : newMediaForm.category.includes("Satış")
-            ? "Satış"
-            : "PR & Pazarlama",
-          `${newMediaForm.name} yüklendi`,
-          `${activeProjectDetail.name} / ${newMediaForm.category}`
-        );
+        setIsCustomFolderMode(false);
+        setCustomFolderName("");
         setNewMediaForm({
           name: "",
           type: "masterplan",
-          size: "18.5 MB",
-          category: "Teknik & Mimari Planlar",
+          category: finalCategory,
           url: ""
         });
-        toast.success("Dosya proje klasörüne eklendi ve otomatik yedeklendi.");
+
+        if (updatedProj.resolutionAction === "overwritten") {
+          toast.success("Aynı isimli eski dosyanın üzerine yazılarak güncellendi.");
+        } else if (updatedProj.resolutionAction === "versioned") {
+          toast.success("Eski dosya korundu ve yeni versiyon olarak kaydedildi.");
+        } else {
+          toast.success(`Dosya "${finalCategory}" klasörüne eklendi.`);
+        }
       }
-    } catch (err) {
+    } catch {
       toast.error("Dosya eklenemedi.");
     }
   };
@@ -509,7 +517,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
         setActiveProjectDetail(updatedProj);
         toast.success("Dosya kaldırıldı.");
       }
-    } catch (err) {
+    } catch {
       toast.error("Dosya silinemedi.");
     }
   };
@@ -529,10 +537,9 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
         const created = await res.json();
         setUnits(prev => [created, ...prev]);
         setIsAddUnitOpen(false);
-        recordBackupLog("Satış", `Yeni ünite eklendi: ${created.unit_number}`, created.project_name || "Envanter");
         toast.success(`${created.unit_number} ünitesi eklendi.`);
       }
-    } catch (err) {
+    } catch {
       toast.error("Ünite eklenemedi.");
     }
   };
@@ -548,10 +555,9 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
       if (res.ok) {
         const updated = await res.json();
         setUnits(prev => prev.map(u => (u.id === unitId ? { ...u, ...updated } : u)));
-        recordBackupLog("Satış", `Ünite ${updated.unit_number} durumu güncellendi`, updated.project_name || "Envanter");
         toast.success("Ünite durumu güncellendi.");
       }
-    } catch (e) {
+    } catch {
       toast.error("Ünite durumu güncellenemedi.");
     }
   };
@@ -574,14 +580,9 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
           delete copy[unitId];
           return copy;
         });
-        recordBackupLog(
-          "Satış",
-          `Ünite ${updated.unit_number} fiyatı £${new Intl.NumberFormat("tr-TR").format(newPrice)} olarak güncellendi`,
-          "Fiyat Listesi"
-        );
         toast.success(`Ünite fiyatı £${new Intl.NumberFormat("tr-TR").format(newPrice)} olarak güncellendi.`);
       }
-    } catch (err) {
+    } catch {
       toast.error("Fiyat güncellenemedi.");
     }
   };
@@ -605,13 +606,12 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
       });
       const data = await res.json();
       if (res.ok) {
-        recordBackupLog("Yönetim & Satış", `Toplu fiyat güncellemesi (%${bulkPricePercent}) uygulandı`, "Fiyat Listeleri");
         toast.success(data.message || "Toplu fiyat güncellemesi tamamlandı.");
         await fetchOverview();
       } else {
         toast.error(data.error || "Toplu fiyat güncellenemedi.");
       }
-    } catch (err) {
+    } catch {
       toast.error("Toplu fiyat güncelleme hatası.");
     }
   };
@@ -650,7 +650,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
         });
         toast.success(`${created.full_name} şirket ekibine eklendi.`);
       }
-    } catch (err) {
+    } catch {
       toast.error("Kullanıcı eklenemedi.");
     }
   };
@@ -684,7 +684,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
         setInternalStaff(prev => prev.map(s => (s.id === staffMember.id ? updated : s)));
         toast.success(`${staffMember.full_name} yetkileri güncellendi.`);
       }
-    } catch (err) {
+    } catch {
       toast.error("Yetki güncellenemedi.");
     }
   };
@@ -700,7 +700,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
         setInternalStaff(prev => prev.filter(s => s.id !== id));
         toast.success("Kullanıcı silindi.");
       }
-    } catch (err) {
+    } catch {
       toast.error("Silinemedi.");
     }
   };
@@ -722,7 +722,6 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
         const created = await res.json();
         setEvents(prev => [created, ...prev]);
         setIsNewEventOpen(false);
-        recordBackupLog("PR & Pazarlama", `Yeni etkinlik eklendi: ${created.title}`, "EVENTS Klasörü");
         setNewEventForm({
           title: "",
           event_type: "launch_party",
@@ -734,9 +733,9 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
           max_capacity: 200,
           description: ""
         });
-        toast.success("Etkinlik kaydedildi ve otomatik yedeklendi.");
+        toast.success("Etkinlik kaydedildi.");
       }
-    } catch (err) {
+    } catch {
       toast.error("Etkinlik eklenemedi.");
     }
   };
@@ -763,23 +762,19 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
     return internalStaff.filter(s => s.department === staffDeptFilter);
   }, [internalStaff, staffDeptFilter]);
 
+  // Unique folder tabs present in the selected project
+  const projectFolderTabs = useMemo(() => {
+    const list: any[] = activeProjectDetail?.media_vault || [];
+    const uniqueCats = Array.from(
+      new Set(list.map(d => String(d?.category || "Genel Dosyalar").trim()).filter(Boolean))
+    );
+    return uniqueCats;
+  }, [activeProjectDetail]);
+
   const filteredProjectMedia = useMemo(() => {
     const list: any[] = activeProjectDetail?.media_vault || [];
     if (mediaCategoryFilter === "all") return list;
-    return list.filter(doc => {
-      const t = String(doc.type || "").toLowerCase();
-      const c = String(doc.category || "").toLowerCase();
-      if (mediaCategoryFilter === "technical") {
-        return t === "masterplan" || t === "legal" || c.includes("plan") || c.includes("teknik") || c.includes("mimari");
-      }
-      if (mediaCategoryFilter === "sales") {
-        return t === "pricelist" || c.includes("fiyat") || c.includes("ödeme") || c.includes("satış");
-      }
-      if (mediaCategoryFilter === "pr_media") {
-        return t === "video" || t === "photos" || c.includes("render") || c.includes("video") || c.includes("katalog");
-      }
-      return true;
-    });
+    return list.filter(doc => String(doc?.category || "").trim() === mediaCategoryFilter);
   }, [activeProjectDetail, mediaCategoryFilter]);
 
   // Project totals for single-glance KPI bar
@@ -941,34 +936,28 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
       {/* SINGLE-COMPANY INTEGRATED HEADER & AT-A-GLANCE KPI STRIP              */}
       {/* ===================================================================== */}
       <div className="bg-slate-900 text-white rounded-2xl p-3.5 border border-slate-800 shadow-md">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2.5">
             {onBackToPortfolio && (
               <button
                 type="button"
                 onClick={onBackToPortfolio}
-                className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 cursor-pointer shrink-0"
+                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 cursor-pointer shrink-0"
               >
                 ← Geri
               </button>
             )}
             <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-base sm:text-lg font-black tracking-tight text-white">
-                  {companyDisplayName}
-                </h2>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold">
-                  <CheckCircle2 className="w-3 h-3" />
-                  <span>Otomatik Drive Yedekleme Aktif</span>
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-400 mt-0.5">
+              <h2 className="text-base sm:text-lg font-black tracking-tight text-white">
+                {companyDisplayName}
+              </h2>
+              <p className="text-[11px] text-slate-400">
                 Proje Klasörleri, Teknik Planlar, Medya Havuzu, Ünite Fiyatları ve Ekip Yönetimi
               </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex items-center gap-1.5 shrink-0">
             <button
               type="button"
               onClick={() => {
@@ -995,23 +984,10 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                 });
                 setIsProjectFormOpen(true);
               }}
-              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+              className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Yeni Proje Ekle</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setIsCompanySettingsOpen(prev => !prev)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer border transition-all whitespace-nowrap ${
-                isCompanySettingsOpen
-                  ? "bg-amber-400 text-slate-950 border-amber-300"
-                  : "bg-slate-800 hover:bg-slate-700 text-slate-100 border-slate-700"
-              }`}
-            >
-              <Settings2 className="w-3.5 h-3.5" />
-              <span>Firma & Yedekleme Ayarları</span>
             </button>
           </div>
         </div>
@@ -1059,97 +1035,6 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
             </div>
           </div>
         </div>
-
-        {/* COLLAPSIBLE SINGLE-COMPANY & BACKGROUND BACKUP SETTINGS */}
-        {isCompanySettingsOpen && (
-          <form
-            onSubmit={handleSaveCompanySettings}
-            className="mt-3 pt-3 border-t border-slate-800 space-y-2.5"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-amber-300">
-                Firma Bilgileri & Arka Plan Google Drive Yedekleme Hesabı
-              </span>
-              <button
-                type="button"
-                onClick={() => setIsCompanySettingsOpen(false)}
-                className="text-slate-400 hover:text-white text-xs font-bold flex items-center gap-1 cursor-pointer"
-              >
-                <span>Kapat</span>
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
-              <div>
-                <label className="block text-[10px] text-slate-400 font-semibold mb-0.5">Firma Adı</label>
-                <input
-                  type="text"
-                  value={companySettingsForm.company_name}
-                  onChange={e =>
-                    setCompanySettingsForm({ ...companySettingsForm, company_name: e.target.value })
-                  }
-                  className="w-full px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] text-slate-400 font-semibold mb-0.5">Merkez Bölge</label>
-                <input
-                  type="text"
-                  value={companySettingsForm.headquarters_region}
-                  onChange={e =>
-                    setCompanySettingsForm({ ...companySettingsForm, headquarters_region: e.target.value })
-                  }
-                  className="w-full px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] text-slate-400 font-semibold mb-0.5">Firma Yetkilisi</label>
-                <input
-                  type="text"
-                  value={companySettingsForm.contact_director}
-                  onChange={e =>
-                    setCompanySettingsForm({ ...companySettingsForm, contact_director: e.target.value })
-                  }
-                  className="w-full px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] text-slate-400 font-semibold mb-0.5">
-                  Yedekleme Google Drive Hesabı
-                </label>
-                <input
-                  type="email"
-                  value={companySettingsForm.backup_drive_email}
-                  onChange={e =>
-                    setCompanySettingsForm({ ...companySettingsForm, backup_drive_email: e.target.value })
-                  }
-                  className="w-full px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-emerald-300 font-mono"
-                />
-              </div>
-              <div className="flex items-end gap-1.5">
-                <button
-                  type="submit"
-                  className="px-3 py-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-lg text-xs font-bold cursor-pointer"
-                >
-                  Kaydet
-                </button>
-                <button
-                  type="button"
-                  onClick={handleTriggerBackupNow}
-                  disabled={syncingDrive}
-                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold cursor-pointer flex items-center gap-1"
-                >
-                  <FolderSync className={`w-3.5 h-3.5 ${syncingDrive ? "animate-spin" : ""}`} />
-                  <span>{syncingDrive ? "Yedekleniyor..." : "Şimdi Yedekle"}</span>
-                </button>
-              </div>
-            </div>
-            <p className="text-[11px] text-slate-400">
-              Panel üzerinde eklediğiniz tüm projeler, teknik planlar, görseller, videolar ve fiyat güncellemeleri doğrudan Google Drive ile uğraşmanıza gerek kalmadan arka planda bağlı Google Drive hesabınıza otomatik olarak yedeklenir.
-            </p>
-          </form>
-        )}
 
         {/* COLLAPSIBLE CREATE / EDIT PROJECT FORM */}
         {isProjectFormOpen && (
@@ -1314,7 +1199,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
             { id: "inventory", label: `Üniteler & Fiyatlar (${units.length})`, icon: Layers },
             { id: "compare", label: "Proje Karşılaştırma", icon: ArrowLeftRight },
             { id: "events", label: `Etkinlik & Lansmanlar (${events.length})`, icon: Calendar },
-            { id: "agencies", label: `Ekip, Yetkiler & Yedekleme (${internalStaff.length})`, icon: Users }
+            { id: "agencies", label: `Ekip & Yetkiler (${internalStaff.length})`, icon: Users }
           ].map(tab => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -1323,7 +1208,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id as SuiteTab)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shrink-0 cursor-pointer ${
+                className={`px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shrink-0 cursor-pointer ${
                   isActive
                     ? "bg-amber-400 text-slate-950 shadow-xs"
                     : "bg-slate-800/90 text-slate-300 hover:bg-slate-800 hover:text-white"
@@ -1353,7 +1238,10 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
               return (
                 <div
                   key={proj.id}
-                  onClick={() => setActiveProjectDetail(proj)}
+                  onClick={() => {
+                    setActiveProjectDetail(proj);
+                    setMediaCategoryFilter("all");
+                  }}
                   className={`rounded-xl border transition-all overflow-hidden flex flex-col justify-between cursor-pointer ${
                     isSelected
                       ? "border-indigo-600 ring-2 ring-indigo-600/20 bg-slate-900 text-white shadow-md"
@@ -1457,30 +1345,34 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
           {/* SELECTED PROJECT WORKSPACE: FILES, MEDIA, SPECS & PAYMENT PLAN */}
           {activeProjectDetail && (
             <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs space-y-3">
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2 pb-2.5 border-b border-slate-200">
-                <div>
+              {/* OPTIMIZED SINGLE-ROW PROJECT HEADER & COMPACT ACTION TOOLBAR */}
+              <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-2.5 pb-2.5 border-b border-slate-200">
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="px-2 py-0.5 bg-slate-900 text-amber-300 rounded text-[10px] font-mono font-black">
+                    <span className="px-2 py-0.5 bg-slate-900 text-amber-300 rounded text-[10px] font-mono font-black shrink-0">
                       {activeProjectDetail.folder_prefix || activeProjectDetail.project_code}
                     </span>
-                    <h3 className="text-sm sm:text-base font-black text-slate-950">
+                    <h3 className="text-sm sm:text-base font-black text-slate-950 truncate">
                       {activeProjectDetail.name}
                     </h3>
-                    <span className="text-xs text-slate-500 font-semibold">
+                    <span className="text-[11px] text-slate-500 font-semibold">
                       · {activeProjectDetail.sub_region} · Teslim: {activeProjectDetail.completion_date} · İnşaat: %{activeProjectDetail.construction_progress}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-600 mt-0.5">{activeProjectDetail.concept_tagline}</p>
+                  <p className="text-[11px] text-slate-600 mt-0.5 line-clamp-1">
+                    {activeProjectDetail.concept_tagline}
+                  </p>
                 </div>
 
-                <div className="flex items-center gap-1.5 flex-wrap">
+                {/* Single-row non-wrapping compact action buttons */}
+                <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap shrink-0">
                   <button
                     type="button"
                     onClick={() => setIsAddMediaOpen(prev => !prev)}
-                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold cursor-pointer flex items-center gap-1 whitespace-nowrap"
+                    className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold cursor-pointer flex items-center gap-1 whitespace-nowrap shrink-0"
                   >
-                    <Upload className="w-3.5 h-3.5" />
-                    <span>Dosya / Medya Yükle</span>
+                    <Upload className="w-3 h-3" />
+                    <span>Dosya Yükle</span>
                   </button>
 
                   <button
@@ -1489,27 +1381,27 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                       setSelectedProjectId(activeProjectDetail.id);
                       setActiveTab("inventory");
                     }}
-                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold cursor-pointer flex items-center gap-1 whitespace-nowrap"
+                    className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-bold cursor-pointer flex items-center gap-1 whitespace-nowrap shrink-0"
                   >
-                    <Layers className="w-3.5 h-3.5" />
-                    <span>Ünite & Fiyatlar ({activeProjectDetail.available_units} Müsait)</span>
+                    <Layers className="w-3 h-3" />
+                    <span>Üniteler ({activeProjectDetail.available_units} Müsait)</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => openEditProject(activeProjectDetail)}
-                    className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-900 border border-slate-300 rounded-lg text-xs font-bold cursor-pointer flex items-center gap-1 whitespace-nowrap"
+                    className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-900 border border-slate-300 rounded-lg text-[11px] font-bold cursor-pointer flex items-center gap-1 whitespace-nowrap shrink-0"
                   >
-                    <Edit3 className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>Proje Bilgilerini Düzenle</span>
+                    <Edit3 className="w-3 h-3 text-indigo-600" />
+                    <span>Düzenle</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => handlePrintProjectSheet(activeProjectDetail)}
-                    className="px-2.5 py-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-lg text-xs font-bold cursor-pointer flex items-center gap-1 whitespace-nowrap"
+                    className="px-2.5 py-1 bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-lg text-[11px] font-bold cursor-pointer flex items-center gap-1 whitespace-nowrap shrink-0"
                   >
-                    <Printer className="w-3.5 h-3.5" />
+                    <Printer className="w-3 h-3" />
                     <span>Bilgi Formu Yazdır</span>
                   </button>
 
@@ -1536,117 +1428,224 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                         });
                         toast.success(`${activeProjectDetail.name} portföy ilan formuna aktarıldı.`);
                       }}
-                      className="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold cursor-pointer flex items-center gap-1 whitespace-nowrap"
+                      className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[11px] font-bold cursor-pointer flex items-center gap-1 whitespace-nowrap shrink-0"
                     >
-                      <Plus className="w-3.5 h-3.5" />
+                      <Plus className="w-3 h-3" />
                       <span>İlan Oluştur</span>
                     </button>
                   )}
                 </div>
               </div>
 
-              {/* IN-APP FILE / MEDIA UPLOAD DRAWER */}
+              {/* UPGRADED FILE / MEDIA UPLOAD WORKSPACE (Device Upload + Custom Folder + Duplicate Resolution) */}
               {isAddMediaOpen && (
                 <form
                   onSubmit={handleAddMediaToProject}
-                  className="p-3 bg-slate-900 text-white rounded-xl border border-slate-800 space-y-2"
+                  className="p-3 bg-slate-900 text-white rounded-xl border border-slate-800 space-y-2.5"
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-amber-300">
-                      {activeProjectDetail.name} Klasörüne Yeni Dosya / Medya Yükle
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 border-b border-slate-800 pb-2">
+                    <span className="text-xs font-black text-amber-300 flex items-center gap-1.5">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>{activeProjectDetail.name} — Yeni Dosya / Medya Yükle</span>
                     </span>
-                    <span className="text-[10px] text-emerald-300 font-semibold">
-                      Yüklenen dosyalar arka planda Google Drive hesabınıza otomatik yedeklenir
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
-                    <input
-                      type="text"
-                      required
-                      placeholder="Dosya Başlığı (Örn: Kat Planları 2026.pdf) *"
-                      value={newMediaForm.name}
-                      onChange={e => setNewMediaForm({ ...newMediaForm, name: e.target.value })}
-                      className="px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs"
-                    />
-                    <select
-                      value={newMediaForm.category}
-                      onChange={e => {
-                        const cat = e.target.value;
-                        const inferredType = cat.includes("Teknik")
-                          ? "masterplan"
-                          : cat.includes("Satış")
-                          ? "pricelist"
-                          : cat.includes("Video")
-                          ? "video"
-                          : "photos";
-                        setNewMediaForm({ ...newMediaForm, category: cat, type: inferredType });
-                      }}
-                      className="px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-amber-300 text-xs font-bold"
+                    <button
+                      type="button"
+                      onClick={() => setIsAddMediaOpen(false)}
+                      className="text-slate-400 hover:text-white text-xs font-bold cursor-pointer self-end sm:self-auto"
                     >
-                      <option value="Teknik & Mimari Planlar">Teknik & Mimari (Masterplan / Kat Planı / Şartname)</option>
-                      <option value="Satış & Fiyat Listeleri">Satış (Fiyat Listesi / Ödeme Planı / Sözleşme)</option>
-                      <option value="PR & 3D Render Görselleri">PR & Medya (3D Render / Fotoğraf / Katalog)</option>
-                      <option value="PR & Tanıtım Videoları">PR & Medya (Drone / Tanıtım Videosu)</option>
-                    </select>
-                    <input
-                      type="text"
-                      placeholder="Dosya URL veya Görsel/Video Linki (İsteğe Bağlı)"
-                      value={newMediaForm.url}
-                      onChange={e => setNewMediaForm({ ...newMediaForm, url: e.target.value })}
-                      className="px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs"
-                    />
-                    <div className="flex items-center gap-1.5">
+                      Kapat ✕
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
+                    {/* 1. Direct File Picker from Computer or Mobile */}
+                    <div className="md:col-span-3">
+                      <label className="block text-[10px] text-slate-400 font-bold uppercase mb-1">
+                        Bilgisayar / Mobilden Dosya Seç
+                      </label>
                       <input
-                        type="text"
-                        placeholder="Boyut (18 MB)"
-                        value={newMediaForm.size}
-                        onChange={e => setNewMediaForm({ ...newMediaForm, size: e.target.value })}
-                        className="w-24 px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs"
+                        ref={fileInputRef}
+                        type="file"
+                        onChange={handleDeviceFileSelect}
+                        accept=".pdf,.jpg,.jpeg,.png,.webp,.mp4,.mov,.dwg,.xlsx,.xls,.doc,.docx,.zip"
+                        className="hidden"
                       />
                       <button
-                        type="submit"
-                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold cursor-pointer"
-                      >
-                        Yükle & Kaydet
-                      </button>
-                      <button
                         type="button"
-                        onClick={() => setIsAddMediaOpen(false)}
-                        className="px-2.5 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-xs font-bold cursor-pointer"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploadingLocalFile}
+                        className="w-full px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer border border-indigo-400/30"
                       >
-                        İptal
+                        {uploadingLocalFile ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Yükleniyor...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-3.5 h-3.5" />
+                            <span>Cihazdan Dosya Seç</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* 2. Folder Selection OR Free-Entry New Folder Creation */}
+                    <div className="md:col-span-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[10px] text-slate-400 font-bold uppercase">
+                          Klasör / Kategori
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setIsCustomFolderMode(prev => !prev)}
+                          className="text-[10px] text-amber-300 hover:underline font-bold flex items-center gap-0.5 cursor-pointer"
+                        >
+                          <FolderPlus className="w-3 h-3" />
+                          <span>{isCustomFolderMode ? "Listeden Seç" : "+ Yeni Klasör Tanımla"}</span>
+                        </button>
+                      </div>
+
+                      {isCustomFolderMode ? (
+                        <input
+                          type="text"
+                          required
+                          placeholder="Yeni klasör adı yazın (Örn: Sözleşme Şablonları)"
+                          value={customFolderName}
+                          onChange={e => setCustomFolderName(e.target.value)}
+                          className="w-full px-2.5 py-1.5 bg-slate-800 border border-amber-400/60 rounded-lg text-amber-200 text-xs font-bold"
+                        />
+                      ) : (
+                        <select
+                          value={newMediaForm.category}
+                          onChange={e => {
+                            if (e.target.value === "__NEW_FOLDER__") {
+                              setIsCustomFolderMode(true);
+                              return;
+                            }
+                            setNewMediaForm({ ...newMediaForm, category: e.target.value });
+                          }}
+                          className="w-full px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-amber-300 text-xs font-bold"
+                        >
+                          {availableProjectFolders.map(folder => (
+                            <option key={folder} value={folder}>
+                              {folder}
+                            </option>
+                          ))}
+                          <option value="__NEW_FOLDER__">+ Yeni Klasör Oluştur (Serbest Giriş)...</option>
+                        </select>
+                      )}
+                    </div>
+
+                    {/* 3. File Name */}
+                    <div className="md:col-span-3">
+                      <label className="block text-[10px] text-slate-400 font-bold uppercase mb-1">
+                        Dosya Adı *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Örn: Kat Planları 2026.pdf"
+                        value={newMediaForm.name}
+                        onChange={e => setNewMediaForm({ ...newMediaForm, name: e.target.value })}
+                        className="w-full px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs"
+                      />
+                    </div>
+
+                    {/* 4. Optional External Link & Submit Button */}
+                    <div className="md:col-span-3 flex items-end gap-1.5">
+                      <div className="flex-1 min-w-0">
+                        <label className="block text-[10px] text-slate-400 font-bold uppercase mb-1">
+                          Dosya Yolu / Harici Link (Opsiyonel)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Cihazdan seçildi veya link girin"
+                          value={newMediaForm.url}
+                          onChange={e => setNewMediaForm({ ...newMediaForm, url: e.target.value })}
+                          className="w-full px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 text-xs"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={uploadingLocalFile}
+                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold cursor-pointer shrink-0"
+                      >
+                        Kaydet
                       </button>
                     </div>
                   </div>
+
+                  {/* DUPLICATE FILE NAME CONFLICT RESOLUTION PROMPT */}
+                  {existingDuplicateFile && (
+                    <div className="p-2.5 rounded-lg bg-amber-500/15 border border-amber-400/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 text-xs text-amber-200">
+                        <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                        <span>
+                          <strong>"{existingDuplicateFile.name}"</strong> isimli bir dosya bu projede zaten mevcut ({existingDuplicateFile.category}). Nasıl kaydedilsin?
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setDuplicateConflictMode("overwrite")}
+                          className={`px-2.5 py-1 rounded text-[11px] font-bold cursor-pointer transition-colors ${
+                            duplicateConflictMode === "overwrite"
+                              ? "bg-amber-400 text-slate-950"
+                              : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                          }`}
+                        >
+                          Eski Dosyanın Üzerine Yaz (Güncelle)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDuplicateConflictMode("new_version")}
+                          className={`px-2.5 py-1 rounded text-[11px] font-bold cursor-pointer transition-colors ${
+                            duplicateConflictMode === "new_version"
+                              ? "bg-indigo-500 text-white"
+                              : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                          }`}
+                        >
+                          Yeni Dosya Olarak Kaydet (Versiyonla)
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </form>
               )}
 
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
-                {/* Left 7 Cols: Project Folder Explorer (Categorized by Department: Teknik, Satış, PR) */}
+                {/* Left 7 Cols: Project Folder Explorer (Dynamic Folders, No File Size Clutter) */}
                 <div className="lg:col-span-7 bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2.5">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <h4 className="text-xs font-black uppercase text-slate-900 flex items-center gap-1.5">
                       <FolderOpen className="w-4 h-4 text-indigo-600" />
-                      <span>{activeProjectDetail.name} — Proje Klasörü & Dosyalar</span>
+                      <span>{activeProjectDetail.name} — Proje Klasörleri & Dosyalar</span>
                     </h4>
                     <div className="flex items-center gap-1 flex-wrap">
-                      {[
-                        { id: "all", label: "Tümü" },
-                        { id: "technical", label: "Teknik & Planlar" },
-                        { id: "sales", label: "Satış & Fiyat" },
-                        { id: "pr_media", label: "PR, Render & Video" }
-                      ].map(f => (
+                      <button
+                        type="button"
+                        onClick={() => setMediaCategoryFilter("all")}
+                        className={`px-2 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition-colors ${
+                          mediaCategoryFilter === "all"
+                            ? "bg-slate-900 text-white"
+                            : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-100"
+                        }`}
+                      >
+                        Tümü ({(activeProjectDetail.media_vault || []).length})
+                      </button>
+                      {projectFolderTabs.map(folderName => (
                         <button
-                          key={f.id}
+                          key={folderName}
                           type="button"
-                          onClick={() => setMediaCategoryFilter(f.id as any)}
+                          onClick={() => setMediaCategoryFilter(folderName)}
                           className={`px-2 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition-colors ${
-                            mediaCategoryFilter === f.id
+                            mediaCategoryFilter === folderName
                               ? "bg-slate-900 text-white"
                               : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-100"
                           }`}
                         >
-                          {f.label}
+                          {folderName}
                         </button>
                       ))}
                     </div>
@@ -1658,7 +1657,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                         key={doc.id}
                         className="bg-white border border-slate-200 rounded-xl p-2.5 flex items-center justify-between gap-2 hover:border-indigo-400 transition-all"
                       >
-                        <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="flex items-center gap-2 min-w-0">
                           <div className="p-2 bg-slate-100 rounded-lg text-indigo-600 shrink-0">
                             {doc.type === "video" ? (
                               <Play className="w-4 h-4" />
@@ -1672,10 +1671,8 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                             <div className="text-xs font-bold text-slate-900 truncate" title={doc.name}>
                               {doc.name}
                             </div>
-                            <div className="text-[10px] text-slate-500 font-medium flex items-center gap-1.5">
-                              <span>{doc.category}</span>
-                              <span>·</span>
-                              <span className="font-mono">{doc.size}</span>
+                            <div className="text-[10px] text-slate-500 font-medium truncate">
+                              {doc.category}
                             </div>
                           </div>
                         </div>
@@ -1686,10 +1683,12 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                               setPreviewAsset({
                                 name: doc.name,
                                 category: doc.category,
-                                size: doc.size,
                                 type: doc.type,
                                 url: doc.url,
-                                cover: activeProjectDetail.cover_image,
+                                cover:
+                                  doc.type === "photos" && doc.url?.startsWith("/api/storage/")
+                                    ? doc.url
+                                    : activeProjectDetail.cover_image,
                                 projectName: activeProjectDetail.name
                               })
                             }
@@ -1703,7 +1702,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                             target="_blank"
                             rel="noreferrer"
                             className="p-1.5 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white rounded-lg transition-colors"
-                            title="İndir"
+                            title="İndir / Aç"
                           >
                             <Download className="w-3.5 h-3.5" />
                           </a>
@@ -1720,7 +1719,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                     ))}
                   </div>
 
-                  {/* Shared Company-Wide Media & Master Map (Inside projectLP, not sending user to Google Drive) */}
+                  {/* Shared Company-Wide Media & Master Map */}
                   {driveMeta?.rootMediaFiles && (
                     <div className="pt-2 border-t border-slate-200 space-y-2">
                       <div className="flex items-center justify-between">
@@ -1734,7 +1733,6 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                       <div className="flex flex-wrap gap-1.5">
                         {driveMeta.rootMediaFiles.map((rf: any, i: number) => {
                           const label = typeof rf === "string" ? rf : rf?.name || "Medya";
-                          const size = typeof rf === "object" && rf?.size ? ` (${rf.size})` : "";
                           return (
                             <button
                               key={i}
@@ -1743,7 +1741,6 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                                 setPreviewAsset({
                                   name: label,
                                   category: "Ortak Kurumsal Medya",
-                                  size: rf?.size || "",
                                   type: rf?.type || "video",
                                   url: rf?.url || activeProjectDetail.cover_image,
                                   cover:
@@ -1758,10 +1755,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                               className="px-2.5 py-1 bg-white hover:bg-slate-900 text-slate-800 hover:text-white border border-slate-200 rounded-lg text-[10px] font-semibold transition-colors cursor-pointer flex items-center gap-1"
                             >
                               <Eye className="w-3 h-3 text-indigo-600" />
-                              <span>
-                                {label}
-                                {size}
-                              </span>
+                              <span>{label}</span>
                             </button>
                           );
                         })}
@@ -1936,12 +1930,12 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                 />
               </div>
               <div>
-                <label className="block text-[9px] text-slate-400 uppercase font-bold">Ünite No</label>
+                <label className="block text-[9px] text-slate-400 uppercase font-bold">Ünite Kodu</label>
                 <input
                   type="text"
                   value={newUnitForm.unit_number}
                   onChange={e => setNewUnitForm({ ...newUnitForm, unit_number: e.target.value })}
-                  className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
+                  className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white font-mono"
                 />
               </div>
               <div>
@@ -1954,28 +1948,20 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                 />
               </div>
               <div>
-                <label className="block text-[9px] text-slate-400 uppercase font-bold">Brüt / Net m²</label>
-                <div className="flex gap-1">
-                  <input
-                    type="number"
-                    value={newUnitForm.gross_sqm}
-                    onChange={e => setNewUnitForm({ ...newUnitForm, gross_sqm: Number(e.target.value) })}
-                    className="w-16 px-1.5 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
-                  />
-                  <input
-                    type="number"
-                    value={newUnitForm.net_sqm}
-                    onChange={e => setNewUnitForm({ ...newUnitForm, net_sqm: Number(e.target.value) })}
-                    className="w-16 px-1.5 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
-                  />
-                </div>
+                <label className="block text-[9px] text-slate-400 uppercase font-bold">Brüt m²</label>
+                <input
+                  type="number"
+                  value={newUnitForm.gross_sqm}
+                  onChange={e => setNewUnitForm({ ...newUnitForm, gross_sqm: Number(e.target.value) })}
+                  className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
+                />
               </div>
               <div>
-                <label className="block text-[9px] text-slate-400 uppercase font-bold">Manzara</label>
+                <label className="block text-[9px] text-slate-400 uppercase font-bold">Net m²</label>
                 <input
-                  type="text"
-                  value={newUnitForm.view_direction}
-                  onChange={e => setNewUnitForm({ ...newUnitForm, view_direction: e.target.value })}
+                  type="number"
+                  value={newUnitForm.net_sqm}
+                  onChange={e => setNewUnitForm({ ...newUnitForm, net_sqm: Number(e.target.value) })}
                   className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
                 />
               </div>
@@ -1988,12 +1974,21 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                   className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-amber-300 font-black"
                 />
               </div>
-              <button
-                type="submit"
-                className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-black cursor-pointer h-7"
-              >
-                Kaydet
-              </button>
+              <div className="flex gap-1">
+                <button
+                  type="submit"
+                  className="flex-1 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-black cursor-pointer"
+                >
+                  Ekle
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsAddUnitOpen(false)}
+                  className="px-2 py-1 bg-slate-800 text-slate-300 rounded text-xs font-bold cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
             </form>
           )}
 
@@ -2108,7 +2103,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
       {/* ===================================================================== */}
       {activeTab === "compare" && (
         <div className="space-y-3">
-          {/* Master All-Projects Comparison Table (Replaces All Projects Comparison Table.pdf) */}
+          {/* Master All-Projects Comparison Table */}
           <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-2xs space-y-2.5">
             <div className="flex items-center justify-between border-b border-slate-200 pb-2">
               <div>
@@ -2301,7 +2296,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
             <button
               type="button"
               onClick={() => setIsNewEventOpen(prev => !prev)}
-              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer"
+              className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Etkinlik Ekle</span>
@@ -2389,17 +2384,13 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                   </div>
                 </div>
 
-                <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                  <span className="text-[10px] font-semibold text-emerald-700">
-                    Otomatik Yedeklendi
-                  </span>
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-end">
                   <button
                     type="button"
                     onClick={() =>
                       setPreviewAsset({
                         name: ev.media_preview_url || ev.title,
                         category: "Etkinlik & Lansman Videosu",
-                        size: "299 MB",
                         type: "video",
                         url: "https://drive.google.com/file/d/1S-voP7vN7ciN52agBq4iuWHSoP0yfRCW/view",
                         cover: projects[0]?.cover_image,
@@ -2419,259 +2410,198 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
       )}
 
       {/* ===================================================================== */}
-      {/* TAB 5: ŞİRKET EKİBİ, KULLANICI YETKİLERİ & OTOMATİK DRIVE YEDEKLEME   */}
+      {/* TAB 5: ŞİRKET EKİBİ & KULLANICI YETKİLERİ                             */}
       {/* ===================================================================== */}
       {activeTab === "agencies" && (
-        <div className="space-y-3">
-          {/* SECTION A: INTERNAL COMPANY USERS & GRANULAR PERMISSION MATRIX */}
-          <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-200">
-              <div>
-                <h3 className="text-sm font-black text-slate-950">
-                  {companyDisplayName} — Ekip & Kullanıcı Yetkileri ({internalStaff.length})
-                </h3>
-                <p className="text-[11px] text-slate-500">
-                  Teknik, Satış, PR ve Yönetim ekibiniz için kullanıcı tanımlayın ve erişim yetkilerini belirleyin.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {["all", "Yönetim", "Teknik & Mimari", "Satış", "PR & Pazarlama"].map(dept => (
-                  <button
-                    key={dept}
-                    type="button"
-                    onClick={() => setStaffDeptFilter(dept)}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer transition-colors ${
-                      staffDeptFilter === dept
-                        ? "bg-slate-900 text-white"
-                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                    }`}
-                  >
-                    {dept === "all" ? `Tümü (${internalStaff.length})` : dept}
-                  </button>
-                ))}
-
-                <button
-                  type="button"
-                  onClick={() => setIsNewStaffOpen(prev => !prev)}
-                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer shrink-0"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Kullanıcı Ekle</span>
-                </button>
-              </div>
+        <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-200">
+            <div>
+              <h3 className="text-sm font-black text-slate-950">
+                {companyDisplayName} — Ekip & Kullanıcı Yetkileri ({internalStaff.length})
+              </h3>
+              <p className="text-[11px] text-slate-500">
+                Teknik, Satış, PR ve Yönetim ekibiniz için kullanıcı tanımlayın ve erişim yetkilerini belirleyin.
+              </p>
             </div>
 
-            {isNewStaffOpen && (
-              <form
-                onSubmit={handleCreateInternalStaff}
-                className="p-3 bg-slate-900 text-white rounded-xl border border-slate-800 space-y-2.5"
-              >
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ad Soyad *"
-                    value={newStaffForm.full_name}
-                    onChange={e => setNewStaffForm({ ...newStaffForm, full_name: e.target.value })}
-                    className="px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
-                  />
-                  <select
-                    value={newStaffForm.department}
-                    onChange={e => {
-                      const dept = e.target.value;
-                      setNewStaffForm({
-                        ...newStaffForm,
-                        department: dept,
-                        permissions: {
-                          can_manage_projects: dept === "Yönetim" || dept === "Teknik & Mimari",
-                          can_upload_media: true,
-                          can_manage_prices: dept === "Yönetim" || dept === "Satış",
-                          can_manage_users: dept === "Yönetim"
-                        }
-                      });
-                    }}
-                    className="px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-amber-300 font-bold"
-                  >
-                    <option value="Yönetim">Yönetim</option>
-                    <option value="Teknik & Mimari">Teknik & Mimari</option>
-                    <option value="Satış">Satış</option>
-                    <option value="PR & Pazarlama">PR & Pazarlama</option>
-                  </select>
-                  <input
-                    type="text"
-                    placeholder="Görev / Unvan"
-                    value={newStaffForm.title_role}
-                    onChange={e => setNewStaffForm({ ...newStaffForm, title_role: e.target.value })}
-                    className="px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
-                  />
-                  <input
-                    type="email"
-                    placeholder="Kurumsal E-Posta *"
-                    value={newStaffForm.email}
-                    onChange={e => setNewStaffForm({ ...newStaffForm, email: e.target.value })}
-                    className="px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
-                  />
-                  <div className="flex items-center gap-1.5">
-                    <input
-                      type="text"
-                      placeholder="Sorumlu Projeler / Alan"
-                      value={newStaffForm.assigned_regions}
-                      onChange={e =>
-                        setNewStaffForm({ ...newStaffForm, assigned_regions: e.target.value })
-                      }
-                      className="flex-1 px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
-                    />
-                    <button
-                      type="submit"
-                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold cursor-pointer shrink-0"
-                    >
-                      Kaydet
-                    </button>
-                  </div>
-                </div>
-              </form>
-            )}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {["all", "Yönetim", "Teknik & Mimari", "Satış", "PR & Pazarlama"].map(dept => (
+                <button
+                  key={dept}
+                  type="button"
+                  onClick={() => setStaffDeptFilter(dept)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer transition-colors ${
+                    staffDeptFilter === dept
+                      ? "bg-slate-900 text-white"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  }`}
+                >
+                  {dept === "all" ? `Tümü (${internalStaff.length})` : dept}
+                </button>
+              ))}
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-900 text-white text-[10px] font-black uppercase">
-                    <th className="py-2 px-2.5 rounded-tl-lg">Ad Soyad & E-Posta</th>
-                    <th className="py-2 px-2.5">Departman & Görev</th>
-                    <th className="py-2 px-2.5">Sorumlu Alan</th>
-                    <th className="py-2 px-2.5 text-center">Proje & Klasör</th>
-                    <th className="py-2 px-2.5 text-center">Medya & Plan Yükleme</th>
-                    <th className="py-2 px-2.5 text-center">Fiyat & Stok</th>
-                    <th className="py-2 px-2.5 text-center">Ekip Yönetimi</th>
-                    <th className="py-2 px-2.5 text-right rounded-tr-lg">İşlem</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 text-xs">
-                  {filteredStaff.map(st => {
-                    const perms = st.permissions || {
-                      can_manage_projects:
-                        st.department === "Yönetim" || st.department === "Teknik & Mimari",
-                      can_upload_media: true,
-                      can_manage_prices: st.department === "Yönetim" || st.department === "Satış",
-                      can_manage_users: st.department === "Yönetim"
-                    };
-                    return (
-                      <tr key={st.id} className="hover:bg-slate-50">
-                        <td className="py-2 px-2.5">
-                          <div className="font-black text-slate-900">{st.full_name}</div>
-                          <div className="text-[10px] text-slate-500 font-mono">{st.email}</div>
-                        </td>
-                        <td className="py-2 px-2.5">
-                          <span className="px-2 py-0.5 bg-slate-900 text-amber-300 rounded text-[10px] font-bold">
-                            {st.department}
-                          </span>
-                          <div className="text-[11px] font-semibold text-slate-700 mt-0.5">
-                            {st.title_role}
-                          </div>
-                        </td>
-                        <td className="py-2 px-2.5 text-[11px] text-slate-600">
-                          {st.assigned_regions}
-                        </td>
-                        {(
-                          [
-                            "can_manage_projects",
-                            "can_upload_media",
-                            "can_manage_prices",
-                            "can_manage_users"
-                          ] as const
-                        ).map(permKey => {
-                          const enabled = Boolean(perms[permKey]);
-                          return (
-                            <td key={permKey} className="py-2 px-2.5 text-center">
-                              <button
-                                type="button"
-                                onClick={() => handleToggleStaffPermission(st, permKey)}
-                                className={`px-2 py-0.5 rounded text-[10px] font-bold cursor-pointer border transition-colors ${
-                                  enabled
-                                    ? "bg-emerald-50 text-emerald-800 border-emerald-300"
-                                    : "bg-slate-100 text-slate-400 border-slate-200"
-                                }`}
-                              >
-                                {enabled ? "Yetkili" : "Kapalı"}
-                              </button>
-                            </td>
-                          );
-                        })}
-                        <td className="py-2 px-2.5 text-right">
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteInternalStaff(st.id)}
-                            className="p-1 text-slate-400 hover:text-rose-600 cursor-pointer"
-                            title="Kullanıcıyı Kaldır"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+              <button
+                type="button"
+                onClick={() => setIsNewStaffOpen(prev => !prev)}
+                className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Kullanıcı Ekle</span>
+              </button>
             </div>
           </div>
 
-          {/* SECTION B: AUTOMATIC BACKGROUND GOOGLE DRIVE BACKUP VAULT */}
-          <div className="bg-slate-900 text-white border border-slate-800 rounded-xl p-3.5 space-y-3">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2 pb-2.5 border-b border-slate-800">
-              <div>
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                  <h4 className="text-sm font-black text-white">
-                    Otomatik Google Drive Yedekleme & Veri Güvencesi
-                  </h4>
-                </div>
-                <p className="text-[11px] text-slate-300 mt-0.5">
-                  Ekibiniz doğrudan Google Drive klasörleriyle uğraşmadan tüm işlemlerini bu panel üzerinden yürütür; yapılan her yükleme ve güncelleme arka planda bağlı Google Drive hesabınıza otomatik kaydedilir.
-                </p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-[11px] font-mono text-emerald-300">
-                  Hesap: {companySettingsForm.backup_drive_email}
-                </span>
-                <button
-                  type="button"
-                  onClick={handleTriggerBackupNow}
-                  disabled={syncingDrive}
-                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold cursor-pointer flex items-center gap-1"
+          {isNewStaffOpen && (
+            <form
+              onSubmit={handleCreateInternalStaff}
+              className="p-3 bg-slate-900 text-white rounded-xl border border-slate-800 space-y-2.5"
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+                <input
+                  type="text"
+                  required
+                  placeholder="Ad Soyad *"
+                  value={newStaffForm.full_name}
+                  onChange={e => setNewStaffForm({ ...newStaffForm, full_name: e.target.value })}
+                  className="px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
+                />
+                <select
+                  value={newStaffForm.department}
+                  onChange={e => {
+                    const dept = e.target.value;
+                    setNewStaffForm({
+                      ...newStaffForm,
+                      department: dept,
+                      permissions: {
+                        can_manage_projects: dept === "Yönetim" || dept === "Teknik & Mimari",
+                        can_upload_media: true,
+                        can_manage_prices: dept === "Yönetim" || dept === "Satış",
+                        can_manage_users: dept === "Yönetim"
+                      }
+                    });
+                  }}
+                  className="px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-amber-300 font-bold"
                 >
-                  <FolderSync className={`w-3.5 h-3.5 ${syncingDrive ? "animate-spin" : ""}`} />
-                  <span>{syncingDrive ? "Yedekleniyor..." : "Şimdi Yedekle"}</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <div className="text-[10px] font-bold uppercase text-slate-400">
-                Son Otomatik Yedeklenen İşlemler
-              </div>
-              <div className="divide-y divide-slate-800 bg-slate-950/60 rounded-xl border border-slate-800 overflow-hidden text-xs">
-                {backupLogs.map(log => (
-                  <div
-                    key={log.id}
-                    className="px-3 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-1"
+                  <option value="Yönetim">Yönetim</option>
+                  <option value="Teknik & Mimari">Teknik & Mimari</option>
+                  <option value="Satış">Satış</option>
+                  <option value="PR & Pazarlama">PR & Pazarlama</option>
+                </select>
+                <input
+                  type="text"
+                  placeholder="Görev / Unvan"
+                  value={newStaffForm.title_role}
+                  onChange={e => setNewStaffForm({ ...newStaffForm, title_role: e.target.value })}
+                  className="px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
+                />
+                <input
+                  type="email"
+                  placeholder="Kurumsal E-Posta *"
+                  value={newStaffForm.email}
+                  onChange={e => setNewStaffForm({ ...newStaffForm, email: e.target.value })}
+                  className="px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
+                />
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    placeholder="Sorumlu Projeler / Alan"
+                    value={newStaffForm.assigned_regions}
+                    onChange={e =>
+                      setNewStaffForm({ ...newStaffForm, assigned_regions: e.target.value })
+                    }
+                    className="flex-1 px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
+                  />
+                  <button
+                    type="submit"
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold cursor-pointer shrink-0"
                   >
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                      <span className="font-bold text-white">{log.action}</span>
-                      <span className="text-slate-400">·</span>
-                      <span className="text-amber-300 font-mono text-[11px]">{log.target}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-[10px] text-slate-400">
-                      <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-semibold">
-                        {log.department}
-                      </span>
-                      <span className="font-mono">{log.timestamp}</span>
-                    </div>
-                  </div>
-                ))}
+                    Kaydet
+                  </button>
+                </div>
               </div>
-            </div>
+            </form>
+          )}
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-900 text-white text-[10px] font-black uppercase">
+                  <th className="py-2 px-2.5 rounded-tl-lg">Ad Soyad & E-Posta</th>
+                  <th className="py-2 px-2.5">Departman & Görev</th>
+                  <th className="py-2 px-2.5">Sorumlu Alan</th>
+                  <th className="py-2 px-2.5 text-center">Proje & Klasör</th>
+                  <th className="py-2 px-2.5 text-center">Medya & Plan Yükleme</th>
+                  <th className="py-2 px-2.5 text-center">Fiyat & Stok</th>
+                  <th className="py-2 px-2.5 text-center">Ekip Yönetimi</th>
+                  <th className="py-2 px-2.5 text-right rounded-tr-lg">İşlem</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200 text-xs">
+                {filteredStaff.map(st => {
+                  const perms = st.permissions || {
+                    can_manage_projects:
+                      st.department === "Yönetim" || st.department === "Teknik & Mimari",
+                    can_upload_media: true,
+                    can_manage_prices: st.department === "Yönetim" || st.department === "Satış",
+                    can_manage_users: st.department === "Yönetim"
+                  };
+                  return (
+                    <tr key={st.id} className="hover:bg-slate-50">
+                      <td className="py-2 px-2.5">
+                        <div className="font-black text-slate-900">{st.full_name}</div>
+                        <div className="text-[10px] text-slate-500 font-mono">{st.email}</div>
+                      </td>
+                      <td className="py-2 px-2.5">
+                        <span className="px-2 py-0.5 bg-slate-900 text-amber-300 rounded text-[10px] font-bold">
+                          {st.department}
+                        </span>
+                        <div className="text-[11px] font-semibold text-slate-700 mt-0.5">
+                          {st.title_role}
+                        </div>
+                      </td>
+                      <td className="py-2 px-2.5 text-[11px] text-slate-600">
+                        {st.assigned_regions}
+                      </td>
+                      {(
+                        [
+                          "can_manage_projects",
+                          "can_upload_media",
+                          "can_manage_prices",
+                          "can_manage_users"
+                        ] as const
+                      ).map(permKey => {
+                        const enabled = Boolean(perms[permKey]);
+                        return (
+                          <td key={permKey} className="py-2 px-2.5 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleStaffPermission(st, permKey)}
+                              className={`px-2 py-0.5 rounded text-[10px] font-bold cursor-pointer border transition-colors ${
+                                enabled
+                                  ? "bg-emerald-50 text-emerald-800 border-emerald-300"
+                                  : "bg-slate-100 text-slate-400 border-slate-200"
+                              }`}
+                            >
+                              {enabled ? "Yetkili" : "Kapalı"}
+                            </button>
+                          </td>
+                        );
+                      })}
+                      <td className="py-2 px-2.5 text-right">
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteInternalStaff(st.id)}
+                          className="p-1 text-slate-400 hover:text-rose-600 cursor-pointer"
+                          title="Kullanıcıyı Kaldır"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
@@ -2692,8 +2622,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
               <div>
                 <h4 className="text-sm font-black text-white">{previewAsset.name}</h4>
                 <p className="text-[11px] text-slate-400">
-                  {previewAsset.projectName} · {previewAsset.category}{" "}
-                  {previewAsset.size ? `· ${previewAsset.size}` : ""}
+                  {previewAsset.projectName} · {previewAsset.category}
                 </p>
               </div>
               <button
@@ -2722,7 +2651,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
               <div className="flex items-center justify-between pt-2 border-t border-slate-200">
                 <span className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>Bulut Havuzunda Kayıtlı & Otomatik Yedekli</span>
+                  <span>Proje Klasöründe Kayıtlı</span>
                 </span>
                 <div className="flex items-center gap-2">
                   {previewAsset.url && (
@@ -2733,7 +2662,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                       className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5"
                     >
                       <Download className="w-3.5 h-3.5" />
-                      <span>Dosyayı İndir / Tam Ekran Aç</span>
+                      <span>Dosyayı İndir / Aç</span>
                     </a>
                   )}
                   <button
