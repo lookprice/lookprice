@@ -875,24 +875,19 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     ]},
     { type: 'item', id: "settings", label: txt('Domain & Site Ayarları', 'Domain & Site Settings', 'Ρυθμίσεις Domain & Ιστοσελίδας'), icon: SettingsIcon }
   ] : isDeveloperProject ? [
-    { type: 'category', key: "project_hub", title: txt('İnşaat Projeleri & Veri Odası', 'Projects & Data Room', 'Έργα & Data Room'), items: [
-      { id: "dev_showcase", label: txt('Proje Vitrini & Google Drive', 'Project Showcase & Drive', 'Βιτρίνα Έργων & Drive'), icon: Building2 },
-      { id: "dev_inventory", label: txt('Canlı Ünite & Fiyat Matrisi', 'Live Unit & Price Matrix', 'Ζωντανός Πίνακας Μονάδων'), icon: Home },
-      { id: "dev_compare", label: txt('Proje & Ödeme Planı Kıyaslama', 'Project & Payment Comparison', 'Σύγκριση Έργων & Πληρωμών'), icon: ArrowLeftRight },
+    { type: 'category', key: "project_hub", title: txt('Proje & Medya Havuzu', 'Project & Media Hub', 'Έργα & Πολυμέσα'), items: [
+      { id: "dev_showcase", label: txt('Projeler & Dosyalar', 'Projects & Files', 'Έργα & Αρχεία'), icon: Building2 },
+      { id: "dev_inventory", label: txt('Üniteler & Fiyatlar', 'Units & Pricing', 'Μονάδες & Τιμές'), icon: Home },
+      { id: "dev_compare", label: txt('Proje Karşılaştırma', 'Project Comparison', 'Σύγκριση Έργων'), icon: ArrowLeftRight },
+      { id: "dev_events", label: txt('Etkinlik & Lansmanlar', 'Events & Launches', 'Εκδηλώσεις'), icon: Sparkles },
     ]},
-    { type: 'category', key: "stakeholder_network", title: txt('Gözlemci-Paydaş Emlakçı Ağı', 'Observer-Stakeholder Agency Network', 'Δίκτυο Συνεργατών Μεσιτών'), items: [
-      { id: "dev_agencies", label: txt('İç Ekip & Gözlemci-Paydaş Emlakçılar', 'Internal Team & Observer Agencies', 'Εσωτερική Ομάδα & Μεσίτες'), icon: Users },
-      { id: "dev_leads", label: txt('Müşteri Zimmetleme & Sözleşmeler', 'Lead Protection & B2B Contracts', 'Κατοχύρωση Πελατών & Συμβάσεις'), icon: ShieldCheck },
-      { id: "dev_events", label: txt('Lansman & Roadshow Takvimi', 'Launch & Roadshow Events', 'Εκδηλώσεις & Παρουσιάσεις'), icon: Sparkles },
-      { id: "dev_portal", label: txt('★ Gözlemci-Paydaş Emlakçı Ekranı', '★ Observer Agency Portal & REstateLP', '★ Πύλη Μεσιτών & REstateLP'), icon: Globe },
-    ]},
-    { type: 'category', key: "corporate_ops", title: txt('Finans, Web & Kurumsal', 'Finance, Web & Corporate', 'Οικονομικά & Εταιρικά'), items: [
-      { id: "portfolio_finances", label: txt('Tahsilat & Komisyon Kasası', 'Collections & Commission Cash Flow', 'Ταμείο & Προμήθειες'), icon: Wallet },
-      { id: "analytics", label: txt('Paydaş & Satış İstatistikleri', 'Stakeholder & Sales Analytics', 'Στατιστικά Πωλήσεων'), icon: BarChart3 },
-      { id: "website-generator", label: txt('Proje Firması Web Vitrini', 'Developer Website Showcase', 'Ιστοσελίδα Κατασκευαστικής'), icon: Globe },
+    { type: 'category', key: "corporate_ops", title: txt('Ekip & Kurumsal', 'Team & Corporate', 'Ομάδα & Εταιρικά'), items: [
+      { id: "dev_agencies", label: txt('Ekip, Yetkiler & Yedekleme', 'Team, Permissions & Backup', 'Ομάδα & Αντίγραφα'), icon: Users },
+      { id: "portfolio_finances", label: txt('Finans & Kasa', 'Finance & Cash', 'Ταμείο'), icon: Wallet },
+      { id: "website-generator", label: txt('Web Vitrini', 'Web Showcase', 'Ιστοσελίδα'), icon: Globe },
       { id: "audit-logs", label: t.auditLogs, icon: History },
     ]},
-    { type: 'item', id: "settings", label: txt('Firma & Google Drive Ayarları', 'Company & Google Drive Settings', 'Ρυθμίσεις Εταιρείας & Drive'), icon: SettingsIcon }
+    { type: 'item', id: "settings", label: txt('Firma Ayarları', 'Company Settings', 'Ρυθμίσεις Εταιρείας'), icon: SettingsIcon }
   ] : isPortfolio ? [
     { type: 'category', key: "real_estate", title: txt('Portföy & İlan', 'Portfolios & Listings', 'Χαρτοφυλάκιο & Αγγελίες'), items: [
       ...(isRealEstate ? [

@@ -25,11 +25,12 @@ export const DashboardLayout = ({ children, modals, sidebarProps, loading, lang 
 
   const branding = sidebarProps?.branding || {};
   const headerLogoUrl = branding.logo_url || branding.logo;
-  const headerStoreName = (branding.store_name && !/^lookprice$/i.test(branding.store_name.trim()))
+  const rawHeaderStoreName = (branding.store_name && !/^lookprice$/i.test(branding.store_name.trim()))
     ? branding.store_name.trim()
     : (branding.name && !/^lookprice$/i.test(branding.name.trim()))
     ? branding.name.trim()
     : "Seçkin Mağaza";
+  const headerStoreName = rawHeaderStoreName.replace(/\s*\(projectLP\)\s*/gi, "").trim();
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);

@@ -269,11 +269,11 @@ export async function initDeveloperProjectsSchema() {
       }
     }
 
-    // 9. Ensure standalone projectLP (store_type = 'developer_project') accounts exist in `stores`
+    // 9. Ensure standalone developer_project accounts exist in `stores` with clean corporate names
     try {
       const sampleDevStores = [
         {
-          name: 'Cyprus Constructions (projectLP)',
+          name: 'Cyprus Constructions',
           slug: 'cyprus-constructions',
           address: 'Girne — Esentepe & Tatlısu Sahil Hattı, KKTC',
           contact_person: 'Salih Kayım / Global Satış Direktörlüğü',
@@ -282,7 +282,7 @@ export async function initDeveloperProjectsSchema() {
           plan: 'enterprise'
         },
         {
-          name: 'Döveç Construction Group (projectLP)',
+          name: 'Döveç Construction Group',
           slug: 'dovec-group',
           address: 'İskele Long Beach & Gazimağusa, KKTC',
           contact_person: 'Burçin Döveç / Proje Geliştirme Direktörlüğü',
@@ -291,10 +291,10 @@ export async function initDeveloperProjectsSchema() {
           plan: 'enterprise'
         },
         {
-          name: 'projectLP Demo — İnşaat & Proje Üreticisi',
+          name: 'Noyanlar Group Construction',
           slug: 'projectlp-demo',
           address: 'Girne & İskele, KKTC',
-          contact_person: 'Proje Yönetimi & Paydaş Ağı',
+          contact_person: 'Proje Yönetimi & Satış Direktörlüğü',
           phone: '+90 548 860 00 99',
           email: 'demo@projectlp.com',
           plan: 'pro'
@@ -345,16 +345,24 @@ export async function initDeveloperProjectsSchema() {
           targetStoreId = checkStore.rows[0].id;
           await pool.query(
             `UPDATE stores
-             SET store_type = 'developer_project',
+             SET name = $1,
+                 store_type = 'developer_project',
                  sub_sector = 'developer_project',
                  default_currency = 'GBP',
                  status = 'approved',
                  is_approved = true,
-                 branding = COALESCE(branding, '{}'::jsonb) || $1::jsonb
-             WHERE id = $2`,
-            [JSON.stringify(brandingObj), targetStoreId]
+                 branding = COALESCE(branding, '{}'::jsonb) || $2::jsonb
+             WHERE id = $3`,
+            [ds.name, JSON.stringify(brandingObj), targetStoreId]
           );
         }
+
+        await pool.query(
+          `UPDATE stores SET name = regexp_replace(name, '\\s*\\(projectLP\\)\\s*', '', 'gi') WHERE store_type = 'developer_project'`
+        );
+        await pool.query(
+          `UPDATE developer_companies SET company_name = regexp_replace(company_name, '\\s*\\(projectLP\\)\\s*', '', 'gi')`
+        );
 
         if (targetStoreId && ds.email) {
           const userCheck = await pool.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [ds.email]);
@@ -370,13 +378,13 @@ export async function initDeveloperProjectsSchema() {
       console.warn('Notice while seeding standalone projectLP stores:', seedStoreErr);
     }
 
-    console.log('Developer Projects & Global B2B Agency schema verified.');
+    console.log('Developer Projects schema verified.');
   } catch (err) {
     console.error('Error initializing Developer Projects schema:', err);
   }
 }
 
-let schemaReadyPromise: Promise<void> | null = null;
+let schemaReadyPromise: Promise<void> | null = initDeveloperProjectsSchema();
 
 function resolveCountryDeskAndManager(country: string) {
   const c = (country || '').toLowerCase();
@@ -483,8 +491,8 @@ async function ensureSeedDataForStore(storeId: number) {
   const storeInfoRes = await pool.query('SELECT name, slug, address, contact_person, phone, email FROM stores WHERE id = $1', [storeId]);
   const storeInfo = storeInfoRes.rows[0];
   const resolvedCompanyName = storeInfo?.name && !/restatelp|emlak/i.test(storeInfo.name)
-    ? storeInfo.name
-    : 'Cyprus Constructions (projectLP)';
+    ? storeInfo.name.replace(/\s*\(projectLP\)\s*/gi, '').trim()
+    : 'Cyprus Constructions';
 
   const compCheck = await pool.query('SELECT COUNT(*)::INT as cnt FROM developer_companies WHERE store_id = $1', [storeId]);
   if (compCheck.rows[0].cnt === 0) {
@@ -1204,29 +1212,99 @@ async function ensureSeedDataForStore(storeId: number) {
     );
   }
 
-  if (existingProjsRes.rows.length > 0) {
-    await syncGlobalPoolToStore(storeId);
-    return;
-  }
-
-  // Seed Internal Developer Staff (8-10 internal users managing the platform)
+  // Ensure Internal Company Team (Yönetim, Teknik & Mimari, Satış, PR & Pazarlama) is seeded with granular permissions
   const internalStaffSeed = [
-    { name: 'Salih Kayım', role: 'Yönetim Kurulu & Proje Üst Yönetimi', dept: 'Üst Yönetim (Super Admin)', email: 'board@cyprusconstructions.com', phone: '+90 548 860 00 01', regions: 'Tüm Global Bölgeler & 10 Proje' },
-    { name: 'Cenk Soydan', role: 'Global Satış & B2B Acente Direktörü', dept: 'Global Satış & Acente Ağı', email: 'sales.director@cyprusconstructions.com', phone: '+90 548 860 00 02', regions: 'KKTC, İngiltere, Avrupa, Orta Doğu' },
-    { name: 'Elena Voronova', role: 'CIS, Rusya & Doğu Avrupa Acente Koordinatörü', dept: 'Bölgesel Acente Yönetimi', email: 'cis.partners@cyprusconstructions.com', phone: '+90 548 860 00 03', regions: 'Rusya, Ukrayna, Kazakistan, Baltık' },
-    { name: 'Mert Karadağ', role: 'KKTC & Türkiye Kurumsal Emlak Ofisleri Yöneticisi', dept: 'Bölgesel Acente Yönetimi', email: 'tr.kktc@cyprusconstructions.com', phone: '+90 548 860 00 04', regions: 'Girne, İskele, İstanbul, Ankara, İzmir' },
-    { name: 'Hans-Peter Lindner', role: 'DACH & İskandinavya Yatırımcı İlişkileri Yöneticisi', dept: 'Bölgesel Acente Yönetimi', email: 'dach.nordic@cyprusconstructions.com', phone: '+90 548 860 00 05', regions: 'Almanya, İsviçre, Avusturya, İsveç, Norveç' },
-    { name: 'Selin Aksoy', role: 'Envanter, Fiyatlandırma & Opsiyon Masası Şefi', dept: 'Stok & Operasyon', email: 'inventory@cyprusconstructions.com', phone: '+90 548 860 00 06', regions: 'Maldives, IDYLL, Mykonos, Pearl, MoonLight, Bahamas, Hawaii, Aloha, Phuket, Edremit' },
-    { name: 'Av. Derin Özkan', role: 'B2B Acente Sözleşmeleri & Hukuk/Tapu Uzmanı', dept: 'Hukuk & Kontrat', email: 'contracts@cyprusconstructions.com', phone: '+90 548 860 00 07', regions: 'Tüm B2B Komisyon ve Satış Sözleşmeleri' },
-    { name: 'Burak Tekin', role: 'Google Drive Veri Odası & Medya Prodüksiyon Yöneticisi', dept: 'Pazarlama & Drive Sync', email: 'media.drive@cyprusconstructions.com', phone: '+90 548 860 00 08', regions: '4K Drone, Masterplan & Drive Yedekleme' }
+    {
+      name: 'Salih Kayım',
+      role: 'Yönetim Kurulu Başkanı & Proje Direktörü',
+      dept: 'Yönetim',
+      email: 'salih.kayim@cyprusconstructions.com',
+      phone: '+90 548 860 00 01',
+      regions: 'Tüm Projeler, Fiyat & Ekip Yetkileri',
+      permissions: { can_manage_projects: true, can_upload_media: true, can_manage_prices: true, can_manage_users: true }
+    },
+    {
+      name: 'Mimar Sinan Soylu',
+      role: 'Baş Mimar & Teknik Proje Koordinatörü',
+      dept: 'Teknik & Mimari',
+      email: 'mimari@cyprusconstructions.com',
+      phone: '+90 548 860 00 02',
+      regions: 'Masterplan, Kat Planları, Vaziyet Planı & Teknik Şartname',
+      permissions: { can_manage_projects: true, can_upload_media: true, can_manage_prices: false, can_manage_users: false }
+    },
+    {
+      name: 'İnş. Müh. Kerem Arslan',
+      role: 'Şantiye & İlerleme Raporlama Şefi',
+      dept: 'Teknik & Mimari',
+      email: 'santiye@cyprusconstructions.com',
+      phone: '+90 548 860 00 03',
+      regions: 'Şantiye İlerleme Oranları & Teknik Çizimler',
+      permissions: { can_manage_projects: true, can_upload_media: true, can_manage_prices: false, can_manage_users: false }
+    },
+    {
+      name: 'Cenk Soydan',
+      role: 'Satış & Envanter Direktörü',
+      dept: 'Satış',
+      email: 'satis@cyprusconstructions.com',
+      phone: '+90 548 860 00 04',
+      regions: 'Tüm Projeler Fiyat Listesi, Ödeme Planları & Stok Matrisi',
+      permissions: { can_manage_projects: false, can_upload_media: true, can_manage_prices: true, can_manage_users: false }
+    },
+    {
+      name: 'Selin Aksoy',
+      role: 'Ünite Stok, Opsiyon & Fiyatlandırma Uzmanı',
+      dept: 'Satış',
+      email: 'stok@cyprusconstructions.com',
+      phone: '+90 548 860 00 05',
+      regions: 'Müsait / Opsiyonlu / Satılan Ünite Takibi',
+      permissions: { can_manage_projects: false, can_upload_media: false, can_manage_prices: true, can_manage_users: false }
+    },
+    {
+      name: 'Burak Tekin',
+      role: 'PR, Kurumsal İletişim & Medya Yöneticisi',
+      dept: 'PR & Pazarlama',
+      email: 'pr@cyprusconstructions.com',
+      phone: '+90 548 860 00 06',
+      regions: '3D Render, 4K Drone Videoları, Katalog & Lansman Medyaları',
+      permissions: { can_manage_projects: false, can_upload_media: true, can_manage_prices: false, can_manage_users: false }
+    },
+    {
+      name: 'Zeynep Aydın',
+      role: 'Dijital Katalog & Görsel Arşiv Uzmanı',
+      dept: 'PR & Pazarlama',
+      email: 'medya@cyprusconstructions.com',
+      phone: '+90 548 860 00 07',
+      regions: 'Proje E-Broşürleri, Sosyal Medya Kiti & Etkinlik Arşivi',
+      permissions: { can_manage_projects: false, can_upload_media: true, can_manage_prices: false, can_manage_users: false }
+    },
+    {
+      name: 'Av. Derin Özkan',
+      role: 'Hukuk Müşaviri & Sözleşme Yöneticisi',
+      dept: 'Yönetim',
+      email: 'hukuk@cyprusconstructions.com',
+      phone: '+90 548 860 00 08',
+      regions: 'Satış Sözleşmesi Şablonları, Tapu & Koçan Dokümanları',
+      permissions: { can_manage_projects: false, can_upload_media: true, can_manage_prices: false, can_manage_users: true }
+    }
   ];
 
-  for (const s of internalStaffSeed) {
-    await pool.query(
-      `INSERT INTO developer_internal_staff (store_id, full_name, title_role, department, email, phone, assigned_regions)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-      [storeId, s.name, s.role, s.dept, s.email, s.phone, s.regions]
-    );
+  const existingStaffRes = await pool.query('SELECT id, department FROM developer_internal_staff WHERE store_id = $1', [storeId]);
+  const hasLegacyB2BStaff = existingStaffRes.rows.some((r: any) => /acente|drive sync|super admin/i.test(String(r.department || '')));
+  if (existingStaffRes.rows.length === 0 || hasLegacyB2BStaff) {
+    if (hasLegacyB2BStaff) {
+      await pool.query('DELETE FROM developer_internal_staff WHERE store_id = $1', [storeId]);
+    }
+    for (const s of internalStaffSeed) {
+      await pool.query(
+        `INSERT INTO developer_internal_staff (store_id, full_name, title_role, department, email, phone, assigned_regions, permissions)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [storeId, s.name, s.role, s.dept, s.email, s.phone, s.regions, JSON.stringify(s.permissions)]
+      );
+    }
+  }
+
+  if (existingProjsRes.rows.length > 0) {
+    return;
   }
 
   // Seed External B2B Partner Agencies
@@ -1891,22 +1969,65 @@ router.post('/units', authenticate, async (req: any, res) => {
   }
 });
 
-// POST /api/developer-projects/internal-staff (Add new Internal Developer Management Staff 8-10 role)
+// POST /api/developer-projects/internal-staff (Add new Internal Company Staff Member with Permissions)
 router.post('/internal-staff', authenticate, async (req: any, res) => {
   const storeId = Number(getAuthorizedStoreId(req, req.body.store_id || req.query.store_id) || req.user?.store_id || 1);
   const b = req.body;
   try {
+    const defaultPerms = b.permissions || {
+      can_manage_projects: b.department === 'Yönetim' || b.department === 'Teknik & Mimari',
+      can_upload_media: true,
+      can_manage_prices: b.department === 'Yönetim' || b.department === 'Satış',
+      can_manage_users: b.department === 'Yönetim'
+    };
     const result = await pool.query(
-      `INSERT INTO developer_internal_staff (store_id, full_name, title_role, department, email, phone, assigned_regions)
-       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      `INSERT INTO developer_internal_staff (store_id, full_name, title_role, department, email, phone, assigned_regions, permissions)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
       [
         storeId,
         b.full_name,
-        b.title_role || 'Proje & Satış Yöneticisi',
-        b.department || 'Global Satış & Acente Ağı',
-        b.email || 'manager@developer-group.com',
+        b.title_role || 'Proje Uzmanı',
+        b.department || 'Teknik & Mimari',
+        b.email || 'ekip@cyprusconstructions.com',
         b.phone || '+90 548 860 00 00',
-        b.assigned_regions || 'Tüm Projeler & Bölgeler'
+        b.assigned_regions || 'Tüm Projeler',
+        JSON.stringify(defaultPerms)
+      ]
+    );
+    res.json(result.rows[0]);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH /api/developer-projects/internal-staff/:id (Update Internal Staff Role, Department & Permissions)
+router.patch('/internal-staff/:id', authenticate, async (req: any, res) => {
+  const storeId = Number(getAuthorizedStoreId(req, req.body.store_id || req.query.store_id) || req.user?.store_id || 1);
+  const { id } = req.params;
+  const b = req.body;
+  try {
+    const result = await pool.query(
+      `UPDATE developer_internal_staff
+       SET full_name = COALESCE($1, full_name),
+           title_role = COALESCE($2, title_role),
+           department = COALESCE($3, department),
+           email = COALESCE($4, email),
+           phone = COALESCE($5, phone),
+           assigned_regions = COALESCE($6, assigned_regions),
+           permissions = COALESCE($7, permissions),
+           active_status = COALESCE($8, active_status)
+       WHERE id = $9 AND store_id = $10 RETURNING *`,
+      [
+        b.full_name || null,
+        b.title_role || null,
+        b.department || null,
+        b.email || null,
+        b.phone || null,
+        b.assigned_regions || null,
+        b.permissions ? JSON.stringify(b.permissions) : null,
+        b.active_status !== undefined ? Boolean(b.active_status) : null,
+        id,
+        storeId
       ]
     );
     res.json(result.rows[0]);

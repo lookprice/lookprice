@@ -89,11 +89,12 @@ export const DashboardSidebar = ({
   });
 
   const storeLogoUrl = branding?.logo_url || branding?.logo;
-  const displayName = (branding?.store_name && !/^lookprice$/i.test(branding.store_name.trim()))
+  const rawDisplayName = (branding?.store_name && !/^lookprice$/i.test(branding.store_name.trim()))
     ? branding.store_name.trim()
     : (branding?.name && !/^lookprice$/i.test(branding.name.trim()))
     ? branding.name.trim()
     : "Seçkin Mağaza";
+  const displayName = rawDisplayName.replace(/\s*\(projectLP\)\s*/gi, "").trim();
 
   return (
     <>

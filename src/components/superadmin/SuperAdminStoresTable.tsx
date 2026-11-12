@@ -615,7 +615,7 @@ export const SuperAdminStoresTable: React.FC<SuperAdminStoresTableProps> = ({
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="font-extrabold text-slate-900 dark:text-white truncate max-w-[200px]">
-                              {store.name}
+                              {String(store.name || "").replace(/\s*\(projectLP\)\s*/gi, "")}
                             </span>
                             {isDemo ? (
                               <span className="px-1.5 py-0.5 text-[9px] font-black uppercase rounded bg-purple-100 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">

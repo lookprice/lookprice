@@ -304,19 +304,15 @@ export const SuperAdminGlobalAgencyPool: React.FC = () => {
 
   return (
     <div className="space-y-3">
-      {/* Single Integrated Header & Two-Way Pool Sync Command Bar */}
+      {/* Single Integrated Header */}
       <div className="bg-slate-900 text-white rounded-2xl p-4 border border-slate-800 shadow-sm">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 text-xs text-amber-300 font-semibold">
-              <Globe className="w-4 h-4 shrink-0" />
-              <span>LookPrice SuperAdmin · Merkezi Global Emlakçı Havuzu & Çift Yönlü Geri Besleme Motoru</span>
-            </div>
+          <div className="space-y-0.5">
             <h2 className="text-lg sm:text-xl font-bold tracking-tight text-white">
-              Global Emlak Ofisleri & Broker Veri Havuzu ({stats.total} Kayıtlı Acente)
+              Emlak Ofisleri Havuzu ({stats.total})
             </h2>
-            <p className="text-xs text-slate-300 max-w-3xl">
-              Buradan girdiğiniz tüm yerel ve uluslararası emlak ofisleri, yeni açılan her <strong className="text-white">projectLP (İnşaat & Proje Üreticisi)</strong> hesabına otomatik tanımlanır. Ayrıca proje firması operatörlerinin sahada kendi panellerine ekledikleri yeni emlakçılar da bu merkezi havuzu otomatik geri besler.
+            <p className="text-xs text-slate-300">
+              İnşaat ve proje firmalarıyla paylaşılan anlaşmalı emlak ofisleri ve broker ağı.
             </p>
           </div>
 
@@ -324,10 +320,9 @@ export const SuperAdminGlobalAgencyPool: React.FC = () => {
             <a
               href="/dashboard/cyprus-constructions"
               className="px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black flex items-center gap-1.5 shadow-xs transition-colors whitespace-nowrap"
-              title="Cyprus Constructions (10 Proje + Google Drive Veri Havuzu) Canlı projectLP Panelini Aç"
             >
               <Building2 className="w-3.5 h-3.5" />
-              <span>🏗️ Cyprus Constructions (projectLP) Panelini Aç</span>
+              <span>Cyprus Constructions Paneli</span>
               <ArrowUpRight className="w-3.5 h-3.5" />
             </a>
 
@@ -337,7 +332,7 @@ export const SuperAdminGlobalAgencyPool: React.FC = () => {
               className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
             >
               <RefreshCw className={`w-3.5 h-3.5 text-emerald-400 ${syncingAll ? "animate-spin" : ""}`} />
-              <span>Tüm projectLP Firmalarına Havuzu Dağıt ({developerStores.length} Firma)</span>
+              <span>Havuzu Eşitle ({developerStores.length})</span>
             </button>
 
             <button
@@ -345,7 +340,7 @@ export const SuperAdminGlobalAgencyPool: React.FC = () => {
               className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer whitespace-nowrap"
             >
               <Plus className="w-4 h-4" />
-              <span>Havuza Yeni Emlakçı Ekle</span>
+              <span>Emlak Ofisi Ekle</span>
             </button>
           </div>
         </div>
@@ -353,53 +348,53 @@ export const SuperAdminGlobalAgencyPool: React.FC = () => {
         {/* 4-Column Quantitative KPI Strip */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-4 pt-3.5 border-t border-slate-800">
           <div className="bg-slate-800/70 rounded-xl px-3.5 py-2.5 border border-slate-700/70">
-            <div className="text-[11px] text-slate-400">Merkezi Havuz Toplamı</div>
+            <div className="text-[11px] text-slate-400">Toplam Emlak Ofisi</div>
             <div className="text-lg font-bold text-white font-mono tabular-nums mt-0.5">
-              {stats.total} Emlak Ofisi
+              {stats.total} Ofis
             </div>
             <div className="text-[11px] text-slate-400 mt-0.5">
-              {stats.countriesCount} Ülke · 8 Dil Desteği
+              {stats.countriesCount} Ülke · 8 Dil
             </div>
           </div>
 
           <div className="bg-slate-800/70 rounded-xl px-3.5 py-2.5 border border-slate-700/70">
-            <div className="text-[11px] text-slate-400">SuperAdmin Merkez Girişi</div>
+            <div className="text-[11px] text-slate-400">Merkez Kayıtları</div>
             <div className="text-lg font-bold text-indigo-300 font-mono tabular-nums mt-0.5">
-              {stats.masterCount} Kurumsal Ofis
+              {stats.masterCount} Ofis
             </div>
             <div className="text-[11px] text-slate-400 mt-0.5">
-              Yeni açılan her projectLP hesabına hazır set edilir
+              Doğrudan tanımlanan ofisler
             </div>
           </div>
 
           <div className="bg-slate-800/70 rounded-xl px-3.5 py-2.5 border border-slate-700/70">
-            <div className="text-[11px] text-slate-400">Operatör Geri Beslemesi (Reverse-Feed)</div>
+            <div className="text-[11px] text-slate-400">Firma Eklemeleri</div>
             <div className="text-lg font-bold text-emerald-300 font-mono tabular-nums mt-0.5">
-              +{stats.reverseFedCount} Yeni Keşif
+              +{stats.reverseFedCount} Ofis
             </div>
             <div className="text-[11px] text-slate-400 mt-0.5">
-              İnşaat firmalarının sahada ekleyip havuza kazandırdığı
+              Proje firmaları tarafından eklenen
             </div>
           </div>
 
           <div className="bg-slate-800/70 rounded-xl px-3.5 py-2.5 border border-slate-700/70">
-            <div className="text-[11px] text-slate-400">Bağlı projectLP Firmaları & REstateLP</div>
+            <div className="text-[11px] text-slate-400">Proje Firmaları</div>
             <div className="text-lg font-bold text-amber-300 font-mono tabular-nums mt-0.5">
-              {developerStores.length} İnşaat Firması
+              {developerStores.length} Firma
             </div>
             <div className="text-[11px] text-slate-400 mt-0.5">
-              {stats.restateActiveCount} acente aktif REstateLP abonesi
+              {stats.restateActiveCount} REstateLP Üyesi
             </div>
           </div>
         </div>
       </div>
 
-      {/* Connected projectLP Developer Stores Strip */}
+      {/* Connected Developer Stores Strip */}
       {developerStores.length > 0 && (
         <div className="bg-white rounded-xl px-3.5 py-2.5 border border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
           <div className="flex items-center gap-2 text-slate-700 font-semibold">
             <Building2 className="w-4 h-4 text-indigo-600 shrink-0" />
-            <span>Bu Havuzdan Otomatik Beslenen projectLP İnşaat Firmaları:</span>
+            <span>İnşaat & Proje Firmaları:</span>
           </div>
           <div className="flex flex-wrap items-center gap-3 text-slate-600">
             {developerStores.map((ds, idx) => (
@@ -409,7 +404,7 @@ export const SuperAdminGlobalAgencyPool: React.FC = () => {
                   href={`/dashboard/${ds.slug}`}
                   className="font-semibold text-slate-900 hover:text-indigo-600 transition-colors flex items-center gap-1"
                 >
-                  <span>{ds.name}</span>
+                  <span>{String(ds.name || "").replace(/\s*\(projectLP\)\s*/gi, "")}</span>
                   <ArrowUpRight className="w-3 h-3 text-slate-400" />
                 </a>
               </React.Fragment>
@@ -436,7 +431,7 @@ export const SuperAdminGlobalAgencyPool: React.FC = () => {
                 sourceFilter === "superadmin_master" ? "bg-indigo-600 text-white" : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              SuperAdmin Merkez ({stats.masterCount})
+              Merkez ({stats.masterCount})
             </button>
             <button
               onClick={() => setSourceFilter("operator_reverse_feed")}
@@ -444,7 +439,7 @@ export const SuperAdminGlobalAgencyPool: React.FC = () => {
                 sourceFilter === "operator_reverse_feed" ? "bg-emerald-600 text-white" : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              Operatör Geri Beslemesi (+{stats.reverseFedCount})
+              Firma Eklemeleri (+{stats.reverseFedCount})
             </button>
           </div>
 
@@ -621,11 +616,8 @@ export const SuperAdminGlobalAgencyPool: React.FC = () => {
             <div className="bg-slate-900 text-white px-4 py-3 flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-bold text-white">
-                  {editingAgency ? "Merkezi Havuz Emlak Ofisini Düzenle" : "Merkezi Global Emlakçı Havuzuna Yeni Ofis Ekle"}
+                  {editingAgency ? "Emlak Ofisini Düzenle" : "Emlak Ofisi Ekle"}
                 </h3>
-                <p className="text-[11px] text-slate-300">
-                  Kaydedilen emlak ofisi tüm projectLP inşaat firmalarının paydaş ağına otomatik olarak yansıtılır.
-                </p>
               </div>
               <button
                 onClick={() => setShowModal(false)}
@@ -831,7 +823,7 @@ export const SuperAdminGlobalAgencyPool: React.FC = () => {
                   disabled={saving}
                   className="px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-bold cursor-pointer"
                 >
-                  {saving ? "Kaydediliyor..." : editingAgency ? "Değişiklikleri Kaydet" : "Havuza Ekle & Tüm projectLP Firmalarına Dağıt"}
+                  {saving ? "Kaydediliyor..." : "Kaydet"}
                 </button>
               </div>
             </form>
