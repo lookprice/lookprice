@@ -96,7 +96,7 @@ export const SettingsWebTab = ({
   const subNavItems = [
     { id: 'brand', label: txt('Logo & Favicon', 'Logo & Favicon', 'Λογότυπο & Favicon'), icon: ImageIcon, show: true },
     { id: 'theme', label: txt('Vitrin & Görsel Tasarım Stüdyosu', 'Visual Theme Studio', 'Βιτρίνα & Στούντιο Σχεδίασης'), icon: Palette, show: !isCorporateWebsite },
-    { id: 'uiverse_lora', label: txt('Uiverse Etkileşim & LoRA Görsel Stüdyosu', 'Uiverse & LoRA Studio', 'Uiverse & LoRA Studio'), icon: Palette, show: true },
+    { id: 'uiverse_lora', label: txt('Buton Stili & Görsel Stüdyosu', 'Button Style & Visual Studio', 'Στούντιο Κουμπιών & Εικόνων'), icon: Palette, show: true },
     { id: 'legal', label: txt('Hakkımızda & Politikalar', 'About & Policies', 'Σχετικά & Πολιτικές'), icon: FileText, show: !isPortfolio && !isCafeRestaurant && !isCorporateWebsite },
     { id: 'contact', label: txt('İletişim', 'Contact', 'Επικοινωνία'), icon: Share2, show: true },
     { id: 'analytics', label: txt('SEO & Analitik', 'SEO & Analytics', 'SEO & Αναλυτικά'), icon: BarChart3, show: true },

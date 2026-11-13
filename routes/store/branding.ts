@@ -267,6 +267,12 @@ router.post("/", async (req: any, res) => {
     updatedBranding.hotel_license_enabled = storeHotelLicense;
     updatedBranding.hotel_module_enabled = hotel_module_enabled;
 
+    const resolvedPageLayoutSettings =
+      cleanedBody.page_layout_settings !== undefined
+        ? cleanedBody.page_layout_settings
+        : updatedBranding.page_layout_settings || {};
+    updatedBranding.page_layout_settings = resolvedPageLayoutSettings;
+
     await pool.query(`
       UPDATE stores 
       SET 
@@ -307,7 +313,8 @@ router.post("/", async (req: any, res) => {
         hotel_module_enabled = $36,
         country = $37,
         google_merchant_settings = $38,
-        instagram_settings = $39
+        instagram_settings = $39,
+        page_layout_settings = $40
       WHERE id = $24
     `, [
       name,
@@ -348,7 +355,8 @@ router.post("/", async (req: any, res) => {
       storeHotelLicense,
       country,
       JSON.stringify(mergedGoogleMerchantSettings),
-      JSON.stringify(mergedInstagramSettings)
+      JSON.stringify(mergedInstagramSettings),
+      JSON.stringify(resolvedPageLayoutSettings)
     ]);
 
     // Audit Log: Record that a user updated store settings/API keys

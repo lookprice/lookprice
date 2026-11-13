@@ -31,8 +31,9 @@ import { toast } from "sonner";
 import {
   UIVERSE_INTERACTION_PRESETS,
   UiversePresetId,
-  UiversePresetMeta,
-  ARCHITECTURAL_LORA_MODELS
+  ARCHITECTURAL_LORA_MODELS,
+  resolveArchitecturalAssetUrl,
+  sanitizeArchitecturalGalleryRecord
 } from "./developer/UiverseAndLoraWebStudio";
 
 export type DeveloperThemeId =
@@ -65,9 +66,9 @@ export const DEVELOPER_ARCHITECTURAL_THEMES: Record<DeveloperThemeId, DeveloperT
   monolith_obsidian: {
     id: "monolith_obsidian",
     index: "01",
-    name: "Architectural Monolith",
-    subtitle: "Obsidian & Champagne Gold",
-    inspiration: "99designs #987503 — Lüks Rezidans & Mimari Monolit",
+    name: "Koyu Mermer & Altın Monolit",
+    subtitle: "Koyu Antrasit & Şampanya Altın",
+    inspiration: "Prestijli Rezidans & Lüks Mimari Vitrin",
     isDark: true,
     canvasBg: "bg-[#090D16]",
     surfaceBg: "bg-[#0F1624]",
@@ -84,9 +85,9 @@ export const DEVELOPER_ARCHITECTURAL_THEMES: Record<DeveloperThemeId, DeveloperT
   mediterranean_resort: {
     id: "mediterranean_resort",
     index: "02",
-    name: "Mediterranean Horizon",
-    subtitle: "Travertine & Aegean Azure",
-    inspiration: "99designs #1928028 — Sahil Resort & Akdeniz Minimalizmi",
+    name: "Akdeniz Sahil & Traverten",
+    subtitle: "Doğal Taş & Kıyı Mavisi",
+    inspiration: "Sahil Resort & Akdeniz Minimalizmi",
     isDark: false,
     canvasBg: "bg-[#F7F5F0]",
     surfaceBg: "bg-[#EFECE4]",
@@ -103,9 +104,9 @@ export const DEVELOPER_ARCHITECTURAL_THEMES: Record<DeveloperThemeId, DeveloperT
   swiss_blueprint: {
     id: "swiss_blueprint",
     index: "03",
-    name: "Swiss Tectonic Grid",
-    subtitle: "Architectural Studio & CAD",
-    inspiration: "Mühendislik, Teknik Kesit & İsviçre Mimari Izgarası",
+    name: "Kurumsal Mimari Izgara",
+    subtitle: "Aydınlık Teknik & Net Çizgi",
+    inspiration: "Mühendislik, Teknik Kesit & Mimari Izgara",
     isDark: false,
     canvasBg: "bg-white",
     surfaceBg: "bg-slate-50",
@@ -122,9 +123,9 @@ export const DEVELOPER_ARCHITECTURAL_THEMES: Record<DeveloperThemeId, DeveloperT
   cinematic_pavilion: {
     id: "cinematic_pavilion",
     index: "04",
-    name: "Cinematic Pavilion",
-    subtitle: "HTML5 Video & Spatial 3D",
-    inspiration: "Tam Ekran HTML5 Sahne Geçişleri & 3D Mekansal Deneyim",
+    name: "Sinematik Sahil Panoraması",
+    subtitle: "Tam Ekran Video & Derin Kontrast",
+    inspiration: "Tam Ekran Sahne Geçişleri & Mekansal Deneyim",
     isDark: true,
     canvasBg: "bg-slate-950",
     surfaceBg: "bg-slate-900",
@@ -156,51 +157,55 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
     "Cyprus Constructions";
   const companyName = String(rawName).replace(/\s*\(projectLP\)\s*/gi, "").trim();
 
-  // Read saved developer website config from store.branding / page_layout_settings
+  const [apiDevConfig, setApiDevConfig] = useState<Record<string, any>>({});
+
+  // Read saved developer website config from store.branding / page_layout_settings + API overview
   const savedDevConfig = useMemo(() => {
     const raw =
       store?.branding?.developer_web_config ||
       store?.page_layout_settings?.developer_web_config ||
       store?.branding?.page_layout_settings?.developer_web_config ||
       {};
+    let parsed: Record<string, any> = {};
     if (typeof raw === "string") {
       try {
-        return JSON.parse(raw);
+        parsed = JSON.parse(raw);
       } catch {
-        return {};
+        parsed = {};
       }
+    } else if (raw && typeof raw === "object") {
+      parsed = raw;
     }
-    return raw || {};
-  }, [store]);
+    return {
+      ...apiDevConfig,
+      ...parsed
+    };
+  }, [store, apiDevConfig]);
 
-  const [activeThemeId, setActiveThemeId] = useState<DeveloperThemeId>(() => {
+  const activeThemeId: DeveloperThemeId = useMemo(() => {
     const configured = savedDevConfig?.theme_id as DeveloperThemeId;
     if (configured && DEVELOPER_ARCHITECTURAL_THEMES[configured]) return configured;
     return "monolith_obsidian";
-  });
-
-  useEffect(() => {
-    const configured = savedDevConfig?.theme_id as DeveloperThemeId;
-    if (configured && DEVELOPER_ARCHITECTURAL_THEMES[configured]) {
-      setActiveThemeId(configured);
-    }
   }, [savedDevConfig?.theme_id]);
 
-  const [activeUiverseId, setActiveUiverseId] = useState<UiversePresetId>(() => {
+  const activeUiverseId: UiversePresetId = useMemo(() => {
     const configured = (savedDevConfig?.uiverse_preset || store?.branding?.uiverse_preset) as UiversePresetId;
     if (configured && UIVERSE_INTERACTION_PRESETS[configured]) return configured;
     return "shimmer_glass";
-  });
-
-  useEffect(() => {
-    const configured = (savedDevConfig?.uiverse_preset || store?.branding?.uiverse_preset) as UiversePresetId;
-    if (configured && UIVERSE_INTERACTION_PRESETS[configured]) {
-      setActiveUiverseId(configured);
-    }
   }, [savedDevConfig?.uiverse_preset, store?.branding?.uiverse_preset]);
 
   const uiverse = UIVERSE_INTERACTION_PRESETS[activeUiverseId] || UIVERSE_INTERACTION_PRESETS.shimmer_glass;
   const theme = DEVELOPER_ARCHITECTURAL_THEMES[activeThemeId] || DEVELOPER_ARCHITECTURAL_THEMES.monolith_obsidian;
+
+  const shimmerEnabled = savedDevConfig?.uiverse_cta_shimmer !== false;
+  const cardLiftEnabled = savedDevConfig?.uiverse_card_lift !== false;
+
+  const ctaButtonClass = `${uiverse.primaryBtnClass} ${
+    shimmerEnabled ? "ring-1 ring-[#C5A059]/60 shadow-[0_0_24px_rgba(197,160,89,0.35)]" : ""
+  }`;
+  const cardInteractiveClass = `${uiverse.cardHoverClass} ${
+    cardLiftEnabled ? "hover:-translate-y-1.5 hover:shadow-2xl" : ""
+  }`;
 
   const [projects, setProjects] = useState<any[]>([]);
   const [units, setUnits] = useState<any[]>([]);
@@ -231,8 +236,8 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
     const fetchDeveloperPortfolio = async () => {
       setLoading(true);
       try {
-        const sid = store?.id || 1;
-        const slugParam = store?.slug || "cyprus-constructions";
+        const sid = store?.id || store?.store_id || 1;
+        const slugParam = store?.slug || store?.branding?.slug || "cyprus-constructions";
         const res = await fetch(
           `/api/developer-projects/overview?store_id=${sid}&store_slug=${encodeURIComponent(slugParam)}`
         );
@@ -244,6 +249,9 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
           setUnits(unitList);
           setEvents(Array.isArray(data.events) ? data.events : []);
           if (data.activeCompany) setActiveCompany(data.activeCompany);
+          if (data.developerWebConfig && typeof data.developerWebConfig === "object") {
+            setApiDevConfig(data.developerWebConfig);
+          }
           if (projList[0]) {
             setSelectedProjectId(projList[0].id);
             setLeadForm(prev => ({ ...prev, preferredProject: projList[0].name }));
@@ -410,7 +418,7 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
         <div className="flex items-center gap-3 shrink-0">
           <a
             href="#investor-concierge"
-            className={`px-4 py-2 text-xs font-bold rounded-lg whitespace-nowrap shrink-0 ${theme.accentBg} ${uiverse.primaryBtnClass}`}
+            className={`px-4 py-2 text-xs font-bold whitespace-nowrap shrink-0 ${theme.accentBg} ${ctaButtonClass}`}
           >
             VIP Yatırımcı Sunumu
           </a>
@@ -418,11 +426,11 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
       </header>
 
       {/* =================================================================== */}
-      {/* 2. CINEMATIC HTML5 VIDEO & ARCHITECTURAL HERO SECTION               */}
+      {/* 2. CINEMATIC VIDEO & ARCHITECTURAL HERO SECTION                     */}
       {/* =================================================================== */}
       <section id="top" className="relative w-full overflow-hidden border-b border-white/10">
-        {/* Background HTML5 Aerial Video + High-Resolution Fallback */}
-        <div className="relative min-h-[640px] lg:min-h-[720px] w-full flex flex-col justify-between">
+        {/* Background Aerial Video + High-Resolution Fallback */}
+        <div className="relative min-h-[600px] lg:min-h-[680px] w-full flex flex-col justify-end">
           <div className="absolute inset-0 z-0 overflow-hidden bg-slate-950">
             <video
               key={heroVideoUrl}
@@ -431,7 +439,9 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
               loop
               playsInline
               poster={
-                activeProject?.cover_image ||
+                (savedDevConfig?.hero_image_url
+                  ? resolveArchitecturalAssetUrl(savedDevConfig.hero_image_url)
+                  : activeProject?.cover_image) ||
                 "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1920&q=85"
               }
               className="w-full h-full object-cover opacity-65 scale-105 transition-transform duration-700"
@@ -440,44 +450,6 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
             </video>
             {/* Measured Contrast Scrim (4.5:1+ WCAG AA guaranteed) */}
             <div className="absolute inset-0 bg-gradient-to-t from-[#090D16] via-[#090D16]/65 to-[#090D16]/40" />
-          </div>
-
-          {/* Interactive Architectural Concept & Uiverse Collapsible Switcher Bar (Below Header) */}
-          <div className="relative z-10 max-w-7xl mx-auto w-full px-6 lg:px-12 pt-6 flex flex-wrap items-center justify-between gap-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950/85 border border-white/15 text-white">
-              <Palette className="w-3.5 h-3.5 text-[#C5A059] shrink-0" />
-              <label className="text-[11px] font-semibold text-slate-300 whitespace-nowrap">
-                Mimari Tasarım Konsepti:
-              </label>
-              <select
-                value={activeThemeId}
-                onChange={e => setActiveThemeId(e.target.value as DeveloperThemeId)}
-                className="bg-slate-900 border border-white/20 text-white rounded-lg px-2.5 py-1 text-xs font-bold cursor-pointer outline-none"
-              >
-                {(Object.values(DEVELOPER_ARCHITECTURAL_THEMES) as DeveloperThemeMeta[]).map(tItem => (
-                  <option key={tItem.id} value={tItem.id} className="bg-slate-900 text-white">
-                    {tItem.index}. {tItem.name} — {tItem.subtitle}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950/85 border border-white/15 text-white">
-              <label className="text-[11px] font-semibold text-slate-300 whitespace-nowrap">
-                Uiverse Etkileşim:
-              </label>
-              <select
-                value={activeUiverseId}
-                onChange={e => setActiveUiverseId(e.target.value as UiversePresetId)}
-                className="bg-slate-900 border border-white/20 text-white rounded-lg px-2.5 py-1 text-xs font-bold cursor-pointer outline-none"
-              >
-                {(Object.values(UIVERSE_INTERACTION_PRESETS) as UiversePresetMeta[]).map(uItem => (
-                  <option key={uItem.id} value={uItem.id} className="bg-slate-900 text-white">
-                    {uItem.index}. {uItem.name}
-                  </option>
-                ))}
-              </select>
-            </div>
           </div>
 
           {/* Main Hero Editorial Statement */}
@@ -505,7 +477,7 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
               <div className="pt-2 flex flex-wrap items-center gap-3">
                 <a
                   href="#masterplan-portfolio"
-                  className={`px-6 py-3.5 rounded-xl bg-[#C5A059] hover:bg-[#d4b06a] text-slate-950 text-xs font-black uppercase tracking-wider flex items-center gap-2 whitespace-nowrap ${uiverse.primaryBtnClass}`}
+                  className={`px-6 py-3.5 bg-[#C5A059] hover:bg-[#d4b06a] text-slate-950 text-xs font-black uppercase tracking-wider flex items-center gap-2 whitespace-nowrap ${ctaButtonClass}`}
                 >
                   <span>Masterplan Projeleri Keşfet ({projects.length})</span>
                   <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
@@ -513,7 +485,7 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
 
                 <a
                   href="#unit-availability"
-                  className={`px-5 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-bold flex items-center gap-2 whitespace-nowrap ${uiverse.secondaryBtnClass}`}
+                  className={`px-5 py-3.5 bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-bold flex items-center gap-2 whitespace-nowrap ${uiverse.secondaryBtnClass}`}
                 >
                   <Layers className="w-4 h-4 text-[#C5A059]" />
                   <span>Bağımsız Bölüm & Fiyatlar</span>
@@ -522,7 +494,7 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
                 <button
                   type="button"
                   onClick={() => handleWhatsAppDirect()}
-                  className={`px-5 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-2 cursor-pointer whitespace-nowrap ${uiverse.primaryBtnClass}`}
+                  className={`px-5 py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-2 cursor-pointer whitespace-nowrap ${ctaButtonClass}`}
                 >
                   <MessageCircle className="w-4 h-4" />
                   <span>Satış Ofisi WhatsApp</span>
@@ -598,7 +570,7 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
               </div>
               <div>
                 <div className="text-2xl lg:text-3xl font-black text-sky-400 font-mono tabular-nums">
-                  4K Drone & LoRA
+                  4K Mimari Katalog
                 </div>
                 <div className="text-xs text-slate-400 mt-0.5">
                   Yüksek Çözünürlüklü Mimari Katalog ve Sosyal Yaşam Vitrini
@@ -650,9 +622,9 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
               <div
                 key={proj.id}
                 onClick={() => handleSelectProject(proj)}
-                className={`group rounded-2xl overflow-hidden border cursor-pointer flex flex-col justify-between ${
+                className={`group overflow-hidden border cursor-pointer flex flex-col justify-between ${
                   theme.cardBg
-                } ${uiverse.cardHoverClass} ${
+                } ${cardInteractiveClass} ${
                   isSelected
                     ? "ring-2 ring-[#C5A059] border-[#C5A059]"
                     : `${theme.borderClass} hover:border-[#C5A059]/60`
@@ -801,7 +773,7 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
       </section>
 
       {/* =================================================================== */}
-      {/* 4. CLOUD LORA ARCHITECTURAL VISUALIZATION GALLERY                   */}
+      {/* 4. ARCHITECTURAL VISUALIZATION & INTERIOR DESIGN GALLERY            */}
       {/* =================================================================== */}
       {savedDevConfig?.show_lora_showcase !== false && (
         <section
@@ -812,10 +784,10 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
               <div>
                 <div className={`text-xs font-semibold uppercase tracking-wider ${theme.accentText}`}>
-                  02. Mimari Görselleştirme, Kesit & Sanal Eşyalandırma (LoRA) Galerisi
+                  02. Mimari Görsel, Kat Kesiti & İç Mekan Tasarım Galerisi
                 </div>
                 <h2 className={`text-2xl lg:text-3xl font-bold mt-1 ${theme.headingFontClass}`}>
-                  Dış Cephe Konsepti, İzometrik Kesit & İç Mekan Tasarımı
+                  Dış Cephe Konsepti, Kat Kesiti & İç Mekan Tasarımı
                 </h2>
               </div>
             </div>
@@ -823,62 +795,73 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {(Array.isArray(savedDevConfig?.lora_generated_gallery) &&
               savedDevConfig.lora_generated_gallery.length > 0
-                ? savedDevConfig.lora_generated_gallery.slice(0, 3)
-                : ARCHITECTURAL_LORA_MODELS.map(m => ({
-                    id: m.id,
-                    title: m.name,
-                    loraUsed: m.category,
-                    promptCommand: m.description,
-                    imageUrl: m.previewImage
-                  }))
-              ).map((vis: any, vIdx: number) => (
-                <div
-                  key={vis.id || vIdx}
-                  onClick={() =>
-                    setActiveMediaModal({
-                      name: vis.title,
-                      category: vis.loraUsed || "Mimari Render",
-                      type: "photos",
-                      url: vis.imageUrl,
-                      cover: vis.imageUrl,
-                      projectName: activeProject?.name || companyName
-                    })
-                  }
-                  className={`group rounded-2xl border overflow-hidden cursor-pointer flex flex-col justify-between ${theme.cardBg} ${theme.borderClass} ${uiverse.cardHoverClass}`}
-                >
-                  <div>
-                    <div className="relative aspect-video w-full overflow-hidden bg-slate-900">
-                      <img
-                        src={vis.imageUrl}
-                        alt={vis.title}
-                        referrerPolicy="no-referrer"
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                      <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-xs text-white">
-                        <span className="font-semibold text-[#C5A059]">
-                          0{vIdx + 1}. {vis.loraUsed}
-                        </span>
-                        <span className="font-mono text-[11px] opacity-85">Tam Ekran İncele</span>
+                ? savedDevConfig.lora_generated_gallery
+                    .slice(0, 6)
+                    .map((item: any, idx: number) => sanitizeArchitecturalGalleryRecord(item, idx))
+                : ARCHITECTURAL_LORA_MODELS.map((m, idx) =>
+                    sanitizeArchitecturalGalleryRecord(
+                      {
+                        id: m.id,
+                        title: m.defaultTitle,
+                        loraUsed: m.category,
+                        category: m.category,
+                        promptCommand: m.description,
+                        imageUrl: m.previewImage
+                      },
+                      idx
+                    )
+                  )
+              ).map((vis: any, vIdx: number) => {
+                const resolvedImgUrl = resolveArchitecturalAssetUrl(vis.imageUrl);
+                return (
+                  <div
+                    key={vis.id || vIdx}
+                    onClick={() =>
+                      setActiveMediaModal({
+                        name: vis.title,
+                        category: vis.category || vis.loraUsed || "Mimari Görsel",
+                        type: "photos",
+                        url: resolvedImgUrl,
+                        cover: resolvedImgUrl,
+                        projectName: activeProject?.name || companyName
+                      })
+                    }
+                    className={`group border overflow-hidden cursor-pointer flex flex-col justify-between ${theme.cardBg} ${theme.borderClass} ${cardInteractiveClass}`}
+                  >
+                    <div>
+                      <div className="relative aspect-video w-full overflow-hidden bg-slate-900">
+                        <img
+                          src={resolvedImgUrl}
+                          alt={vis.title}
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                        <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-xs text-white">
+                          <span className="font-semibold text-[#C5A059]">
+                            0{vIdx + 1}. {vis.category || vis.loraUsed || "Mimari Görsel"}
+                          </span>
+                          <span className="font-mono text-[11px] opacity-85">Tam Ekran İncele</span>
+                        </div>
+                      </div>
+                      <div className="p-4 space-y-1.5">
+                        <h4 className={`text-base font-bold ${theme.headingFontClass}`}>
+                          {vis.title}
+                        </h4>
+                        <p className={`text-xs line-clamp-2 ${theme.textSecondary}`}>
+                          {vis.promptCommand}
+                        </p>
                       </div>
                     </div>
-                    <div className="p-4 space-y-1.5">
-                      <h4 className={`text-base font-bold ${theme.headingFontClass}`}>
-                        {vis.title}
-                      </h4>
-                      <p className={`text-xs line-clamp-2 ${theme.textSecondary}`}>
-                        {vis.promptCommand}
-                      </p>
+                    <div
+                      className={`px-4 py-3 border-t ${theme.borderClass} flex items-center justify-between text-xs font-bold`}
+                    >
+                      <span className={theme.accentText}>Yüksek Çözünürlüklü Görseli Aç</span>
+                      <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                     </div>
                   </div>
-                  <div
-                    className={`px-4 py-3 border-t ${theme.borderClass} flex items-center justify-between text-xs font-bold`}
-                  >
-                    <span className={theme.accentText}>Yüksek Çözünürlüklü Paftayı Aç</span>
-                    <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </section>

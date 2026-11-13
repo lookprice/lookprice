@@ -86,7 +86,7 @@ export const SettingsDeveloperWebTab: React.FC<SettingsDeveloperWebTabProps> = (
 
   const [showLivePreviewModal, setShowLivePreviewModal] = useState(false);
 
-  const updateDevConfig = (patch: Record<string, any>) => {
+  const updateDevConfig = (patch: Record<string, any>, autoPersist: boolean = true) => {
     const nextConfig = {
       ...devConfig,
       ...patch
@@ -101,6 +101,17 @@ export const SettingsDeveloperWebTab: React.FC<SettingsDeveloperWebTabProps> = (
       sector: "developer_project",
       developer_web_config: nextConfig
     });
+
+    if (autoPersist) {
+      fetch("/api/developer-projects/save-web-config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          store_id: branding?.id || branding?.store_id || 1,
+          developer_web_config: nextConfig
+        })
+      }).catch(() => {});
+    }
   };
 
   const storeSlug = branding?.slug || "cyprus-constructions";
@@ -111,19 +122,11 @@ export const SettingsDeveloperWebTab: React.FC<SettingsDeveloperWebTabProps> = (
       {/* Top Executive Header Card */}
       <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs flex flex-col lg:flex-row lg:items-center justify-between gap-3">
         <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-md bg-slate-900 text-amber-400 text-[10px] font-black uppercase tracking-wider">
-              projectLP Kurumsal Mimari Web Stüdyosu
-            </span>
-            <span className="text-xs font-bold text-emerald-700">
-              • HTML5 Video, Uiverse & Cloud LoRA Aktif
-            </span>
-          </div>
           <h2 className="text-base font-black text-slate-950">
-            {companyDisplayName} — Üst Düzey İnşaat & Masterplan Web Sitesi Yönetimi
+            {companyDisplayName} — Kurumsal İnşaat & Masterplan Web Sitesi Yönetimi
           </h2>
           <p className="text-xs text-slate-600">
-            Standart e-ticaret veya emlak vitrinlerinden tamamen bağımsız; uluslararası yatırımcılar için tasarlanmış 4 mimari konsept, HTML5 drone video sahnesi ve Uiverse / Cloud LoRA görsel stüdyosunu buradan yönetin.
+            Uluslararası yatırımcılar için tasarlanmış 4 kurumsal web tasarım konsepti, tanıtım videosu ve mimari görsel galerisini buradan yönetin.
           </p>
         </div>
 
@@ -134,7 +137,7 @@ export const SettingsDeveloperWebTab: React.FC<SettingsDeveloperWebTabProps> = (
             className="px-3.5 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-950 border border-indigo-200 text-xs font-black flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
           >
             <Eye className="w-3.5 h-3.5 text-indigo-600" />
-            <span>Stüdyo İçi Canlı Önizleme</span>
+            <span>Canlı Web Önizleme</span>
           </button>
 
           <a
@@ -165,10 +168,10 @@ export const SettingsDeveloperWebTab: React.FC<SettingsDeveloperWebTabProps> = (
           <div>
             <h3 className="text-sm font-black text-slate-950 flex items-center gap-1.5">
               <Palette className="w-4 h-4 text-indigo-600" />
-              <span>1. Mimari Web Sitesi Tasarım Konsepti Seçimi (4 Profesyonel Tema)</span>
+              <span>1. Web Sitesi Tasarım Konsepti Seçimi (4 Kurumsal Tema)</span>
             </h3>
             <p className="text-[11px] text-slate-500">
-              Seçtiğiniz tasarım konsepti firmanızın resmi web sitesine anında uygulanır.
+              Seçtiğiniz tasarım konsepti yalnızca buradan yönetilir ve firmanızın resmi web sitesine anında uygulanır.
             </p>
           </div>
           <span className="text-xs font-bold text-indigo-900 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200">
@@ -182,7 +185,7 @@ export const SettingsDeveloperWebTab: React.FC<SettingsDeveloperWebTabProps> = (
             return (
               <div
                 key={tItem.id}
-                onClick={() => updateDevConfig({ theme_id: tItem.id })}
+                onClick={() => updateDevConfig({ theme_id: tItem.id }, true)}
                 className={`rounded-xl border p-3.5 cursor-pointer transition-all flex flex-col justify-between space-y-3 ${
                   isSelected
                     ? "bg-indigo-50/70 border-2 border-indigo-600 shadow-sm"
@@ -200,7 +203,7 @@ export const SettingsDeveloperWebTab: React.FC<SettingsDeveloperWebTabProps> = (
                   >
                     <div className="flex items-center justify-between text-[10px] font-mono">
                       <span className="font-bold text-amber-500">{tItem.index}. KONSEPT</span>
-                      <span>{tItem.isDark ? "Koyu Lüks Mimari" : "Gün Işığı Mermer"}</span>
+                      <span>{tItem.isDark ? "Koyu Kurumsal" : "Açık Mermer"}</span>
                     </div>
                     <div>
                       <div className="text-xs font-bold truncate">{tItem.name}</div>
@@ -234,16 +237,16 @@ export const SettingsDeveloperWebTab: React.FC<SettingsDeveloperWebTabProps> = (
         </div>
       </div>
 
-      {/* SECTION 2: HTML5 VIDEO HERO, HEADLINES & INTERACTIVE 3D MODULES */}
+      {/* SECTION 2: VIDEO HERO, HEADLINES & INTERACTIVE MODULES */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         <div className="lg:col-span-7 bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs space-y-3">
           <div className="border-b border-slate-200 pb-2">
             <h3 className="text-sm font-black text-slate-950 flex items-center gap-1.5">
               <Video className="w-4 h-4 text-amber-600" />
-              <span>2. HTML5 Sinematik Video & Ana Sahne (Hero) İçeriği</span>
+              <span>2. Tanıtım Videosu & Ana Manşet İçeriği</span>
             </h3>
             <p className="text-[11px] text-slate-500">
-              Web sitesinin açılışında tam ekran oynatılacak drone çekimi MP4/WebM video ve kurumsal manşet metinleri
+              Web sitesinin açılışında tam ekran oynatılacak tanıtım videosu ve kurumsal manşet metinleri
             </p>
           </div>
 
@@ -262,7 +265,7 @@ export const SettingsDeveloperWebTab: React.FC<SettingsDeveloperWebTabProps> = (
 
             <div>
               <label className="block text-[10px] font-black uppercase text-slate-700 mb-1">
-                Ana Manşet Başlığı (Hero Headline)
+                Ana Manşet Başlığı
               </label>
               <input
                 type="text"
@@ -281,7 +284,7 @@ export const SettingsDeveloperWebTab: React.FC<SettingsDeveloperWebTabProps> = (
 
             <div>
               <label className="block text-[10px] font-black uppercase text-slate-700 mb-1">
-                Alt Açıklama Metni (Hero Subtitle)
+                Alt Açıklama Metni
               </label>
               <textarea
                 rows={2}
@@ -300,7 +303,7 @@ export const SettingsDeveloperWebTab: React.FC<SettingsDeveloperWebTabProps> = (
 
             <div>
               <label className="block text-[10px] font-black uppercase text-slate-700 mb-1">
-                HTML5 Arka Plan Drone / Tanıtım Video URL (MP4 / WebM)
+                Arka Plan Tanıtım Video Bağlantısı (MP4)
               </label>
               <input
                 type="text"
@@ -321,15 +324,14 @@ export const SettingsDeveloperWebTab: React.FC<SettingsDeveloperWebTabProps> = (
           <div className="border-b border-slate-200 pb-2">
             <h3 className="text-sm font-black text-slate-950 flex items-center gap-1.5">
               <Box className="w-4 h-4 text-emerald-600" />
-              <span>3. İnteraktif Web Modülleri & Kurumsal Kimlik</span>
+              <span>3. Web Sitesi Bölümleri & İletişim Bilgileri</span>
             </h3>
             <p className="text-[11px] text-slate-500">
-              Web sitesinde yatırımcılara sunulacak interaktif mühendislik ve satış modülleri
+              Web sitesinde yatırımcılara sunulacak bölümler ve kurumsal iletişim kanalları
             </p>
           </div>
 
           <div className="space-y-2">
-
             <label className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer">
               <div>
                 <div className="text-xs font-black text-slate-900">
@@ -393,13 +395,13 @@ export const SettingsDeveloperWebTab: React.FC<SettingsDeveloperWebTabProps> = (
         </div>
       </div>
 
-      {/* SECTION 4: UIVERSE.IO MICRO-INTERACTION PRESETS & CLOUD LORA STUDIO */}
+      {/* SECTION 4: BUTTON & CARD STYLES & ARCHITECTURAL VISUAL STUDIO */}
       <UiverseAndLoraWebStudio
         branding={branding}
         onBrandingChange={onBrandingChange}
         onSaveBranding={onSaveBranding}
         savingBranding={savingBranding}
-        sectorLabel={`${companyDisplayName} (projectLP)`}
+        sectorLabel={companyDisplayName}
       />
 
       {/* Fullscreen Live Website Preview Modal */}
