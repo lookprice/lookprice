@@ -1702,7 +1702,43 @@ export function isNonStockFeeOrServiceItem(productName?: string | null): boolean
   if (lower === 'kargo' || lower === 'nakliye' || lower === 'komisyon' || lower === 'işçilik' || lower === 'hizmet') {
     return true;
   }
-  return feeKeywords.some(k => lower.includes(k));
+  if (feeKeywords.some(k => lower.includes(k))) {
+    return true;
+  }
+
+  const norm = lower
+    .replace(/[ıİ]/g, "i")
+    .replace(/[ğĞ]/g, "g")
+    .replace(/[üÜ]/g, "u")
+    .replace(/[şŞ]/g, "s")
+    .replace(/[öÖ]/g, "o")
+    .replace(/[çÇ]/g, "c");
+
+  const feePatterns = [
+    /\bkargo\b/,
+    /\bnakliye\b/,
+    /\btasimacilik\b/,
+    /\bteslimat ucreti\b/,
+    /\bkurye\b/,
+    /\bhizmet bedeli\b/,
+    /\bservis bedeli\b/,
+    /\bkomisyon\b/,
+    /\bmontaj\b/,
+    /\bkurulum\b/,
+    /\biscilik\b/,
+    /\bbakim ucreti\b/,
+    /\btamirat\b/,
+    /\bkonaklama\b/,
+    /\bdamga vergisi\b/,
+    /\byemek bedeli\b/,
+    /\babonelik\b/,
+    /\bfatura bedeli\b/,
+    /\belektrik\b/,
+    /\bdogalgaz\b/,
+    /\binternet hizmeti\b/
+  ];
+
+  return feePatterns.some((re) => re.test(norm));
 }
 
 /**
@@ -2049,6 +2085,92 @@ export async function transferAndCleanupInvoiceGeneratedProduct(
 
   return { deletedOldProductId: null };
 }
+
+export const DEFAULT_EXPENSE_CENTERS: Array<{ key: string; name: string }> = [
+  { key: 'showroom', name: 'Showroom' },
+  { key: 'service', name: 'Servis / Atölye' },
+  { key: 'office', name: 'Ofis / İdari' },
+  { key: 'marketing', name: 'Pazarlama / Reklam' },
+  { key: 'personnel', name: 'Personel' },
+  { key: 'other', name: 'Diğer' },
+];
+
+export async function isShopLPStore(clientOrPool: any, storeId: number): Promise<boolean> {
+  if (!storeId) return false;
+  try {
+    const res = await clientOrPool.query("SELECT id, name, slug, branding FROM stores WHERE id = $1 LIMIT 1", [storeId]);
+    if (res.rows.length === 0) return false;
+    const s = res.rows[0];
+    const b = s.branding || {};
+    const rawStoreType = String(b.store_type || "").toLowerCase().trim();
+    const rawSector = String(b.page_layout_settings?.sector || b.sector || "").toLowerCase().trim();
+    const rawSubSector = String(b.sub_sector || "").toLowerCase().trim();
+    const slug = String(s.slug || b.slug || "").toLowerCase().trim();
+    const name = String(s.name || b.name || b.store_name || "").toUpperCase();
+
+    if (
+      rawStoreType === "corporate_website" || rawStoreType === "corporate" || rawStoreType === "website" ||
+      rawSector === "corporate_website" || rawSector === "corporate" || rawSubSector === "corporate_website" ||
+      slug === "weblp-demo" || slug.startsWith("weblp-")
+    ) {
+      return false;
+    }
+
+    if (slug === "gap" || name.includes("GAP BİLİŞİM") || name.includes("GAP BILISIM")) {
+      return true;
+    }
+
+    if (
+      rawStoreType === "developer_project" || rawStoreType === "projectlp" || rawStoreType === "construction_developer" ||
+      rawSector === "developer_project" || rawSector === "projectlp" || rawSubSector === "developer_project" ||
+      slug === "projectlp-demo" || slug === "cyprus-constructions" || slug === "dovec-group" ||
+      slug.startsWith("projectlp-") || name.includes("CYPRUS CONSTRUCTIONS") || name.includes("PROJECTLP")
+    ) {
+      return false;
+    }
+
+    if (
+      ["motor_vehicle", "automotive", "auto", "autolp", "oto", "galeri", "gallery", "car_dealer"].includes(rawStoreType) ||
+      ["motor_vehicle", "automotive", "auto", "autolp", "oto", "galeri"].includes(rawSector) ||
+      ["automotive", "motor_vehicle", "auto"].includes(rawSubSector) ||
+      slug === "autolp-demo" || slug.startsWith("autolp-")
+    ) {
+      return false;
+    }
+
+    if (
+      ["real_estate", "portfolio", "emlak"].includes(rawStoreType) ||
+      ["real_estate", "portfolio", "emlak"].includes(rawSector) ||
+      rawSubSector === "real_estate" ||
+      slug === "restatelp-demo" || slug.startsWith("restatelp-")
+    ) {
+      return false;
+    }
+
+    const isHotelActive = Boolean(
+      b.hotel_module_enabled === true || b.hotel_license_enabled === true ||
+      rawStoreType === "hotel" || rawStoreType === "otel" || rawSector === "hotel" || rawSubSector === "hotel"
+    );
+    if (isHotelActive) {
+      return false;
+    }
+
+    if (
+      ["cafe_restaurant", "horeca", "horecalp", "restaurant", "cafe"].includes(rawStoreType) ||
+      ["cafe_restaurant", "horeca", "horecalp", "restaurant", "cafe"].includes(rawSector) ||
+      ["cafe_restaurant", "horeca", "horecalp", "restaurant"].includes(rawSubSector) ||
+      b.digital_menu_settings?.theme !== undefined
+    ) {
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.warn("[isShopLPStore] Lookup failed, defaulting to false:", err);
+    return false;
+  }
+}
+
 
 
 

@@ -1,5 +1,9 @@
-import React from "react";
-import { Edit3, Save, Trash2, X } from "lucide-react";
+import React, { useRef, useState } from "react";
+import { Edit3, Image as ImageIcon, Loader2, Save, Trash2, Upload, X } from "lucide-react";
+import {
+  SectionUploadOptions,
+  UnitShowcase4SectionSyncPanel
+} from "./DeveloperVisualSyncPanels";
 
 export interface ProjectFormState {
   name: string;
@@ -24,6 +28,8 @@ interface DeveloperProjectEditFormProps {
   titleLabel: string;
   projectForm: ProjectFormState;
   setProjectForm: React.Dispatch<React.SetStateAction<ProjectFormState>>;
+  uploadingCover?: boolean;
+  onUploadCoverFile?: (file: File) => Promise<void>;
   onSubmit: (e: React.FormEvent) => void;
   onClose: () => void;
 }
@@ -32,9 +38,12 @@ export const DeveloperProjectEditForm: React.FC<DeveloperProjectEditFormProps> =
   titleLabel,
   projectForm,
   setProjectForm,
+  uploadingCover,
+  onUploadCoverFile,
   onSubmit,
   onClose
 }) => {
+  const coverInputRef = useRef<HTMLInputElement | null>(null);
   return (
     <form
       onSubmit={onSubmit}
@@ -177,9 +186,40 @@ export const DeveloperProjectEditForm: React.FC<DeveloperProjectEditFormProps> =
             type="text"
             value={projectForm.cover_image}
             onChange={(e) => setProjectForm({ ...projectForm, cover_image: e.target.value })}
-            placeholder="Kapak Görseli URL"
+            placeholder="Masterplan Kapak Görseli URL"
             className="flex-1 px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900"
           />
+          {onUploadCoverFile && (
+            <>
+              <input
+                ref={coverInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={async (e) => {
+                  const f = e.target.files?.[0];
+                  if (f) {
+                    await onUploadCoverFile(f);
+                    e.target.value = "";
+                  }
+                }}
+              />
+              <button
+                type="button"
+                disabled={uploadingCover}
+                onClick={() => coverInputRef.current?.click()}
+                className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white rounded text-xs font-medium flex items-center gap-1 cursor-pointer shrink-0 whitespace-nowrap"
+                title="Bilgisayardan Masterplan Kapak Resmi Yükle"
+              >
+                {uploadingCover ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Upload className="w-3.5 h-3.5" />
+                )}
+                <span>Kapak Yükle</span>
+              </button>
+            </>
+          )}
           <button
             type="submit"
             className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold flex items-center gap-1 cursor-pointer shrink-0 whitespace-nowrap"
@@ -194,24 +234,39 @@ export const DeveloperProjectEditForm: React.FC<DeveloperProjectEditFormProps> =
 };
 
 interface DeveloperUnitRevisionFormProps {
+  project?: any;
   revisingUnit: any;
   setRevisingUnit: React.Dispatch<React.SetStateAction<any | null>>;
   activePropertyTypeKey: string;
   availableBlocks: string[];
   savingUnitRevision: boolean;
+  uploadingMedia?: boolean;
+  onBatchUploadSectionMedia?: (files: FileList, options: SectionUploadOptions) => Promise<void>;
+  onBatchAddUrlsSectionMedia?: (rawUrls: string, options: SectionUploadOptions) => Promise<void>;
+  onDeleteMedia?: (mediaId: string, mediaName?: string) => void;
+  onDirectDownload?: (url?: string, rawFileName?: string, fallbackCover?: string) => void;
+  onPreviewAsset?: (asset: any) => void;
   onSubmit: (e: React.FormEvent) => void;
   onDeleteUnit: (unitId: number, unitNoLabel?: string) => void;
 }
 
 export const DeveloperUnitRevisionForm: React.FC<DeveloperUnitRevisionFormProps> = ({
+  project,
   revisingUnit,
   setRevisingUnit,
   activePropertyTypeKey,
   availableBlocks,
   savingUnitRevision,
+  uploadingMedia = false,
+  onBatchUploadSectionMedia,
+  onBatchAddUrlsSectionMedia,
+  onDeleteMedia,
+  onDirectDownload,
+  onPreviewAsset,
   onSubmit,
   onDeleteUnit
 }) => {
+  const [showUnitVisuals, setShowUnitVisuals] = useState(false);
   if (!revisingUnit) return null;
   return (
     <form
@@ -406,7 +461,21 @@ export const DeveloperUnitRevisionForm: React.FC<DeveloperUnitRevisionFormProps>
           />
         </div>
 
-        <div className="flex items-center justify-end gap-1.5">
+        <div className="flex items-center justify-end gap-1.5 flex-wrap">
+          {project && onBatchUploadSectionMedia && onBatchAddUrlsSectionMedia && onDeleteMedia && onDirectDownload && onPreviewAsset && (
+            <button
+              type="button"
+              onClick={() => setShowUnitVisuals((p) => !p)}
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer flex items-center gap-1 border whitespace-nowrap ${
+                showUnitVisuals
+                  ? "bg-indigo-600 text-white border-indigo-600"
+                  : "bg-white hover:bg-indigo-50 text-indigo-700 border-indigo-300"
+              }`}
+            >
+              <ImageIcon className="w-3.5 h-3.5" />
+              <span>Kapı No Özel Vitrin Görselleri</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={() => onDeleteUnit(revisingUnit.id, revisingUnit.unit_number)}
@@ -429,6 +498,27 @@ export const DeveloperUnitRevisionForm: React.FC<DeveloperUnitRevisionFormProps>
           </button>
         </div>
       </div>
+
+      {showUnitVisuals &&
+        project &&
+        onBatchUploadSectionMedia &&
+        onBatchAddUrlsSectionMedia &&
+        onDeleteMedia &&
+        onDirectDownload &&
+        onPreviewAsset && (
+          <UnitShowcase4SectionSyncPanel
+            project={project}
+            targetUnitType={revisingUnit.unit_type || activePropertyTypeKey}
+            targetUnitNumber={revisingUnit.unit_number}
+            compactTitle={`Kapı No ${revisingUnit.unit_number} İçin Özel Vitrin Görselleri (Boş Bırakılırsa "${revisingUnit.unit_type}" Tip Görsellerini Kullanır)`}
+            uploading={uploadingMedia}
+            onBatchUploadFiles={onBatchUploadSectionMedia}
+            onBatchAddUrls={onBatchAddUrlsSectionMedia}
+            onDeleteMedia={onDeleteMedia}
+            onDirectDownload={onDirectDownload}
+            onPreviewAsset={onPreviewAsset}
+          />
+        )}
     </form>
   );
 };

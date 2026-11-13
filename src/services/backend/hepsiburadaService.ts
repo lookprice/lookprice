@@ -2,7 +2,7 @@ import axios, { AxiosInstance } from "axios";
 import FormData from "form-data";
 import { pool, logAction } from "../../../models/db";
 import { IntegrationService } from "../IntegrationService";
-import { processMarketplaceOrderLines } from "../marketplaceSync";
+import { processMarketplaceOrderLines, computeSellableStock } from "../marketplaceSync";
 
 export interface HepsiburadaConfig {
   merchantId: string;
@@ -1245,7 +1245,7 @@ export class HepsiburadaService {
     }
 
     const prodRes = await pool.query(
-      `SELECT id, name, category, sub_category, barcode, price, currency, stock_quantity, hepsiburada_sku, is_hepsiburada_active, marketplace_data 
+      `SELECT id, name, category, sub_category, barcode, price, currency, stock_quantity, COALESCE(reserved_stock, 0) as reserved_stock, hepsiburada_sku, is_hepsiburada_active, marketplace_data 
        FROM products 
        WHERE store_id = $1 AND (is_hepsiburada_active = true OR (hepsiburada_sku IS NOT NULL AND hepsiburada_sku != ''))`,
       [this.storeId]
@@ -1294,7 +1294,7 @@ export class HepsiburadaService {
           MerchantSku: hbMerchantSku,
           HepsiburadaSku: hbSku,
           Price: effectivePrice,
-          AvailableStock: Math.max(0, parseInt(p.stock_quantity || "0", 10)),
+          AvailableStock: computeSellableStock(p.stock_quantity, p.reserved_stock),
           DispatchTime: this.config.defaultDispatchTime || 1,
         });
         productUpdates.push({ id: p.id, mpData });
@@ -1541,7 +1541,7 @@ export class HepsiburadaService {
               MerchantSku: p.barcode,
               HepsiburadaSku: p.hepsiburada_sku || "",
               Price: parseFloat(p.price),
-              AvailableStock: parseInt(p.stock_quantity),
+              AvailableStock: computeSellableStock(p.stock_quantity, p.reserved_stock),
             },
           ]);
           return { handled: true, action: "stock_updated", details: { barcode: p.barcode } };

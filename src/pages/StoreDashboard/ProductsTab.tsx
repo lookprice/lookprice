@@ -807,6 +807,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
         totalPages={totalPages}
         lang={lang}
         t={t}
+        onRefresh={onRefresh}
       />
 
       {/* 4. Modals & Dialogs Container */}

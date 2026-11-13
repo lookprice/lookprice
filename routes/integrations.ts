@@ -17,7 +17,8 @@ import {
   testN11Connection,
   testHepsiburadaConnection,
   testTrendyolConnection,
-  testPazaramaConnection
+  testPazaramaConnection,
+  computeSellableStock
 } from "../src/services/marketplaceSync";
 
 const router = express.Router();
@@ -199,7 +200,7 @@ router.post("/amazon/bulk-sync", authenticate, async (req: any, res) => {
     }
 
     const prodRes = await pool.query(
-      `SELECT id, name, sku, barcode, price, stock_quantity, currency, category, sub_category, amazon_asin, amazon_sku, is_amazon_active, marketplace_data 
+      `SELECT id, name, sku, barcode, price, stock_quantity, COALESCE(reserved_stock, 0) as reserved_stock, currency, category, sub_category, amazon_asin, amazon_sku, is_amazon_active, marketplace_data 
        FROM products 
        WHERE store_id = $1 AND (is_amazon_active = true OR (amazon_asin IS NOT NULL AND amazon_asin != '' AND amazon_asin NOT LIKE 'http%'))`,
       [storeId]
@@ -602,10 +603,11 @@ router.post("/amazon/publish", authenticate, async (req: any, res) => {
       return res.status(400).json({ error: `"${p.name}" bir Hizmet/Servis kalemi olduğu için e-Mağaza (Amazon) listelerine eklenemez.` });
     }
 
-    if (Number(p.price || 0) <= 0 || Number(p.stock_quantity || 0) <= 0) {
+    const sellableAmzStock = computeSellableStock(p.stock_quantity, p.reserved_stock);
+    if (Number(p.price || 0) <= 0 || sellableAmzStock <= 0) {
       const reasons = [];
       if (Number(p.price || 0) <= 0) reasons.push("fiyatı 0₺");
-      if (Number(p.stock_quantity || 0) <= 0) reasons.push("stoğu yetersiz (0/negatif)");
+      if (sellableAmzStock <= 0) reasons.push(Number(p.reserved_stock || 0) > 0 ? "tüm stok rezerveli (satılabilir 0)" : "stoğu yetersiz (0/negatif)");
       return res.status(400).json({ error: `"${p.name}" ürününün ${reasons.join(" ve ")} olduğu için Amazon'da satışa açılamaz. Lütfen fiyat ve stoğu güncelleyin.` });
     }
 
@@ -667,7 +669,7 @@ router.post("/amazon/publish", authenticate, async (req: any, res) => {
 
     const effectivePrice = amazonService.calculateMarketplacePrice(rawPrice, p.category, p.sub_category);
     const resolvedSku = String(p.amazon_sku || mpData.amazon?.sku || p.sku || p.barcode || `SKU-${p.id}`).trim();
-    const stockQty = Math.max(0, parseInt(p.stock_quantity || "0", 10));
+    const stockQty = computeSellableStock(p.stock_quantity, p.reserved_stock);
 
     // 3. Push real Offer (LISTING_OFFER_ONLY) to Amazon SP-API so the seller appears on the Amazon product page
     let spApiMessage = "";
@@ -1590,12 +1592,12 @@ router.post("/n11/publish", authenticate, async (req: any, res) => {
     }
 
     const rawPrice = Number(product.price || product.sale_price || 0);
-    const stock = Number(product.stock_quantity || 0);
+    const stock = computeSellableStock(product.stock_quantity, product.reserved_stock);
 
     if (rawPrice <= 0 || stock <= 0) {
       const reasons = [];
       if (rawPrice <= 0) reasons.push("fiyatı 0₺");
-      if (stock <= 0) reasons.push("stoğu yetersiz (0/negatif)");
+      if (stock <= 0) reasons.push(Number(product.reserved_stock || 0) > 0 ? "tüm stok rezerveli (satılabilir 0)" : "stoğu yetersiz (0/negatif)");
       return res.status(400).json({ error: `"${product.name}" ürününün ${reasons.join(" ve ")} olduğu için N11'de satışa açılamaz. Lütfen fiyat ve stoğu güncelleyin.` });
     }
 
@@ -2489,10 +2491,11 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
       return res.status(400).json({ error: `"${p.name}" bir Hizmet/Servis kalemi olduğu için e-Mağaza (Hepsiburada) listelerine eklenemez.` });
     }
 
-    if (Number(p.price || 0) <= 0 || Number(p.stock_quantity || 0) <= 0) {
+    const sellableHbStock = computeSellableStock(p.stock_quantity, p.reserved_stock);
+    if (Number(p.price || 0) <= 0 || sellableHbStock <= 0) {
       const reasons = [];
       if (Number(p.price || 0) <= 0) reasons.push("fiyatı 0₺");
-      if (Number(p.stock_quantity || 0) <= 0) reasons.push("stoğu yetersiz (0/negatif)");
+      if (sellableHbStock <= 0) reasons.push(Number(p.reserved_stock || 0) > 0 ? "tüm stok rezerveli (satılabilir 0)" : "stoğu yetersiz (0/negatif)");
       return res.status(400).json({ error: `"${p.name}" ürününün ${reasons.join(" ve ")} olduğu için Hepsiburada'da satışa açılamaz. Lütfen fiyat ve stoğu güncelleyin.` });
     }
 
@@ -2684,7 +2687,7 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
       GarantiSuresi: userAttrs.GarantiSuresi ? parseInt(userAttrs.GarantiSuresi, 10) : 24,
       tax_vat_rate: String(p.tax_rate || userAttrs.tax_vat_rate || 20),
       price: numericEffectivePrice,
-      stock: Number(p.stock_quantity || 0),
+      stock: computeSellableStock(p.stock_quantity, p.reserved_stock),
       kg: String(p.desi || 1),
       ...userAttrs
     };
@@ -2780,7 +2783,7 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
         HepsiburadaSku: resolvedHbSku || p.hepsiburada_sku || hbData.hepsiburadaSku || "",
         MerchantSku: resolvedHbMerchantSku,
         Price: effectivePrice,
-        AvailableStock: parseInt(p.stock_quantity || "0", 10),
+        AvailableStock: computeSellableStock(p.stock_quantity, p.reserved_stock),
         DispatchTime: settings.defaultDispatchTime || 1,
       }
     ]);
@@ -2822,7 +2825,7 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
       categoryId: categoryId ? Number(categoryId) : undefined,
       attributes,
       price: numericEffectivePrice,
-      stock: Number(p.stock_quantity || 0),
+      stock: computeSellableStock(p.stock_quantity, p.reserved_stock),
       hepsiburadaSku: resolvedHbSku || hbData.hepsiburadaSku || null,
       merchantSku: resolvedHbMerchantSku,
       productId: resolvedHbProductId || hbData.productId || (isMasterHbSku ? resolvedHbSku : null),
@@ -2964,7 +2967,7 @@ router.post("/hepsiburada/bulk-publish", authenticate, async (req: any, res) => 
         MerchantSku: hbMerchantSku,
         HepsiburadaSku: p.hepsiburada_sku || mpData?.hepsiburada?.hepsiburadaSku || "",
         Price: effectivePrice,
-        AvailableStock: parseInt(p.stock_quantity || "0", 10),
+        AvailableStock: computeSellableStock(p.stock_quantity, p.reserved_stock),
         DispatchTime: cleanSettings.defaultDispatchTime || 1,
       });
     }
@@ -4194,10 +4197,11 @@ router.post("/trendyol/publish", authenticate, async (req: any, res) => {
       return res.status(400).json({ error: `"${p.name}" bir Hizmet/Servis kalemi olduğu için e-Mağaza (Trendyol) listelerine eklenemez.` });
     }
 
-    if (Number(p.price || 0) <= 0 || Number(p.stock_quantity || 0) <= 0) {
+    const sellableTyStock = computeSellableStock(p.stock_quantity, p.reserved_stock);
+    if (Number(p.price || 0) <= 0 || sellableTyStock <= 0) {
       const reasons = [];
       if (Number(p.price || 0) <= 0) reasons.push("fiyatı 0₺");
-      if (Number(p.stock_quantity || 0) <= 0) reasons.push("stoğu yetersiz (0/negatif)");
+      if (sellableTyStock <= 0) reasons.push(Number(p.reserved_stock || 0) > 0 ? "tüm stok rezerveli (satılabilir 0)" : "stoğu yetersiz (0/negatif)");
       return res.status(400).json({ error: `"${p.name}" ürününün ${reasons.join(" ve ")} olduğu için Trendyol'da satışa açılamaz. Lütfen fiyat ve stoğu güncelleyin.` });
     }
 
@@ -4229,7 +4233,7 @@ router.post("/trendyol/publish", authenticate, async (req: any, res) => {
     const { N11Service } = await import("../src/services/backend/n11Service");
     const finalPriceTRY = N11Service.calculateMarketplacePrice(webPriceTRY, p.category, p.sub_category, settings);
     const roundedPrice = Math.round(finalPriceTRY * 100) / 100;
-    const stockQty = parseInt(p.stock_quantity) || 0;
+    const stockQty = computeSellableStock(p.stock_quantity, p.reserved_stock);
     const cleanBarcode = String(p.barcode || p.sku || "").trim();
 
     // 2. Check if product already exists in Trendyol inventory
@@ -5168,10 +5172,11 @@ router.post("/pazarama/publish", authenticate, async (req: any, res) => {
       return res.status(400).json({ error: `"${product.name}" bir Hizmet/Servis kalemi olduğu için e-Mağaza (Pazarama) listelerine eklenemez.` });
     }
 
-    if (Number(product.price || 0) <= 0 || Number(product.stock_quantity || 0) <= 0) {
+    const sellablePzStock = computeSellableStock(product.stock_quantity, product.reserved_stock);
+    if (Number(product.price || 0) <= 0 || sellablePzStock <= 0) {
       const reasons = [];
       if (Number(product.price || 0) <= 0) reasons.push("fiyatı 0₺");
-      if (Number(product.stock_quantity || 0) <= 0) reasons.push("stoğu yetersiz (0/negatif)");
+      if (sellablePzStock <= 0) reasons.push(Number(product.reserved_stock || 0) > 0 ? "tüm stok rezerveli (satılabilir 0)" : "stoğu yetersiz (0/negatif)");
       return res.status(400).json({ error: `"${product.name}" ürününün ${reasons.join(" ve ")} olduğu için Pazarama'da satışa açılamaz. Lütfen fiyat ve stoğu güncelleyin.` });
     }
 
@@ -5207,7 +5212,7 @@ router.post("/pazarama/publish", authenticate, async (req: any, res) => {
       vatRate: product.tax_rate || 20,
       listPrice: listPrice,
       salePrice: salePrice,
-      stockCount: product.stock_quantity || 0,
+      stockCount: computeSellableStock(product.stock_quantity, product.reserved_stock),
       brandId: 1, 
       categoryId: pzCategoryId, 
       images: [] as any[]

@@ -5,6 +5,7 @@ import {
   Building2,
   CheckCircle2,
   Compass,
+  Copy,
   Download,
   Edit3,
   Eye,
@@ -29,10 +30,19 @@ import {
   formatGbp,
   getSectionBandTheme,
   getStatusBadgeMeta,
+  getYouTubeThumbnailUrl,
   InventoryViewMode,
+  isDownloadableAssetUrl,
+  isYouTubeUrl,
+  MediaRoleType,
   ProjectSubTab,
   resolveDisplayImageUrl
 } from "./developerProjectUtils";
+import {
+  MasterplanGallerySyncPanel,
+  SectionUploadOptions,
+  UnitShowcase4SectionSyncPanel
+} from "./DeveloperVisualSyncPanels";
 
 interface DeveloperShowcaseTabProps {
   projects: any[];
@@ -66,9 +76,17 @@ interface DeveloperShowcaseTabProps {
   onAddMediaToProject: (e: React.FormEvent) => void;
   onOpenUploadForTarget: (
     targetMatch: string,
-    role: "photo" | "video" | "floorplan" | "document",
+    role: MediaRoleType,
     defaultCategory?: string
   ) => void;
+  uploadingSectionMedia: boolean;
+  pendingBatchFiles: Array<{ name: string; url: string; type: string }>;
+  setPendingBatchFiles: React.Dispatch<
+    React.SetStateAction<Array<{ name: string; url: string; type: string }>>
+  >;
+  onBatchUploadSectionMedia: (files: FileList, options: SectionUploadOptions) => Promise<void>;
+  onBatchAddUrlsSectionMedia: (rawUrls: string, options: SectionUploadOptions) => Promise<void>;
+  onSetProjectCoverImage: (url: string) => Promise<void>;
   projectPropertyTypes: any[];
   selectedProjectUnits: any[];
   selectedProjectCommonAreaMedia: any[];
@@ -88,6 +106,7 @@ interface DeveloperShowcaseTabProps {
   renderUnitRevisionForm: () => React.ReactNode;
   onSharePropertyTypePackage: (pt: any, mode: "copy" | "whatsapp") => void;
   onShareCommonAreasPackage: (mode: "copy" | "whatsapp") => void;
+  onShareMediaAsset: (item: any, mode: "copy" | "whatsapp") => void;
   onDeleteUnit: (unitId: number, unitNoLabel?: string) => void;
   onDeleteUnitGroup: (unitIds: number[], groupLabel: string) => void;
   selectedPhotoIds: string[];
@@ -138,6 +157,12 @@ export const DeveloperShowcaseTab: React.FC<DeveloperShowcaseTabProps> = ({
   setDuplicateConflictMode,
   onAddMediaToProject,
   onOpenUploadForTarget,
+  uploadingSectionMedia,
+  pendingBatchFiles,
+  setPendingBatchFiles,
+  onBatchUploadSectionMedia,
+  onBatchAddUrlsSectionMedia,
+  onSetProjectCoverImage,
   projectPropertyTypes,
   selectedProjectUnits,
   selectedProjectCommonAreaMedia,
@@ -157,6 +182,7 @@ export const DeveloperShowcaseTab: React.FC<DeveloperShowcaseTabProps> = ({
   renderUnitRevisionForm,
   onSharePropertyTypePackage,
   onShareCommonAreasPackage,
+  onShareMediaAsset,
   onDeleteUnit,
   onDeleteUnitGroup,
   selectedPhotoIds,
@@ -204,7 +230,10 @@ export const DeveloperShowcaseTab: React.FC<DeveloperShowcaseTabProps> = ({
                     className="relative h-28 w-full overflow-hidden bg-slate-100 cursor-pointer"
                   >
                     <img
-                      src={proj.cover_image}
+                      src={resolveDisplayImageUrl(
+                        proj.cover_image,
+                        "/assets/images/cyprus_sunlit_resort_hero_1794578840052.jpg"
+                      )}
                       alt={proj.name}
                       className="w-full h-full object-cover"
                     />
@@ -297,7 +326,10 @@ export const DeveloperShowcaseTab: React.FC<DeveloperShowcaseTabProps> = ({
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2 pb-2.5 border-b border-slate-200">
             <div className="flex items-center gap-2.5 min-w-0 flex-1">
               <img
-                src={activeProjectDetail.cover_image}
+                src={resolveDisplayImageUrl(
+                  activeProjectDetail.cover_image,
+                  "/assets/images/cyprus_sunlit_resort_hero_1794578840052.jpg"
+                )}
                 alt={activeProjectDetail.name}
                 className="w-14 h-11 rounded-lg object-cover border border-slate-200 shrink-0"
               />
@@ -367,6 +399,17 @@ export const DeveloperShowcaseTab: React.FC<DeveloperShowcaseTabProps> = ({
           {isProjectFormOpen &&
             Number(editingProjectId) === Number(activeProjectDetail.id) &&
             renderProjectEditForm(`Projeyi Düzenle: ${activeProjectDetail.name}`)}
+
+          <MasterplanGallerySyncPanel
+            project={activeProjectDetail}
+            uploading={uploadingSectionMedia}
+            onBatchUploadFiles={onBatchUploadSectionMedia}
+            onBatchAddUrls={onBatchAddUrlsSectionMedia}
+            onSetCoverImage={onSetProjectCoverImage}
+            onDeleteMedia={onDeleteMediaFromProject}
+            onDirectDownload={onDirectLocalDownload}
+            onPreviewAsset={setPreviewAsset}
+          />
 
           {/* CENTERED VIEWPORT-FIT MODAL FOR FILE / MEDIA UPLOAD & MATCHING */}
           {isAddMediaOpen && (
@@ -439,18 +482,18 @@ export const DeveloperShowcaseTab: React.FC<DeveloperShowcaseTabProps> = ({
                         onChange={(e) =>
                           setNewMediaForm({
                             ...newMediaForm,
-                            media_role: e.target.value as
-                              | "photo"
-                              | "video"
-                              | "floorplan"
-                              | "document"
+                            media_role: e.target.value as MediaRoleType
                           })
                         }
                         className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 text-xs font-medium cursor-pointer"
                       >
-                        <option value="photo">Görsel / Render</option>
+                        <option value="exterior">Vitrin: Dış Cephe (Web Senkron)</option>
+                        <option value="interior">Vitrin: İç Mekan (Web Senkron)</option>
+                        <option value="floorplan">Vitrin: 3B Kat Planı (Web Senkron)</option>
+                        <option value="lifestyle">Vitrin: Sahil & Havuz (Web Senkron)</option>
+                        <option value="masterplan">Ana Masterplan Görseli (Kapak & Galeri)</option>
+                        <option value="photo">Genel Görsel / Render</option>
                         <option value="video">Tanıtım Videosu</option>
-                        <option value="floorplan">Teknik Kat Planı</option>
                         <option value="document">Katalog / PDF Dosya</option>
                       </select>
                     </div>
@@ -459,11 +502,12 @@ export const DeveloperShowcaseTab: React.FC<DeveloperShowcaseTabProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[10px] text-slate-700 font-medium uppercase tracking-wider mb-1">
-                        3. Bilgisayar veya Mobilden Dosya Seç
+                        3. Bilgisayar veya Mobilden Dosya Seç (Çoklu Destekli)
                       </label>
                       <input
                         ref={fileInputRef}
                         type="file"
+                        multiple
                         onChange={onDeviceFileSelect}
                         accept=".pdf,.jpg,.jpeg,.png,.webp,.mp4,.mov,.dwg,.xlsx,.xls,.doc,.docx,.zip"
                         className="hidden"
@@ -482,10 +526,35 @@ export const DeveloperShowcaseTab: React.FC<DeveloperShowcaseTabProps> = ({
                         ) : (
                           <>
                             <Upload className="w-3.5 h-3.5" />
-                            <span>Cihazdan Dosya Seç</span>
+                            <span>
+                              {pendingBatchFiles.length > 0
+                                ? `${pendingBatchFiles.length} Dosya Seçildi (+ Ekle)`
+                                : "Cihazdan Dosya Seç (Çoklu)"}
+                            </span>
                           </>
                         )}
                       </button>
+                      {pendingBatchFiles.length > 0 && (
+                        <div className="mt-1.5 flex flex-wrap gap-1">
+                          {pendingBatchFiles.map((bf, bIdx) => (
+                            <span
+                              key={bIdx}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-indigo-50 text-indigo-900 border border-indigo-200 text-[10px]"
+                            >
+                              <span className="max-w-[140px] truncate">{bf.name}</span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setPendingBatchFiles((prev) => prev.filter((_, i) => i !== bIdx))
+                                }
+                                className="text-rose-600 hover:text-rose-800 cursor-pointer"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     <div>
@@ -534,12 +603,21 @@ export const DeveloperShowcaseTab: React.FC<DeveloperShowcaseTabProps> = ({
 
                     <div>
                       <label className="block text-[10px] text-slate-700 font-medium uppercase tracking-wider mb-1">
-                        5. Dosya Başlığı *
+                        5. Dosya Başlığı{" "}
+                        {pendingBatchFiles.length === 0 && !isYouTubeUrl(newMediaForm.url)
+                          ? "*"
+                          : "(Opsiyonel)"}
                       </label>
                       <input
                         type="text"
-                        required
-                        placeholder="Örn: 2+1 Penthouse Kat Planı.pdf"
+                        required={pendingBatchFiles.length === 0 && !isYouTubeUrl(newMediaForm.url)}
+                        placeholder={
+                          pendingBatchFiles.length > 0
+                            ? `${pendingBatchFiles.length} dosya kendi adıyla eklenecek`
+                            : isYouTubeUrl(newMediaForm.url)
+                            ? "Örn: Maldives Tanıtım Filmi (YouTube)"
+                            : "Örn: 2+1 Penthouse Kat Planı.pdf"
+                        }
                         value={newMediaForm.name}
                         onChange={(e) => setNewMediaForm({ ...newMediaForm, name: e.target.value })}
                         className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 text-xs font-normal"
@@ -548,15 +626,38 @@ export const DeveloperShowcaseTab: React.FC<DeveloperShowcaseTabProps> = ({
 
                     <div>
                       <label className="block text-[10px] text-slate-700 font-medium uppercase tracking-wider mb-1">
-                        6. Harici Link / URL (Opsiyonel)
+                        6. Harici Link / YouTube URL (Opsiyonel)
                       </label>
                       <input
                         type="text"
-                        placeholder="Cihazdan seçtiyseniz otomatik dolar"
+                        placeholder="YouTube video linki veya dosya URL yapıştırın"
                         value={newMediaForm.url}
-                        onChange={(e) => setNewMediaForm({ ...newMediaForm, url: e.target.value })}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (isYouTubeUrl(val)) {
+                            setNewMediaForm((prev: any) => ({
+                              ...prev,
+                              url: val,
+                              media_role: "video",
+                              type: "video",
+                              category:
+                                !prev.category ||
+                                prev.category === "Teknik & Mimari Planlar" ||
+                                prev.category === "4K Görsel & Render Paketi"
+                                  ? "Sosyal Medya & Tanıtım Videoları"
+                                  : prev.category
+                            }));
+                          } else {
+                            setNewMediaForm((prev: any) => ({ ...prev, url: val }));
+                          }
+                        }}
                         className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-xs"
                       />
+                      {isYouTubeUrl(newMediaForm.url) && (
+                        <p className="mt-1 text-[10px] font-medium text-emerald-700">
+                          YouTube videosu algılandı · Web vitrininde oynatılır, panelde indirme butonu gizlenir ve paydaşlarla link olarak paylaşılır.
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -872,6 +973,19 @@ export const DeveloperShowcaseTab: React.FC<DeveloperShowcaseTabProps> = ({
                           </div>
                         )}
 
+                      {(propertyTypeLayer === "overview" || propertyTypeLayer === "photos") && (
+                        <UnitShowcase4SectionSyncPanel
+                          project={activeProjectDetail}
+                          targetUnitType={pt.unit_type}
+                          uploading={uploadingSectionMedia}
+                          onBatchUploadFiles={onBatchUploadSectionMedia}
+                          onBatchAddUrls={onBatchAddUrlsSectionMedia}
+                          onDeleteMedia={onDeleteMediaFromProject}
+                          onDirectDownload={onDirectLocalDownload}
+                          onPreviewAsset={setPreviewAsset}
+                        />
+                      )}
+
                       {propertyTypeLayer !== "units" && (
                         <div
                           className={`grid grid-cols-1 ${
@@ -1100,6 +1214,11 @@ export const DeveloperShowcaseTab: React.FC<DeveloperShowcaseTabProps> = ({
                                 </div>
 
                                 {pt.matchedVideos.map((vid: any, idx: number) => {
+                                  const isYt = isYouTubeUrl(vid.url);
+                                  const canDownload = isDownloadableAssetUrl(vid.url);
+                                  const vidThumb =
+                                    getYouTubeThumbnailUrl(vid.url) ||
+                                    resolveDisplayImageUrl(vid.url, activeProjectDetail.cover_image);
                                   const openVideoPreview = () =>
                                     setPreviewAsset({
                                       id: vid.id,
@@ -1108,7 +1227,7 @@ export const DeveloperShowcaseTab: React.FC<DeveloperShowcaseTabProps> = ({
                                       category: `${pt.unit_type} Tanıtım Videosu`,
                                       type: "video",
                                       url: vid.url || activeProjectDetail.cover_image,
-                                      cover: activeProjectDetail.cover_image,
+                                      cover: vidThumb,
                                       projectName: activeProjectDetail.name
                                     });
                                   return (
@@ -1119,16 +1238,21 @@ export const DeveloperShowcaseTab: React.FC<DeveloperShowcaseTabProps> = ({
                                       <button
                                         type="button"
                                         onClick={openVideoPreview}
-                                        title={`${vid.name} — Önizlemek için tıklayın`}
-                                        className="font-medium text-slate-800 hover:text-indigo-600 truncate text-left cursor-pointer flex-1"
+                                        title={`${vid.name} — Videoyu oynatmak ve paylaşmak için tıklayın`}
+                                        className="font-medium text-slate-800 hover:text-indigo-600 truncate text-left cursor-pointer flex-1 flex items-center gap-1.5 min-w-0"
                                       >
-                                        {vid.name}
+                                        {isYt && (
+                                          <span className="px-1.5 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-200 text-[9px] font-semibold shrink-0">
+                                            YouTube
+                                          </span>
+                                        )}
+                                        <span className="truncate">{vid.name}</span>
                                       </button>
                                       <div className="flex items-center gap-1 shrink-0">
                                         <button
                                           type="button"
                                           onClick={openVideoPreview}
-                                          title="Önizleme"
+                                          title="Videoyu İzle"
                                           className="p-1 rounded-md bg-slate-100 hover:bg-indigo-600 text-slate-700 hover:text-white cursor-pointer transition-colors"
                                         >
                                           <Eye className="w-3.5 h-3.5" />
@@ -1136,17 +1260,51 @@ export const DeveloperShowcaseTab: React.FC<DeveloperShowcaseTabProps> = ({
                                         <button
                                           type="button"
                                           onClick={() =>
-                                            onDirectLocalDownload(
-                                              vid.url,
-                                              vid.name,
-                                              activeProjectDetail.cover_image
+                                            onShareMediaAsset(
+                                              {
+                                                ...vid,
+                                                projectName: activeProjectDetail.name
+                                              },
+                                              "copy"
                                             )
                                           }
-                                          title="Yerel Dosyalara İndir"
-                                          className="p-1 rounded-md bg-slate-100 hover:bg-emerald-600 text-slate-700 hover:text-white cursor-pointer transition-colors"
+                                          title="Paydaş Video Linkini Kopyala"
+                                          className="p-1 rounded-md bg-slate-100 hover:bg-indigo-600 text-slate-700 hover:text-white cursor-pointer transition-colors"
                                         >
-                                          <Download className="w-3.5 h-3.5" />
+                                          <Copy className="w-3.5 h-3.5" />
                                         </button>
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            onShareMediaAsset(
+                                              {
+                                                ...vid,
+                                                projectName: activeProjectDetail.name
+                                              },
+                                              "whatsapp"
+                                            )
+                                          }
+                                          title="Paydaşla WhatsApp Üzerinden Paylaş"
+                                          className="p-1 rounded-md bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white cursor-pointer transition-colors"
+                                        >
+                                          <Share2 className="w-3.5 h-3.5" />
+                                        </button>
+                                        {canDownload && (
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              onDirectLocalDownload(
+                                                vid.url,
+                                                vid.name,
+                                                activeProjectDetail.cover_image
+                                              )
+                                            }
+                                            title="Yerel Dosyalara İndir"
+                                            className="p-1 rounded-md bg-slate-100 hover:bg-emerald-600 text-slate-700 hover:text-white cursor-pointer transition-colors"
+                                          >
+                                            <Download className="w-3.5 h-3.5" />
+                                          </button>
+                                        )}
                                         <button
                                           type="button"
                                           onClick={() => onDeleteMediaFromProject(vid.id, vid.name)}
@@ -1352,17 +1510,49 @@ export const DeveloperShowcaseTab: React.FC<DeveloperShowcaseTabProps> = ({
                       </span>
                     </h5>
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      {selectedProjectCommonAreaMedia.length > 0 && (
-                        <button
-                          type="button"
-                          disabled={downloadingMedia}
-                          onClick={() => onBulkDownloadMedia(selectedProjectCommonAreaMedia)}
-                          className="px-2 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[10px] font-medium flex items-center gap-1 cursor-pointer"
-                        >
-                          <Download className="w-3 h-3" />
-                          <span>Tümünü İndir</span>
-                        </button>
-                      )}
+                      {(() => {
+                        const downloadableCommon = selectedProjectCommonAreaMedia.filter((m) =>
+                          isDownloadableAssetUrl(m.url)
+                        );
+                        if (downloadableCommon.length === 0) return null;
+                        return (
+                          <button
+                            type="button"
+                            disabled={downloadingMedia}
+                            onClick={() => onBulkDownloadMedia(downloadableCommon)}
+                            className="px-2 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[10px] font-medium flex items-center gap-1 cursor-pointer"
+                          >
+                            <Download className="w-3 h-3" />
+                            <span>İndirilebilirleri İndir ({downloadableCommon.length})</span>
+                          </button>
+                        );
+                      })()}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onOpenUploadForTarget(
+                            "COMMON_AREAS",
+                            "lifestyle",
+                            "Ortak Alanlar & Sosyal Tesisler"
+                          )
+                        }
+                        className="px-2 py-0.5 bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-200 rounded text-[10px] font-medium cursor-pointer"
+                      >
+                        + Sahil & Havuz Resmi
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onOpenUploadForTarget(
+                            "COMMON_AREAS",
+                            "masterplan",
+                            "Masterplan & Kat Planları"
+                          )
+                        }
+                        className="px-2 py-0.5 bg-white hover:bg-indigo-50 text-indigo-800 border border-indigo-200 rounded text-[10px] font-medium cursor-pointer"
+                      >
+                        + Masterplan Görseli
+                      </button>
                       <button
                         type="button"
                         onClick={() => onOpenUploadForTarget("COMMON_AREAS", "photo")}
@@ -1375,13 +1565,16 @@ export const DeveloperShowcaseTab: React.FC<DeveloperShowcaseTabProps> = ({
                         onClick={() => onOpenUploadForTarget("COMMON_AREAS", "video")}
                         className="px-2 py-0.5 bg-white hover:bg-rose-50 text-rose-800 border border-rose-200 rounded text-[10px] font-medium cursor-pointer"
                       >
-                        + Drone Video
+                        + Drone / YouTube Video
                       </button>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     {selectedProjectCommonAreaMedia.map((doc: any, dIdx: number) => {
+                      const isYt = isYouTubeUrl(doc.url);
+                      const canDownload = isDownloadableAssetUrl(doc.url);
+                      const isVideo = doc.type === "video" || doc.media_role === "video" || isYt;
                       const thumbUrl = resolveDisplayImageUrl(
                         doc.url,
                         activeProjectDetail.cover_image
@@ -1392,7 +1585,7 @@ export const DeveloperShowcaseTab: React.FC<DeveloperShowcaseTabProps> = ({
                           rawName: doc.name,
                           name: doc.name,
                           category: `Ortak Alanlar — ${doc.category}`,
-                          type: doc.type,
+                          type: isVideo ? "video" : doc.type,
                           url: doc.url,
                           cover: thumbUrl,
                           projectName: activeProjectDetail.name
@@ -1411,6 +1604,18 @@ export const DeveloperShowcaseTab: React.FC<DeveloperShowcaseTabProps> = ({
                               alt={doc.name}
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                             />
+                            {isVideo && (
+                              <div className="absolute inset-0 flex items-center justify-center bg-slate-950/20">
+                                <span className="p-2 rounded-full bg-white/95 text-rose-600 shadow-md">
+                                  <Play className="w-4 h-4 fill-current" />
+                                </span>
+                              </div>
+                            )}
+                            {isYt && (
+                              <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded bg-rose-600 text-white text-[9px] font-semibold">
+                                YouTube
+                              </span>
+                            )}
                             <span className="absolute bottom-1.5 left-1.5 px-2 py-0.5 rounded bg-slate-900/80 text-white text-[9px] font-medium">
                               {doc.category}
                             </span>
@@ -1429,24 +1634,52 @@ export const DeveloperShowcaseTab: React.FC<DeveloperShowcaseTabProps> = ({
                                 type="button"
                                 onClick={openDocPreview}
                                 className="p-1 bg-slate-100 hover:bg-indigo-600 text-slate-700 hover:text-white rounded-md cursor-pointer transition-colors"
-                                title="Önizleme"
+                                title={isVideo ? "Videoyu İzle" : "Önizleme"}
                               >
                                 <Eye className="w-3.5 h-3.5" />
                               </button>
                               <button
                                 type="button"
                                 onClick={() =>
-                                  onDirectLocalDownload(
-                                    doc.url,
-                                    doc.name,
-                                    activeProjectDetail.cover_image
+                                  onShareMediaAsset(
+                                    { ...doc, projectName: activeProjectDetail.name },
+                                    "copy"
                                   )
                                 }
-                                className="p-1 bg-slate-100 hover:bg-emerald-600 text-slate-700 hover:text-white rounded-md cursor-pointer transition-colors"
-                                title="Yerel Dosyalara İndir"
+                                className="p-1 bg-slate-100 hover:bg-indigo-600 text-slate-700 hover:text-white rounded-md cursor-pointer transition-colors"
+                                title="Paydaş Linkini Kopyala"
                               >
-                                <Download className="w-3.5 h-3.5" />
+                                <Copy className="w-3.5 h-3.5" />
                               </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  onShareMediaAsset(
+                                    { ...doc, projectName: activeProjectDetail.name },
+                                    "whatsapp"
+                                  )
+                                }
+                                className="p-1 bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white rounded-md cursor-pointer transition-colors"
+                                title="Paydaşla WhatsApp Paylaş"
+                              >
+                                <Share2 className="w-3.5 h-3.5" />
+                              </button>
+                              {canDownload && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    onDirectLocalDownload(
+                                      doc.url,
+                                      doc.name,
+                                      activeProjectDetail.cover_image
+                                    )
+                                  }
+                                  className="p-1 bg-slate-100 hover:bg-emerald-600 text-slate-700 hover:text-white rounded-md cursor-pointer transition-colors"
+                                  title="Yerel Dosyalara İndir"
+                                >
+                                  <Download className="w-3.5 h-3.5" />
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 onClick={() => onDeleteMediaFromProject(doc.id, doc.name)}
@@ -1499,6 +1732,9 @@ export const DeveloperShowcaseTab: React.FC<DeveloperShowcaseTabProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {filteredProjectMedia.map((doc: any, fIdx: number) => {
                     const band = getSectionBandTheme(fIdx);
+                    const isYt = isYouTubeUrl(doc.url);
+                    const canDownload = isDownloadableAssetUrl(doc.url);
+                    const isVideo = doc.type === "video" || doc.media_role === "video" || isYt;
                     const thumbUrl = resolveDisplayImageUrl(
                       doc.url,
                       activeProjectDetail.cover_image
@@ -1509,7 +1745,7 @@ export const DeveloperShowcaseTab: React.FC<DeveloperShowcaseTabProps> = ({
                         rawName: doc.name,
                         name: doc.name,
                         category: doc.category,
-                        type: doc.type,
+                        type: isVideo ? "video" : doc.type,
                         url: doc.url,
                         cover: thumbUrl,
                         projectName: activeProjectDetail.name
@@ -1521,7 +1757,7 @@ export const DeveloperShowcaseTab: React.FC<DeveloperShowcaseTabProps> = ({
                       >
                         <div className="flex items-center gap-2 min-w-0 flex-1">
                           <div className={`p-1.5 rounded-lg shrink-0 ${band.badgeBg}`}>
-                            {doc.type === "video" ? (
+                            {isVideo ? (
                               <Play className="w-3.5 h-3.5" />
                             ) : doc.type === "photos" ? (
                               <ImageIcon className="w-3.5 h-3.5" />
@@ -1533,14 +1769,19 @@ export const DeveloperShowcaseTab: React.FC<DeveloperShowcaseTabProps> = ({
                             <button
                               type="button"
                               onClick={openFolderDocPreview}
-                              className="text-xs font-medium text-slate-950 hover:text-indigo-600 truncate block w-full text-left cursor-pointer"
+                              className="text-xs font-medium text-slate-950 hover:text-indigo-600 truncate w-full text-left cursor-pointer flex items-center gap-1.5"
                               title={`${doc.name} — Önizlemek için tıklayın`}
                             >
-                              {doc.name}
+                              {isYt && (
+                                <span className="px-1.5 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-200 text-[9px] font-semibold shrink-0">
+                                  YouTube
+                                </span>
+                              )}
+                              <span className="truncate">{doc.name}</span>
                             </button>
                             <div className="text-[10px] text-slate-700 font-normal truncate">
                               {doc.category}
-                              {doc.unit_type_match && doc.unit_type_match !== "COMMON_AREAS"
+                              {doc.unit_type_match && doc.unit_type_match !== "COMMON_AREAS" && doc.unit_type_match !== "__COMMON_AREA__"
                                 ? ` · ${doc.unit_type_match}`
                                 : " · Ortak Alan & Sosyal Tesis"}
                             </div>
@@ -1551,24 +1792,52 @@ export const DeveloperShowcaseTab: React.FC<DeveloperShowcaseTabProps> = ({
                             type="button"
                             onClick={openFolderDocPreview}
                             className="p-1.5 bg-white hover:bg-indigo-600 text-slate-700 hover:text-white border border-slate-200 rounded-lg cursor-pointer transition-colors"
-                            title="Önizleme"
+                            title={isVideo ? "Videoyu İzle" : "Önizleme"}
                           >
                             <Eye className="w-3.5 h-3.5" />
                           </button>
                           <button
                             type="button"
                             onClick={() =>
-                              onDirectLocalDownload(
-                                doc.url,
-                                doc.name,
-                                activeProjectDetail.cover_image
+                              onShareMediaAsset(
+                                { ...doc, projectName: activeProjectDetail.name },
+                                "copy"
                               )
                             }
-                            className="p-1.5 bg-white hover:bg-emerald-600 text-indigo-700 hover:text-white border border-slate-200 rounded-lg cursor-pointer transition-colors"
-                            title="Yerel Dosyalara İndir"
+                            className="p-1.5 bg-white hover:bg-indigo-600 text-slate-700 hover:text-white border border-slate-200 rounded-lg cursor-pointer transition-colors"
+                            title="Paydaş Linkini Kopyala"
                           >
-                            <Download className="w-3.5 h-3.5" />
+                            <Copy className="w-3.5 h-3.5" />
                           </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onShareMediaAsset(
+                                { ...doc, projectName: activeProjectDetail.name },
+                                "whatsapp"
+                              )
+                            }
+                            className="p-1.5 bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200 rounded-lg cursor-pointer transition-colors"
+                            title="Paydaşla WhatsApp Paylaş"
+                          >
+                            <Share2 className="w-3.5 h-3.5" />
+                          </button>
+                          {canDownload && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                onDirectLocalDownload(
+                                  doc.url,
+                                  doc.name,
+                                  activeProjectDetail.cover_image
+                                )
+                              }
+                              className="p-1.5 bg-white hover:bg-emerald-600 text-indigo-700 hover:text-white border border-slate-200 rounded-lg cursor-pointer transition-colors"
+                              title="Yerel Dosyalara İndir"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => onDeleteMediaFromProject(doc.id, doc.name)}

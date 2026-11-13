@@ -240,6 +240,10 @@ export const matchesInvoiceSearch = (inv: any, search: string): boolean => {
     statusLabels.push('e-fatura', 'efatura', 'ticari fatura', 'temel fatura');
   }
 
+  if (inv.operator_status === 'pending') {
+    statusLabels.push('onay bekliyor', 'onay bekleyen', 'operator pending');
+  }
+
   // Line items text
   const itemsText = Array.isArray(inv.items)
     ? inv.items.map((it: any) => [
@@ -250,6 +254,8 @@ export const matchesInvoiceSearch = (inv: any, search: string): boolean => {
         it.matched_product_barcode,
         it.matched_product_code,
         it.variant_name,
+        it.reserved_for,
+        Number(it.reserved_quantity || 0) > 0 ? 'rezerve' : '',
         it.quantity,
         it.unit_price,
         it.total_price

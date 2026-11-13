@@ -20,7 +20,8 @@ import {
   Percent,
   ChevronDown,
   Layers,
-  Check
+  Check,
+  Tag
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { normalizeSearch, matchesInvoiceSearch } from "../lib/searchUtils";
@@ -33,9 +34,19 @@ import { PurchaseInvoiceStats } from "./dashboard/invoices/purchase/PurchaseInvo
 import { PurchaseInvoiceTable } from "./dashboard/invoices/purchase/PurchaseInvoiceTable";
 import { PurchaseInvoiceFormModal } from "./dashboard/invoices/purchase/PurchaseInvoiceFormModal";
 import { PurchaseInvoiceDetailsModal } from "./dashboard/invoices/purchase/PurchaseInvoiceDetailsModal";
+import { PurchaseInvoiceApprovalModal, ExpenseCenterOption } from "./dashboard/invoices/purchase/PurchaseInvoiceApprovalModal";
 import { QuickProductModal } from "./dashboard/invoices/sales/QuickProductModal";
 import { QuickCariModal } from "./dashboard/invoices/sales/QuickCariModal";
 import { calculateInvoiceTotals } from "../lib/invoiceUtils";
+
+const DEFAULT_EXPENSE_CENTERS_FALLBACK: ExpenseCenterOption[] = [
+  { key: "showroom", name: "Showroom" },
+  { key: "service", name: "Servis / Atölye" },
+  { key: "office", name: "Ofis / İdari" },
+  { key: "marketing", name: "Pazarlama / Reklam" },
+  { key: "personnel", name: "Personel" },
+  { key: "other", name: "Diğer" },
+];
 
 export default function PurchaseInvoices({ storeId: initialStoreId, currentStoreId, role, lang, api, branding, onSave, onEditProduct, companies: propCompanies, onViewTransactions, initialFilter, onClearInitialFilter }: any) {
   const storeId = initialStoreId || currentStoreId;
@@ -111,22 +122,27 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'backdated_carryover' | 'approved' | 'expense'>(() => {
-    if (initialFilter && ['pending', 'backdated_carryover', 'approved', 'expense'].includes(initialFilter)) {
+  const [expenseCenters, setExpenseCenters] = useState<ExpenseCenterOption[]>(DEFAULT_EXPENSE_CENTERS_FALLBACK);
+  const [selectedExpenseCenter, setSelectedExpenseCenter] = useState<string>('all');
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
+  const [approvalInvoice, setApprovalInvoice] = useState<any>(null);
+
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'operator_pending' | 'backdated_carryover' | 'approved' | 'expense' | 'reserved'>(() => {
+    if (initialFilter && ['pending', 'operator_pending', 'backdated_carryover', 'approved', 'expense', 'reserved'].includes(initialFilter)) {
       return initialFilter;
     }
     return 'all';
   });
 
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>(() => {
-    if (initialFilter && ['pending', 'backdated_carryover', 'approved', 'expense'].includes(initialFilter)) {
+    if (initialFilter && ['pending', 'operator_pending', 'backdated_carryover', 'approved', 'expense', 'reserved'].includes(initialFilter)) {
       return [initialFilter];
     }
     return [];
   });
 
   useEffect(() => {
-    if (initialFilter && ['all', 'pending', 'backdated_carryover', 'approved', 'expense'].includes(initialFilter)) {
+    if (initialFilter && ['all', 'pending', 'operator_pending', 'backdated_carryover', 'approved', 'expense', 'reserved'].includes(initialFilter)) {
       setStatusFilter(initialFilter);
       setSelectedStatuses(initialFilter === 'all' ? [] : [initialFilter]);
     }
@@ -154,18 +170,26 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
     return invoices.filter((inv: any) => {
       if (selectedStatuses.length > 0) {
         const matchesSelected = selectedStatuses.some((st) => {
-          if (st === 'pending') return inv.status === 'pending';
+          if (st === 'pending') return inv.status === 'pending' || inv.operator_status === 'pending';
+          if (st === 'operator_pending') return inv.operator_status === 'pending';
           if (st === 'backdated_carryover') return Boolean(inv.is_out_of_sequence || inv.is_prev_month_carryover);
-          if (st === 'approved') return inv.status === 'approved' || inv.status === 'completed';
+          if (st === 'approved') return (inv.status === 'approved' || inv.status === 'completed') && inv.operator_status !== 'pending';
           if (st === 'expense') return inv.is_expense === true;
+          if (st === 'reserved') return Boolean(inv.has_reserved_items || Number(inv.total_reserved_qty || 0) > 0);
           return true;
         });
         if (!matchesSelected) return false;
       } else if (statusFilter !== 'all') {
-        if (statusFilter === 'pending' && inv.status !== 'pending') return false;
+        if (statusFilter === 'pending' && inv.status !== 'pending' && inv.operator_status !== 'pending') return false;
+        if (statusFilter === 'operator_pending' && inv.operator_status !== 'pending') return false;
         if (statusFilter === 'backdated_carryover' && !Boolean(inv.is_out_of_sequence || inv.is_prev_month_carryover)) return false;
-        if (statusFilter === 'approved' && !(inv.status === 'approved' || inv.status === 'completed')) return false;
+        if (statusFilter === 'approved' && !((inv.status === 'approved' || inv.status === 'completed') && inv.operator_status !== 'pending')) return false;
         if (statusFilter === 'expense' && inv.is_expense !== true) return false;
+        if (statusFilter === 'reserved' && !Boolean(inv.has_reserved_items || Number(inv.total_reserved_qty || 0) > 0)) return false;
+      }
+
+      if (selectedExpenseCenter !== 'all') {
+        if (inv.expense_center !== selectedExpenseCenter) return false;
       }
 
       // Real-time client-side comprehensive search across all invoice fields & line items
@@ -176,15 +200,17 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
 
       return true;
     });
-  }, [invoices, selectedStatuses, statusFilter, search, activeSearch]);
+  }, [invoices, selectedStatuses, statusFilter, selectedExpenseCenter, search, activeSearch]);
 
   const totalFilteredPages = Math.max(1, Math.ceil(filteredInvoices.length / itemsPerPage));
   const safePage = Math.min(page, totalFilteredPages);
 
-  const pendingCount = useMemo(() => Array.isArray(invoices) ? invoices.filter((i: any) => i.status === 'pending').length : 0, [invoices]);
+  const operatorPendingCount = useMemo(() => Array.isArray(invoices) ? invoices.filter((i: any) => i.operator_status === 'pending').length : 0, [invoices]);
+  const pendingCount = useMemo(() => Array.isArray(invoices) ? invoices.filter((i: any) => i.status === 'pending' || i.operator_status === 'pending').length : 0, [invoices]);
   const backdatedCarryoverCount = useMemo(() => Array.isArray(invoices) ? invoices.filter((i: any) => i.is_out_of_sequence || i.is_prev_month_carryover).length : 0, [invoices]);
-  const approvedCount = useMemo(() => Array.isArray(invoices) ? invoices.filter((i: any) => i.status === 'approved' || i.status === 'completed').length : 0, [invoices]);
+  const approvedCount = useMemo(() => Array.isArray(invoices) ? invoices.filter((i: any) => (i.status === 'approved' || i.status === 'completed') && i.operator_status !== 'pending').length : 0, [invoices]);
   const expenseCount = useMemo(() => Array.isArray(invoices) ? invoices.filter((i: any) => i.is_expense === true).length : 0, [invoices]);
+  const reservedCount = useMemo(() => Array.isArray(invoices) ? invoices.filter((i: any) => Boolean(i.has_reserved_items || Number(i.total_reserved_qty || 0) > 0)).length : 0, [invoices]);
 
   const getStyledHtml = (html: string | null) => {
     if (!html) return '';
@@ -398,19 +424,66 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
     try {
       const targetStoreId = role === 'superadmin' ? storeId : undefined;
       const effectiveSearch = searchStr !== undefined ? searchStr : (activeSearch || search || "");
-      const [invRes, compRes, prodRes] = await Promise.all([
+      const [invRes, compRes, prodRes, centersRes] = await Promise.all([
         api.getPurchaseInvoices(targetStoreId, effectiveSearch, sDate || startDate, eDate || endDate),
         api.getCompanies(false, targetStoreId),
-        api.getProducts("", targetStoreId)
+        api.getProducts("", targetStoreId),
+        api.getExpenseCenters(targetStoreId).catch(() => null),
       ]);
       setInvoices(Array.isArray(invRes) ? invRes : []);
       setCompanies(Array.isArray(compRes) ? compRes : []);
       setProducts(Array.isArray(prodRes) ? prodRes : []);
+      if (Array.isArray(centersRes) && centersRes.length > 0) {
+        setExpenseCenters(centersRes);
+      }
     } catch (error) {
       console.error("Error fetching purchase invoices data:", error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleAddExpenseCenter = async (name: string): Promise<ExpenseCenterOption | null> => {
+    try {
+      const targetStoreId = role === 'superadmin' ? storeId : undefined;
+      const res = await api.addExpenseCenter(name, targetStoreId);
+      const created = res?.center || res;
+      if (created?.key) {
+        setExpenseCenters((prev) => {
+          const exists = prev.some((c) => c.key === created.key);
+          return exists ? prev : [...prev, created];
+        });
+        toast.success(isTr ? `"${created.name}" gider yeri eklendi.` : `Added expense center "${created.name}".`);
+        return created;
+      }
+      return null;
+    } catch (err: any) {
+      toast.error(err?.message || (isTr ? 'Gider yeri eklenemedi.' : 'Could not add expense center.'));
+      return null;
+    }
+  };
+
+  const handleOpenApproval = async (inv: any) => {
+    try {
+      const targetStoreId = role === 'superadmin' ? storeId : undefined;
+      const fresh = await api.getPurchaseInvoice(inv.id, targetStoreId);
+      setApprovalInvoice(fresh && !fresh.error ? fresh : inv);
+      setShowApprovalModal(true);
+      if (inv.is_read === false) {
+        await api.markPurchaseInvoiceRead(inv.id, targetStoreId);
+      }
+    } catch {
+      setApprovalInvoice(inv);
+      setShowApprovalModal(true);
+    }
+  };
+
+  const handleUpdateItemReserve = async (invoiceId: number, itemId: number, qty: number, reservedFor: string) => {
+    const targetStoreId = role === 'superadmin' ? storeId : undefined;
+    await api.updatePurchaseItemReserve(invoiceId, itemId, qty, reservedFor, targetStoreId);
+    toast.success(qty > 0 ? (isTr ? 'Rezerve güncellendi.' : 'Reserve updated.') : (isTr ? 'Rezerve kaldırıldı.' : 'Reserve cleared.'));
+    await fetchInvoicesData(activeSearch, startDate, endDate, true);
+    if (onSave) await onSave(true);
   };
 
   const handleAddProduct = (product: any, variant?: any) => {
@@ -959,11 +1032,15 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
                         : selectedStatuses.length === 1
                           ? (selectedStatuses[0] === 'backdated_carryover'
                               ? (isTr ? `Devir (${backdatedCarryoverCount})` : `Carryover (${backdatedCarryoverCount})`)
-                              : selectedStatuses[0] === 'pending'
-                                ? (isTr ? `Bekleyen (${pendingCount})` : `Pending (${pendingCount})`)
-                                : selectedStatuses[0] === 'approved'
-                                  ? (isTr ? `Onaylanan (${approvedCount})` : `Approved (${approvedCount})`)
-                                  : (isTr ? `Gider (${expenseCount})` : `Expense (${expenseCount})`))
+                              : selectedStatuses[0] === 'operator_pending'
+                                ? (isTr ? `Onay Bekleyen (${operatorPendingCount})` : `Approval (${operatorPendingCount})`)
+                                : selectedStatuses[0] === 'pending'
+                                  ? (isTr ? `Bekleyen (${pendingCount})` : `Pending (${pendingCount})`)
+                                  : selectedStatuses[0] === 'approved'
+                                    ? (isTr ? `Onaylanan (${approvedCount})` : `Approved (${approvedCount})`)
+                                    : selectedStatuses[0] === 'reserved'
+                                      ? (isTr ? `Rezerveli (${reservedCount})` : `Reserved (${reservedCount})`)
+                                      : (isTr ? `Gider (${expenseCount})` : `Expense (${expenseCount})`))
                           : (isTr ? `${selectedStatuses.length} Durum` : `${selectedStatuses.length} Selected`)}
                     </span>
                     {selectedStatuses.length > 0 && (
@@ -975,7 +1052,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
                   </button>
 
                   {statusDropdownOpen && (
-                    <div className="absolute left-0 top-full mt-1.5 z-50 w-60 p-1.5 bg-white border border-slate-200 rounded-2xl shadow-xl space-y-1 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="absolute left-0 top-full mt-1.5 z-50 w-64 p-1.5 bg-white border border-slate-200 rounded-2xl shadow-xl space-y-1 animate-in fade-in zoom-in-95 duration-150">
                       <button
                         type="button"
                         onClick={() => toggleStatusSelection('all')}
@@ -991,6 +1068,27 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
                             {invoices.length}
                           </span>
                           {selectedStatuses.length === 0 && <Check className="w-3.5 h-3.5" />}
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => toggleStatusSelection('operator_pending')}
+                        className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                          selectedStatuses.includes('operator_pending')
+                            ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                            : 'text-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                          <span>{isTr ? "Onay Bekleyenler" : "Needs Approval"}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="px-1.5 py-0.2 text-[10px] rounded-full font-bold bg-amber-100 text-amber-900">
+                            {operatorPendingCount}
+                          </span>
+                          {selectedStatuses.includes('operator_pending') && <Check className="w-3.5 h-3.5 text-amber-600" />}
                         </div>
                       </button>
 
@@ -1012,6 +1110,27 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
                             {backdatedCarryoverCount}
                           </span>
                           {selectedStatuses.includes('backdated_carryover') && <Check className="w-3.5 h-3.5 text-purple-600" />}
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => toggleStatusSelection('reserved')}
+                        className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                          selectedStatuses.includes('reserved')
+                            ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                            : 'text-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Tag className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                          <span>{isTr ? "Rezerveliler" : "With Reserve"}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="px-1.5 py-0.2 text-[10px] rounded-full font-bold bg-amber-100 text-amber-900">
+                            {reservedCount}
+                          </span>
+                          {selectedStatuses.includes('reserved') && <Check className="w-3.5 h-3.5 text-amber-600" />}
                         </div>
                       </button>
 
@@ -1080,6 +1199,26 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
                     </div>
                   )}
                 </div>
+
+                {/* Expense Center Filter */}
+                <select
+                  value={selectedExpenseCenter}
+                  onChange={(e) => {
+                    setSelectedExpenseCenter(e.target.value);
+                    setPage(1);
+                  }}
+                  className={`px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-all outline-none cursor-pointer shrink-0 ${
+                    selectedExpenseCenter !== 'all'
+                      ? 'bg-amber-50 border-amber-300 text-amber-800'
+                      : 'bg-slate-50 border-slate-200 text-slate-700'
+                  }`}
+                  title={isTr ? "Gider Yerine Göre Filtrele" : "Filter by Expense Center"}
+                >
+                  <option value="all">{isTr ? "Gider Yeri: Tümü" : "Center: All"}</option>
+                  {expenseCenters.map((c) => (
+                    <option key={c.key} value={c.key}>{c.name}</option>
+                  ))}
+                </select>
 
                 {/* Search Input */}
                 <div className="relative flex-1 min-w-[140px]">
@@ -1192,6 +1331,9 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
         companies={propCompanies || companies}
         onViewTransactions={onViewTransactions}
         onRefresh={() => fetchInvoicesData(activeSearch, startDate, endDate, true)}
+        onOpenApproval={handleOpenApproval}
+        onUpdateItemReserve={handleUpdateItemReserve}
+        expenseCenters={expenseCenters}
       />
 
       <PurchaseInvoiceFormModal 
@@ -1245,6 +1387,8 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
           setShowQuickCariModal(true);
         }}
         onEditProduct={onEditProduct}
+        expenseCenters={expenseCenters}
+        onAddExpenseCenter={handleAddExpenseCenter}
       />
 
       <PurchaseInvoiceDetailsModal 
@@ -1258,6 +1402,8 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
         handleConvertToExpense={handleConvertToExpense}
         products={products}
         storeId={role === 'superadmin' ? storeId : undefined}
+        onOpenApproval={handleOpenApproval}
+        expenseCenters={expenseCenters}
         onRefresh={async () => {
           await fetchInvoicesData(activeSearch, startDate, endDate, true);
           if (selectedInvoice?.id) {
@@ -1268,6 +1414,25 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
               console.error(e);
             }
           }
+        }}
+      />
+
+      <PurchaseInvoiceApprovalModal
+        isOpen={showApprovalModal}
+        onClose={() => {
+          setShowApprovalModal(false);
+          setApprovalInvoice(null);
+        }}
+        invoice={approvalInvoice}
+        isTr={isTr}
+        products={products}
+        expenseCenters={expenseCenters}
+        onAddExpenseCenter={handleAddExpenseCenter}
+        handleViewHtml={handleViewHtml}
+        storeId={role === 'superadmin' ? storeId : undefined}
+        onApproved={async () => {
+          await fetchInvoicesData(activeSearch, startDate, endDate, true);
+          if (onSave) await onSave(true);
         }}
       />
 

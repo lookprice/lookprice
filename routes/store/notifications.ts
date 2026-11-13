@@ -198,7 +198,7 @@ router.get("/", async (req: any, res) => {
       if (!isPortfolio) {
         const purchaseInvoicesCount = await pool.query(
           `SELECT COUNT(*) FROM purchase_invoices 
-           WHERE store_id = $1 AND status = 'pending'`,
+           WHERE store_id = $1 AND (status = 'pending' OR COALESCE(operator_status, 'completed') = 'pending')`,
           [storeId]
         );
         purchaseInvoicesPendingCount = parseInt(purchaseInvoicesCount.rows[0]?.count || "0");
@@ -457,6 +457,7 @@ router.get("/feed", async (req: any, res) => {
                   COALESCE(NULLIF(TRIM(pi.supplier_name), ''), c.title, 'Tedarikçi') as supplier_name,
                   COALESCE(NULLIF(pi.grand_total, 0), pi.total_amount, 0) as amount,
                   pi.currency, pi.invoice_date, pi.created_at, pi.status,
+                  COALESCE(pi.operator_status, 'completed') as operator_status,
                   (DATE_TRUNC('month', pi.invoice_date::date) < DATE_TRUNC('month', CURRENT_DATE)) as is_prev_month,
                   EXISTS (
                     SELECT 1 FROM purchase_invoices pi2
@@ -465,7 +466,7 @@ router.get("/feed", async (req: any, res) => {
                       AND pi2.invoice_date::date > pi.invoice_date::date
                       AND (
                         pi2.created_at < pi.created_at
-                        OR (pi.status = 'pending' AND pi2.status IN ('approved', 'completed'))
+                        OR ((pi.status = 'pending' OR COALESCE(pi.operator_status, 'completed') = 'pending') AND pi2.status IN ('approved', 'completed') AND COALESCE(pi2.operator_status, 'completed') = 'completed')
                       )
                   ) as is_backdated
            FROM purchase_invoices pi
@@ -473,7 +474,7 @@ router.get("/feed", async (req: any, res) => {
            WHERE pi.store_id = $1
              AND (
                (
-                 pi.status = 'pending'
+                 (pi.status = 'pending' OR COALESCE(pi.operator_status, 'completed') = 'pending')
                  AND (
                    DATE_TRUNC('month', pi.invoice_date::date) < DATE_TRUNC('month', CURRENT_DATE)
                    OR EXISTS (
@@ -483,7 +484,7 @@ router.get("/feed", async (req: any, res) => {
                        AND pi2.invoice_date::date > pi.invoice_date::date
                        AND (
                          pi2.created_at < pi.created_at
-                         OR pi2.status IN ('approved', 'completed')
+                         OR (pi2.status IN ('approved', 'completed') AND COALESCE(pi2.operator_status, 'completed') = 'completed')
                        )
                    )
                    OR pi.invoice_date::date < CURRENT_DATE - INTERVAL '3 days'
@@ -494,7 +495,7 @@ router.get("/feed", async (req: any, res) => {
                  AND DATE_TRUNC('month', COALESCE(pi.created_at, CURRENT_TIMESTAMP)::date) = DATE_TRUNC('month', CURRENT_DATE)
                )
              )
-           ORDER BY (CASE WHEN pi.status = 'pending' THEN 0 ELSE 1 END) ASC, pi.invoice_date ASC
+           ORDER BY (CASE WHEN (pi.status = 'pending' OR COALESCE(pi.operator_status, 'completed') = 'pending') THEN 0 ELSE 1 END) ASC, pi.invoice_date ASC
            LIMIT 8`,
           [storeId]
         );
@@ -503,12 +504,12 @@ router.get("/feed", async (req: any, res) => {
           `SELECT 
              COUNT(*) as total_count,
              COUNT(*) FILTER (WHERE DATE_TRUNC('month', pi.invoice_date::date) < DATE_TRUNC('month', CURRENT_DATE)) as prev_month_count,
-             COUNT(*) FILTER (WHERE pi.status = 'pending') as pending_count
+             COUNT(*) FILTER (WHERE (pi.status = 'pending' OR COALESCE(pi.operator_status, 'completed') = 'pending')) as pending_count
            FROM purchase_invoices pi
            WHERE pi.store_id = $1
              AND (
                (
-                 pi.status = 'pending'
+                 (pi.status = 'pending' OR COALESCE(pi.operator_status, 'completed') = 'pending')
                  AND (
                    DATE_TRUNC('month', pi.invoice_date::date) < DATE_TRUNC('month', CURRENT_DATE)
                    OR EXISTS (
@@ -518,7 +519,7 @@ router.get("/feed", async (req: any, res) => {
                        AND pi2.invoice_date::date > pi.invoice_date::date
                        AND (
                          pi2.created_at < pi.created_at
-                         OR pi2.status IN ('approved', 'completed')
+                         OR (pi2.status IN ('approved', 'completed') AND COALESCE(pi2.operator_status, 'completed') = 'completed')
                        )
                    )
                    OR pi.invoice_date::date < CURRENT_DATE - INTERVAL '3 days'
@@ -694,12 +695,12 @@ router.get("/feed", async (req: any, res) => {
                   pi.currency, pi.invoice_date, pi.created_at
            FROM purchase_invoices pi
            LEFT JOIN companies c ON pi.company_id = c.id
-           WHERE pi.store_id = $1 AND pi.status = 'pending'
+           WHERE pi.store_id = $1 AND (pi.status = 'pending' OR COALESCE(pi.operator_status, 'completed') = 'pending')
            ORDER BY pi.invoice_date DESC, pi.id DESC LIMIT 5`,
           [storeId]
         );
         const unreadPurchaseCountRes = await pool.query(
-          `SELECT COUNT(*) FROM purchase_invoices WHERE store_id = $1 AND status = 'pending'`,
+          `SELECT COUNT(*) FROM purchase_invoices WHERE store_id = $1 AND (status = 'pending' OR COALESCE(operator_status, 'completed') = 'pending')`,
           [storeId]
         );
         const totalPendingPurchase = parseInt(unreadPurchaseCountRes.rows[0]?.count || "0");

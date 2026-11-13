@@ -282,7 +282,7 @@ export class TrendyolService {
         mpData = mpData || {};
 
         const pPrice = Number(matchedLocal.price || 0);
-        const pStock = Math.max(0, Math.floor(Number(matchedLocal.stock_quantity || 0)));
+        const pStock = Math.max(0, Math.floor(Number(matchedLocal.stock_quantity || 0) - Math.max(0, Number(matchedLocal.reserved_stock || 0))));
 
         let webPriceTry = pPrice;
         const prodCurrency = String(matchedLocal.currency || storeRow.default_currency || "TRY").toUpperCase();

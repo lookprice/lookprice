@@ -51,6 +51,7 @@ interface ProductsTableProps {
   totalPages: number;
   lang: string;
   t: any;
+  onRefresh?: () => void;
 }
 
 export const ProductsTable: React.FC<ProductsTableProps> = ({
@@ -102,6 +103,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
   totalPages,
   lang,
   t,
+  onRefresh,
 }) => {
   return (
     <div className="os-panel overflow-hidden">
@@ -209,6 +211,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
                   setSelectedProduct={setSelectedProduct}
                   lang={lang}
                   t={t}
+                  onRefresh={onRefresh}
                 />
               ))
             )}

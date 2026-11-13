@@ -71,6 +71,7 @@ interface ProductTableRowProps {
   t: any;
   rowIndex?: number;
   totalRows?: number;
+  onRefresh?: () => void;
 }
 
 export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
@@ -116,6 +117,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
   t,
   rowIndex,
   totalRows,
+  onRefresh,
 }) => {
   const isNearBottom = totalRows !== undefined && rowIndex !== undefined && totalRows >= 4 && rowIndex >= totalRows - 2;
 
@@ -127,9 +129,27 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
   const [isEditingStock, setIsEditingStock] = useState(false);
   const [tempStock, setTempStock] = useState<string>(String(p.stock_quantity ?? ""));
   const [isSavingStock, setIsSavingStock] = useState(false);
+  const [showReservePopover, setShowReservePopover] = useState(false);
+  const [releasingReserveId, setReleasingReserveId] = useState<string | null>(null);
 
   const priceTouchTimer = useRef<any>(null);
   const stockTouchTimer = useRef<any>(null);
+
+  const handleReleaseReserve = async (itemId?: number) => {
+    if (!p?.id) return;
+    const key = itemId ? String(itemId) : 'all';
+    setReleasingReserveId(key);
+    try {
+      await api.releaseProductReserve(p.id, itemId, currentStoreId);
+      toast.success(lang === 'tr' ? 'Rezerve kaldırıldı ve satılabilir stok güncellendi.' : 'Reserve released.');
+      setShowReservePopover(false);
+      if (onRefresh) onRefresh();
+    } catch (err: any) {
+      toast.error(err?.message || (lang === 'tr' ? 'Rezerve kaldırılamadı.' : 'Failed to release reserve.'));
+    } finally {
+      setReleasingReserveId(null);
+    }
+  };
 
   const handleStartEditPrice = (e?: React.MouseEvent | React.TouchEvent) => {
     if (isViewer) return;
@@ -762,11 +782,143 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
               const effectiveStock = hasVariants 
                 ? vars.reduce((sum, v) => sum + (Number(v.stock_quantity) || Number(v.stock) || 0), 0)
                 : Number(p.stock_quantity) || 0;
+              const reservedQty = Number(p.reserved_stock || 0);
+              const sellableQty = Math.max(0, effectiveStock - reservedQty);
+              const reserveDetails: any[] = (() => {
+                if (Array.isArray(p.reserved_details)) return p.reserved_details;
+                if (typeof p.reserved_details === 'string' && p.reserved_details.trim().startsWith('[')) {
+                  try { return JSON.parse(p.reserved_details); } catch { return []; }
+                }
+                return [];
+              })();
               const isLowStock = effectiveStock <= Number(p.min_stock_level || 0);
+
+              const renderReserveBadgeAndPopover = () => {
+                if (reservedQty <= 0) return null;
+                return (
+                  <div className="relative mt-0.5 flex flex-col gap-0.5" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => setShowReservePopover((prev) => !prev)}
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 hover:bg-amber-200 border border-amber-300 text-amber-900 text-[9px] font-semibold cursor-pointer transition-colors"
+                        title={lang === 'tr' ? 'Rezerve detaylarını görüntüle veya kaldır' : 'View or release reserve'}
+                      >
+                        <Tag className="w-2.5 h-2.5 shrink-0" />
+                        <span>{lang === 'tr' ? `Rezerve: ${Math.floor(reservedQty)}` : `Reserved: ${Math.floor(reservedQty)}`}</span>
+                      </button>
+                      <span className="text-[9px] font-medium text-slate-500">
+                        {lang === 'tr' ? `Satılabilir: ${Math.floor(sellableQty)}` : `Sellable: ${Math.floor(sellableQty)}`}
+                      </span>
+                    </div>
+
+                    {showReservePopover && (
+                      <div
+                        className={`absolute right-0 w-72 bg-white border border-slate-200 rounded-xl shadow-2xl p-3 z-[120] text-left space-y-2 ${
+                          isNearBottom ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
+                          <span className="text-[11px] font-semibold text-slate-900 flex items-center gap-1.5">
+                            <Tag className="w-3.5 h-3.5 text-amber-600" />
+                            {lang === 'tr' ? 'Rezerve Detayları' : 'Reserve Details'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setShowReservePopover(false)}
+                            className="p-0.5 text-slate-400 hover:text-slate-700 rounded cursor-pointer"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        {reserveDetails.length === 0 ? (
+                          <div className="text-[11px] text-slate-600 py-1">
+                            {lang === 'tr' ? `Toplam ${Math.floor(reservedQty)} adet rezerve.` : `${Math.floor(reservedQty)} reserved.`}
+                          </div>
+                        ) : (
+                          <div className="max-h-48 overflow-y-auto space-y-1.5">
+                            {reserveDetails.map((d: any, rIdx: number) => {
+                              const itemReserveId = d.item_id ?? d.purchase_invoice_item_id;
+                              return (
+                              <div
+                                key={itemReserveId || rIdx}
+                                className="p-2 rounded-lg bg-amber-50/70 border border-amber-200 flex items-start justify-between gap-2"
+                              >
+                                <div className="min-w-0">
+                                  <div className="text-[11px] font-semibold text-slate-900 truncate">
+                                    {d.reserved_for || (lang === 'tr' ? 'Belirtilmedi' : 'Unspecified')}
+                                  </div>
+                                  <div className="text-[10px] text-slate-600">
+                                    {Math.floor(Number(d.quantity || 0))} {lang === 'tr' ? 'Adet' : 'Pcs'}
+                                    {d.invoice_number ? ` • #${d.invoice_number}` : ''}
+                                  </div>
+                                </div>
+                                {!isViewer && itemReserveId && (
+                                  <button
+                                    type="button"
+                                    disabled={releasingReserveId === String(itemReserveId)}
+                                    onClick={() => handleReleaseReserve(Number(itemReserveId))}
+                                    className="px-2 py-1 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 rounded text-[9px] font-semibold shrink-0 cursor-pointer disabled:opacity-50"
+                                  >
+                                    {releasingReserveId === String(itemReserveId) ? '...' : (lang === 'tr' ? 'Kaldır' : 'Release')}
+                                  </button>
+                                )}
+                              </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {!isViewer && (
+                          <div className="pt-1 border-t border-slate-100 flex justify-end">
+                            <button
+                              type="button"
+                              disabled={releasingReserveId === 'all'}
+                              onClick={() => handleReleaseReserve(undefined)}
+                              className="w-full py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-[10px] font-semibold cursor-pointer disabled:opacity-50"
+                            >
+                              {releasingReserveId === 'all' ? '...' : (lang === 'tr' ? 'Tüm Rezerveyi Kaldır' : 'Release All Reserve')}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              };
 
               if (hasVariants) {
                 return (
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-xs font-medium tabular-nums ${isLowStock ? 'text-rose-600' : 'text-slate-800'}`}>
+                        {Math.floor(effectiveStock)}
+                      </span>
+                      {isLowStock && (
+                        <span className="px-1 py-0.2 bg-rose-50 text-[8px] font-medium text-rose-600 border border-rose-100 rounded uppercase">
+                          !
+                        </span>
+                      )}
+                    </div>
+                    {renderReserveBadgeAndPopover()}
+                  </div>
+                );
+              }
+
+              return (
+                <div className="flex flex-col">
+                  <div 
+                    onDoubleClick={handleStartEditStock}
+                    onTouchStart={(e) => {
+                      stockTouchTimer.current = setTimeout(() => handleStartEditStock(e), 450);
+                    }}
+                    onTouchEnd={() => {
+                      if (stockTouchTimer.current) clearTimeout(stockTouchTimer.current);
+                    }}
+                    className={`group/stock flex items-center gap-1.5 ${!isViewer ? 'cursor-pointer hover:bg-indigo-50/60 px-1 py-0.5 -mx-1 rounded transition-colors' : ''}`}
+                    title={!isViewer ? (lang === 'tr' ? "Çift tıkla veya basılı tut: Hızlı Stok Değiştir" : "Double-click or hold to quick edit stock") : undefined}
+                  >
                     <span className={`text-xs font-medium tabular-nums ${isLowStock ? 'text-rose-600' : 'text-slate-800'}`}>
                       {Math.floor(effectiveStock)}
                     </span>
@@ -775,33 +927,11 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                         !
                       </span>
                     )}
+                    {!isViewer && (
+                      <Pencil className="w-2.5 h-2.5 text-slate-300 group-hover/stock:text-indigo-600 opacity-0 group-hover/stock:opacity-100 transition-all" />
+                    )}
                   </div>
-                );
-              }
-
-              return (
-                <div 
-                  onDoubleClick={handleStartEditStock}
-                  onTouchStart={(e) => {
-                    stockTouchTimer.current = setTimeout(() => handleStartEditStock(e), 450);
-                  }}
-                  onTouchEnd={() => {
-                    if (stockTouchTimer.current) clearTimeout(stockTouchTimer.current);
-                  }}
-                  className={`group/stock flex items-center gap-1.5 ${!isViewer ? 'cursor-pointer hover:bg-indigo-50/60 px-1 py-0.5 -mx-1 rounded transition-colors' : ''}`}
-                  title={!isViewer ? (lang === 'tr' ? "Çift tıkla veya basılı tut: Hızlı Stok Değiştir" : "Double-click or hold to quick edit stock") : undefined}
-                >
-                  <span className={`text-xs font-medium tabular-nums ${isLowStock ? 'text-rose-600' : 'text-slate-800'}`}>
-                    {Math.floor(effectiveStock)}
-                  </span>
-                  {isLowStock && (
-                    <span className="px-1 py-0.2 bg-rose-50 text-[8px] font-medium text-rose-600 border border-rose-100 rounded uppercase">
-                      !
-                    </span>
-                  )}
-                  {!isViewer && (
-                    <Pencil className="w-2.5 h-2.5 text-slate-300 group-hover/stock:text-indigo-600 opacity-0 group-hover/stock:opacity-100 transition-all" />
-                  )}
+                  {renderReserveBadgeAndPopover()}
                 </div>
               );
             })()}
@@ -945,6 +1075,8 @@ export const ProductTableRow = React.memo(ProductTableRowComponent, (prevProps, 
     prevProps.product.id === nextProps.product.id &&
     prevProps.product.updated_at === nextProps.product.updated_at &&
     prevProps.product.stock_quantity === nextProps.product.stock_quantity &&
+    prevProps.product.reserved_stock === nextProps.product.reserved_stock &&
+    prevProps.product.reserved_details === nextProps.product.reserved_details &&
     prevProps.product.price === nextProps.product.price &&
     prevProps.product.has_variants === nextProps.product.has_variants &&
     prevProps.product.variants === nextProps.product.variants &&

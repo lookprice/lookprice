@@ -5,8 +5,19 @@ import {
   Image as ImageIcon,
   CheckCircle2,
   Trash2,
-  Download
+  Download,
+  Copy,
+  Share2,
+  ExternalLink
 } from "lucide-react";
+import { toast } from "sonner";
+import {
+  getGoogleDrivePreviewUrl,
+  getYouTubeEmbedUrl,
+  isDirectVideoFileUrl,
+  isDownloadableAssetUrl,
+  isYouTubeUrl
+} from "./developerProjectUtils";
 
 interface DeveloperMediaLightboxModalProps {
   previewAsset: any | null;
@@ -14,6 +25,7 @@ interface DeveloperMediaLightboxModalProps {
   downloadingMedia: boolean;
   onDeleteMediaFromProject: (mediaId: string, mediaName?: string) => void;
   onDirectLocalDownload: (url?: string, rawFileName?: string, fallbackCover?: string) => void;
+  onShareMediaAsset?: (asset: any, mode: "copy" | "whatsapp") => void;
 }
 
 export const DeveloperMediaLightboxModal: React.FC<DeveloperMediaLightboxModalProps> = ({
@@ -21,9 +33,39 @@ export const DeveloperMediaLightboxModal: React.FC<DeveloperMediaLightboxModalPr
   setPreviewAsset,
   downloadingMedia,
   onDeleteMediaFromProject,
-  onDirectLocalDownload
+  onDirectLocalDownload,
+  onShareMediaAsset
 }) => {
   if (!previewAsset) return null;
+
+  const rawUrl = String(previewAsset.url || "").trim();
+  const isYt = isYouTubeUrl(rawUrl);
+  const ytEmbedUrl = isYt ? getYouTubeEmbedUrl(rawUrl, true) : null;
+  const isDirectVid =
+    !isYt &&
+    previewAsset.type === "video" &&
+    (isDirectVideoFileUrl(rawUrl) ||
+      rawUrl.startsWith("/api/storage/") ||
+      rawUrl.startsWith("/uploads/"));
+  const drivePreviewUrl =
+    !isYt && !isDirectVid && previewAsset.type === "video" ? getGoogleDrivePreviewUrl(rawUrl) : null;
+  const canDownload = isDownloadableAssetUrl(rawUrl || previewAsset.cover);
+
+  const handleFallbackShare = (mode: "copy" | "whatsapp") => {
+    if (onShareMediaAsset) {
+      onShareMediaAsset(previewAsset, mode);
+      return;
+    }
+    const shareTarget = rawUrl || String(previewAsset.cover || "").trim();
+    if (!shareTarget) return;
+    if (mode === "whatsapp") {
+      const txt = `${previewAsset.projectName || ""} — ${previewAsset.name || "Proje Medyası"}\n${shareTarget}`;
+      window.open(`https://wa.me/?text=${encodeURIComponent(txt)}`, "_blank", "noopener,noreferrer");
+    } else {
+      navigator.clipboard.writeText(shareTarget);
+      toast.success("Paydaş linki panoya kopyalandı.");
+    }
+  };
 
   return (
     <div
@@ -34,37 +76,59 @@ export const DeveloperMediaLightboxModal: React.FC<DeveloperMediaLightboxModalPr
         className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-4xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="bg-slate-50 border-b border-slate-200 text-slate-900 px-4 py-3 flex items-center justify-between">
-          <div>
-            <h4 className="text-sm sm:text-base font-semibold text-slate-950">
-              {previewAsset.name}
-            </h4>
-            <p className="text-[11px] text-slate-600">
+        <div className="bg-slate-50 border-b border-slate-200 text-slate-900 px-4 py-3 flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h4 className="text-sm sm:text-base font-semibold text-slate-950 truncate">
+                {previewAsset.name}
+              </h4>
+              {isYt && (
+                <span className="px-2 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-200 text-[10px] font-semibold">
+                  YouTube Video
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-slate-600 truncate">
               {previewAsset.projectName} · {previewAsset.category}
             </p>
           </div>
           <button
             type="button"
             onClick={() => setPreviewAsset(null)}
-            className="p-1.5 text-slate-500 hover:text-slate-950 hover:bg-slate-200 rounded-lg cursor-pointer"
+            className="p-1.5 text-slate-500 hover:text-slate-950 hover:bg-slate-200 rounded-lg cursor-pointer shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         <div className="p-4 space-y-3">
-          {previewAsset.url &&
-          (previewAsset.url.endsWith(".mp4") ||
-            previewAsset.url.endsWith(".mov") ||
-            previewAsset.url.endsWith(".webm") ||
-            previewAsset.url.startsWith("/api/storage/")) &&
-          previewAsset.type === "video" ? (
+          {ytEmbedUrl ? (
+            <div className="rounded-xl overflow-hidden bg-slate-950 border border-slate-200 aspect-video w-full">
+              <iframe
+                src={ytEmbedUrl}
+                title={previewAsset.name || "YouTube Video"}
+                className="w-full h-full border-0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
+            </div>
+          ) : isDirectVid ? (
             <div className="rounded-xl overflow-hidden bg-slate-950 border border-slate-200 flex items-center justify-center">
               <video
-                src={previewAsset.url}
+                src={rawUrl}
                 controls
                 autoPlay
                 className="w-full max-h-[68vh] object-contain"
+              />
+            </div>
+          ) : drivePreviewUrl ? (
+            <div className="rounded-xl overflow-hidden bg-slate-950 border border-slate-200 aspect-video w-full">
+              <iframe
+                src={drivePreviewUrl}
+                title={previewAsset.name || "Drive Video"}
+                className="w-full h-full border-0"
+                allow="autoplay; encrypted-media"
+                allowFullScreen
               />
             </div>
           ) : (
@@ -96,13 +160,13 @@ export const DeveloperMediaLightboxModal: React.FC<DeveloperMediaLightboxModalPr
                       setPreviewAsset({
                         ...previewAsset,
                         url: gItem.url,
-                        type: gItem.type === "video" ? "video" : "photos",
+                        type: gItem.type === "video" || isYouTubeUrl(gItem.url) ? "video" : "photos",
                         cover: gItem.type === "image" ? gItem.url : previewAsset.cover
                       })
                     }
                     className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-indigo-600 text-slate-800 hover:text-white text-xs font-medium flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
                   >
-                    {gItem.type === "video" ? (
+                    {gItem.type === "video" || isYouTubeUrl(gItem.url) ? (
                       <Play className="w-3 h-3 text-amber-500" />
                     ) : (
                       <ImageIcon className="w-3 h-3 text-indigo-600" />
@@ -115,11 +179,19 @@ export const DeveloperMediaLightboxModal: React.FC<DeveloperMediaLightboxModalPr
           )}
 
           <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-200">
-            <span className="text-[11px] text-emerald-700 font-medium flex items-center gap-1">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>Proje Klasöründe Kayıtlı</span>
-            </span>
-            <div className="flex items-center gap-2">
+            {isYt ? (
+              <span className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg font-medium flex items-center gap-1.5">
+                <Play className="w-3.5 h-3.5 text-rose-600" />
+                <span>YouTube Bağlantısı · İndirilmez, Web & Paydaş Paylaşımına Hazır</span>
+              </span>
+            ) : (
+              <span className="text-[11px] text-emerald-700 font-medium flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Proje Klasöründe Kayıtlı</span>
+              </span>
+            )}
+
+            <div className="flex flex-wrap items-center gap-1.5">
               {(previewAsset.id || previewAsset.rawName) && (
                 <button
                   type="button"
@@ -133,13 +205,49 @@ export const DeveloperMediaLightboxModal: React.FC<DeveloperMediaLightboxModalPr
                 </button>
               )}
 
-              {(previewAsset.url || previewAsset.cover) && (
+              {(rawUrl || previewAsset.cover) && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => handleFallbackShare("copy")}
+                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-900 border border-slate-300 rounded-lg text-xs font-medium flex items-center gap-1.5 cursor-pointer whitespace-nowrap transition-colors"
+                    title="Paydaşlarla paylaşmak için bağlantıyı kopyala"
+                  >
+                    <Copy className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Linki Kopyala</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleFallbackShare("whatsapp")}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 cursor-pointer whitespace-nowrap transition-colors"
+                    title="Paydaşlara WhatsApp üzerinden gönder"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    <span>Paydaşla Paylaş</span>
+                  </button>
+                </>
+              )}
+
+              {isYt && rawUrl && (
+                <a
+                  href={rawUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 whitespace-nowrap transition-colors"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>YouTube'da Aç</span>
+                </a>
+              )}
+
+              {canDownload && (rawUrl || previewAsset.cover) && (
                 <button
                   type="button"
                   disabled={downloadingMedia}
                   onClick={() =>
                     onDirectLocalDownload(
-                      previewAsset.url || previewAsset.cover,
+                      rawUrl || previewAsset.cover,
                       previewAsset.rawName || previewAsset.name,
                       previewAsset.cover
                     )

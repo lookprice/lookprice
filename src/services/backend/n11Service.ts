@@ -2551,7 +2551,7 @@ export class N11Service {
           : undefined;
 
         const pPrice = Number(matchedLocal.price || 0);
-        const pStock = Math.max(0, Math.floor(Number(matchedLocal.stock_quantity || 0)));
+        const pStock = Math.max(0, Math.floor(Number(matchedLocal.stock_quantity || 0) - Math.max(0, Number(matchedLocal.reserved_stock || 0))));
 
         // Calculate target N11 price in TRY
         let webPriceTry = pPrice;

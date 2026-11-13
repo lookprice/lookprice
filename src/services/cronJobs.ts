@@ -6,7 +6,7 @@ import { HepsiburadaService } from './backend/hepsiburadaService';
 import { AmazonService } from './backend/amazonService';
 import { IntegrationService } from './IntegrationService';
 import { fetchTCMBRatesWithRetry } from '../utils/tcmbFetcher';
-import { syncStoreN11OrdersToDatabase } from './marketplaceSync';
+import { syncStoreN11OrdersToDatabase, computeSellableStock } from './marketplaceSync';
 import { runAutomatedSuperAdminDriveBackup, runSuperAdminArchiveAndSlimDB } from '../../routes/googleDrive';
 
 export function startCronJobs() {
@@ -547,7 +547,7 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
         const hbService = new HepsiburadaService(hbSettings, storeId);
         
         const hbProductsRes = await pool.query(
-          `SELECT id, name, category, sub_category, barcode, price, currency, stock_quantity, hepsiburada_sku, is_hepsiburada_active, marketplace_data 
+          `SELECT id, name, category, sub_category, barcode, price, currency, stock_quantity, COALESCE(reserved_stock, 0) as reserved_stock, hepsiburada_sku, is_hepsiburada_active, marketplace_data 
            FROM products 
            WHERE store_id = $1 AND (is_hepsiburada_active = true OR hepsiburada_sku IS NOT NULL) AND barcode IS NOT NULL AND barcode != ''`,
           [storeId]
@@ -586,7 +586,7 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
               MerchantSku: hbMerchantSku,
               HepsiburadaSku: p.hepsiburada_sku || "",
               Price: effectivePrice,
-              AvailableStock: parseInt(p.stock_quantity || "0", 10),
+              AvailableStock: computeSellableStock(p.stock_quantity, p.reserved_stock),
               DispatchTime: hbSettings.defaultDispatchTime || 1,
             };
           });
@@ -619,7 +619,7 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
     if (amzSettings?.sellerId && (amzSettings?.refresh_token || amzSettings?.refreshToken)) {
       const amzService = new AmazonService(amzSettings, storeId);
       const amzProductsRes = await pool.query(
-        `SELECT id, name, category, sub_category, barcode, sku, price, currency, stock_quantity, amazon_asin, amazon_sku, is_amazon_active, marketplace_data 
+        `SELECT id, name, category, sub_category, barcode, sku, price, currency, stock_quantity, COALESCE(reserved_stock, 0) as reserved_stock, amazon_asin, amazon_sku, is_amazon_active, marketplace_data 
          FROM products 
          WHERE store_id = $1 AND is_amazon_active = true AND amazon_asin IS NOT NULL AND amazon_asin != '' AND amazon_asin NOT LIKE 'http%'`,
         [storeId]
@@ -645,7 +645,7 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
 
           const effectivePrice = amzService.calculateMarketplacePrice(rawPrice, p.category, p.sub_category);
           const sellerSku = p.amazon_sku || mpData?.amazon?.sku || p.sku || p.barcode;
-          const stock = Math.max(0, parseInt(p.stock_quantity || "0", 10));
+          const stock = computeSellableStock(p.stock_quantity, p.reserved_stock);
 
           if (!mpData.amazon) mpData.amazon = {};
           if (!mpData.amazon.attributes) mpData.amazon.attributes = {};
@@ -686,7 +686,7 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
           appSecret: String(n11Settings.appSecret || n11Settings.apiSecret).trim()
         };
         const n11ProductsRes = await pool.query(
-          `SELECT id, name, category, sub_category, barcode, sku, price, currency, stock_quantity, marketplace_data 
+          `SELECT id, name, category, sub_category, barcode, sku, price, currency, stock_quantity, COALESCE(reserved_stock, 0) as reserved_stock, marketplace_data 
            FROM products 
            WHERE store_id = $1 AND is_n11_active = true`,
           [storeId]
@@ -721,7 +721,7 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
               ""
             ).trim();
 
-            const stock = Math.max(0, parseInt(p.stock_quantity || "0", 10));
+            const stock = computeSellableStock(p.stock_quantity, p.reserved_stock);
 
             if (!mpData.n11) mpData.n11 = {};
             if (!mpData.n11.attributes) mpData.n11.attributes = {};
@@ -788,7 +788,7 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
     ) {
       try {
         const tyProductsRes = await pool.query(
-          `SELECT id, name, category, sub_category, barcode, sku, price, currency, stock_quantity, marketplace_data 
+          `SELECT id, name, category, sub_category, barcode, sku, price, currency, stock_quantity, COALESCE(reserved_stock, 0) as reserved_stock, marketplace_data 
            FROM products 
            WHERE store_id = $1 AND (is_trendyol_active = true OR (marketplace_data->'trendyol'->>'status' = 'ACTIVE')) AND (barcode IS NOT NULL AND barcode != '' OR sku IS NOT NULL AND sku != '')`,
           [storeId]
@@ -813,7 +813,7 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
 
             const effectivePrice = N11Service.calculateMarketplacePrice(rawPrice, p.category, p.sub_category, tySettings);
             const roundedPrice = Math.round(effectivePrice * 100) / 100;
-            const stock = Math.max(0, parseInt(p.stock_quantity || "0", 10));
+            const stock = computeSellableStock(p.stock_quantity, p.reserved_stock);
             const cleanBarcode = String(p.barcode || p.sku || "").trim();
 
             let mpData: any = p.marketplace_data;

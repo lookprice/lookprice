@@ -7,6 +7,7 @@ import { GoogleGenAI } from "@google/genai";
 import XLSX from "xlsx";
 import { masterBookLookup, generateHighResBookCoverSvg } from "./bookLookupService";
 import { getPredefinedSectorPackages, seedStoreSectorTaxonomy, autoBridgeStoreCategories, populateMarketplaceMasterTaxonomies } from "./hepsiburadaTaxonomyService";
+import { computeSellableStock, recalculateProductReservedStock, syncProductStockToMarketplaces } from "../../src/services/marketplaceSync";
 
 export function cleanMpString(val: any): string | null {
   if (val === undefined || val === null) return null;
@@ -542,6 +543,8 @@ export async function initProductSchema() {
     await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS portion_size VARCHAR(100) DEFAULT '';`);
     await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS marketplace_data JSONB DEFAULT '{}'::jsonb;`);
     await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS images JSONB DEFAULT '[]'::jsonb;`);
+    await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS reserved_stock NUMERIC DEFAULT 0;`);
+    await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS reserved_details JSONB DEFAULT '[]'::jsonb;`);
 
     // Run product name sync in background
     syncProductNamesFromInvoices().catch(e => console.error("Error running syncProductNamesFromInvoices in initProductSchema:", e));
@@ -1594,8 +1597,10 @@ router.put("/:id", async (req: any, res) => {
       ? parsedBodyStock
       : oldStock;
 
-    // If stock is zeroed out (<= 0), automatically mark marketplace listings inactive / manually unpublished so background crons never push positive stock
-    const isZeroStock = finalStockQuantity <= 0;
+    // If sellable stock is zeroed out (<= 0), automatically mark marketplace listings inactive / manually unpublished so background crons never push positive stock
+    const existingReservedStock = Number(existing?.reserved_stock || 0);
+    const sellableAfterUpdate = computeSellableStock(finalStockQuantity, existingReservedStock);
+    const isZeroStock = sellableAfterUpdate <= 0;
     if (isZeroStock) {
       if (!finalMarketplaceData.amazon) finalMarketplaceData.amazon = {};
       finalMarketplaceData.amazon.manuallyUnpublished = true;
@@ -1837,7 +1842,7 @@ router.put("/:id", async (req: any, res) => {
               MerchantSku: hbMerchantSku,
               HepsiburadaSku: resolvedSku,
               Price: effectivePrice,
-              AvailableStock: parseInt(String(newStock || 0), 10),
+              AvailableStock: computeSellableStock(newStock, existingProductRes.rows[0]?.reserved_stock),
               DispatchTime: hbSettings.defaultDispatchTime || 1,
             }]);
             await pool.query(
@@ -1893,7 +1898,7 @@ router.put("/:id", async (req: any, res) => {
               await amzService.updateListingsItem(
                 String(amzSku).trim(),
                 effectivePrice,
-                parseInt(String(newStock || 0), 10)
+                computeSellableStock(newStock, existingProductRes.rows[0]?.reserved_stock)
               );
               await pool.query(
                 "UPDATE products SET amazon_last_sync = NOW(), amazon_last_error = NULL WHERE id = $1",
@@ -1932,7 +1937,12 @@ router.put("/:id", async (req: any, res) => {
             const sellerCode = finalBarcode || existingProductRes.rows[0]?.sku;
 
             if (sellerCode && effectivePrice > 0) {
-              await N11Service.updatePriceAndStock(auth, sellerCode, effectivePrice, parseInt(String(newStock || 0), 10));
+              await N11Service.updatePriceAndStock(
+                auth,
+                sellerCode,
+                effectivePrice,
+                computeSellableStock(newStock, existingProductRes.rows[0]?.reserved_stock)
+              );
             }
           }
         } catch (n11SyncErr: any) {
@@ -1974,7 +1984,7 @@ router.put("/:id", async (req: any, res) => {
               const payload = {
                 items: [{
                   barcode: cleanBarcode,
-                  quantity: Math.max(0, parseInt(String(newStock || 0), 10)),
+                  quantity: computeSellableStock(newStock, existingProductRes.rows[0]?.reserved_stock),
                   salePrice: roundedPrice,
                   listPrice: roundedPrice
                 }]
@@ -3064,6 +3074,62 @@ router.get("/lookup-barcode", async (req: any, res) => {
   } catch (error: any) {
     console.error("Lookup barcode error:", error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /products/:id/release-reserve
+// Releases a specific reservation (by invoice_item_id) or all reservations on a product, then syncs e-marketplaces
+router.post("/:id/release-reserve", async (req: any, res) => {
+  const requestedId = req.query.storeId || req.body.storeId;
+  const storeId = await getAuthorizedStoreId(req, requestedId);
+  if (storeId === null) return res.status(403).json({ error: "Store ID unauthorized" });
+
+  const productId = Number(req.params.id);
+  const rawItemId = req.body?.item_id ?? req.body?.purchase_invoice_item_id ?? req.body?.itemId;
+  const itemId = rawItemId ? Number(rawItemId) : null;
+
+  if (!productId || isNaN(productId)) {
+    return res.status(400).json({ error: "Geçersiz ürün ID." });
+  }
+
+  try {
+    const prodRes = await pool.query("SELECT id, name, stock_quantity FROM products WHERE id = $1 AND store_id = $2", [productId, storeId]);
+    if (prodRes.rows.length === 0) return res.status(404).json({ error: "Ürün bulunamadı." });
+
+    if (itemId) {
+      await pool.query(
+        `UPDATE purchase_invoice_items pii
+         SET reserved_quantity = 0, reserved_for = NULL
+         FROM purchase_invoices pi
+         WHERE pii.id = $1 AND pii.purchase_invoice_id = pi.id AND pi.store_id = $2 AND pii.product_id = $3`,
+        [itemId, storeId, productId]
+      );
+    } else {
+      await pool.query(
+        `UPDATE purchase_invoice_items pii
+         SET reserved_quantity = 0, reserved_for = NULL
+         FROM purchase_invoices pi
+         WHERE pii.purchase_invoice_id = pi.id AND pi.store_id = $1 AND pii.product_id = $2`,
+        [storeId, productId]
+      );
+    }
+
+    const { reservedStock, reservedDetails } = await recalculateProductReservedStock(pool, productId, storeId);
+    invalidateStoreProductsCache(storeId);
+
+    syncProductStockToMarketplaces([productId], storeId, { reason: `release_reserve_product_${productId}` }).catch(err =>
+      console.warn("[Release Reserve Marketplace Sync Warning]:", err?.message || err)
+    );
+
+    res.json({
+      success: true,
+      message: itemId ? "Seçili rezerve kaldırıldı ve pazaryeri stokları güncellendi." : "Tüm rezerve kayıtları kaldırıldı ve pazaryeri stokları güncellendi.",
+      reserved_stock: reservedStock,
+      reserved_details: reservedDetails
+    });
+  } catch (err: any) {
+    console.error("Release reserve error:", err);
+    res.status(500).json({ error: err.message || "Rezerve kaldırılırken hata oluştu." });
   }
 });
 

@@ -9,7 +9,12 @@ import {
   Trash2,
   Play
 } from "lucide-react";
-import { getSectionBandTheme } from "./developerProjectUtils";
+import {
+  getSectionBandTheme,
+  getYouTubeThumbnailUrl,
+  isYouTubeUrl,
+  resolveDisplayImageUrl
+} from "./developerProjectUtils";
 
 export interface EventFormState {
   title: string;
@@ -270,11 +275,11 @@ export const DeveloperEventsTab: React.FC<DeveloperEventsTabProps> = ({
 
               <div>
                 <label className="block text-[10px] text-slate-700 uppercase font-medium mb-1">
-                  Harici Video / Görsel Linki
+                  Harici Video / YouTube Linki
                 </label>
                 <input
                   type="text"
-                  placeholder="Video veya görsel URL yapıştırın"
+                  placeholder="YouTube video veya görsel URL yapıştırın"
                   value={newEventForm.video_url || newEventForm.cover_image}
                   onChange={(e) =>
                     setNewEventForm({
@@ -354,18 +359,19 @@ export const DeveloperEventsTab: React.FC<DeveloperEventsTabProps> = ({
           const matchedProj = projects.find((p) =>
             ev.project_name?.toLowerCase().includes(p.name?.toLowerCase())
           );
-          const coverImg =
-            ev.cover_image ||
-            gallery.find((m: any) => m.type === "image")?.url ||
-            matchedProj?.cover_image ||
-            projects[0]?.cover_image;
           const videoUrl =
             ev.video_url ||
-            gallery.find((m: any) => m.type === "video")?.url ||
+            gallery.find((m: any) => m.type === "video" || isYouTubeUrl(m.url))?.url ||
             (ev.media_preview_url?.startsWith("/api/storage/") ||
             ev.media_preview_url?.startsWith("http")
               ? ev.media_preview_url
               : "https://drive.google.com/file/d/1S-voP7vN7ciN52agBq4iuWHSoP0yfRCW/view");
+          const coverImg =
+            resolveDisplayImageUrl(ev.cover_image, "") ||
+            resolveDisplayImageUrl(gallery.find((m: any) => m.type === "image")?.url, "") ||
+            getYouTubeThumbnailUrl(videoUrl) ||
+            resolveDisplayImageUrl(matchedProj?.cover_image, "") ||
+            resolveDisplayImageUrl(projects[0]?.cover_image, "");
 
           return (
             <div

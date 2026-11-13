@@ -13,6 +13,7 @@ import { api } from "../../services/api";
 import {
   SuiteTab,
   InventoryViewMode,
+  MediaRoleType,
   ProjectSubTab,
   DeveloperProjectSuiteProps,
   DEFAULT_FOLDER_CATEGORIES,
@@ -20,6 +21,8 @@ import {
   extractFacilityItems,
   formatGbp,
   inferMediaType,
+  isDownloadableAssetUrl,
+  isYouTubeUrl,
   printProjectSheet
 } from "./developerProjectUtils";
 import {
@@ -27,6 +30,7 @@ import {
   DeveloperUnitRevisionForm,
   ProjectFormState
 } from "./DeveloperProjectForms";
+import { SectionUploadOptions } from "./DeveloperVisualSyncPanels";
 import { DeveloperShowcaseTab } from "./DeveloperShowcaseTab";
 import { DeveloperInventoryTab } from "./DeveloperInventoryTab";
 import { DeveloperCompareTab } from "./DeveloperCompareTab";
@@ -103,6 +107,11 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
 
   const [isAddMediaOpen, setIsAddMediaOpen] = useState(false);
   const [uploadingLocalFile, setUploadingLocalFile] = useState(false);
+  const [uploadingSectionMedia, setUploadingSectionMedia] = useState(false);
+  const [uploadingCoverImage, setUploadingCoverImage] = useState(false);
+  const [pendingBatchFiles, setPendingBatchFiles] = useState<
+    Array<{ name: string; url: string; type: string }>
+  >([]);
   const [isCustomFolderMode, setIsCustomFolderMode] = useState(false);
   const [customFolderName, setCustomFolderName] = useState("");
   const [duplicateConflictMode, setDuplicateConflictMode] = useState<"overwrite" | "new_version">(
@@ -110,7 +119,14 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
   );
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const [newMediaForm, setNewMediaForm] = useState({
+  const [newMediaForm, setNewMediaForm] = useState<{
+    name: string;
+    type: string;
+    category: string;
+    url: string;
+    unit_type_match: string;
+    media_role: MediaRoleType;
+  }>({
     name: "",
     type: "masterplan",
     category: "Teknik & Mimari Planlar",
@@ -363,41 +379,233 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
   const handleDeviceFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-    const file = files[0];
     try {
       setUploadingLocalFile(true);
-      let fileToUpload: File = file;
-      if (file.type.startsWith("image/") && !file.type.includes("svg")) {
-        try {
-          fileToUpload = await compressImageFile(file, 1600, 0.84);
-        } catch {
-          fileToUpload = file;
+      const resolvedFolder =
+        isCustomFolderMode && customFolderName.trim()
+          ? customFolderName.trim()
+          : newMediaForm.category;
+      const uploadedBatch: Array<{ name: string; url: string; type: string }> = [];
+
+      for (let i = 0; i < files.length; i++) {
+        const rawFile = files[i];
+        let fileToUpload: File = rawFile;
+        if (rawFile.type.startsWith("image/") && !rawFile.type.includes("svg")) {
+          try {
+            fileToUpload = await compressImageFile(rawFile, 1600, 0.84);
+          } catch {
+            fileToUpload = rawFile;
+          }
+        }
+        const formData = new FormData();
+        formData.append("file", fileToUpload);
+        const uploadRes = await api.upload("/api/upload", formData);
+        if (uploadRes && uploadRes.url) {
+          uploadedBatch.push({
+            name: rawFile.name,
+            url: uploadRes.url,
+            type: inferMediaType(rawFile.name, resolvedFolder, newMediaForm.media_role)
+          });
         }
       }
-      const formData = new FormData();
-      formData.append("file", fileToUpload);
-      const uploadRes = await api.upload("/api/upload", formData);
-      if (uploadRes && uploadRes.url) {
-        const resolvedFolder =
-          isCustomFolderMode && customFolderName.trim()
-            ? customFolderName.trim()
-            : newMediaForm.category;
-        const inferredType = inferMediaType(file.name, resolvedFolder, newMediaForm.media_role);
+
+      if (uploadedBatch.length > 0) {
+        setPendingBatchFiles((prev) => [...prev, ...uploadedBatch]);
+        const first = uploadedBatch[0];
         setNewMediaForm((prev) => ({
           ...prev,
-          name: prev.name.trim() ? prev.name : file.name,
-          url: uploadRes.url,
-          type: inferredType
+          name: prev.name.trim() ? prev.name : first.name,
+          url: first.url,
+          type: first.type
         }));
-        toast.success(`"${file.name}" yüklendi.`);
+        toast.success(
+          uploadedBatch.length === 1
+            ? `"${first.name}" yüklendi.`
+            : `${uploadedBatch.length} adet dosya sıraya alındı.`
+        );
       } else {
-        toast.error(uploadRes?.error || "Dosya yüklenemedi.");
+        toast.error("Dosya yüklenemedi.");
       }
     } catch {
       toast.error("Dosya yükleme sırasında hata oluştu.");
     } finally {
       setUploadingLocalFile(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleUploadProjectCoverFile = async (file: File) => {
+    try {
+      setUploadingCoverImage(true);
+      let fileToUpload: File = file;
+      if (file.type.startsWith("image/") && !file.type.includes("svg")) {
+        try {
+          fileToUpload = await compressImageFile(file, 1600, 0.85);
+        } catch {
+          fileToUpload = file;
+        }
+      }
+      const fd = new FormData();
+      fd.append("file", fileToUpload);
+      const res = await api.upload("/api/upload", fd);
+      if (res?.url) {
+        setProjectForm((prev) => ({ ...prev, cover_image: res.url }));
+        toast.success("Kapak görseli yüklendi.");
+      } else {
+        toast.error(res?.error || "Kapak görseli yüklenemedi.");
+      }
+    } catch {
+      toast.error("Kapak görseli yüklenemedi.");
+    } finally {
+      setUploadingCoverImage(false);
+    }
+  };
+
+  const handleSetProjectCoverImage = async (coverUrl: string) => {
+    if (!activeProjectDetail || !coverUrl) return;
+    try {
+      const sid = storeId || user?.store_id || 1;
+      const res = await fetch(`/api/developer-projects/projects/${activeProjectDetail.id}`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ store_id: sid, cover_image: coverUrl })
+      });
+      if (res.ok) {
+        const saved = await res.json();
+        setProjects((prev) => prev.map((p) => (p.id === saved.id ? saved : p)));
+        setActiveProjectDetail(saved);
+        toast.success(`${saved.name} projesinin ana kapak görseli güncellendi.`);
+      } else {
+        toast.error("Kapak görseli güncellenemedi.");
+      }
+    } catch {
+      toast.error("Kapak görseli güncellenemedi.");
+    }
+  };
+
+  const handleBatchUploadSectionMedia = async (
+    files: FileList,
+    options: SectionUploadOptions
+  ) => {
+    if (!activeProjectDetail || !files || files.length === 0) return;
+    try {
+      setUploadingSectionMedia(true);
+      const sid = storeId || user?.store_id || 1;
+      const itemsToSave: any[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const rawFile = files[i];
+        let fileToUpload: File = rawFile;
+        if (rawFile.type.startsWith("image/") && !rawFile.type.includes("svg")) {
+          try {
+            fileToUpload = await compressImageFile(rawFile, 1600, 0.85);
+          } catch {
+            fileToUpload = rawFile;
+          }
+        }
+        const fd = new FormData();
+        fd.append("file", fileToUpload);
+        const upRes = await api.upload("/api/upload", fd);
+        if (upRes?.url) {
+          itemsToSave.push({
+            name: rawFile.name,
+            type: inferMediaType(
+              rawFile.name,
+              options.category || "4K Görsel & Render Paketi",
+              options.media_role
+            ),
+            category: options.category || "4K Görsel & Render Paketi",
+            url: upRes.url,
+            unit_type_match: options.unit_type_match,
+            unit_number_match: options.unit_number_match || "",
+            media_role: options.media_role
+          });
+        }
+      }
+
+      if (itemsToSave.length === 0) {
+        toast.error("Görseller yüklenemedi.");
+        return;
+      }
+
+      const res = await fetch(
+        `/api/developer-projects/projects/${activeProjectDetail.id}/media/batch`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            store_id: sid,
+            items: itemsToSave,
+            setFirstAsCover: Boolean(options.setFirstAsCover)
+          })
+        }
+      );
+      if (res.ok) {
+        const updatedProj = await res.json();
+        setProjects((prev) => prev.map((p) => (p.id === updatedProj.id ? updatedProj : p)));
+        setActiveProjectDetail(updatedProj);
+        toast.success(`${itemsToSave.length} adet görsel projeye eklendi ve web vitrinine senkronize edildi.`);
+      } else {
+        toast.error("Görseller projeye kaydedilemedi.");
+      }
+    } catch {
+      toast.error("Çoklu görsel yükleme sırasında hata oluştu.");
+    } finally {
+      setUploadingSectionMedia(false);
+    }
+  };
+
+  const handleBatchAddUrlsSectionMedia = async (
+    rawUrls: string,
+    options: SectionUploadOptions
+  ) => {
+    if (!activeProjectDetail || !rawUrls.trim()) return;
+    const urls = rawUrls
+      .split(/[\n,]+/)
+      .map((s) => s.trim())
+      .filter((s) => s.startsWith("http://") || s.startsWith("https://") || s.startsWith("/"));
+    if (urls.length === 0) {
+      toast.error("Geçerli bir görsel URL'si girin.");
+      return;
+    }
+    try {
+      setUploadingSectionMedia(true);
+      const sid = storeId || user?.store_id || 1;
+      const itemsToSave = urls.map((u, idx) => {
+        const tail = u.split("?")[0].split("/").pop() || `${options.media_role}-${idx + 1}.jpg`;
+        return {
+          name: tail.length > 4 ? tail : `${options.media_role}-${idx + 1}.jpg`,
+          type: inferMediaType(tail, options.category || "4K Görsel & Render Paketi", options.media_role),
+          category: options.category || "4K Görsel & Render Paketi",
+          url: u,
+          unit_type_match: options.unit_type_match,
+          unit_number_match: options.unit_number_match || "",
+          media_role: options.media_role
+        };
+      });
+      const res = await fetch(
+        `/api/developer-projects/projects/${activeProjectDetail.id}/media/batch`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            store_id: sid,
+            items: itemsToSave,
+            setFirstAsCover: Boolean(options.setFirstAsCover)
+          })
+        }
+      );
+      if (res.ok) {
+        const updatedProj = await res.json();
+        setProjects((prev) => prev.map((p) => (p.id === updatedProj.id ? updatedProj : p)));
+        setActiveProjectDetail(updatedProj);
+        toast.success(`${itemsToSave.length} görsel bağlantısı web vitrinine eklendi.`);
+      } else {
+        toast.error("URL görselleri kaydedilemedi.");
+      }
+    } catch {
+      toast.error("URL ekleme sırasında hata oluştu.");
+    } finally {
+      setUploadingSectionMedia(false);
     }
   };
 
@@ -556,10 +764,8 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
 
   const handleAddMediaToProject = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeProjectDetail || !newMediaForm.name.trim()) {
-      toast.error("Lütfen bir dosya seçin veya dosya adını girin.");
-      return;
-    }
+    if (!activeProjectDetail) return;
+
     const finalCategory =
       isCustomFolderMode && customFolderName.trim()
         ? customFolderName.trim()
@@ -567,59 +773,133 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
           newMediaForm.category === "Teknik & Mimari Planlar"
         ? "Ortak Alanlar & Sosyal Tesisler"
         : newMediaForm.category || "Teknik & Mimari Planlar";
-    const finalType = inferMediaType(newMediaForm.name, finalCategory, newMediaForm.media_role);
-    try {
-      const sid = storeId || user?.store_id || 1;
-      const res = await fetch(`/api/developer-projects/projects/${activeProjectDetail.id}/media`, {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          name: newMediaForm.name.trim(),
-          type: finalType,
+
+    const sid = storeId || user?.store_id || 1;
+
+    if (pendingBatchFiles.length > 0) {
+      try {
+        const items = pendingBatchFiles.map((bf) => ({
+          name:
+            pendingBatchFiles.length === 1 && newMediaForm.name.trim()
+              ? newMediaForm.name.trim()
+              : bf.name,
+          type: inferMediaType(bf.name, finalCategory, newMediaForm.media_role),
           category: finalCategory,
-          url: newMediaForm.url || activeProjectDetail.cover_image,
+          url: bf.url,
           unit_type_match: newMediaForm.unit_type_match,
-          media_role: newMediaForm.media_role,
-          conflictMode: duplicateConflictMode,
-          store_id: sid
-        })
-      });
-      if (res.ok) {
-        const updatedProj = await res.json();
-        setProjects((prev) => prev.map((p) => (p.id === updatedProj.id ? updatedProj : p)));
-        setActiveProjectDetail(updatedProj);
-        setIsAddMediaOpen(false);
-        setIsCustomFolderMode(false);
-        setCustomFolderName("");
-        setNewMediaForm((prev) => ({ ...prev, name: "", url: "" }));
-        if (updatedProj.resolutionAction === "overwritten") {
-          toast.success("Aynı isimli eski dosyanın üzerine yazılarak güncellendi.");
-        } else if (updatedProj.resolutionAction === "versioned") {
-          toast.success("Eski dosya korundu ve yeni versiyon olarak kaydedildi.");
+          media_role: newMediaForm.media_role
+        }));
+        const res = await fetch(
+          `/api/developer-projects/projects/${activeProjectDetail.id}/media/batch`,
+          {
+            method: "POST",
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+              store_id: sid,
+              items,
+              setFirstAsCover:
+                newMediaForm.media_role === "masterplan" && !activeProjectDetail.cover_image
+            })
+          }
+        );
+        if (res.ok) {
+          const updatedProj = await res.json();
+          setProjects((prev) => prev.map((p) => (p.id === updatedProj.id ? updatedProj : p)));
+          setActiveProjectDetail(updatedProj);
+          setPendingBatchFiles([]);
+          setIsAddMediaOpen(false);
+          setIsCustomFolderMode(false);
+          setCustomFolderName("");
+          setNewMediaForm((prev) => ({ ...prev, name: "", url: "" }));
+          toast.success(`${items.length} dosya eşleştirilerek projeye eklendi.`);
         } else {
-          toast.success("Medya / teknik çizim eşleştirilerek projeye eklendi.");
+          toast.error("Dosyalar eklenemedi.");
         }
+      } catch {
+        toast.error("Dosyalar eklenemedi.");
       }
-    } catch {
-      toast.error("Dosya eklenemedi.");
+      return;
+    }
+
+    if (pendingBatchFiles.length === 0) {
+      const trimmedUrl = newMediaForm.url.trim();
+      const isYt = isYouTubeUrl(trimmedUrl);
+      if (!newMediaForm.name.trim() && !isYt) {
+        toast.error("Lütfen bir dosya seçin veya dosya adını/YouTube linkini girin.");
+        return;
+      }
+
+      const resolvedName =
+        newMediaForm.name.trim() ||
+        (isYt ? `${activeProjectDetail.name} — YouTube Tanıtım Videosu` : "Yeni Medya");
+      const finalType = inferMediaType(
+        resolvedName,
+        finalCategory,
+        newMediaForm.media_role,
+        trimmedUrl
+      );
+      try {
+        const res = await fetch(`/api/developer-projects/projects/${activeProjectDetail.id}/media`, {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            name: resolvedName,
+            type: finalType,
+            category: isYt && finalCategory === "Teknik & Mimari Planlar" ? "Sosyal Medya & Tanıtım Videoları" : finalCategory,
+            url: trimmedUrl || activeProjectDetail.cover_image,
+            unit_type_match: newMediaForm.unit_type_match,
+            media_role: isYt ? "video" : newMediaForm.media_role,
+            conflictMode: duplicateConflictMode,
+            store_id: sid
+          })
+        });
+        if (res.ok) {
+          const updatedProj = await res.json();
+          setProjects((prev) => prev.map((p) => (p.id === updatedProj.id ? updatedProj : p)));
+          setActiveProjectDetail(updatedProj);
+          setIsAddMediaOpen(false);
+          setIsCustomFolderMode(false);
+          setCustomFolderName("");
+          setNewMediaForm((prev) => ({ ...prev, name: "", url: "" }));
+          if (updatedProj.resolutionAction === "overwritten") {
+            toast.success("Aynı isimli eski dosyanın üzerine yazılarak güncellendi.");
+          } else if (updatedProj.resolutionAction === "versioned") {
+            toast.success("Eski dosya korundu ve yeni versiyon olarak kaydedildi.");
+          } else {
+            toast.success(
+              isYt
+                ? "YouTube videosu projeye eklendi; web vitrininde ve paydaş paylaşımında aktif."
+                : "Medya / teknik çizim eşleştirilerek projeye eklendi."
+            );
+          }
+        }
+      } catch {
+        toast.error("Dosya eklenemedi.");
+      }
+      return;
     }
   };
 
   const openUploadForTarget = (
     targetMatch: string,
-    role: "photo" | "video" | "floorplan" | "document",
+    role: MediaRoleType,
     defaultCategory?: string
   ) => {
     const resolvedCategory =
       defaultCategory ||
-      (targetMatch === "COMMON_AREAS" || targetMatch === "__COMMON_AREA__"
+      (role === "video"
+        ? "Sosyal Medya & Tanıtım Videoları"
+        : role === "masterplan"
+        ? "Masterplan & Kat Planları"
+        : role === "lifestyle" || targetMatch === "COMMON_AREAS" || targetMatch === "__COMMON_AREA__"
         ? "Ortak Alanlar & Sosyal Tesisler"
         : role === "floorplan"
         ? "Teknik & Mimari Planlar"
-        : "Render & Görseller");
+        : "4K Görsel & Render Paketi");
+    setPendingBatchFiles([]);
     setNewMediaForm({
       name: "",
-      type: role === "video" ? "video" : role === "photo" ? "photos" : "masterplan",
+      type: role === "video" ? "video" : role === "floorplan" ? "masterplan" : "photos",
       category: resolvedCategory,
       url: "",
       unit_type_match: targetMatch === "COMMON_AREAS" ? "__COMMON_AREA__" : targetMatch,
@@ -639,6 +919,12 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
     ).trim();
     if (!effectiveUrl) {
       toast.error("İndirilecek dosya bağlantısı bulunamadı.");
+      return;
+    }
+    if (!isDownloadableAssetUrl(effectiveUrl)) {
+      toast.info(
+        "YouTube ve klasör bağlantıları yerel bilgisayara indirilemez; önizlemeden izleyebilir veya paydaşlarla link olarak paylaşabilirsiniz."
+      );
       return;
     }
     let safeFileName = String(rawFileName || "proje-dosyasi.jpg")
@@ -685,18 +971,29 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
 
   const handleBulkDownloadMedia = async (items: any[]) => {
     if (!Array.isArray(items) || items.length === 0) {
-      toast.error("Lütfen indirilecek en az bir görsel seçin.");
+      toast.error("Lütfen indirilecek en az bir dosya seçin.");
       return;
     }
-    toast.info(`${items.length} adet görsel sırayla yerel dosyalara indiriliyor...`);
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
+    const downloadable = items.filter((item) =>
+      isDownloadableAssetUrl(item?.url || activeProjectDetail?.cover_image)
+    );
+    if (downloadable.length === 0) {
+      toast.info("Seçili medyalar YouTube veya harici link olduğu için indirilemez; paydaş paylaşım butonlarını kullanabilirsiniz.");
+      return;
+    }
+    if (downloadable.length < items.length) {
+      toast.info(`${items.length - downloadable.length} adet YouTube/link atlandı, ${downloadable.length} indirilebilir dosya indiriliyor...`);
+    } else {
+      toast.info(`${downloadable.length} adet dosya sırayla yerel dosyalara indiriliyor...`);
+    }
+    for (let i = 0; i < downloadable.length; i++) {
+      const item = downloadable[i];
       await handleDirectLocalDownload(
         item.url || activeProjectDetail?.cover_image,
         item.name || `gorsel-${i + 1}.jpg`,
         activeProjectDetail?.cover_image
       );
-      if (i < items.length - 1) await new Promise((r) => setTimeout(r, 250));
+      if (i < downloadable.length - 1) await new Promise((r) => setTimeout(r, 250));
     }
   };
 
@@ -1254,11 +1551,19 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
       m.unit_type_match === "ALL" ||
       m.unit_type_match === "__COMMON_AREA__" ||
       m.unit_type_match === "COMMON_AREAS";
+    const isPhotoLikeRole = (role?: string) =>
+      role === "photo" ||
+      role === "exterior" ||
+      role === "interior" ||
+      role === "lifestyle" ||
+      role === "masterplan";
+
     const generalPhotos = vault.filter(
       (m) =>
         isSharedOrDefaultMedia(m) &&
+        !isYouTubeUrl(m.url) &&
         (m.type === "photos" ||
-          m.media_role === "photo" ||
+          isPhotoLikeRole(m.media_role) ||
           String(m.category || "").toLowerCase().includes("görsel"))
     );
     const generalVideos = vault.filter(
@@ -1266,6 +1571,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
         isSharedOrDefaultMedia(m) &&
         (m.type === "video" ||
           m.media_role === "video" ||
+          isYouTubeUrl(m.url) ||
           String(m.category || "").toLowerCase().includes("video"))
     );
     const generalFloorplans = vault.filter(
@@ -1293,12 +1599,13 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
         const exactPhotos = vault.filter(
           (m) =>
             String(m.unit_type_match || "").toLowerCase() === ut.toLowerCase() &&
-            (m.media_role === "photo" || m.type === "photos")
+            !isYouTubeUrl(m.url) &&
+            (isPhotoLikeRole(m.media_role) || m.type === "photos")
         );
         const exactVideos = vault.filter(
           (m) =>
             String(m.unit_type_match || "").toLowerCase() === ut.toLowerCase() &&
-            (m.media_role === "video" || m.type === "video")
+            (m.media_role === "video" || m.type === "video" || isYouTubeUrl(m.url))
         );
         const exactFloorplans = vault.filter(
           (m) =>
@@ -1501,6 +1808,27 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
     }
   };
 
+  const handleShareMediaAsset = (item: any, mode: "copy" | "whatsapp") => {
+    const rawUrl = String(item?.url || item?.cover || "").trim();
+    if (!rawUrl) {
+      toast.error("Paylaşılacak medya linki bulunamadı.");
+      return;
+    }
+    const shareUrl =
+      rawUrl.startsWith("/") && typeof window !== "undefined"
+        ? `${window.location.origin}${rawUrl}`
+        : rawUrl;
+    const projName = item?.projectName || activeProjectDetail?.name || companyDisplayName;
+    const assetName = item?.rawName || item?.name || "Proje Medyası";
+    if (mode === "whatsapp") {
+      const msg = `*${companyDisplayName} — ${projName}*\n${assetName}\n${shareUrl}`;
+      window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
+    } else {
+      navigator.clipboard.writeText(shareUrl);
+      toast.success(`"${assetName}" paydaş linki panoya kopyalandı.`);
+    }
+  };
+
   const handlePrintSheet = (project: any) =>
     printProjectSheet(project, companyDisplayName, activeCompany);
 
@@ -1509,6 +1837,8 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
       titleLabel={titleLabel}
       projectForm={projectForm}
       setProjectForm={setProjectForm}
+      uploadingCover={uploadingCoverImage}
+      onUploadCoverFile={handleUploadProjectCoverFile}
       onSubmit={handleSaveProject}
       onClose={() => {
         setIsProjectFormOpen(false);
@@ -1519,11 +1849,18 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
 
   const renderUnitRevisionForm = () => (
     <DeveloperUnitRevisionForm
+      project={activeProjectDetail}
       revisingUnit={revisingUnit}
       setRevisingUnit={setRevisingUnit}
       activePropertyTypeKey={activePropertyTypeKey}
       availableBlocks={availableBlocks}
       savingUnitRevision={savingUnitRevision}
+      uploadingMedia={uploadingSectionMedia}
+      onBatchUploadSectionMedia={handleBatchUploadSectionMedia}
+      onBatchAddUrlsSectionMedia={handleBatchAddUrlsSectionMedia}
+      onDeleteMedia={handleDeleteMediaFromProject}
+      onDirectDownload={handleDirectLocalDownload}
+      onPreviewAsset={setPreviewAsset}
       onSubmit={handleSaveUnitRevision}
       onDeleteUnit={handleDeleteUnit}
     />
@@ -1774,6 +2111,12 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
           setDuplicateConflictMode={setDuplicateConflictMode}
           onAddMediaToProject={handleAddMediaToProject}
           onOpenUploadForTarget={openUploadForTarget}
+          uploadingSectionMedia={uploadingSectionMedia}
+          pendingBatchFiles={pendingBatchFiles}
+          setPendingBatchFiles={setPendingBatchFiles}
+          onBatchUploadSectionMedia={handleBatchUploadSectionMedia}
+          onBatchAddUrlsSectionMedia={handleBatchAddUrlsSectionMedia}
+          onSetProjectCoverImage={handleSetProjectCoverImage}
           projectPropertyTypes={projectPropertyTypes}
           selectedProjectUnits={selectedProjectUnits}
           selectedProjectCommonAreaMedia={selectedProjectCommonAreaMedia}
@@ -1793,6 +2136,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
           renderUnitRevisionForm={renderUnitRevisionForm}
           onSharePropertyTypePackage={handleSharePropertyTypePackage}
           onShareCommonAreasPackage={handleShareCommonAreasPackage}
+          onShareMediaAsset={handleShareMediaAsset}
           onDeleteUnit={handleDeleteUnit}
           onDeleteUnitGroup={handleDeleteUnitGroup}
           selectedPhotoIds={selectedPhotoIds}
@@ -1931,6 +2275,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
         downloadingMedia={downloadingMedia}
         onDeleteMediaFromProject={handleDeleteMediaFromProject}
         onDirectLocalDownload={handleDirectLocalDownload}
+        onShareMediaAsset={handleShareMediaAsset}
       />
     </div>
   );

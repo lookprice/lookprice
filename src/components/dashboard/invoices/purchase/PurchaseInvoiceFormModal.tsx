@@ -64,6 +64,8 @@ interface PurchaseInvoiceFormModalProps {
   branding: any;
   onQuickCariAdd?: (searchStr: string) => void;
   onEditProduct?: (item: any) => void;
+  expenseCenters?: { id?: number; key: string; name: string }[];
+  onAddExpenseCenter?: (name: string) => Promise<{ id?: number; key: string; name: string } | null>;
 }
 
 export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> = ({
@@ -113,9 +115,40 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
   totals,
   branding,
   onQuickCariAdd,
-  onEditProduct
+  onEditProduct,
+  expenseCenters = [],
+  onAddExpenseCenter
 }) => {
   const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
+  const [addingCenter, setAddingCenter] = React.useState(false);
+  const [newCenterName, setNewCenterName] = React.useState('');
+  const [savingCenter, setSavingCenter] = React.useState(false);
+
+  const effectiveCenters = expenseCenters.length > 0 ? expenseCenters : [
+    { key: 'showroom', name: 'Showroom' },
+    { key: 'service', name: 'Servis / Atölye' },
+    { key: 'office', name: 'Ofis / İdari' },
+    { key: 'marketing', name: 'Pazarlama / Reklam' },
+    { key: 'personnel', name: 'Personel' },
+    { key: 'other', name: 'Diğer' },
+  ];
+
+  const hasCurrentCenter = !expenseCenter || effectiveCenters.some((c) => c.key === expenseCenter);
+
+  const handleSaveNewCenter = async () => {
+    if (!newCenterName.trim() || !onAddExpenseCenter) return;
+    setSavingCenter(true);
+    try {
+      const created = await onAddExpenseCenter(newCenterName.trim());
+      if (created?.key) {
+        setExpenseCenter(created.key);
+        setAddingCenter(false);
+        setNewCenterName('');
+      }
+    } finally {
+      setSavingCenter(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -248,21 +281,58 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                 </div>
 
                 {isExpense && (
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-medium text-amber-500 uppercase tracking-widest px-2">{isTr ? 'Gider Yeri' : 'Expense Center'}</label>
+                  <div className="space-y-2 sm:col-span-2">
+                    <div className="flex items-center justify-between px-2">
+                      <label className="text-[10px] font-medium text-amber-600 uppercase tracking-widest">{isTr ? 'Gider Yeri' : 'Expense Center'}</label>
+                      {onAddExpenseCenter && !addingCenter && (
+                        <button
+                          type="button"
+                          onClick={() => setAddingCenter(true)}
+                          className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 cursor-pointer"
+                        >
+                          + {isTr ? 'Yeni Gider Yeri' : 'Add Center'}
+                        </button>
+                      )}
+                    </div>
                     <select
                       value={expenseCenter}
                       onChange={(e) => setExpenseCenter(e.target.value)}
-                      className="w-full px-4 py-3.5 bg-white border-2 border-slate-100 rounded-2xl focus:border-amber-500 transition-all font-medium text-slate-700"
+                      className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-2xl focus:border-amber-500 transition-all font-medium text-slate-700 text-sm"
                     >
                       <option value="">{isTr ? "Gider Yeri Seçin" : "Select Center"}</option>
-                      <option value="showroom">Showroom</option>
-                      <option value="service">Servis / Atölye</option>
-                      <option value="office">Ofis / İdari</option>
-                      <option value="marketing">Pazarlama / Reklam</option>
-                      <option value="personnel">Personel</option>
-                      <option value="other">Diğer</option>
+                      {!hasCurrentCenter && (
+                        <option value={expenseCenter}>{expenseCenter}</option>
+                      )}
+                      {effectiveCenters.map((c) => (
+                        <option key={c.key} value={c.key}>{c.name}</option>
+                      ))}
                     </select>
+                    {addingCenter && (
+                      <div className="flex items-center gap-2 pt-1">
+                        <input
+                          type="text"
+                          value={newCenterName}
+                          onChange={(e) => setNewCenterName(e.target.value)}
+                          placeholder={isTr ? 'Örn: Kargo, Depo Kira...' : 'New center name...'}
+                          className="flex-1 px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-slate-800"
+                        />
+                        <button
+                          type="button"
+                          disabled={savingCenter || !newCenterName.trim()}
+                          onClick={handleSaveNewCenter}
+                          className="px-3 py-1.5 text-xs font-medium bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:opacity-50"
+                        >
+                          {savingCenter ? '...' : (isTr ? 'Ekle' : 'Add')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setAddingCenter(false); setNewCenterName(''); }}
+                          className="px-2 py-1.5 text-xs text-slate-500 hover:text-slate-700"
+                        >
+                          {isTr ? 'İptal' : 'Cancel'}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
              </div>
@@ -277,15 +347,15 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                     <select
                       value={expenseCenter}
                       onChange={(e) => setExpenseCenter(e.target.value)}
-                      className="text-xs font-medium px-2 py-1 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg outline-none"
+                      className="text-xs font-medium px-2 py-1 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg outline-none"
                     >
                       <option value="">{isTr ? "Gider Yeri Seçin" : "Select Expense Center"}</option>
-                      <option value="showroom">Showroom</option>
-                      <option value="service">Servis / Atölye</option>
-                      <option value="office">Ofis / İdari</option>
-                      <option value="marketing">Pazarlama / Reklam</option>
-                      <option value="personnel">Personel</option>
-                      <option value="other">Diğer</option>
+                      {!hasCurrentCenter && (
+                        <option value={expenseCenter}>{expenseCenter}</option>
+                      )}
+                      {effectiveCenters.map((c) => (
+                        <option key={c.key} value={c.key}>{c.name}</option>
+                      ))}
                     </select>
                   </div>
                 )}

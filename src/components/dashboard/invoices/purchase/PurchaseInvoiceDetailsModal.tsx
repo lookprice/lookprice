@@ -18,12 +18,16 @@ import {
   Edit3,
   Link2,
   Unlink,
-  Search
+  Search,
+  Sparkles,
+  Tag,
+  Check
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
 import { api } from '../../../../services/api';
 import { formatDateTR } from '../../../../utils/formatUtils';
+import type { ExpenseCenterOption } from './PurchaseInvoiceApprovalModal';
 
 interface PurchaseInvoiceDetailsModalProps {
   isOpen: boolean;
@@ -37,6 +41,8 @@ interface PurchaseInvoiceDetailsModalProps {
   onRefresh?: () => void;
   storeId?: number;
   products?: any[];
+  onOpenApproval?: (inv: any) => void;
+  expenseCenters?: ExpenseCenterOption[];
 }
 
 export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalProps> = ({
@@ -50,13 +56,39 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
   handleConvertToExpense,
   onRefresh,
   storeId,
-  products = []
+  products = [],
+  onOpenApproval,
+  expenseCenters = []
 }) => {
   const [syncing, setSyncing] = useState(false);
   const [matchingItemId, setMatchingItemId] = useState<number | null>(null);
   const [matchSearch, setMatchSearch] = useState<string>("");
   const [isUpdatingMatch, setIsUpdatingMatch] = useState<boolean>(false);
+  const [reservingItemId, setReservingItemId] = useState<number | null>(null);
+  const [reserveQtyInput, setReserveQtyInput] = useState<string>("");
+  const [reserveForInput, setReserveForInput] = useState<string>("");
+  const [isSavingReserve, setIsSavingReserve] = useState<boolean>(false);
   if (!isOpen || !invoice) return null;
+
+  const resolveExpenseCenterLabel = (key?: string | null) => {
+    if (!key) return '';
+    const found = expenseCenters.find((c) => c.key === key);
+    return found ? found.name : key;
+  };
+
+  const handleSaveReserve = async (itemId: number, qtyNum: number, reservedForStr: string) => {
+    setIsSavingReserve(true);
+    try {
+      await api.updatePurchaseItemReserve(invoice.id, itemId, qtyNum, reservedForStr, storeId);
+      toast.success(qtyNum > 0 ? (isTr ? 'Rezerve güncellendi.' : 'Reserve updated.') : (isTr ? 'Rezerve kaldırıldı.' : 'Reserve cleared.'));
+      setReservingItemId(null);
+      if (onRefresh) onRefresh();
+    } catch (err: any) {
+      toast.error(err?.message || (isTr ? 'Rezerve güncellenemedi.' : 'Failed to update reserve.'));
+    } finally {
+      setIsSavingReserve(false);
+    }
+  };
 
   const handleMatchProduct = async (itemId: number, targetProductId: number | null) => {
     setIsUpdatingMatch(true);
@@ -111,6 +143,12 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
                 <Info className="h-5 w-5 text-indigo-600" />
                 {isTr ? "Fatura Detayları" : "Invoice Details"}
               </h3>
+              {invoice.operator_status === 'pending' && (
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500 text-white border border-amber-600 flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  {isTr ? "ONAY BEKLİYOR" : "NEEDS APPROVAL"}
+                </span>
+              )}
               {invoice.is_expense ? (
                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
                   💼 {isTr ? `GİDER (${invoice.expense_category || 'DİĞER'})` : `EXPENSE (${invoice.expense_category || 'OTHER'})`}
@@ -125,8 +163,27 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
               {invoice.invoice_number}
             </p>
           </div>
-          <div className="flex items-center gap-2">
-             {invoice.is_expense && handleConvertToStock && (
+          <div className="flex items-center gap-2 flex-wrap">
+             {onOpenApproval && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenApproval(invoice);
+                  }}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer ${
+                    invoice.operator_status === 'pending'
+                      ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                      : 'bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100'
+                  }`}
+                >
+                  <Sparkles className="h-4 w-4" />
+                  {invoice.operator_status === 'pending'
+                    ? (isTr ? "İNCELE & ONAYLA" : "REVIEW & APPROVE")
+                    : (isTr ? "EŞLEŞTİRME / REZERVE" : "MATCHING / RESERVE")}
+                </button>
+             )}
+             {invoice.is_expense && handleConvertToStock && invoice.operator_status !== 'pending' && (
                 <button
                   onClick={() => handleConvertToStock(invoice.id)}
                   className="px-3.5 py-2 bg-emerald-600 text-white rounded-xl text-xs font-medium hover:bg-emerald-700 transition-all flex items-center gap-1.5 shadow-sm"
@@ -136,7 +193,7 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
                   {isTr ? "STOKLU ALIMA DÖNÜŞTÜR" : "CONVERT TO STOCK"}
                 </button>
              )}
-             {!invoice.is_expense && handleConvertToExpense && (
+             {!invoice.is_expense && handleConvertToExpense && invoice.operator_status !== 'pending' && (
                 <button
                   onClick={() => handleConvertToExpense(invoice.id)}
                   className="px-3.5 py-2 bg-amber-600 text-white rounded-xl text-xs font-medium hover:bg-amber-700 transition-all flex items-center gap-1.5 shadow-sm"
@@ -146,7 +203,7 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
                   {isTr ? "GİDER FATURASINA DÖNÜŞTÜR" : "CONVERT TO EXPENSE"}
                 </button>
              )}
-             {invoice.ettn && (
+             {invoice.ettn && invoice.operator_status !== 'pending' && (
                 <button
                   onClick={handleReSync}
                   disabled={syncing}
@@ -207,7 +264,7 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
                        <label className="text-[10px] font-medium text-amber-500 uppercase tracking-widest mb-1 block">{isTr ? "GİDER YERİ" : "EXPENSE CENTER"}</label>
                        <p className="text-sm font-medium text-amber-700 flex items-center gap-2 uppercase">
                           <CheckCircle2 className="h-4 w-4" />
-                          {invoice.expense_center}
+                          {resolveExpenseCenterLabel(invoice.expense_center)}
                        </p>
                     </div>
                  )}
@@ -354,8 +411,16 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
                                             </button>
                                           </div>
                                         ) : (
-                                          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-medium">
+                                          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-medium flex-wrap">
                                             <span>{isTr ? 'Envanterde Eşleşen Ürün Yok' : 'Unmatched in Inventory'}</span>
+                                            {(item.suggested_product_name || item.suggested_product_id) && (
+                                              <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 text-[9px] font-semibold">
+                                                {isTr ? 'Önerilen:' : 'Suggested:'} {item.suggested_product_name || `#${item.suggested_product_id}`}
+                                              </span>
+                                            )}
+                                            {item.match_note && (
+                                              <span className="text-[9px] text-slate-600 italic">({item.match_note})</span>
+                                            )}
                                             <button
                                               type="button"
                                               onClick={() => {
@@ -373,6 +438,89 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
                                             </button>
                                           </div>
                                         )}
+
+                                        {Number(item.reserved_quantity || 0) > 0 && (
+                                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-100 border border-amber-300 text-amber-900 text-[10px] font-semibold">
+                                            <Tag className="w-2.5 h-2.5" />
+                                            {isTr ? `Rezerve: ${Number(item.reserved_quantity)}` : `Reserved: ${Number(item.reserved_quantity)}`}
+                                            {item.reserved_for ? ` • ${isTr ? 'Kime:' : 'For:'} ${item.reserved_for}` : ''}
+                                          </span>
+                                        )}
+
+                                        {item.id && (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              if (reservingItemId === item.id) {
+                                                setReservingItemId(null);
+                                              } else {
+                                                setReservingItemId(item.id);
+                                                setReserveQtyInput(String(Number(item.reserved_quantity || 0) > 0 ? Number(item.reserved_quantity) : Number(item.quantity || 1)));
+                                                setReserveForInput(item.reserved_for || '');
+                                              }
+                                            }}
+                                            className={`px-2 py-0.5 rounded-md text-[10px] font-medium border transition-colors inline-flex items-center gap-1 cursor-pointer ${
+                                              reservingItemId === item.id || Number(item.reserved_quantity || 0) > 0
+                                                ? 'bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100'
+                                                : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-amber-50 hover:text-amber-700'
+                                            }`}
+                                          >
+                                            <Tag className="w-2.5 h-2.5" />
+                                            {isTr ? 'Rezerve' : 'Reserve'}
+                                          </button>
+                                        )}
+                                      </div>
+                                    )}
+
+                                    {reservingItemId === item.id && (
+                                      <div className="mt-1 p-2 bg-amber-50 border border-amber-200 rounded-xl flex flex-wrap items-center gap-2 max-w-xl">
+                                        <div className="flex items-center gap-1">
+                                          <span className="text-[10px] font-semibold text-amber-900">{isTr ? 'Miktar:' : 'Qty:'}</span>
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            max={Number(item.quantity || 999999)}
+                                            value={reserveQtyInput}
+                                            onChange={(e) => setReserveQtyInput(e.target.value)}
+                                            className="w-20 px-2 py-1 text-xs bg-white border border-amber-300 rounded-lg text-slate-900 font-medium outline-none"
+                                          />
+                                        </div>
+                                        <div className="flex items-center gap-1 flex-1 min-w-[160px]">
+                                          <span className="text-[10px] font-semibold text-amber-900">{isTr ? 'Kime?' : 'For?'}</span>
+                                          <input
+                                            type="text"
+                                            value={reserveForInput}
+                                            onChange={(e) => setReserveForInput(e.target.value)}
+                                            placeholder={isTr ? 'Müşteri / firma adı...' : 'Customer name...'}
+                                            className="flex-1 px-2 py-1 text-xs bg-white border border-amber-300 rounded-lg text-slate-900 outline-none"
+                                          />
+                                        </div>
+                                        <button
+                                          type="button"
+                                          disabled={isSavingReserve}
+                                          onClick={() => handleSaveReserve(item.id, Number(reserveQtyInput) || 0, reserveForInput)}
+                                          className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[10px] font-semibold inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                                        >
+                                          <Check className="w-3 h-3" />
+                                          {isTr ? 'Kaydet' : 'Save'}
+                                        </button>
+                                        {Number(item.reserved_quantity || 0) > 0 && (
+                                          <button
+                                            type="button"
+                                            disabled={isSavingReserve}
+                                            onClick={() => handleSaveReserve(item.id, 0, '')}
+                                            className="px-2 py-1 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 rounded-lg text-[10px] font-medium cursor-pointer"
+                                          >
+                                            {isTr ? 'Kaldır' : 'Clear'}
+                                          </button>
+                                        )}
+                                        <button
+                                          type="button"
+                                          onClick={() => setReservingItemId(null)}
+                                          className="px-1.5 py-1 text-[10px] text-slate-500 hover:text-slate-800"
+                                        >
+                                          ✕
+                                        </button>
                                       </div>
                                     )}
 

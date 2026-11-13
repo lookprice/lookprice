@@ -101,15 +101,167 @@ export function formatGbp(val: number | string): string {
   return `£${new Intl.NumberFormat("tr-TR").format(n)}`;
 }
 
-export function inferMediaType(fileName: string, folderCategory: string, mediaRole?: string) {
-  if (mediaRole === "video") return "video";
-  if (mediaRole === "photo") return "photos";
-  if (mediaRole === "floorplan") return "masterplan";
+export type ShowcaseSectionRole =
+  | "exterior"
+  | "interior"
+  | "floorplan"
+  | "lifestyle"
+  | "masterplan";
+
+export type MediaRoleType =
+  | ShowcaseSectionRole
+  | "photo"
+  | "video"
+  | "document";
+
+export const UNIT_SHOWCASE_SECTIONS: Array<{
+  role: "exterior" | "interior" | "floorplan" | "lifestyle";
+  label: string;
+  shortDesc: string;
+  defaultCategory: string;
+}> = [
+  {
+    role: "exterior",
+    label: "Dış Cephe",
+    shortDesc: "Dış cephe, blok silüeti & çevre mimarisi",
+    defaultCategory: "4K Görsel & Render Paketi"
+  },
+  {
+    role: "interior",
+    label: "İç Mekan",
+    shortDesc: "Salon, mutfak, yatak odası & teras görünümü",
+    defaultCategory: "4K Görsel & Render Paketi"
+  },
+  {
+    role: "floorplan",
+    label: "3B Kat Planı",
+    shortDesc: "3B izometrik kat kesiti & yerleşim planı",
+    defaultCategory: "Masterplan & Kat Planları"
+  },
+  {
+    role: "lifestyle",
+    label: "Sahil & Havuz",
+    shortDesc: "Lagün havuz, özel plaj & sosyal yaşam alanı",
+    defaultCategory: "Ortak Alanlar & Sosyal Tesisler"
+  }
+];
+
+export function extractYouTubeVideoId(url?: string): string | null {
+  const raw = String(url || "").trim();
+  if (!raw) return null;
+  try {
+    const withProto = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+    const parsed = new URL(withProto);
+    const host = parsed.hostname.toLowerCase().replace(/^www\./, "");
+    if (host === "youtu.be") {
+      const seg = parsed.pathname.split("/").filter(Boolean)[0];
+      return seg && /^[a-zA-Z0-9_-]{6,20}$/.test(seg) ? seg : null;
+    }
+    if (host === "youtube.com" || host === "m.youtube.com" || host === "music.youtube.com" || host === "youtube-nocookie.com") {
+      const vParam = parsed.searchParams.get("v");
+      if (vParam && /^[a-zA-Z0-9_-]{6,20}$/.test(vParam)) return vParam;
+      const parts = parsed.pathname.split("/").filter(Boolean);
+      if (parts.length >= 2 && ["embed", "shorts", "live", "v"].includes(parts[0])) {
+        return /^[a-zA-Z0-9_-]{6,20}$/.test(parts[1]) ? parts[1] : null;
+      }
+    }
+  } catch {
+    const match = raw.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([a-zA-Z0-9_-]{6,20})/i);
+    if (match && match[1]) return match[1];
+  }
+  return null;
+}
+
+export function isYouTubeUrl(url?: string): boolean {
+  return Boolean(extractYouTubeVideoId(url));
+}
+
+export function getYouTubeEmbedUrl(url?: string, autoplay = true): string | null {
+  const videoId = extractYouTubeVideoId(url);
+  if (!videoId) return null;
+  return `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1${autoplay ? "&autoplay=1" : ""}`;
+}
+
+export function getYouTubeThumbnailUrl(url?: string): string | null {
+  const videoId = extractYouTubeVideoId(url);
+  if (!videoId) return null;
+  return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+}
+
+export function getGoogleDrivePreviewUrl(url?: string): string | null {
+  const raw = String(url || "").trim();
+  if (!raw || !raw.toLowerCase().includes("drive.google.com")) return null;
+  if (raw.toLowerCase().includes("/drive/folders/")) return null;
+  const match = raw.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || raw.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (match && match[1]) {
+    return `https://drive.google.com/file/d/${match[1]}/preview`;
+  }
+  return null;
+}
+
+export function isDirectVideoFileUrl(url?: string): boolean {
+  const raw = String(url || "").trim().toLowerCase();
+  if (!raw || isYouTubeUrl(raw)) return false;
+  return /\.(mp4|mov|webm|mkv|m4v)(\?|$)/i.test(raw);
+}
+
+export function isDownloadableAssetUrl(url?: string): boolean {
+  const raw = String(url || "").trim();
+  if (!raw) return false;
+  if (isYouTubeUrl(raw)) return false;
+  const lower = raw.toLowerCase();
+  if (lower.includes("drive.google.com/drive/folders/")) return false;
+  if (lower.includes("vimeo.com/")) return false;
+  return true;
+}
+
+export function isRenderableImageUrl(itemUrl?: string): boolean {
+  const raw = String(itemUrl || "").trim();
+  if (!raw) return false;
+  if (isYouTubeUrl(raw)) return false;
+  const lower = raw.toLowerCase();
+  if (lower.includes("drive.google.com/drive/folders/")) return false;
+  if (lower.match(/\.(mp4|mov|webm|avi|mkv|pdf|dwg|xlsx|xls|doc|docx|zip)(\?|$)/i)) return false;
+  return (
+    raw.startsWith("/api/storage/") ||
+    raw.startsWith("/uploads/") ||
+    raw.startsWith("/assets/") ||
+    raw.startsWith("data:image/") ||
+    raw.startsWith("http://") ||
+    raw.startsWith("https://")
+  );
+}
+
+export function inferMediaType(
+  fileName: string,
+  folderCategory: string,
+  mediaRole?: string,
+  itemUrl?: string
+) {
+  if (mediaRole === "video" || isYouTubeUrl(itemUrl) || isYouTubeUrl(fileName)) return "video";
+  if (
+    mediaRole === "photo" ||
+    mediaRole === "exterior" ||
+    mediaRole === "interior" ||
+    mediaRole === "lifestyle" ||
+    mediaRole === "masterplan"
+  ) {
+    const lowerCheck = fileName.toLowerCase();
+    if (lowerCheck.endsWith(".pdf") || lowerCheck.endsWith(".dwg")) return "masterplan";
+    return "photos";
+  }
+  if (mediaRole === "floorplan") {
+    const lowerCheck = fileName.toLowerCase();
+    if (lowerCheck.match(/\.(jpg|jpeg|png|webp)$/)) return "photos";
+    return "masterplan";
+  }
   const lower = fileName.toLowerCase();
+  const lowerUrl = String(itemUrl || "").toLowerCase();
   if (
     lower.endsWith(".mp4") ||
     lower.endsWith(".mov") ||
     lower.endsWith(".webm") ||
+    lowerUrl.match(/\.(mp4|mov|webm)(\?|$)/i) ||
     folderCategory.toLowerCase().includes("video")
   ) {
     return "video";
@@ -137,16 +289,27 @@ export function resolveDisplayImageUrl(itemUrl?: string, fallbackCover?: string)
   const raw = String(itemUrl || "").trim();
   const fallback = fallbackCover || "";
   if (!raw) return fallback;
-  if (raw.startsWith("/api/storage/") || raw.startsWith("/uploads/") || raw.startsWith("data:image/")) {
-    return raw;
-  }
-  if (raw.includes("drive.google.com/drive/folders/")) {
+  const ytThumb = getYouTubeThumbnailUrl(raw);
+  if (ytThumb) return ytThumb;
+  const lower = raw.toLowerCase();
+  if (
+    lower.includes("drive.google.com/drive/folders/") ||
+    lower.match(/\.(mp4|mov|webm|pdf|dwg|xlsx|xls|doc|docx|zip)(\?|$)/i)
+  ) {
     return fallback;
+  }
+  if (
+    raw.startsWith("/api/storage/") ||
+    raw.startsWith("/uploads/") ||
+    raw.startsWith("/assets/") ||
+    raw.startsWith("data:image/")
+  ) {
+    return raw;
   }
   const driveMatch =
     raw.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || raw.match(/[?&]id=([a-zA-Z0-9_-]+)/);
   if (driveMatch && driveMatch[1]) {
-    return `https://drive.google.com/thumbnail?id=${driveMatch[1]}&sz=w1200`;
+    return `https://drive.google.com/thumbnail?id=${driveMatch[1]}&sz=w1400`;
   }
   if (raw.startsWith("http://") || raw.startsWith("https://")) {
     return raw;

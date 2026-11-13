@@ -6,7 +6,11 @@ import {
   Calculator,
   Calendar,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Compass,
+  Copy,
+  ExternalLink,
   Eye,
   FileText,
   Image as ImageIcon,
@@ -15,6 +19,7 @@ import {
   MessageCircle,
   Play,
   Printer,
+  Share2,
   ShieldCheck,
   X
 } from "lucide-react";
@@ -26,6 +31,15 @@ import {
   resolveArchitecturalAssetUrl,
   sanitizeArchitecturalGalleryRecord
 } from "./developer/UiverseAndLoraWebStudio";
+import {
+  getGoogleDrivePreviewUrl,
+  getYouTubeEmbedUrl,
+  getYouTubeThumbnailUrl,
+  isDirectVideoFileUrl,
+  isRenderableImageUrl,
+  isYouTubeUrl,
+  resolveDisplayImageUrl
+} from "./developer/developerProjectUtils";
 import resortHeroSunlitAsset from "../assets/images/cyprus_sunlit_resort_hero_1794578840052.jpg";
 import marinaLifestyleAsset from "../assets/images/cyprus_marina_lifestyle_1794578840217.jpg";
 import penthouseInteriorSunlitAsset from "../assets/images/cyprus_penthouse_interior_1794578840887.jpg";
@@ -219,6 +233,9 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
   const [selectedUnitVisualTab, setSelectedUnitVisualTab] = useState<
     "exterior" | "interior" | "floorplan" | "lifestyle"
   >("exterior");
+  const [masterplanSlideIndex, setMasterplanSlideIndex] = useState<number>(0);
+  const [selectedUnitVisualIndex, setSelectedUnitVisualIndex] = useState<number>(0);
+  const [modalGalleryIndex, setModalGalleryIndex] = useState<number>(0);
   const [unitTypeFilter, setUnitTypeFilter] = useState<string>("all");
   const [unitStatusFilter, setUnitStatusFilter] = useState<string>("all");
   const [displayCurrency, setDisplayCurrency] = useState<DisplayCurrency>("GBP");
@@ -382,6 +399,59 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
     return cycle[idx % cycle.length];
   };
 
+  const LEGACY_MALDIVES_LOGO_ID = "1BByvpSoIl22UNb4De-Dgna5RyN01_TbD";
+
+  const sanitizeProjectVisualUrl = (rawUrl?: string): string => {
+    const raw = String(rawUrl || "").trim();
+    if (!raw || raw.includes(LEGACY_MALDIVES_LOGO_ID) || !isRenderableImageUrl(raw)) return "";
+    return resolveDisplayImageUrl(raw, "");
+  };
+
+  const getMasterplanGalleryForProject = (proj: any, idx: number = 0) => {
+    const items: Array<{ title: string; url: string }> = [];
+    const seen = new Set<string>();
+    const addUnique = (title: string, rawUrl?: string) => {
+      const clean = sanitizeProjectVisualUrl(rawUrl);
+      if (!clean || seen.has(clean)) return;
+      seen.add(clean);
+      items.push({ title, url: clean });
+    };
+
+    if (proj?.cover_image) {
+      addUnique(`${proj.name || "Masterplan"} — Ana Masterplan Görünümü`, proj.cover_image);
+    }
+
+    const vault: any[] = Array.isArray(proj?.media_vault) ? proj.media_vault : [];
+    vault.forEach((m) => {
+      const role = String(m?.media_role || "").toLowerCase();
+      const cat = String(m?.category || "").toLowerCase();
+      const name = String(m?.name || "").toLowerCase();
+      if (
+        role === "masterplan" ||
+        (m?.type === "photos" && cat.includes("masterplan")) ||
+        (role === "photo" && name.includes("masterplan"))
+      ) {
+        addUnique(m?.name || `${proj?.name || "Proje"} Masterplan`, m?.url);
+      }
+    });
+
+    if (items.length === 0) {
+      items.push({
+        title: `${proj?.name || "Proje"} — Ana Masterplan Görünümü`,
+        url: getFallbackVisualForProject(idx)
+      });
+    }
+    return items;
+  };
+
+  const activeProjectMasterplanGallery = useMemo(() => {
+    const idx = Math.max(
+      0,
+      projects.findIndex((p) => Number(p.id) === Number(activeProject?.id))
+    );
+    return getMasterplanGalleryForProject(activeProject, idx);
+  }, [activeProject, projects]);
+
   const scrollToElement = (elId: string) => {
     const el = document.getElementById(elId);
     if (el) {
@@ -391,12 +461,14 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
 
   const handleSelectProject = (proj: any, shouldScrollToDossier: boolean = true) => {
     setSelectedProjectId(proj.id);
+    setMasterplanSlideIndex(0);
     setUnitTypeFilter("all");
     setUnitStatusFilter("all");
     const pUnits = units.filter(u => Number(u.project_id) === Number(proj.id));
     const preferredUnit = pUnits.find(u => u.status === "available") || pUnits[0] || null;
     setSelectedUnit(preferredUnit);
     setSelectedUnitVisualTab("exterior");
+    setSelectedUnitVisualIndex(0);
     if (preferredUnit) {
       setSimulatorBudget(Number(preferredUnit.price) || Number(proj.starting_price) || 225000);
     } else if (proj.starting_price) {
@@ -417,6 +489,7 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
   const handleInspectUnit = (u: any, scrollToShowcase: boolean = true) => {
     setSelectedUnit(u);
     setSelectedUnitVisualTab("exterior");
+    setSelectedUnitVisualIndex(0);
     setSimulatorBudget(Number(u.price) || 225000);
     setLeadForm(prev => ({
       ...prev,
@@ -515,32 +588,119 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
     };
   }, [simulatorBudget, customDownPct, customMonths, buyerDeedRate, includeLegalFee, activeProject]);
 
-  // Selected Unit Gallery Visuals (guaranteed high-res sunlit assets, no broken URLs)
+  // Selected Unit Gallery Visuals — dynamically synced with panel media_vault (4 sections)
   const selectedUnitVisuals = useMemo(() => {
-    const projectCover = activeProject?.cover_image || resortHeroSunlitAsset;
-    return {
-      exterior: {
-        title: `${activeProject?.name || "Proje"} — Dış Cephe & Çevre Mimarisi`,
-        url: projectCover,
-        fallback: resortHeroSunlitAsset
-      },
-      interior: {
-        title: `${selectedUnit?.unit_type || "Ünite"} — İç Mekan & Deniz Manzaralı Teras`,
-        url: penthouseInteriorSunlitAsset,
-        fallback: penthouseInteriorSunlitAsset
-      },
-      floorplan: {
-        title: `${selectedUnit?.unit_number || ""} — 3B Ölçekli Kat Kesiti & Yerleşim Planı`,
-        url: isometricFloorplanAsset,
-        fallback: isometricFloorplanAsset
-      },
-      lifestyle: {
-        title: `${activeProject?.sub_region || "Sahil Hattı"} — Özel Beach Club & Marina`,
-        url: marinaLifestyleAsset,
-        fallback: marinaLifestyleAsset
-      }
+    const vault: any[] = Array.isArray(activeProject?.media_vault) ? activeProject.media_vault : [];
+    const normUnitNo = String(selectedUnit?.unit_number || "").trim().toLowerCase();
+    const normUnitType = String(selectedUnit?.unit_type || "").trim().toLowerCase();
+    const isSharedMatch = (m: any) => {
+      const t = String(m?.unit_type_match || "").trim().toLowerCase();
+      return !t || t === "__common_area__" || t === "common_areas" || t === "all";
     };
-  }, [activeProject?.cover_image, activeProject?.name, activeProject?.sub_region, selectedUnit]);
+
+    const resolveSectionGallery = (
+      role: "exterior" | "interior" | "floorplan" | "lifestyle",
+      defaultTitle: string,
+      fallbackImg: string
+    ) => {
+      const results: Array<{ title: string; url: string; isSynced: boolean }> = [];
+      const seen = new Set<string>();
+      const pushUnique = (itemTitle: string, rawUrl?: string, isSynced = true) => {
+        const clean = sanitizeProjectVisualUrl(rawUrl);
+        if (!clean || seen.has(clean)) return;
+        seen.add(clean);
+        results.push({ title: itemTitle, url: clean, isSynced });
+      };
+
+      // Priority 1: Unit-number specific items matching role
+      if (normUnitNo) {
+        vault.forEach((m) => {
+          const mUnitNo = String(m?.unit_number_match || "").trim().toLowerCase();
+          const mRole = String(m?.media_role || "").toLowerCase();
+          if (mUnitNo === normUnitNo && mRole === role) {
+            pushUnique(m?.name || defaultTitle, m?.url, true);
+          }
+        });
+      }
+
+      // Priority 2: Property-type specific items matching role
+      if (normUnitType) {
+        vault.forEach((m) => {
+          const mUnitNo = String(m?.unit_number_match || "").trim().toLowerCase();
+          const mUnitType = String(m?.unit_type_match || "").trim().toLowerCase();
+          const mRole = String(m?.media_role || "").toLowerCase();
+          if (!mUnitNo && mUnitType === normUnitType && mRole === role) {
+            pushUnique(m?.name || defaultTitle, m?.url, true);
+          }
+        });
+
+        // Legacy fallback for exterior if property type has generic "photo" uploads
+        if (role === "exterior" && results.length === 0) {
+          vault.forEach((m) => {
+            const mUnitNo = String(m?.unit_number_match || "").trim().toLowerCase();
+            const mUnitType = String(m?.unit_type_match || "").trim().toLowerCase();
+            const mRole = String(m?.media_role || "").toLowerCase();
+            if (!mUnitNo && mUnitType === normUnitType && (mRole === "photo" || m?.type === "photos")) {
+              pushUnique(m?.name || defaultTitle, m?.url, true);
+            }
+          });
+        }
+      }
+
+      // Priority 3: Shared/Common items matching role (e.g., Sahil & Havuz or Project Masterplan cover for exterior)
+      vault.forEach((m) => {
+        const mUnitNo = String(m?.unit_number_match || "").trim().toLowerCase();
+        const mRole = String(m?.media_role || "").toLowerCase();
+        if (!mUnitNo && isSharedMatch(m) && mRole === role) {
+          pushUnique(m?.name || defaultTitle, m?.url, true);
+        }
+      });
+
+      if (role === "exterior" && results.length === 0) {
+        activeProjectMasterplanGallery.forEach((mp) => {
+          if (sanitizeProjectVisualUrl(mp.url)) {
+            pushUnique(mp.title, mp.url, true);
+          }
+        });
+      }
+
+      const syncedCount = results.length;
+      if (results.length === 0) {
+        results.push({ title: defaultTitle, url: fallbackImg, isSynced: false });
+      }
+
+      return {
+        title: results[0].title,
+        fallback: fallbackImg,
+        items: results,
+        syncedCount
+      };
+    };
+
+    const projectName = activeProject?.name || "Proje";
+    return {
+      exterior: resolveSectionGallery(
+        "exterior",
+        `${projectName} — Dış Cephe & Çevre Mimarisi`,
+        resortHeroSunlitAsset
+      ),
+      interior: resolveSectionGallery(
+        "interior",
+        `${selectedUnit?.unit_type || "Ünite"} — İç Mekan & Deniz Manzaralı Teras`,
+        penthouseInteriorSunlitAsset
+      ),
+      floorplan: resolveSectionGallery(
+        "floorplan",
+        `${selectedUnit?.unit_number || ""} — 3B Ölçekli Kat Kesiti & Yerleşim Planı`,
+        isometricFloorplanAsset
+      ),
+      lifestyle: resolveSectionGallery(
+        "lifestyle",
+        `${activeProject?.sub_region || "Sahil Hattı"} — Özel Beach Club & Marina`,
+        marinaLifestyleAsset
+      )
+    };
+  }, [activeProject?.media_vault, activeProject?.name, activeProject?.sub_region, activeProjectMasterplanGallery, selectedUnit]);
 
   const readyProjectsCount = useMemo(
     () => projects.filter(p => Number(p.construction_progress) >= 95 || p.status === "ready_to_move").length,
@@ -866,6 +1026,8 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
               const isSelected = Number(proj.id) === Number(activeProject?.id);
               const chapterNum = String(idx + 1).padStart(2, "0");
               const fallbackSrc = getFallbackVisualForProject(idx);
+              const projGallery = getMasterplanGalleryForProject(proj, idx);
+              const cardCoverUrl = projGallery[0]?.url || fallbackSrc;
               return (
                 <div
                   key={proj.id}
@@ -881,7 +1043,7 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
                   <div>
                     <div className="relative aspect-video w-full overflow-hidden bg-stone-200">
                       <img
-                        src={proj.cover_image || fallbackSrc}
+                        src={cardCoverUrl}
                         alt={proj.name}
                         referrerPolicy="no-referrer"
                         onError={e => {
@@ -951,34 +1113,102 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
             className={`rounded-2xl border p-6 lg:p-8 space-y-6 scroll-mt-24 ${theme.cardBg} ${theme.borderClass} shadow-sm`}
           >
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-              {/* Left 5 Cols: Project Sunlit Architectural Visual + Progress + ROI */}
+              {/* Left 5 Cols: Project Sunlit Architectural Visual + Multi-Image Masterplan Carousel + Progress + ROI */}
               <div className="lg:col-span-5 space-y-4">
-                <div
-                  onClick={() =>
-                    setActiveMediaModal({
-                      name: `${activeProject.name} — Ana Masterplan Görünümü`,
-                      category: activeProject.sub_region,
-                      type: "photos",
-                      cover: activeProject.cover_image || masterplanAerialSunlitAsset,
-                      projectName: activeProject.name
-                    })
-                  }
-                  className="relative aspect-[16/10] w-full rounded-xl overflow-hidden border border-stone-200 cursor-pointer group"
-                >
-                  <img
-                    src={activeProject.cover_image || masterplanAerialSunlitAsset}
-                    alt={activeProject.name}
-                    referrerPolicy="no-referrer"
-                    onError={e => {
-                      (e.currentTarget as HTMLImageElement).src = masterplanAerialSunlitAsset;
-                    }}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  <div className="absolute bottom-3 right-3 px-3 py-1.5 rounded-lg bg-white/95 text-slate-900 text-[11px] font-medium flex items-center gap-1.5 shadow-sm">
-                    <Eye className="w-3.5 h-3.5" />
-                    <span>Tam Ekran İncele</span>
-                  </div>
-                </div>
+                {(() => {
+                  const mpCount = activeProjectMasterplanGallery.length;
+                  const safeMpIdx = mpCount > 0 ? masterplanSlideIndex % mpCount : 0;
+                  const currentMpSlide =
+                    activeProjectMasterplanGallery[safeMpIdx] || {
+                      title: `${activeProject.name} — Ana Masterplan Görünümü`,
+                      url: masterplanAerialSunlitAsset
+                    };
+                  return (
+                    <div className="space-y-2.5">
+                      <div
+                        onClick={() => {
+                          setModalGalleryIndex(safeMpIdx);
+                          setActiveMediaModal({
+                            name: currentMpSlide.title,
+                            category: activeProject.sub_region,
+                            type: "photos",
+                            cover: currentMpSlide.url,
+                            gallery: activeProjectMasterplanGallery,
+                            projectName: activeProject.name
+                          });
+                        }}
+                        className="relative aspect-[16/10] w-full rounded-xl overflow-hidden border border-stone-200 cursor-pointer group"
+                      >
+                        <img
+                          src={currentMpSlide.url}
+                          alt={currentMpSlide.title}
+                          referrerPolicy="no-referrer"
+                          onError={e => {
+                            (e.currentTarget as HTMLImageElement).src = masterplanAerialSunlitAsset;
+                          }}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                        {mpCount > 1 && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setMasterplanSlideIndex((prev) => (prev - 1 + mpCount) % mpCount);
+                              }}
+                              className="absolute left-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-white/90 hover:bg-white text-slate-900 shadow-sm cursor-pointer transition-colors"
+                              title="Önceki Masterplan Görseli"
+                            >
+                              <ChevronLeft className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setMasterplanSlideIndex((prev) => (prev + 1) % mpCount);
+                              }}
+                              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-white/90 hover:bg-white text-slate-900 shadow-sm cursor-pointer transition-colors"
+                              title="Sonraki Masterplan Görseli"
+                            >
+                              <ChevronRight className="w-4 h-4" />
+                            </button>
+                            <span className="absolute top-3 left-3 px-2 py-0.5 rounded-md bg-slate-950/75 text-white font-mono text-[11px] font-medium">
+                              {safeMpIdx + 1} / {mpCount}
+                            </span>
+                          </>
+                        )}
+                        <div className="absolute bottom-3 right-3 px-3 py-1.5 rounded-lg bg-white/95 text-slate-900 text-[11px] font-medium flex items-center gap-1.5 shadow-sm">
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>Tam Ekran İncele</span>
+                        </div>
+                      </div>
+
+                      {mpCount > 1 && (
+                        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-0.5">
+                          {activeProjectMasterplanGallery.map((mpImg, mpIdx) => (
+                            <button
+                              key={`${mpImg.url}_${mpIdx}`}
+                              type="button"
+                              onClick={() => setMasterplanSlideIndex(mpIdx)}
+                              className={`relative w-16 h-11 rounded-lg overflow-hidden border-2 shrink-0 cursor-pointer transition-all ${
+                                mpIdx === safeMpIdx
+                                  ? "border-[#C5A059] ring-1 ring-[#C5A059]"
+                                  : "border-stone-200 opacity-75 hover:opacity-100"
+                              }`}
+                            >
+                              <img
+                                src={mpImg.url}
+                                alt={mpImg.title}
+                                referrerPolicy="no-referrer"
+                                className="w-full h-full object-cover"
+                              />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Construction Progress & Delivery Proof */}
                 <div className={`p-4 rounded-xl border ${theme.surfaceBg} ${theme.borderClass} space-y-2.5`}>
@@ -1037,6 +1267,39 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    {(() => {
+                      const vault: any[] = Array.isArray(activeProject.media_vault)
+                        ? activeProject.media_vault
+                        : [];
+                      const firstProjectVideo =
+                        vault.find((m) => isYouTubeUrl(m?.url)) ||
+                        vault.find((m) => m?.type === "video" || m?.media_role === "video");
+                      if (!firstProjectVideo) return null;
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setModalGalleryIndex(0);
+                            setActiveMediaModal({
+                              name: firstProjectVideo.name || `${activeProject.name} Tanıtım Filmi`,
+                              category: firstProjectVideo.category || "Tanıtım Videosu",
+                              type: "video",
+                              url: firstProjectVideo.url,
+                              videoUrl: firstProjectVideo.url,
+                              cover:
+                                getYouTubeThumbnailUrl(firstProjectVideo.url) ||
+                                activeProjectMasterplanGallery[0]?.url ||
+                                masterplanAerialSunlitAsset,
+                              projectName: activeProject.name
+                            });
+                          }}
+                          className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer whitespace-nowrap transition-colors"
+                        >
+                          <Play className="w-4 h-4 fill-current" />
+                          <span>Proje Videosunu İzle</span>
+                        </button>
+                      );
+                    })()}
                     <a
                       href="#unit-availability"
                       className={`px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap ${theme.accentBg}`}
@@ -1080,37 +1343,68 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
                     Proje Dokümanları, Videolar & Kat Planları ({(activeProject.media_vault || []).length})
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    {(activeProject.media_vault || []).slice(0, 6).map((doc: any, dIdx: number) => (
-                      <button
-                        key={doc.id || dIdx}
-                        type="button"
-                        onClick={() =>
-                          setActiveMediaModal({
-                            name: doc.name,
-                            category: doc.category || "Proje Medyası",
-                            type: doc.type || "photos",
-                            url: doc.url,
-                            cover: activeProject.cover_image || masterplanAerialSunlitAsset,
-                            projectName: activeProject.name
-                          })
-                        }
-                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between gap-2.5 ${theme.surfaceBg} ${theme.borderClass} hover:border-[#C5A059]`}
-                      >
-                        <div className="space-y-0.5 min-w-0">
-                          <div className={`text-[11px] font-medium ${theme.accentText}`}>
-                            {doc.category || "Mimari Doküman"}
+                    {(() => {
+                      const allDocs: any[] = Array.isArray(activeProject.media_vault)
+                        ? activeProject.media_vault
+                        : [];
+                      const videoDocs = allDocs.filter(
+                        (d) => d?.type === "video" || d?.media_role === "video" || isYouTubeUrl(d?.url)
+                      );
+                      const nonVideoDocs = allDocs.filter(
+                        (d) => !(d?.type === "video" || d?.media_role === "video" || isYouTubeUrl(d?.url))
+                      );
+                      return [...videoDocs, ...nonVideoDocs].slice(0, 8);
+                    })().map((doc: any, dIdx: number) => {
+                      const fallbackMp =
+                        activeProjectMasterplanGallery[0]?.url || masterplanAerialSunlitAsset;
+                      const isYt = isYouTubeUrl(doc.url);
+                      const isVideo = doc.type === "video" || doc.media_role === "video" || isYt;
+                      const docCover = isYt
+                        ? getYouTubeThumbnailUrl(doc.url) || fallbackMp
+                        : isRenderableImageUrl(doc.url) && !String(doc.url || "").includes(LEGACY_MALDIVES_LOGO_ID)
+                        ? resolveDisplayImageUrl(doc.url, fallbackMp)
+                        : fallbackMp;
+                      return (
+                        <button
+                          key={doc.id || dIdx}
+                          type="button"
+                          onClick={() => {
+                            setModalGalleryIndex(0);
+                            setActiveMediaModal({
+                              name: doc.name,
+                              category: doc.category || "Proje Medyası",
+                              type: isVideo ? "video" : doc.type || "photos",
+                              url: doc.url,
+                              videoUrl: isVideo ? doc.url : undefined,
+                              cover: docCover,
+                              projectName: activeProject.name
+                            });
+                          }}
+                          className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between gap-2.5 ${theme.surfaceBg} ${theme.borderClass} hover:border-[#C5A059]`}
+                        >
+                          <div className="space-y-0.5 min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className={`text-[11px] font-medium ${theme.accentText}`}>
+                                {doc.category || "Mimari Doküman"}
+                              </span>
+                              {isYt && (
+                                <span className="px-1.5 py-0.5 rounded bg-rose-100 text-rose-800 text-[9px] font-semibold">
+                                  YouTube
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs font-medium truncate">{doc.name}</div>
                           </div>
-                          <div className="text-xs font-medium truncate">{doc.name}</div>
-                        </div>
-                        {doc.type === "video" ? (
-                          <Play className="w-4 h-4 text-rose-600 shrink-0" />
-                        ) : doc.type === "pricelist" ? (
-                          <FileText className="w-4 h-4 text-sky-600 shrink-0" />
-                        ) : (
-                          <Eye className="w-4 h-4 opacity-70 shrink-0" />
-                        )}
-                      </button>
-                    ))}
+                          {isVideo ? (
+                            <Play className="w-4 h-4 text-rose-600 shrink-0" />
+                          ) : doc.type === "pricelist" ? (
+                            <FileText className="w-4 h-4 text-sky-600 shrink-0" />
+                          ) : (
+                            <Eye className="w-4 h-4 opacity-70 shrink-0" />
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -1311,65 +1605,140 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
                       </div>
 
                       {/* Interactive Unit Visual Stage (Exterior, Interior, 3D Floorplan, Lifestyle) */}
-                      <div className="space-y-2.5">
-                        <div
-                          onClick={() =>
-                            setActiveMediaModal({
-                              name: selectedUnitVisuals[selectedUnitVisualTab].title,
-                              category: `${selectedUnit.unit_number} · ${selectedUnit.unit_type}`,
-                              type: "photos",
-                              cover: selectedUnitVisuals[selectedUnitVisualTab].url,
-                              projectName: activeProject?.name || companyName
-                            })
-                          }
-                          className="relative aspect-[16/10] w-full rounded-xl overflow-hidden border border-stone-200 cursor-pointer group"
-                        >
-                          <img
-                            src={selectedUnitVisuals[selectedUnitVisualTab].url}
-                            alt={selectedUnitVisuals[selectedUnitVisualTab].title}
-                            referrerPolicy="no-referrer"
-                            onError={e => {
-                              (e.currentTarget as HTMLImageElement).src =
-                                selectedUnitVisuals[selectedUnitVisualTab].fallback;
-                            }}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent" />
-                          <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-xs text-white">
-                            <span className="font-medium truncate pr-3">
-                              {selectedUnitVisuals[selectedUnitVisualTab].title}
-                            </span>
-                            <span className="px-2.5 py-1 rounded-md bg-white/95 text-slate-900 text-[11px] font-medium shrink-0">
-                              Büyüt
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Visual Perspective Selector Tabs */}
-                        <div className="grid grid-cols-4 gap-2">
-                          {(
-                            [
-                              { id: "exterior", label: "Dış Cephe" },
-                              { id: "interior", label: "İç Mekan" },
-                              { id: "floorplan", label: "3B Kat Planı" },
-                              { id: "lifestyle", label: "Sahil & Havuz" }
-                            ] as const
-                          ).map(vTab => (
-                            <button
-                              key={vTab.id}
-                              type="button"
-                              onClick={() => setSelectedUnitVisualTab(vTab.id)}
-                              className={`py-2 px-2 rounded-lg text-xs font-medium border cursor-pointer transition-colors whitespace-nowrap truncate ${
-                                selectedUnitVisualTab === vTab.id
-                                  ? `${theme.accentBg} border-transparent`
-                                  : `${theme.surfaceBg} ${theme.borderClass} ${theme.textSecondary} hover:opacity-85`
-                              }`}
+                      {(() => {
+                        const activeVisual = selectedUnitVisuals[selectedUnitVisualTab];
+                        const items = activeVisual.items || [];
+                        const itemCount = items.length;
+                        const safeSlideIdx = itemCount > 0 ? selectedUnitVisualIndex % itemCount : 0;
+                        const currentSlide = items[safeSlideIdx] || {
+                          title: activeVisual.title,
+                          url: activeVisual.fallback
+                        };
+                        return (
+                          <div className="space-y-2.5">
+                            <div
+                              onClick={() => {
+                                setModalGalleryIndex(safeSlideIdx);
+                                setActiveMediaModal({
+                                  name: currentSlide.title,
+                                  category: `${selectedUnit.unit_number} · ${selectedUnit.unit_type}`,
+                                  type: "photos",
+                                  cover: currentSlide.url,
+                                  gallery: items,
+                                  projectName: activeProject?.name || companyName
+                                });
+                              }}
+                              className="relative aspect-[16/10] w-full rounded-xl overflow-hidden border border-stone-200 cursor-pointer group"
                             >
-                              {vTab.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
+                              <img
+                                src={currentSlide.url}
+                                alt={currentSlide.title}
+                                referrerPolicy="no-referrer"
+                                onError={e => {
+                                  (e.currentTarget as HTMLImageElement).src = activeVisual.fallback;
+                                }}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent" />
+                              {itemCount > 1 && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedUnitVisualIndex(
+                                        (prev) => (prev - 1 + itemCount) % itemCount
+                                      );
+                                    }}
+                                    className="absolute left-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-white/90 hover:bg-white text-slate-900 shadow-sm cursor-pointer transition-colors"
+                                    title="Önceki Görsel"
+                                  >
+                                    <ChevronLeft className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedUnitVisualIndex((prev) => (prev + 1) % itemCount);
+                                    }}
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-white/90 hover:bg-white text-slate-900 shadow-sm cursor-pointer transition-colors"
+                                    title="Sonraki Görsel"
+                                  >
+                                    <ChevronRight className="w-4 h-4" />
+                                  </button>
+                                  <span className="absolute top-3 left-3 px-2 py-0.5 rounded-md bg-slate-950/75 text-white font-mono text-[11px] font-medium">
+                                    {safeSlideIdx + 1} / {itemCount}
+                                  </span>
+                                </>
+                              )}
+                              <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-xs text-white">
+                                <span className="font-medium truncate pr-3">
+                                  {currentSlide.title}
+                                </span>
+                                <span className="px-2.5 py-1 rounded-md bg-white/95 text-slate-900 text-[11px] font-medium shrink-0">
+                                  Büyüt
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Visual Perspective Selector Tabs */}
+                            <div className="grid grid-cols-4 gap-2">
+                              {(
+                                [
+                                  { id: "exterior", label: "Dış Cephe" },
+                                  { id: "interior", label: "İç Mekan" },
+                                  { id: "floorplan", label: "3B Kat Planı" },
+                                  { id: "lifestyle", label: "Sahil & Havuz" }
+                                ] as const
+                              ).map(vTab => {
+                                const tabCount = selectedUnitVisuals[vTab.id].syncedCount;
+                                return (
+                                  <button
+                                    key={vTab.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedUnitVisualTab(vTab.id);
+                                      setSelectedUnitVisualIndex(0);
+                                    }}
+                                    className={`py-2 px-2 rounded-lg text-xs font-medium border cursor-pointer transition-colors whitespace-nowrap truncate ${
+                                      selectedUnitVisualTab === vTab.id
+                                        ? `${theme.accentBg} border-transparent`
+                                        : `${theme.surfaceBg} ${theme.borderClass} ${theme.textSecondary} hover:opacity-85`
+                                    }`}
+                                  >
+                                    {vTab.label}
+                                    {tabCount > 0 ? ` (${tabCount})` : ""}
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            {itemCount > 1 && (
+                              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-0.5">
+                                {items.map((thumbItem, tIdx) => (
+                                  <button
+                                    key={`${thumbItem.url}_${tIdx}`}
+                                    type="button"
+                                    onClick={() => setSelectedUnitVisualIndex(tIdx)}
+                                    className={`relative w-16 h-11 rounded-lg overflow-hidden border-2 shrink-0 cursor-pointer transition-all ${
+                                      tIdx === safeSlideIdx
+                                        ? "border-[#C5A059] ring-1 ring-[#C5A059]"
+                                        : "border-stone-200 opacity-75 hover:opacity-100"
+                                    }`}
+                                  >
+                                    <img
+                                      src={thumbItem.url}
+                                      alt={thumbItem.title}
+                                      referrerPolicy="no-referrer"
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
 
                       {/* Complete Architectural Unit Specs */}
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
@@ -2072,73 +2441,216 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
       </footer>
 
       {/* Media & Video Lightbox Modal */}
-      {activeMediaModal && (
-        <div
-          className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4"
-          onClick={() => setActiveMediaModal(null)}
-        >
+      {activeMediaModal && (() => {
+        const gallery: Array<{ title: string; url: string }> =
+          Array.isArray(activeMediaModal.gallery) && activeMediaModal.gallery.length > 0
+            ? activeMediaModal.gallery
+            : [
+                {
+                  title: activeMediaModal.name,
+                  url: activeMediaModal.cover || resortHeroSunlitAsset
+                }
+              ];
+        const safeIdx = gallery.length > 0 ? modalGalleryIndex % gallery.length : 0;
+        const activeSlide = gallery[safeIdx] || gallery[0];
+        const displayTitle = activeSlide?.title || activeMediaModal.name;
+        const displayImg = activeSlide?.url || activeMediaModal.cover || resortHeroSunlitAsset;
+
+        const activeVideoUrl = String(
+          activeMediaModal.videoUrl || (isYouTubeUrl(activeMediaModal.url) ? activeMediaModal.url : "")
+        ).trim();
+        const isYt = isYouTubeUrl(activeVideoUrl);
+        const ytEmbedUrl = isYt ? getYouTubeEmbedUrl(activeVideoUrl, true) : null;
+        const isDirectVid =
+          !isYt &&
+          Boolean(activeVideoUrl) &&
+          (isDirectVideoFileUrl(activeVideoUrl) ||
+            activeVideoUrl.startsWith("/api/storage/") ||
+            activeVideoUrl.startsWith("/uploads/"));
+        const drivePreviewUrl =
+          !isYt && !isDirectVid && Boolean(activeVideoUrl) ? getGoogleDrivePreviewUrl(activeVideoUrl) : null;
+        const shareTargetUrl = activeVideoUrl || activeSlide?.url || activeMediaModal.url || "";
+
+        return (
           <div
-            className="bg-white border border-stone-200 rounded-2xl max-w-4xl w-full p-5 text-slate-900 space-y-4 shadow-2xl"
-            onClick={e => e.stopPropagation()}
+            className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4"
+            onClick={() => setActiveMediaModal(null)}
           >
-            <div className="flex items-center justify-between border-b border-stone-200 pb-3">
-              <div>
-                <div className="text-xs text-[#9A7228] font-medium">
-                  {activeMediaModal.projectName} · {activeMediaModal.category}
+            <div
+              className="bg-white border border-stone-200 rounded-2xl max-w-4xl w-full p-5 text-slate-900 space-y-4 shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-stone-200 pb-3">
+                <div>
+                  <div className="text-xs text-[#9A7228] font-medium flex items-center gap-2 flex-wrap">
+                    <span>
+                      {activeMediaModal.projectName} · {activeMediaModal.category}
+                      {!activeVideoUrl && gallery.length > 1 ? ` · (${safeIdx + 1} / ${gallery.length})` : ""}
+                    </span>
+                    {isYt && (
+                      <span className="px-2 py-0.5 rounded bg-rose-100 text-rose-800 text-[10px] font-semibold">
+                        YouTube Video
+                      </span>
+                    )}
+                  </div>
+                  <h4 className={`text-base font-semibold ${theme.headingFontClass}`}>{displayTitle}</h4>
                 </div>
-                <h4 className={`text-base font-semibold ${theme.headingFontClass}`}>{activeMediaModal.name}</h4>
+                <button
+                  type="button"
+                  onClick={() => setActiveMediaModal(null)}
+                  className="p-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-slate-700 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setActiveMediaModal(null)}
-                className="p-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-slate-700 cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
 
-            <div className="rounded-xl overflow-hidden bg-stone-100 border border-stone-200">
-              {activeMediaModal.videoUrl ? (
-                <video
-                  controls
-                  autoPlay
-                  playsInline
-                  poster={activeMediaModal.cover || resortHeroSunlitAsset}
-                  className="w-full max-h-[480px] object-cover"
-                >
-                  <source src={activeMediaModal.videoUrl} type="video/mp4" />
-                </video>
-              ) : (
-                <img
-                  src={activeMediaModal.cover || resortHeroSunlitAsset}
-                  alt={activeMediaModal.name}
-                  referrerPolicy="no-referrer"
-                  onError={e => {
-                    (e.currentTarget as HTMLImageElement).src = resortHeroSunlitAsset;
-                  }}
-                  className="w-full max-h-[480px] object-cover"
-                />
-              )}
-            </div>
+              <div className="relative rounded-xl overflow-hidden bg-stone-100 border border-stone-200">
+                {ytEmbedUrl ? (
+                  <div className="aspect-video w-full bg-slate-950">
+                    <iframe
+                      src={ytEmbedUrl}
+                      title={displayTitle}
+                      className="w-full h-full border-0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                    />
+                  </div>
+                ) : isDirectVid ? (
+                  <video
+                    controls
+                    autoPlay
+                    playsInline
+                    poster={displayImg}
+                    className="w-full max-h-[480px] object-cover bg-slate-950"
+                  >
+                    <source src={activeVideoUrl} type="video/mp4" />
+                  </video>
+                ) : drivePreviewUrl ? (
+                  <div className="aspect-video w-full bg-slate-950">
+                    <iframe
+                      src={drivePreviewUrl}
+                      title={displayTitle}
+                      className="w-full h-full border-0"
+                      allow="autoplay; encrypted-media"
+                      allowFullScreen
+                    />
+                  </div>
+                ) : (
+                  <img
+                    src={displayImg}
+                    alt={displayTitle}
+                    referrerPolicy="no-referrer"
+                    onError={e => {
+                      (e.currentTarget as HTMLImageElement).src = resortHeroSunlitAsset;
+                    }}
+                    className="w-full max-h-[480px] object-contain bg-stone-950/5"
+                  />
+                )}
 
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-xs text-slate-500">
-                Ortak proje medya havuzu ile senkronize yüksek çözünürlüklü mimari görsel / doküman.
-              </span>
-              {activeMediaModal.url && (
-                <a
-                  href={activeMediaModal.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium whitespace-nowrap"
-                >
-                  Orijinal Dosyayı Aç
-                </a>
+                {!activeVideoUrl && gallery.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setModalGalleryIndex((prev) => (prev - 1 + gallery.length) % gallery.length)
+                      }
+                      className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/95 hover:bg-white text-slate-900 shadow-md cursor-pointer"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setModalGalleryIndex((prev) => (prev + 1) % gallery.length)
+                      }
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/95 hover:bg-white text-slate-900 shadow-md cursor-pointer"
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {!activeVideoUrl && gallery.length > 1 && (
+                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+                  {gallery.map((gItem, gIdx) => (
+                    <button
+                      key={`${gItem.url}_${gIdx}`}
+                      type="button"
+                      onClick={() => setModalGalleryIndex(gIdx)}
+                      className={`relative w-20 h-12 rounded-lg overflow-hidden border-2 shrink-0 cursor-pointer transition-all ${
+                        gIdx === safeIdx
+                          ? "border-[#C5A059] ring-1 ring-[#C5A059]"
+                          : "border-stone-200 opacity-70 hover:opacity-100"
+                      }`}
+                    >
+                      <img
+                        src={gItem.url}
+                        alt={gItem.title}
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover"
+                      />
+                    </button>
+                  ))}
+                </div>
               )}
+
+              <div className="flex flex-wrap items-center justify-between gap-2.5">
+                <span className="text-xs text-slate-500">
+                  {isYt
+                    ? "YouTube üzerinden canlı akış — linki kopyalayabilir veya WhatsApp ile paylaşabilirsiniz."
+                    : "Ortak proje medya havuzu ile senkronize yüksek çözünürlüklü mimari görsel / doküman."}
+                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  {shareTargetUrl && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(shareTargetUrl);
+                          toast.success("Bağlantı panoya kopyalandı.");
+                        }}
+                        className="px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-slate-900 text-xs font-medium flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Linki Kopyala</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const shareMsg = `*${companyName} — ${activeMediaModal.projectName || ""}*\n${displayTitle}\n${shareTargetUrl}`;
+                          window.open(
+                            `https://wa.me/?text=${encodeURIComponent(shareMsg)}`,
+                            "_blank",
+                            "noopener,noreferrer"
+                          );
+                        }}
+                        className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                      >
+                        <Share2 className="w-3.5 h-3.5" />
+                        <span>WhatsApp Paylaş</span>
+                      </button>
+                    </>
+                  )}
+                  {(activeVideoUrl || activeSlide?.url || activeMediaModal.url) && (
+                    <a
+                      href={activeVideoUrl || activeSlide?.url || activeMediaModal.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`px-4 py-2 rounded-xl text-white text-xs font-medium flex items-center gap-1.5 whitespace-nowrap ${
+                        isYt ? "bg-rose-600 hover:bg-rose-700" : "bg-slate-900 hover:bg-slate-800"
+                      }`}
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>{isYt ? "YouTube'da İzle" : "Orijinal Dosyayı Aç"}</span>
+                    </a>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 };

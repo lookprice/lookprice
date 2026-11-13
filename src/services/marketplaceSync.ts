@@ -2,6 +2,76 @@ import { pool, logAction, addStockMovement } from "../../models/db";
 import axios, { AxiosError } from "axios";
 import { parseStringPromise } from 'xml2js';
 
+/**
+ * Computes net sellable stock for e-marketplaces by subtracting customer-reserved stock
+ * from total physical stock, clamped to >= 0.
+ */
+export function computeSellableStock(stockQty: any, reservedQty: any = 0): number {
+  const physical = Number(stockQty || 0);
+  const reserved = Number(reservedQty || 0);
+  if (!Number.isFinite(physical)) return 0;
+  const safeReserved = Number.isFinite(reserved) ? Math.max(0, reserved) : 0;
+  return Math.max(0, Math.floor(physical - safeReserved));
+}
+
+/**
+ * Recalculates a product's total reserved_stock and reserved_details breakdown
+ * from purchase_invoice_items (and clears out zeroed/released entries).
+ */
+export async function recalculateProductReservedStock(
+  clientOrPool: any,
+  productId: number,
+  storeId: number
+): Promise<{ reservedStock: number; reservedDetails: any[] }> {
+  if (!productId || !storeId) return { reservedStock: 0, reservedDetails: [] };
+  try {
+    const res = await clientOrPool.query(
+      `SELECT pii.id as item_id,
+              pii.purchase_invoice_id as invoice_id,
+              COALESCE(pii.reserved_quantity, 0) as reserved_quantity,
+              COALESCE(NULLIF(TRIM(pii.reserved_for), ''), '') as reserved_for,
+              COALESCE(NULLIF(TRIM(pi.invoice_number), ''), NULLIF(TRIM(pi.document_number), ''), '#' || pi.id::text) as invoice_number,
+              pi.invoice_date,
+              pi.supplier_name
+       FROM purchase_invoice_items pii
+       JOIN purchase_invoices pi ON pii.purchase_invoice_id = pi.id
+       WHERE pi.store_id = $1
+         AND pii.product_id = $2
+         AND COALESCE(pi.is_expense, FALSE) = FALSE
+         AND COALESCE(pi.operator_status, 'completed') = 'completed'
+         AND COALESCE(pii.reserved_quantity, 0) > 0
+       ORDER BY pi.invoice_date DESC NULLS LAST, pii.id DESC`,
+      [storeId, productId]
+    );
+
+    const reservedDetails = res.rows.map((r: any) => ({
+      item_id: Number(r.item_id),
+      invoice_id: Number(r.invoice_id),
+      invoice_number: r.invoice_number,
+      invoice_date: r.invoice_date,
+      supplier_name: r.supplier_name || null,
+      quantity: Number(r.reserved_quantity || 0),
+      reserved_for: r.reserved_for || 'Rezerve Müşteri'
+    }));
+
+    const reservedStock = reservedDetails.reduce((sum: number, d: any) => sum + (Number(d.quantity) || 0), 0);
+
+    await clientOrPool.query(
+      `UPDATE products
+       SET reserved_stock = $1,
+           reserved_details = $2::jsonb,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $3 AND store_id = $4`,
+      [reservedStock, JSON.stringify(reservedDetails), productId, storeId]
+    );
+
+    return { reservedStock, reservedDetails };
+  } catch (err: any) {
+    console.warn(`[recalculateProductReservedStock] Failed for product ${productId}:`, err?.message || err);
+    return { reservedStock: 0, reservedDetails: [] };
+  }
+}
+
 async function fetchWithRetry<T>(
   fn: () => Promise<T>,
   marketplace: string,
@@ -932,7 +1002,7 @@ export async function autoUnpublishIfZeroStock(productId: number, storeId: numbe
   
   try {
     const res = await queryRunner(
-      `SELECT id, name, barcode, sku, price, stock_quantity, hepsiburada_sku, 
+      `SELECT id, name, barcode, sku, price, stock_quantity, COALESCE(reserved_stock, 0) as reserved_stock, hepsiburada_sku, 
               amazon_asin, amazon_sku, n11_id,
               is_hepsiburada_active, is_amazon_active, is_trendyol_active, is_n11_active, is_pazarama_active,
               marketplace_data
@@ -942,7 +1012,7 @@ export async function autoUnpublishIfZeroStock(productId: number, storeId: numbe
 
     if (res.rows.length === 0) return;
     const p = res.rows[0];
-    const currentStock = Number(p.stock_quantity || 0);
+    const currentStock = computeSellableStock(p.stock_quantity, p.reserved_stock);
 
     if (currentStock <= 0) {
       const isAnyActive = p.is_hepsiburada_active || p.is_amazon_active || p.is_trendyol_active || p.is_n11_active || p.is_pazarama_active;
@@ -1135,7 +1205,7 @@ export async function syncProductStockToMarketplaces(
 
   try {
     const prodRes = await pool.query(
-      `SELECT id, name, barcode, sku, price, currency, stock_quantity, category, sub_category,
+      `SELECT id, name, barcode, sku, price, currency, stock_quantity, COALESCE(reserved_stock, 0) as reserved_stock, category, sub_category,
               is_hepsiburada_active, hepsiburada_sku,
               is_amazon_active, amazon_asin, amazon_sku,
               is_trendyol_active, is_n11_active, is_pazarama_active,
@@ -1171,9 +1241,9 @@ export async function syncProductStockToMarketplaces(
     let syncedCount = 0;
     let errorsCount = 0;
 
-    // 1. Zero-stock out-of-stock guard
+    // 1. Zero-stock / fully-reserved out-of-stock guard
     for (const p of products) {
-      const currentStock = Number(p.stock_quantity || 0);
+      const currentStock = computeSellableStock(p.stock_quantity, p.reserved_stock);
       if (currentStock <= 0) {
         await autoUnpublishIfZeroStock(p.id, storeId);
       }
@@ -1200,7 +1270,7 @@ export async function syncProductStockToMarketplaces(
             const priceInTry = getPriceInTry(p);
             const effectivePrice = hbService.calculateMarketplacePrice(priceInTry, p.category, p.sub_category);
             const merchantSku = mpData?.hepsiburada?.merchantSku || p.barcode || p.sku || p.hepsiburada_sku;
-            const currentStock = Math.max(0, parseInt(String(p.stock_quantity || 0), 10));
+            const currentStock = computeSellableStock(p.stock_quantity, p.reserved_stock);
 
             return {
               MerchantSku: String(merchantSku).trim(),
@@ -1248,7 +1318,7 @@ export async function syncProductStockToMarketplaces(
             if (!sku) continue;
             const priceInTry = getPriceInTry(p);
             const effectiveAmzPrice = amzService.calculateMarketplacePrice(priceInTry, p.category, p.sub_category);
-            const currentStock = Math.max(0, parseInt(String(p.stock_quantity || 0), 10));
+            const currentStock = computeSellableStock(p.stock_quantity, p.reserved_stock);
 
             const amzRes = await amzService.updateListingsItem(String(sku).trim(), effectiveAmzPrice, currentStock);
             if (amzRes.success) {
@@ -1289,7 +1359,7 @@ export async function syncProductStockToMarketplaces(
             const priceInTry = getPriceInTry(p);
             const finalPriceTRY = N11Service.calculateMarketplacePrice(priceInTry, p.category, p.sub_category, tySettings);
             const roundedPrice = Math.round(finalPriceTRY * 100) / 100;
-            const currentStock = Math.max(0, parseInt(String(p.stock_quantity || 0), 10));
+            const currentStock = computeSellableStock(p.stock_quantity, p.reserved_stock);
             const cleanBarcode = String(p.barcode || p.sku || "").trim();
             return {
               barcode: cleanBarcode,
@@ -1351,7 +1421,7 @@ export async function syncProductStockToMarketplaces(
             if (!sellerCode) continue;
             const priceInTry = getPriceInTry(p);
             const effectivePrice = N11Service.calculateMarketplacePrice(priceInTry, p.category, p.sub_category, n11Settings);
-            const currentStock = Math.max(0, parseInt(String(p.stock_quantity || 0), 10));
+            const currentStock = computeSellableStock(p.stock_quantity, p.reserved_stock);
 
             if (effectivePrice > 0) {
               n11SkuBatch.push({

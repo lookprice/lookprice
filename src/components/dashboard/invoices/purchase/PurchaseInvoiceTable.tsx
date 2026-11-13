@@ -17,11 +17,16 @@ import {
   Link2,
   Unlink,
   Search,
-  RefreshCw
+  RefreshCw,
+  Clock,
+  Tag,
+  Sparkles,
+  Check
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../../../../services/api';
 import { formatDateTR } from '../../../../utils/formatUtils';
+import type { ExpenseCenterOption } from './PurchaseInvoiceApprovalModal';
 
 interface PurchaseInvoiceTableProps {
   invoices: any[];
@@ -47,6 +52,9 @@ interface PurchaseInvoiceTableProps {
   companies?: any[];
   onViewTransactions?: (company: any) => void;
   onRefresh?: () => void;
+  onOpenApproval?: (inv: any) => void;
+  onUpdateItemReserve?: (invoiceId: number, itemId: number, qty: number, reservedFor: string) => Promise<void>;
+  expenseCenters?: ExpenseCenterOption[];
 }
 
 export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
@@ -72,7 +80,10 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
   products = [],
   companies = [],
   onViewTransactions,
-  onRefresh
+  onRefresh,
+  onOpenApproval,
+  onUpdateItemReserve,
+  expenseCenters = []
 }) => {
   const [expandedRowIds, setExpandedRowIds] = useState<number[]>([]);
   const [itemsCache, setItemsCache] = useState<Record<number, any[]>>({});
@@ -81,6 +92,10 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
   const [matchingItemId, setMatchingItemId] = useState<number | null>(null);
   const [matchSearch, setMatchSearch] = useState<string>("");
   const [isUpdatingMatch, setIsUpdatingMatch] = useState<boolean>(false);
+  const [reservingItemId, setReservingItemId] = useState<number | null>(null);
+  const [reserveQtyInput, setReserveQtyInput] = useState<string>("");
+  const [reserveForInput, setReserveForInput] = useState<string>("");
+  const [isSavingReserve, setIsSavingReserve] = useState<boolean>(false);
 
   React.useEffect(() => {
     const handleProductUpdated = (e: any) => {
@@ -140,6 +155,33 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
       toast.error(err?.message || (isTr ? "Hata oluştu." : "Error occurred."));
     } finally {
       setIsUpdatingMatch(false);
+    }
+  };
+
+  const resolveExpenseCenterLabel = (key?: string | null) => {
+    if (!key) return '';
+    const match = expenseCenters.find((c) => c.key === key);
+    return match ? match.name : key;
+  };
+
+  const handleSaveItemReserve = async (invoiceId: number, itemId: number, qtyNum: number, reservedForStr: string) => {
+    setIsSavingReserve(true);
+    try {
+      if (onUpdateItemReserve) {
+        await onUpdateItemReserve(invoiceId, itemId, qtyNum, reservedForStr);
+      } else {
+        await api.updatePurchaseItemReserve(invoiceId, itemId, qtyNum, reservedForStr, storeId);
+      }
+      setReservingItemId(null);
+      const detail = await api.getPurchaseInvoice(invoiceId, storeId);
+      if (detail && Array.isArray(detail.items)) {
+        setItemsCache(prev => ({ ...prev, [invoiceId]: detail.items }));
+      }
+      if (onRefresh) onRefresh();
+    } catch (err: any) {
+      toast.error(err?.message || (isTr ? "Rezerve kaydedilemedi." : "Failed to save reserve."));
+    } finally {
+      setIsSavingReserve(false);
     }
   };
 
@@ -234,11 +276,13 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                       className={`hover:bg-slate-50/70 transition-colors ${
                         openActionMenuId === invoice.id ? 'relative z-30' : ''
                       } ${
-                        invoice.is_out_of_sequence 
-                          ? 'bg-amber-50/60 hover:bg-amber-100/70 border-l-4 border-l-amber-500' 
-                          : invoice.is_read === false 
-                            ? 'font-medium bg-indigo-50/30' 
-                            : ''
+                        invoice.operator_status === 'pending'
+                          ? 'bg-amber-50/75 hover:bg-amber-100/70 border-l-4 border-l-amber-500'
+                          : invoice.is_out_of_sequence 
+                            ? 'bg-amber-50/60 hover:bg-amber-100/70 border-l-4 border-l-amber-500' 
+                            : invoice.is_read === false 
+                              ? 'font-medium bg-indigo-50/30' 
+                              : ''
                       } ${
                         lastEditedId === invoice.id ? 'bg-indigo-100/50 ring-1 ring-inset ring-indigo-200' : ''
                       } ${
@@ -371,12 +415,30 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                           );
                         })()}
                         <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                          {invoice.operator_status === 'pending' && (
+                            <span
+                              className="text-[8px] bg-amber-500 text-white border border-amber-600 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider inline-flex items-center gap-0.5 shadow-2xs"
+                              title={isTr ? "Operatör tarafından henüz onaylanmadı (Stok/Ürün eşleştirmesi bekliyor)" : "Pending operator approval"}
+                            >
+                              <Clock className="w-2.5 h-2.5" />
+                              {isTr ? "Onay Bekliyor" : "Needs Approval"}
+                            </span>
+                          )}
+                          {(Number(invoice.total_reserved_qty || 0) > 0 || invoice.has_reserved_items) && (
+                            <span
+                              className="text-[8px] bg-amber-100 text-amber-900 border border-amber-300 px-1.5 py-0.5 rounded font-semibold uppercase tracking-wider inline-flex items-center gap-0.5"
+                              title={isTr ? "Bu faturada müşteri adına rezerve edilmiş kalemler var" : "Contains reserved items"}
+                            >
+                              <Tag className="w-2.5 h-2.5" />
+                              {isTr ? `Rezerve (${Number(invoice.total_reserved_qty || 0)})` : `Reserved (${Number(invoice.total_reserved_qty || 0)})`}
+                            </span>
+                          )}
                           {invoice.is_expense ? (
                             <>
                               <span className="text-[8px] bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded font-medium uppercase tracking-wider inline-flex items-center gap-0.5">
-                                💼 {isTr ? `GİDER (${invoice.expense_category || 'DİĞER'})` : `EXPENSE (${invoice.expense_category || 'OTHER'})`}
+                                💼 {isTr ? `GİDER (${invoice.expense_category || 'DİĞER'}${invoice.expense_center ? ` • ${resolveExpenseCenterLabel(invoice.expense_center)}` : ''})` : `EXPENSE (${invoice.expense_category || 'OTHER'})`}
                               </span>
-                              {handleConvertToStock && (
+                              {handleConvertToStock && invoice.operator_status !== 'pending' && (
                                 <button
                                   type="button"
                                   onClick={(e) => {
@@ -396,7 +458,7 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                               <span className="text-[8px] bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded font-medium uppercase tracking-wider inline-flex items-center gap-0.5">
                                 📦 {isTr ? "STOKLU ALIM" : "STOCK BUY"}
                               </span>
-                              {handleConvertToExpense && (
+                              {handleConvertToExpense && invoice.operator_status !== 'pending' && (
                                 <button
                                   type="button"
                                   onClick={(e) => {
@@ -487,6 +549,20 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                               </button>
                             </div>
                           )}
+                          {onOpenApproval && invoice.operator_status === 'pending' && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onOpenApproval(invoice);
+                              }}
+                              className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-semibold shadow-xs transition-all flex items-center gap-1 cursor-pointer"
+                              title={isTr ? "Kalemleri incele, gider veya stoklu alım olarak onayla" : "Review and approve invoice"}
+                            >
+                              <Sparkles className="w-3 h-3" />
+                              <span>{isTr ? "İncele & Onayla" : "Review"}</span>
+                            </button>
+                          )}
                           <button 
                             onClick={() => handleEdit(invoice.id)}
                             className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-amber-200 cursor-pointer"
@@ -528,6 +604,19 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                                 </div>
 
                                 <div className="py-1">
+                                  {onOpenApproval && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setOpenActionMenuId(null);
+                                        onOpenApproval(invoice);
+                                      }}
+                                      className="w-full px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+                                    >
+                                      <Sparkles className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                                      <span>{invoice.operator_status === 'pending' ? (isTr ? "İncele & Onayla" : "Approve & Match") : (isTr ? "Eşleştirme / Rezerve" : "Review Matching")}</span>
+                                    </button>
+                                  )}
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -747,8 +836,16 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                                                       </button>
                                                     </div>
                                                   ) : (
-                                                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-medium">
+                                                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-medium flex-wrap">
                                                       <span>{isTr ? 'Envanterde Eşleşen Ürün Yok' : 'Unmatched in Inventory'}</span>
+                                                      {(item.suggested_product_name || item.suggested_product_id) && (
+                                                        <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 text-[9px] font-semibold">
+                                                          {isTr ? 'Önerilen:' : 'Suggested:'} {item.suggested_product_name || `#${item.suggested_product_id}`}
+                                                        </span>
+                                                      )}
+                                                      {item.match_note && (
+                                                        <span className="text-[9px] text-slate-600 italic">({item.match_note})</span>
+                                                      )}
                                                       <button
                                                         type="button"
                                                         onClick={(e) => {
@@ -767,6 +864,93 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                                                       </button>
                                                     </div>
                                                   )}
+
+                                                  {Number(item.reserved_quantity || 0) > 0 && (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-100 border border-amber-300 text-amber-900 text-[10px] font-semibold">
+                                                      <Tag className="w-2.5 h-2.5" />
+                                                      {isTr ? `Rezerve: ${Number(item.reserved_quantity)}` : `Reserved: ${Number(item.reserved_quantity)}`}
+                                                      {item.reserved_for ? ` • ${isTr ? 'Kime:' : 'For:'} ${item.reserved_for}` : ''}
+                                                    </span>
+                                                  )}
+
+                                                  {item.id && (
+                                                    <button
+                                                      type="button"
+                                                      onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (reservingItemId === item.id) {
+                                                          setReservingItemId(null);
+                                                        } else {
+                                                          setReservingItemId(item.id);
+                                                          setReserveQtyInput(String(Number(item.reserved_quantity || 0) > 0 ? Number(item.reserved_quantity) : qty));
+                                                          setReserveForInput(item.reserved_for || '');
+                                                        }
+                                                      }}
+                                                      className={`px-2 py-0.5 rounded-md text-[10px] font-medium border transition-colors inline-flex items-center gap-1 cursor-pointer ${
+                                                        reservingItemId === item.id || Number(item.reserved_quantity || 0) > 0
+                                                          ? 'bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100'
+                                                          : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-amber-50 hover:text-amber-700'
+                                                      }`}
+                                                    >
+                                                      <Tag className="w-2.5 h-2.5" />
+                                                      {isTr ? 'Rezerve' : 'Reserve'}
+                                                    </button>
+                                                  )}
+                                                </div>
+                                              )}
+
+                                              {reservingItemId === item.id && (
+                                                <div
+                                                  onClick={(e) => e.stopPropagation()}
+                                                  className="mt-1 p-2 bg-amber-50 border border-amber-200 rounded-xl flex flex-wrap items-center gap-2 max-w-xl"
+                                                >
+                                                  <div className="flex items-center gap-1">
+                                                    <span className="text-[10px] font-semibold text-amber-900">{isTr ? 'Miktar:' : 'Qty:'}</span>
+                                                    <input
+                                                      type="number"
+                                                      min="0"
+                                                      max={qty}
+                                                      value={reserveQtyInput}
+                                                      onChange={(e) => setReserveQtyInput(e.target.value)}
+                                                      className="w-20 px-2 py-1 text-xs bg-white border border-amber-300 rounded-lg text-slate-900 font-medium outline-none"
+                                                    />
+                                                  </div>
+                                                  <div className="flex items-center gap-1 flex-1 min-w-[160px]">
+                                                    <span className="text-[10px] font-semibold text-amber-900">{isTr ? 'Kime?' : 'For?'}</span>
+                                                    <input
+                                                      type="text"
+                                                      value={reserveForInput}
+                                                      onChange={(e) => setReserveForInput(e.target.value)}
+                                                      placeholder={isTr ? 'Müşteri / firma adı...' : 'Customer name...'}
+                                                      className="flex-1 px-2 py-1 text-xs bg-white border border-amber-300 rounded-lg text-slate-900 outline-none"
+                                                    />
+                                                  </div>
+                                                  <button
+                                                    type="button"
+                                                    disabled={isSavingReserve}
+                                                    onClick={() => handleSaveItemReserve(invoice.id, item.id, Number(reserveQtyInput) || 0, reserveForInput)}
+                                                    className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[10px] font-semibold inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                                                  >
+                                                    <Check className="w-3 h-3" />
+                                                    {isTr ? 'Kaydet' : 'Save'}
+                                                  </button>
+                                                  {Number(item.reserved_quantity || 0) > 0 && (
+                                                    <button
+                                                      type="button"
+                                                      disabled={isSavingReserve}
+                                                      onClick={() => handleSaveItemReserve(invoice.id, item.id, 0, '')}
+                                                      className="px-2 py-1 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 rounded-lg text-[10px] font-medium cursor-pointer"
+                                                    >
+                                                      {isTr ? 'Kaldır' : 'Clear'}
+                                                    </button>
+                                                  )}
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => setReservingItemId(null)}
+                                                    className="px-1.5 py-1 text-[10px] text-slate-500 hover:text-slate-800"
+                                                  >
+                                                    ✕
+                                                  </button>
                                                 </div>
                                               )}
 

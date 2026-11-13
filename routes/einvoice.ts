@@ -6,7 +6,7 @@ import { MySoftService } from "../src/services/backend/mysoftService";
 import { IntegrationService } from "../src/services/IntegrationService";
 import { UNIT_CODES, TAX_CODES } from "../src/lib/ubl-codes";
 import { numberToTurkishWords } from "../src/utils/formatUtils";
-import { findMatchingProduct, findOrCreateProductForInvoiceItem, saveSupplierMapping, sanitizeInvoiceItemCodes, isValidStandardBarcode, resolveExpenseClassification } from "./store/invoiceMatching";
+import { findMatchingProduct, findOrCreateProductForInvoiceItem, saveSupplierMapping, sanitizeInvoiceItemCodes, isValidStandardBarcode, resolveExpenseClassification, isShopLPStore, isNonStockFeeOrServiceItem } from "./store/invoiceMatching";
 
 const router = express.Router();
 
@@ -1900,9 +1900,11 @@ export async function importIncomingInvoicesForStore(
     return { importedCount: 0, updatedCount: 0, skippedCount: 0, results: [], errors: [] };
   }
 
+  const isShopLp = await isShopLPStore(pool, storeId);
+
   // Pre-load existing to avoid redundant calls
   const existingRows = await pool.query(
-    "SELECT id, ettn, invoice_number, document_number, supplier_name, grand_total FROM purchase_invoices WHERE store_id = $1",
+    "SELECT id, ettn, invoice_number, document_number, supplier_name, grand_total, COALESCE(operator_status, 'completed') as operator_status, is_expense FROM purchase_invoices WHERE store_id = $1",
     [storeId]
   );
   const ettnMap = new Map();
@@ -1913,7 +1915,7 @@ export async function importIncomingInvoicesForStore(
     if (row.invoice_number && row.invoice_number.trim() !== '' && row.invoice_number !== row.document_number) docNoMap.set(String(row.invoice_number).toLowerCase().trim(), row);
   }
 
-  console.log(`[importIncomingInvoicesForStore] Processing ${incomingInvoices.length} items. Already in DB: ${existingRows.rows.length}`);
+  console.log(`[importIncomingInvoicesForStore] Store ${storeId} (shopLP=${isShopLp}) processing ${incomingInvoices.length} items. Already in DB: ${existingRows.rows.length}`);
 
   for (const inv of incomingInvoices) {
     try {
@@ -1975,12 +1977,12 @@ export async function importIncomingInvoicesForStore(
       }
 
       const rawLines = details.detailList || details.InvoiceLines || details.lines || [];
-      const lineItemNames = (Array.isArray(rawLines) ? rawLines : [rawLines]).map((l: any) => 
-        l.detailItem?.itemName || l.itemName || l.Item?.Name?.['#text'] || l.Item?.Name || l.Name || ''
-      ).filter(Boolean);
 
       const expenseCheck = await resolveExpenseClassification(pool, storeId, {
-        companyId, supplierTitle: senderTitle, supplierVkn: senderVkn, pinToCompany: true
+        companyId,
+        supplierTitle: senderTitle,
+        supplierVkn: senderVkn,
+        pinToCompany: !isShopLp // On shopLP never auto-pin supplier as permanent expense without operator confirmation
       });
 
       const grandAmt = Number(details.legalMonetaryTotal?.payableAmount || details.PayableAmount || inv.payableAmount || 0);
@@ -2000,37 +2002,74 @@ export async function importIncomingInvoicesForStore(
       );
       const importedRate = (!isNaN(rawExchangeRate) && rawExchangeRate > 0) ? rawExchangeRate : 1;
 
+      const stageForOperatorApproval = isShopLp && (!existing || existing.operator_status === 'pending');
+
       let invoiceId: number;
       if (existing) {
-        // PRESERVE OPERATOR REVISION: If operator already set a specific exchange_rate > 1, do not overwrite it with 1
-        await pool.query(
-          `UPDATE purchase_invoices SET 
-            invoice_number = $1, document_number = $2, ettn = $3, supplier_name = $4, tax_number = $5, 
-            invoice_date = $6, total_amount = $7, tax_amount = $8, grand_total = $9, 
-            currency = CASE WHEN COALESCE(currency, 'TRY') != 'TRY' THEN currency ELSE $10 END,
-            exchange_rate = CASE WHEN COALESCE(exchange_rate, 1) > 1 AND $11 = 1 THEN exchange_rate ELSE $11 END,
-            company_id = COALESCE($12, company_id), is_expense = $13, expense_category = $14, expense_center = $15
-          WHERE id = $16`,
-          [
-            finalDocNo, finalDocNo, ettn, senderTitle, senderVkn, issueDate, baseAmt, taxAmt, grandAmt,
-            docCurrency, importedRate, companyId, expenseCheck.isExpense, expenseCheck.expenseCategory,
-            expenseCheck.expenseCenter, existing.id
-          ]
-        );
+        // PRESERVE OPERATOR REVISION: If operator already processed or set exchange_rate > 1, preserve those decisions
+        if (isShopLp) {
+          await pool.query(
+            `UPDATE purchase_invoices SET 
+              invoice_number = $1, document_number = $2, ettn = $3, supplier_name = $4, tax_number = $5, 
+              invoice_date = $6, total_amount = $7, tax_amount = $8, grand_total = $9, 
+              currency = CASE WHEN COALESCE(currency, 'TRY') != 'TRY' THEN currency ELSE $10 END,
+              exchange_rate = CASE WHEN COALESCE(exchange_rate, 1) > 1 AND $11 = 1 THEN exchange_rate ELSE $11 END,
+              company_id = COALESCE($12, company_id),
+              suggested_is_expense = COALESCE(suggested_is_expense, $13),
+              expense_category = COALESCE(expense_category, $14),
+              expense_center = COALESCE(expense_center, $15)
+            WHERE id = $16`,
+            [
+              finalDocNo, finalDocNo, ettn, senderTitle, senderVkn, issueDate, baseAmt, taxAmt, grandAmt,
+              docCurrency, importedRate, companyId, expenseCheck.isExpense, expenseCheck.expenseCategory,
+              expenseCheck.expenseCenter, existing.id
+            ]
+          );
+        } else {
+          await pool.query(
+            `UPDATE purchase_invoices SET 
+              invoice_number = $1, document_number = $2, ettn = $3, supplier_name = $4, tax_number = $5, 
+              invoice_date = $6, total_amount = $7, tax_amount = $8, grand_total = $9, 
+              currency = CASE WHEN COALESCE(currency, 'TRY') != 'TRY' THEN currency ELSE $10 END,
+              exchange_rate = CASE WHEN COALESCE(exchange_rate, 1) > 1 AND $11 = 1 THEN exchange_rate ELSE $11 END,
+              company_id = COALESCE($12, company_id), is_expense = $13, expense_category = $14, expense_center = $15
+            WHERE id = $16`,
+            [
+              finalDocNo, finalDocNo, ettn, senderTitle, senderVkn, issueDate, baseAmt, taxAmt, grandAmt,
+              docCurrency, importedRate, companyId, expenseCheck.isExpense, expenseCheck.expenseCategory,
+              expenseCheck.expenseCenter, existing.id
+            ]
+          );
+        }
         invoiceId = existing.id;
         updatedCount++;
       } else {
-        const ins = await pool.query(
-          `INSERT INTO purchase_invoices 
-            (store_id, company_id, invoice_number, document_number, ettn, e_document_type, supplier_name, tax_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, status, integration_status, payment_method, payment_status, is_expense, expense_category, expense_center)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21) RETURNING id`,
-          [
-            storeId, companyId, finalDocNo, finalDocNo, ettn, 'EFATURA', senderTitle, senderVkn, issueDate,
-            baseAmt, taxAmt, grandAmt, docCurrency, importedRate, 'approved', 'RECEIVED', 'term', 'unpaid',
-            expenseCheck.isExpense, expenseCheck.expenseCategory, expenseCheck.expenseCenter
-          ]
-        );
-        invoiceId = ins.rows[0].id;
+        if (isShopLp) {
+          console.log(`[shopLP Staging] Importing invoice ${finalDocNo} into operator approval queue (suggestedExpense=${expenseCheck.isExpense})`);
+          const ins = await pool.query(
+            `INSERT INTO purchase_invoices 
+              (store_id, company_id, invoice_number, document_number, ettn, e_document_type, supplier_name, tax_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, status, integration_status, payment_method, payment_status, is_expense, expense_category, expense_center, operator_status, suggested_is_expense)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, 'pending', $22) RETURNING id`,
+            [
+              storeId, companyId, finalDocNo, finalDocNo, ettn, 'EFATURA', senderTitle, senderVkn, issueDate,
+              baseAmt, taxAmt, grandAmt, docCurrency, importedRate, 'approved', 'RECEIVED', 'term', 'unpaid',
+              false, expenseCheck.expenseCategory, expenseCheck.expenseCenter, expenseCheck.isExpense
+            ]
+          );
+          invoiceId = ins.rows[0].id;
+        } else {
+          const ins = await pool.query(
+            `INSERT INTO purchase_invoices 
+              (store_id, company_id, invoice_number, document_number, ettn, e_document_type, supplier_name, tax_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, status, integration_status, payment_method, payment_status, is_expense, expense_category, expense_center, operator_status)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, 'completed') RETURNING id`,
+            [
+              storeId, companyId, finalDocNo, finalDocNo, ettn, 'EFATURA', senderTitle, senderVkn, issueDate,
+              baseAmt, taxAmt, grandAmt, docCurrency, importedRate, 'approved', 'RECEIVED', 'term', 'unpaid',
+              expenseCheck.isExpense, expenseCheck.expenseCategory, expenseCheck.expenseCenter
+            ]
+          );
+          invoiceId = ins.rows[0].id;
+        }
         importedCount++;
       }
 
@@ -2051,6 +2090,31 @@ export async function importIncomingInvoicesForStore(
           const tr = Number(String(line.taxTotal?.taxSubtotalList?.[0]?.percent || line.TaxTotal?.TaxSubtotal?.Percent || 0).replace(',','.')) || 0;
           const lTax = (qty * up * tr) / 100;
           const lTotal = qty * up;
+
+          if (stageForOperatorApproval) {
+            // shopLP STAGING POLICY: Read-only 5-Gate match recommendation ONLY. Do NOT create products, update stock, or save supplier mappings!
+            const sanitized = sanitizeInvoiceItemCodes(barcode, sellerCode, buyerCode, sellerCode || buyerCode);
+            const match = await findMatchingProduct(pool, storeId, {
+              supplierVkn: senderVkn,
+              productName: pName,
+              barcode: sanitized.barcode,
+              productCode: sanitized.productCode,
+              sellerCode,
+              buyerCode
+            });
+            const isFee = !match && isNonStockFeeOrServiceItem(pName);
+            const matchNote = match
+              ? `Önerilen Eşleşme (${match.matchType}): ${match.name}`
+              : (isFee ? 'Hizmet / Kargo / Masraf Kalemi' : 'Yeni / Eşleşmemiş Kalem');
+
+            await pool.query(
+              `INSERT INTO purchase_invoice_items
+                (purchase_invoice_id, product_id, suggested_product_id, match_status, match_note, product_name, barcode, product_code, quantity, unit_price, tax_rate, tax_amount, total_price)
+               VALUES ($1, NULL, $2, 'pending', $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+              [invoiceId, match?.productId || null, matchNote, pName, sanitized.barcode, sanitized.productCode, qty, up, tr, lTax, lTotal]
+            );
+            continue;
+          }
 
           let productId: number | null = null;
           let finalBarcode: string | null = barcode;
@@ -2078,9 +2142,9 @@ export async function importIncomingInvoicesForStore(
           }
 
           await pool.query(
-            `INSERT INTO purchase_invoice_items (purchase_invoice_id, product_id, product_name, barcode, product_code, quantity, unit_price, tax_rate, tax_amount, total_price)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-            [invoiceId, productId, pName, finalBarcode, finalProductCode, qty, up, tr, lTax, lTotal]
+            `INSERT INTO purchase_invoice_items (purchase_invoice_id, product_id, match_status, product_name, barcode, product_code, quantity, unit_price, tax_rate, tax_amount, total_price)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+            [invoiceId, productId, productId ? 'matched' : (expenseCheck.isExpense ? 'skipped' : 'unmatched'), pName, finalBarcode, finalProductCode, qty, up, tr, lTax, lTotal]
           );
 
           if (productId && !expenseCheck.isExpense && qty > 0) {

@@ -349,6 +349,11 @@ export const api = {
   matchPurchaseInvoiceItemProduct: (invoiceId: number, itemId: number, productId: number | null, storeId?: number) => api.post(`/api/store/purchase-invoices/${invoiceId}/items/${itemId}/match-product${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { product_id: productId }),
   createProductFromPurchaseInvoiceItem: (itemId: number, data: { name?: string; barcode?: string; product_code?: string; price?: number; cost_price?: number }, storeId?: number) => api.post(`/api/store/purchase-invoices/items/${itemId}/create-product${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   reSyncPurchaseInvoiceMatching: (id: number, storeId?: number) => api.post(`/api/store/purchase-invoices/${id}/re-sync-matching${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
+  getExpenseCenters: (storeId?: number) => api.get(`/api/store/purchase-invoices/expense-centers${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  addExpenseCenter: (data: { name: string; key?: string }, storeId?: number) => api.post(`/api/store/purchase-invoices/expense-centers${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  approvePurchaseInvoiceOperator: (id: number, data: any, storeId?: number) => api.post(`/api/store/purchase-invoices/${id}/operator-approve${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  updatePurchaseItemReserve: (invoiceId: number, itemId: number, data: { reserved_quantity: number; reserved_for: string }, storeId?: number) => api.post(`/api/store/purchase-invoices/${invoiceId}/items/${itemId}/reserve${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  releaseProductReserve: (productId: number, purchaseInvoiceItemId?: number, storeId?: number) => api.post(`/api/store/products/${productId}/release-reserve${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { item_id: purchaseInvoiceItemId, purchase_invoice_item_id: purchaseInvoiceItemId }),
     
   // AI Endpoints
   parseMenuImage: (imageBase64: string, lang: string) => api.post("/api/store/ai/parse-menu-image", { imageBase64, lang }),

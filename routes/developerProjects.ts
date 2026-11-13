@@ -608,7 +608,7 @@ async function ensureSeedDataForStore(storeId: number) {
       starting_price: 189000,
       currency: 'GBP',
       default_commission_rate: 8,
-      cover_image: 'https://drive.google.com/thumbnail?id=1BByvpSoIl22UNb4De-Dgna5RyN01_TbD&sz=w1200',
+      cover_image: '/assets/images/cyprus_sunlit_resort_hero_1794578840052.jpg',
       architectural_specs: [
         'Kesintisiz Akdeniz ve Beşparmak Dağları Panoraması (Kademeli Teras Mimarisi)',
         'Özel İskele, Lagün Tarzı Yüzme Havuzları ve Palmiye Adacıkları',
@@ -1184,45 +1184,44 @@ async function ensureSeedDataForStore(storeId: number) {
     }
   ];
 
-  const existingProjsRes = await pool.query('SELECT id, project_code, media_vault FROM developer_projects WHERE store_id = $1', [storeId]);
+  const existingProjsRes = await pool.query('SELECT id, project_code, cover_image, media_vault FROM developer_projects WHERE store_id = $1', [storeId]);
   const insertedProjectIds: Record<string, number> = {};
   const existingMediaMap: Record<string, any[]> = {};
+  const existingCoverMap: Record<string, string> = {};
   for (const row of existingProjsRes.rows) {
     insertedProjectIds[row.project_code] = row.id;
     existingMediaMap[row.project_code] = Array.isArray(row.media_vault) ? row.media_vault : [];
+    existingCoverMap[row.project_code] = String(row.cover_image || '').trim();
   }
 
   for (const p of projectsSeed) {
     if (insertedProjectIds[p.project_code]) {
       const currentVault = existingMediaMap[p.project_code] || [];
-      const customVaultItems = currentVault.filter((m: any) => String(m?.id || '').startsWith('media_'));
-      const seedIds = new Set(p.media_vault.map((m: any) => m.id));
-      const mergedVault = [
-        ...customVaultItems,
-        ...p.media_vault.map((seedItem: any) => {
-          const prevMatch = currentVault.find((c: any) => c.id === seedItem.id);
-          return prevMatch ? { ...seedItem, ...prevMatch } : seedItem;
-        }),
-        ...currentVault.filter((c: any) => !String(c?.id || '').startsWith('media_') && !seedIds.has(c?.id))
-      ];
+      const currentCover = existingCoverMap[p.project_code] || '';
+      const isLegacyMaldivesLogo =
+        p.project_code === 'CC-PRJ-01' && currentCover.includes('1BByvpSoIl22UNb4De-Dgna5RyN01_TbD');
+      const nextCover = !currentCover || isLegacyMaldivesLogo ? p.cover_image : currentCover;
+      const nextVault = currentVault.length > 0 ? currentVault : p.media_vault;
 
-      await pool.query(
-        `UPDATE developer_projects
-         SET folder_prefix = $1,
-             drive_folder_id = $2,
-             drive_folder_url = $3,
-             cover_image = $4,
-             media_vault = $5::jsonb
-         WHERE id = $6`,
-        [
-          p.folder_prefix,
-          p.drive_folder_id,
-          p.drive_folder_url,
-          p.cover_image,
-          JSON.stringify(mergedVault),
-          insertedProjectIds[p.project_code]
-        ]
-      );
+      if (isLegacyMaldivesLogo || !currentCover || currentVault.length === 0) {
+        await pool.query(
+          `UPDATE developer_projects
+           SET folder_prefix = COALESCE(NULLIF(folder_prefix, ''), $1),
+               drive_folder_id = COALESCE(NULLIF(drive_folder_id, ''), $2),
+               drive_folder_url = COALESCE(NULLIF(drive_folder_url, ''), $3),
+               cover_image = $4,
+               media_vault = $5::jsonb
+           WHERE id = $6`,
+          [
+            p.folder_prefix,
+            p.drive_folder_id,
+            p.drive_folder_url,
+            nextCover,
+            JSON.stringify(nextVault),
+            insertedProjectIds[p.project_code]
+          ]
+        );
+      }
     } else {
       const res = await pool.query(
         `INSERT INTO developer_projects (
@@ -1899,6 +1898,8 @@ router.put('/projects/:id', authenticate, async (req: any, res) => {
       ? { ...(cur.lifestyle_facilities || {}), ...b.lifestyle_facilities }
       : cur.lifestyle_facilities || {};
 
+    const cleanedCover = b.cover_image ? await cleanDeepBase64(normalizeStorageUrl(b.cover_image)) : null;
+
     const result = await pool.query(
       `UPDATE developer_projects
        SET name = COALESCE($1, name),
@@ -1929,7 +1930,7 @@ router.put('/projects/:id', authenticate, async (req: any, res) => {
         b.construction_progress !== undefined ? Number(b.construction_progress) : null,
         b.starting_price !== undefined ? Number(b.starting_price) : null,
         b.default_commission_rate !== undefined ? Number(b.default_commission_rate) : null,
-        b.cover_image || null,
+        cleanedCover || null,
         b.total_units !== undefined ? Number(b.total_units) : null,
         b.available_units !== undefined ? Number(b.available_units) : null,
         JSON.stringify(updatedPaymentPlan),
@@ -1961,28 +1962,33 @@ router.delete('/projects/:id', authenticate, async (req: any, res) => {
 router.post('/projects/:id/media', authenticate, async (req: any, res) => {
   const storeId = Number(getAuthorizedStoreId(req, req.body.store_id || req.query.store_id) || req.user?.store_id || 1);
   const { id } = req.params;
-  const { name, type, category, url, conflictMode, unit_type_match, media_role } = req.body;
+  const { name, type, category, url, conflictMode, unit_type_match, unit_number_match, media_role, setAsCover } = req.body;
   try {
-    const existingRes = await pool.query('SELECT media_vault FROM developer_projects WHERE id = $1 AND store_id = $2', [id, storeId]);
+    const existingRes = await pool.query('SELECT cover_image, media_vault FROM developer_projects WHERE id = $1 AND store_id = $2', [id, storeId]);
     if (existingRes.rowCount === 0) return res.status(404).json({ error: 'Proje bulunamadı' });
 
+    const currentCover = String(existingRes.rows[0].cover_image || '').trim();
     const currentMedia: any[] = Array.isArray(existingRes.rows[0].media_vault) ? [...existingRes.rows[0].media_vault] : [];
     const rawName = String(name || 'Yeni Proje Dosyası.pdf').trim();
     const cleanedUrl = await cleanDeepBase64(normalizeStorageUrl(url || ''));
     const targetCategory = String(category || 'Teknik & Mimari Planlar').trim();
     const targetType = type || 'masterplan';
     const targetUnitMatch = unit_type_match ? String(unit_type_match).trim() : '';
+    const targetUnitNumberMatch = unit_number_match ? String(unit_number_match).trim() : '';
     const targetMediaRole = media_role ? String(media_role).trim() : '';
 
     const existingIndex = currentMedia.findIndex(
-      (m: any) => String(m?.name || '').trim().toLowerCase() === rawName.toLowerCase()
+      (m: any) =>
+        String(m?.name || '').trim().toLowerCase() === rawName.toLowerCase() &&
+        String(m?.media_role || '') === targetMediaRole &&
+        String(m?.unit_type_match || '') === targetUnitMatch &&
+        String(m?.unit_number_match || '') === targetUnitNumberMatch
     );
 
     let nextMedia: any[];
     let resolutionAction: 'created' | 'overwritten' | 'versioned' = 'created';
 
     if (existingIndex !== -1 && conflictMode === 'overwrite') {
-      // Overwrite existing file in-place
       const prev = currentMedia[existingIndex];
       currentMedia[existingIndex] = {
         ...prev,
@@ -1991,6 +1997,7 @@ router.post('/projects/:id/media', authenticate, async (req: any, res) => {
         category: targetCategory,
         url: cleanedUrl || prev.url,
         unit_type_match: targetUnitMatch || prev.unit_type_match || '',
+        unit_number_match: targetUnitNumberMatch || prev.unit_number_match || '',
         media_role: targetMediaRole || prev.media_role || '',
         size: '',
         drive_synced: true,
@@ -2001,7 +2008,6 @@ router.post('/projects/:id/media', authenticate, async (req: any, res) => {
     } else {
       let finalName = rawName;
       if (existingIndex !== -1) {
-        // Save as new versioned file: e.g. "Kat Planı (v2).pdf"
         const dotIdx = rawName.lastIndexOf('.');
         const base = dotIdx > 0 ? rawName.slice(0, dotIdx) : rawName;
         const ext = dotIdx > 0 ? rawName.slice(dotIdx) : '';
@@ -2024,6 +2030,7 @@ router.post('/projects/:id/media', authenticate, async (req: any, res) => {
         size: '',
         category: targetCategory,
         unit_type_match: targetUnitMatch,
+        unit_number_match: targetUnitNumberMatch,
         media_role: targetMediaRole,
         url: cleanedUrl || 'https://drive.google.com/drive/folders/1oZDbLanKWW2ZkfF6WQkfRU2rlDyn0fDM',
         drive_synced: true,
@@ -2032,11 +2039,87 @@ router.post('/projects/:id/media', authenticate, async (req: any, res) => {
       nextMedia = [newMediaItem, ...currentMedia];
     }
 
-    const updated = await pool.query(
-      'UPDATE developer_projects SET media_vault = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND store_id = $3 RETURNING *',
-      [JSON.stringify(nextMedia), id, storeId]
-    );
+    const shouldUpdateCover =
+      Boolean(setAsCover && cleanedUrl) ||
+      (targetMediaRole === 'masterplan' &&
+        Boolean(cleanedUrl) &&
+        (!currentCover || currentCover.includes('1BByvpSoIl22UNb4De-Dgna5RyN01_TbD')));
+
+    const updated = shouldUpdateCover
+      ? await pool.query(
+          'UPDATE developer_projects SET media_vault = $1, cover_image = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 AND store_id = $4 RETURNING *',
+          [JSON.stringify(nextMedia), cleanedUrl, id, storeId]
+        )
+      : await pool.query(
+          'UPDATE developer_projects SET media_vault = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND store_id = $3 RETURNING *',
+          [JSON.stringify(nextMedia), id, storeId]
+        );
     res.json({ ...updated.rows[0], resolutionAction });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/developer-projects/projects/:id/media/batch (Batch Add Multiple Images/Files for Showcase Sections or Masterplan)
+router.post('/projects/:id/media/batch', authenticate, async (req: any, res) => {
+  const storeId = Number(getAuthorizedStoreId(req, req.body.store_id || req.query.store_id) || req.user?.store_id || 1);
+  const { id } = req.params;
+  const items = Array.isArray(req.body.items) ? req.body.items : [];
+  const setFirstAsCover = Boolean(req.body.setFirstAsCover);
+  if (items.length === 0) {
+    return res.status(400).json({ error: 'Eklenecek medya listesi boş.' });
+  }
+  try {
+    const existingRes = await pool.query(
+      'SELECT cover_image, media_vault FROM developer_projects WHERE id = $1 AND store_id = $2',
+      [id, storeId]
+    );
+    if (existingRes.rowCount === 0) return res.status(404).json({ error: 'Proje bulunamadı' });
+
+    const currentCover = String(existingRes.rows[0].cover_image || '').trim();
+    const currentMedia: any[] = Array.isArray(existingRes.rows[0].media_vault)
+      ? [...existingRes.rows[0].media_vault]
+      : [];
+
+    const newItems: any[] = [];
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i] || {};
+      const cleanedUrl = await cleanDeepBase64(normalizeStorageUrl(it.url || ''));
+      if (!cleanedUrl) continue;
+      newItems.push({
+        id: `media_${Date.now()}_${i}_${Math.floor(Math.random() * 1000)}`,
+        name: String(it.name || `Gorsel-${i + 1}.jpg`).trim(),
+        type: it.type || 'photos',
+        size: '',
+        category: String(it.category || '4K Görsel & Render Paketi').trim(),
+        unit_type_match: it.unit_type_match ? String(it.unit_type_match).trim() : '',
+        unit_number_match: it.unit_number_match ? String(it.unit_number_match).trim() : '',
+        media_role: it.media_role ? String(it.media_role).trim() : 'photo',
+        url: cleanedUrl,
+        drive_synced: true,
+        created_at: new Date().toISOString()
+      });
+    }
+
+    const nextMedia = [...newItems, ...currentMedia];
+    const firstMasterplanUrl =
+      newItems.find((m) => m.media_role === 'masterplan')?.url || newItems[0]?.url || '';
+    const shouldSetCover =
+      (setFirstAsCover && Boolean(firstMasterplanUrl)) ||
+      (newItems.some((m) => m.media_role === 'masterplan') &&
+        Boolean(firstMasterplanUrl) &&
+        (!currentCover || currentCover.includes('1BByvpSoIl22UNb4De-Dgna5RyN01_TbD')));
+
+    const updated = shouldSetCover
+      ? await pool.query(
+          'UPDATE developer_projects SET media_vault = $1, cover_image = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 AND store_id = $4 RETURNING *',
+          [JSON.stringify(nextMedia), firstMasterplanUrl, id, storeId]
+        )
+      : await pool.query(
+          'UPDATE developer_projects SET media_vault = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND store_id = $3 RETURNING *',
+          [JSON.stringify(nextMedia), id, storeId]
+        );
+    res.json({ ...updated.rows[0], addedCount: newItems.length });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

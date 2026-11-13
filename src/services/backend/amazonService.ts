@@ -1388,7 +1388,7 @@ export class AmazonService {
       else if (curr === 'GBP' && rates.GBP) rawPrice *= Number(rates.GBP);
 
       const effectivePrice = this.calculateMarketplacePrice(rawPrice, prod.category, prod.sub_category);
-      const stock = Math.max(0, parseInt(prod.stock_quantity || prod.stock || 0, 10));
+      const stock = Math.max(0, Math.floor(Number(prod.stock_quantity || prod.stock || 0) - Math.max(0, Number(prod.reserved_stock || 0))));
 
       if (!sku || effectivePrice <= 0) continue;
 
