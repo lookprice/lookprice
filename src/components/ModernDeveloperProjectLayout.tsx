@@ -28,7 +28,12 @@ import {
   X
 } from "lucide-react";
 import { toast } from "sonner";
-import { Architectural2DTo3DStudio } from "./developer/Architectural2DTo3DStudio";
+import {
+  UIVERSE_INTERACTION_PRESETS,
+  UiversePresetId,
+  UiversePresetMeta,
+  ARCHITECTURAL_LORA_MODELS
+} from "./developer/UiverseAndLoraWebStudio";
 
 export type DeveloperThemeId =
   | "monolith_obsidian"
@@ -181,6 +186,20 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
     }
   }, [savedDevConfig?.theme_id]);
 
+  const [activeUiverseId, setActiveUiverseId] = useState<UiversePresetId>(() => {
+    const configured = (savedDevConfig?.uiverse_preset || store?.branding?.uiverse_preset) as UiversePresetId;
+    if (configured && UIVERSE_INTERACTION_PRESETS[configured]) return configured;
+    return "shimmer_glass";
+  });
+
+  useEffect(() => {
+    const configured = (savedDevConfig?.uiverse_preset || store?.branding?.uiverse_preset) as UiversePresetId;
+    if (configured && UIVERSE_INTERACTION_PRESETS[configured]) {
+      setActiveUiverseId(configured);
+    }
+  }, [savedDevConfig?.uiverse_preset, store?.branding?.uiverse_preset]);
+
+  const uiverse = UIVERSE_INTERACTION_PRESETS[activeUiverseId] || UIVERSE_INTERACTION_PRESETS.shimmer_glass;
   const theme = DEVELOPER_ARCHITECTURAL_THEMES[activeThemeId] || DEVELOPER_ARCHITECTURAL_THEMES.monolith_obsidian;
 
   const [projects, setProjects] = useState<any[]>([]);
@@ -305,7 +324,6 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
     savedDevConfig?.hero_video_url ||
     "https://assets.mixkit.co/videos/preview/mixkit-aerial-view-of-city-buildings-on-a-sunny-day-41463-large.mp4";
 
-  const show3DStudioSection = savedDevConfig?.show_3d_studio !== false;
   const showUnitMatrixSection = savedDevConfig?.show_unit_matrix !== false;
   const showLifestyleSection = savedDevConfig?.show_lifestyle !== false;
 
@@ -356,7 +374,7 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
           {companyName}
         </a>
 
-        {/* Zone 2: 5 concise single-line text navigation links */}
+        {/* Zone 2: Concise single-line text navigation links */}
         <nav className="hidden lg:flex items-center gap-7 text-sm font-medium">
           <a
             href="#masterplan-portfolio"
@@ -364,14 +382,6 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
           >
             Masterplan Projeler
           </a>
-          {show3DStudioSection && (
-            <a
-              href="#architectural-3d-studio"
-              className={`${theme.textSecondary} hover:${theme.textPrimary} transition-colors whitespace-nowrap shrink-0`}
-            >
-              2D → 3D Mimari Stüdyo
-            </a>
-          )}
           {showUnitMatrixSection && (
             <a
               href="#unit-availability"
@@ -400,7 +410,7 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
         <div className="flex items-center gap-3 shrink-0">
           <a
             href="#investor-concierge"
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all whitespace-nowrap shrink-0 ${theme.accentBg}`}
+            className={`px-4 py-2 text-xs font-bold rounded-lg whitespace-nowrap shrink-0 ${theme.accentBg} ${uiverse.primaryBtnClass}`}
           >
             VIP Yatırımcı Sunumu
           </a>
@@ -432,27 +442,41 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
             <div className="absolute inset-0 bg-gradient-to-t from-[#090D16] via-[#090D16]/65 to-[#090D16]/40" />
           </div>
 
-          {/* Interactive Architectural Concept Switcher Bar (Below Header) */}
-          <div className="relative z-10 max-w-7xl mx-auto w-full px-6 lg:px-12 pt-6">
-            <div className="inline-flex flex-wrap items-center gap-1.5 p-1.5 rounded-xl bg-slate-950/80 border border-white/15 text-white">
-              <span className="px-2.5 py-1 text-[11px] font-semibold text-slate-300 flex items-center gap-1.5 whitespace-nowrap">
-                <Palette className="w-3.5 h-3.5 text-[#C5A059]" />
-                <span>Mimari Tasarım Konsepti:</span>
-              </span>
-              {(Object.values(DEVELOPER_ARCHITECTURAL_THEMES) as DeveloperThemeMeta[]).map(tItem => (
-                <button
-                  key={tItem.id}
-                  type="button"
-                  onClick={() => setActiveThemeId(tItem.id)}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
-                    activeThemeId === tItem.id
-                      ? "bg-[#C5A059] text-slate-950 font-bold shadow-sm"
-                      : "text-slate-300 hover:text-white hover:bg-white/10"
-                  }`}
-                >
-                  {tItem.index}. {tItem.name}
-                </button>
-              ))}
+          {/* Interactive Architectural Concept & Uiverse Collapsible Switcher Bar (Below Header) */}
+          <div className="relative z-10 max-w-7xl mx-auto w-full px-6 lg:px-12 pt-6 flex flex-wrap items-center justify-between gap-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950/85 border border-white/15 text-white">
+              <Palette className="w-3.5 h-3.5 text-[#C5A059] shrink-0" />
+              <label className="text-[11px] font-semibold text-slate-300 whitespace-nowrap">
+                Mimari Tasarım Konsepti:
+              </label>
+              <select
+                value={activeThemeId}
+                onChange={e => setActiveThemeId(e.target.value as DeveloperThemeId)}
+                className="bg-slate-900 border border-white/20 text-white rounded-lg px-2.5 py-1 text-xs font-bold cursor-pointer outline-none"
+              >
+                {(Object.values(DEVELOPER_ARCHITECTURAL_THEMES) as DeveloperThemeMeta[]).map(tItem => (
+                  <option key={tItem.id} value={tItem.id} className="bg-slate-900 text-white">
+                    {tItem.index}. {tItem.name} — {tItem.subtitle}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950/85 border border-white/15 text-white">
+              <label className="text-[11px] font-semibold text-slate-300 whitespace-nowrap">
+                Uiverse Etkileşim:
+              </label>
+              <select
+                value={activeUiverseId}
+                onChange={e => setActiveUiverseId(e.target.value as UiversePresetId)}
+                className="bg-slate-900 border border-white/20 text-white rounded-lg px-2.5 py-1 text-xs font-bold cursor-pointer outline-none"
+              >
+                {(Object.values(UIVERSE_INTERACTION_PRESETS) as UiversePresetMeta[]).map(uItem => (
+                  <option key={uItem.id} value={uItem.id} className="bg-slate-900 text-white">
+                    {uItem.index}. {uItem.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -481,24 +505,24 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
               <div className="pt-2 flex flex-wrap items-center gap-3">
                 <a
                   href="#masterplan-portfolio"
-                  className="px-6 py-3.5 rounded-xl bg-[#C5A059] hover:bg-[#d4b06a] text-slate-950 text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all whitespace-nowrap"
+                  className={`px-6 py-3.5 rounded-xl bg-[#C5A059] hover:bg-[#d4b06a] text-slate-950 text-xs font-black uppercase tracking-wider flex items-center gap-2 whitespace-nowrap ${uiverse.primaryBtnClass}`}
                 >
                   <span>Masterplan Projeleri Keşfet ({projects.length})</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                 </a>
 
                 <a
-                  href="#architectural-3d-studio"
-                  className="px-5 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-bold flex items-center gap-2 transition-all whitespace-nowrap"
+                  href="#unit-availability"
+                  className={`px-5 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-bold flex items-center gap-2 whitespace-nowrap ${uiverse.secondaryBtnClass}`}
                 >
-                  <Box className="w-4 h-4 text-[#C5A059]" />
-                  <span>2D → 3D Kat Planı Stüdyosu</span>
+                  <Layers className="w-4 h-4 text-[#C5A059]" />
+                  <span>Bağımsız Bölüm & Fiyatlar</span>
                 </a>
 
                 <button
                   type="button"
                   onClick={() => handleWhatsAppDirect()}
-                  className="px-5 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-2 cursor-pointer transition-all whitespace-nowrap"
+                  className={`px-5 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-2 cursor-pointer whitespace-nowrap ${uiverse.primaryBtnClass}`}
                 >
                   <MessageCircle className="w-4 h-4" />
                   <span>Satış Ofisi WhatsApp</span>
@@ -574,10 +598,10 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
               </div>
               <div>
                 <div className="text-2xl lg:text-3xl font-black text-sky-400 font-mono tabular-nums">
-                  2D → 3D WebGL
+                  4K Drone & LoRA
                 </div>
                 <div className="text-xs text-slate-400 mt-0.5">
-                  İnteraktif 3 Boyutlu Kat Planı & Mimari Kütle İnceleme
+                  Yüksek Çözünürlüklü Mimari Katalog ve Sosyal Yaşam Vitrini
                 </div>
               </div>
             </div>
@@ -599,29 +623,21 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
             </h2>
           </div>
 
-          {/* Interactive Region Filter Controls */}
-          <div className={`flex flex-wrap items-center gap-1 p-1 rounded-xl border ${theme.surfaceBg} ${theme.borderClass}`}>
-            <button
-              type="button"
-              onClick={() => setSelectedRegion("all")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer whitespace-nowrap transition-colors ${
-                selectedRegion === "all" ? theme.accentBg : `${theme.textSecondary}`
-              }`}
+          {/* Collapsible Region Filter Dropdown */}
+          <div className="flex items-center gap-2 shrink-0">
+            <label className={`text-xs font-bold uppercase ${theme.textMuted}`}>Bölge:</label>
+            <select
+              value={selectedRegion}
+              onChange={e => setSelectedRegion(e.target.value)}
+              className={`px-3.5 py-2 rounded-xl border text-xs font-bold cursor-pointer outline-none ${theme.cardBg} ${theme.borderClass} ${theme.textPrimary}`}
             >
-              Tüm Bölgeler ({projects.length})
-            </button>
-            {regions.map(reg => (
-              <button
-                key={reg}
-                type="button"
-                onClick={() => setSelectedRegion(reg)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer whitespace-nowrap transition-colors ${
-                  selectedRegion === reg ? theme.accentBg : `${theme.textSecondary}`
-                }`}
-              >
-                {reg}
-              </button>
-            ))}
+              <option value="all">Tüm Bölgeler ({projects.length})</option>
+              {regions.map(reg => (
+                <option key={reg} value={reg}>
+                  {reg}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -634,9 +650,9 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
               <div
                 key={proj.id}
                 onClick={() => handleSelectProject(proj)}
-                className={`group rounded-2xl overflow-hidden border transition-all duration-200 cursor-pointer flex flex-col justify-between ${
+                className={`group rounded-2xl overflow-hidden border cursor-pointer flex flex-col justify-between ${
                   theme.cardBg
-                } ${
+                } ${uiverse.cardHoverClass} ${
                   isSelected
                     ? "ring-2 ring-[#C5A059] border-[#C5A059]"
                     : `${theme.borderClass} hover:border-[#C5A059]/60`
@@ -721,11 +737,11 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
 
               <div className="flex flex-wrap items-center gap-2.5 shrink-0">
                 <a
-                  href="#architectural-3d-studio"
+                  href="#unit-availability"
                   className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 whitespace-nowrap ${theme.accentBg}`}
                 >
-                  <Box className="w-4 h-4" />
-                  <span>3D Kat Planında İncele</span>
+                  <Layers className="w-4 h-4" />
+                  <span>Bağımsız Bölüm & Fiyatları İncele</span>
                 </a>
                 <button
                   type="button"
@@ -785,68 +801,85 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
       </section>
 
       {/* =================================================================== */}
-      {/* 4. INTERACTIVE 2D → 3D WEBGL ARCHITECTURAL STUDIO SECTION           */}
+      {/* 4. CLOUD LORA ARCHITECTURAL VISUALIZATION GALLERY                   */}
       {/* =================================================================== */}
-      {show3DStudioSection && (
+      {savedDevConfig?.show_lora_showcase !== false && (
         <section
-          id="architectural-3d-studio"
-          className={`border-y py-16 ${theme.surfaceBg} ${theme.borderClass}`}
+          id="architectural-lora-gallery"
+          className={`border-y py-14 ${theme.surfaceBg} ${theme.borderClass}`}
         >
           <div className="max-w-7xl mx-auto px-6 lg:px-12 space-y-6">
-            <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
-              <div className="space-y-2">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+              <div>
                 <div className={`text-xs font-semibold uppercase tracking-wider ${theme.accentText}`}>
-                  02. İnteraktif 2D → 3D WebGL Mimari Kat Planı & Derinlik Dönüştürücü
+                  02. Mimari Görselleştirme, Kesit & Sanal Eşyalandırma (LoRA) Galerisi
                 </div>
-                <h2 className={`text-2xl lg:text-4xl font-bold ${theme.headingFontClass}`}>
-                  {activeProject?.name || companyName} — 3 Boyutlu Bağımsız Bölüm Deneyimi
+                <h2 className={`text-2xl lg:text-3xl font-bold mt-1 ${theme.headingFontClass}`}>
+                  Dış Cephe Konsepti, İzometrik Kesit & İç Mekan Tasarımı
                 </h2>
-                <p className={`text-sm max-w-3xl ${theme.textSecondary}`}>
-                  İstediğiniz bağımsız bölüm kapı numarasını seçerek 2D teknik kat çizimini gerçek zamanlı 3D mimari kütleye yükseltin veya kendi 2D kat planı görselinizi yükleyerek 3 boyutlu inceleyin.
-                </p>
-              </div>
-
-              {/* Project & Unit Selector for 3D Studio */}
-              <div className="flex flex-wrap items-center gap-2 shrink-0">
-                <select
-                  value={selectedProjectId}
-                  onChange={e => {
-                    const found = projects.find(p => Number(p.id) === Number(e.target.value));
-                    if (found) handleSelectProject(found);
-                  }}
-                  className={`px-3 py-2 rounded-xl border text-xs font-bold cursor-pointer ${theme.cardBg} ${theme.borderClass} ${theme.textPrimary}`}
-                >
-                  {projects.map(p => (
-                    <option key={p.id} value={p.id}>
-                      Proje: {p.name}
-                    </option>
-                  ))}
-                </select>
-
-                <select
-                  value={selectedUnit?.id || ""}
-                  onChange={e => {
-                    const u = projectUnits.find(x => Number(x.id) === Number(e.target.value));
-                    if (u) setSelectedUnit(u);
-                  }}
-                  className={`px-3 py-2 rounded-xl border text-xs font-mono font-bold cursor-pointer ${theme.cardBg} ${theme.borderClass} ${theme.textPrimary}`}
-                >
-                  {projectUnits.map(u => (
-                    <option key={u.id} value={u.id}>
-                      Kapı No: {u.unit_number} ({u.unit_type} · {formatGbp(u.price)})
-                    </option>
-                  ))}
-                </select>
               </div>
             </div>
 
-            <Architectural2DTo3DStudio
-              project={activeProject}
-              selectedUnit={selectedUnit || projectUnits[0]}
-              units={projectUnits}
-              onSelectUnit={u => setSelectedUnit(u)}
-              darkTheme={theme.isDark}
-            />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {(Array.isArray(savedDevConfig?.lora_generated_gallery) &&
+              savedDevConfig.lora_generated_gallery.length > 0
+                ? savedDevConfig.lora_generated_gallery.slice(0, 3)
+                : ARCHITECTURAL_LORA_MODELS.map(m => ({
+                    id: m.id,
+                    title: m.name,
+                    loraUsed: m.category,
+                    promptCommand: m.description,
+                    imageUrl: m.previewImage
+                  }))
+              ).map((vis: any, vIdx: number) => (
+                <div
+                  key={vis.id || vIdx}
+                  onClick={() =>
+                    setActiveMediaModal({
+                      name: vis.title,
+                      category: vis.loraUsed || "Mimari Render",
+                      type: "photos",
+                      url: vis.imageUrl,
+                      cover: vis.imageUrl,
+                      projectName: activeProject?.name || companyName
+                    })
+                  }
+                  className={`group rounded-2xl border overflow-hidden cursor-pointer flex flex-col justify-between ${theme.cardBg} ${theme.borderClass} ${uiverse.cardHoverClass}`}
+                >
+                  <div>
+                    <div className="relative aspect-video w-full overflow-hidden bg-slate-900">
+                      <img
+                        src={vis.imageUrl}
+                        alt={vis.title}
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                      <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-xs text-white">
+                        <span className="font-semibold text-[#C5A059]">
+                          0{vIdx + 1}. {vis.loraUsed}
+                        </span>
+                        <span className="font-mono text-[11px] opacity-85">Tam Ekran İncele</span>
+                      </div>
+                    </div>
+                    <div className="p-4 space-y-1.5">
+                      <h4 className={`text-base font-bold ${theme.headingFontClass}`}>
+                        {vis.title}
+                      </h4>
+                      <p className={`text-xs line-clamp-2 ${theme.textSecondary}`}>
+                        {vis.promptCommand}
+                      </p>
+                    </div>
+                  </div>
+                  <div
+                    className={`px-4 py-3 border-t ${theme.borderClass} flex items-center justify-between text-xs font-bold`}
+                  >
+                    <span className={theme.accentText}>Yüksek Çözünürlüklü Paftayı Aç</span>
+                    <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
       )}
@@ -908,7 +941,7 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
                       <th className="py-3 px-4">Kat & Manzara</th>
                       <th className="py-3 px-4">Liste Fiyatı</th>
                       <th className="py-3 px-4">Durum</th>
-                      <th className="py-3 px-4 text-right">3D Plan</th>
+                      <th className="py-3 px-4 text-right">Ödeme Simülatörü</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-current/10">
@@ -946,17 +979,17 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
                           </td>
                           <td className={`py-3 px-4 whitespace-nowrap ${statusColor}`}>{statusLabel}</td>
                           <td className="py-3 px-4 text-right whitespace-nowrap">
-                            <a
-                              href="#architectural-3d-studio"
+                            <button
+                              type="button"
                               onClick={() => {
                                 setSelectedUnit(u);
                                 setSimulatorBudget(Number(u.price) || 225000);
                               }}
-                              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold inline-flex items-center gap-1 ${theme.accentBg}`}
+                              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer ${theme.accentBg}`}
                             >
-                              <Box className="w-3 h-3" />
-                              <span>3D Aç</span>
-                            </a>
+                              <Calculator className="w-3 h-3" />
+                              <span>Taksit Hesapla</span>
+                            </button>
                           </td>
                         </tr>
                       );
@@ -1217,9 +1250,6 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
           <div className="flex flex-wrap items-center gap-6">
             <a href="#masterplan-portfolio" className="hover:underline">
               Masterplan Projeler
-            </a>
-            <a href="#architectural-3d-studio" className="hover:underline">
-              2D → 3D Mimari Stüdyo
             </a>
             <a href="#unit-availability" className="hover:underline">
               Fiyat & Envanter

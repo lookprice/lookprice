@@ -17,7 +17,8 @@ import {
   Sparkles,
   Trash2,
   Upload,
-  Video
+  Video,
+  X
 } from "lucide-react";
 import {
   DEVELOPER_ARCHITECTURAL_THEMES,
@@ -25,6 +26,7 @@ import {
   DeveloperThemeMeta,
   ModernDeveloperProjectLayout
 } from "../../../components/ModernDeveloperProjectLayout";
+import { UiverseAndLoraWebStudio } from "../../../components/developer/UiverseAndLoraWebStudio";
 
 interface SettingsDeveloperWebTabProps {
   branding: any;
@@ -114,14 +116,14 @@ export const SettingsDeveloperWebTab: React.FC<SettingsDeveloperWebTabProps> = (
               projectLP Kurumsal Mimari Web Stüdyosu
             </span>
             <span className="text-xs font-bold text-emerald-700">
-              • HTML5 Video & 2D→3D WebGL Aktif
+              • HTML5 Video, Uiverse & Cloud LoRA Aktif
             </span>
           </div>
           <h2 className="text-base font-black text-slate-950">
             {companyDisplayName} — Üst Düzey İnşaat & Masterplan Web Sitesi Yönetimi
           </h2>
           <p className="text-xs text-slate-600">
-            Standart e-ticaret veya emlak vitrinlerinden tamamen bağımsız; uluslararası yatırımcılar için tasarlanmış 4 mimari konsept, HTML5 drone video sahnesi ve 2D→3D kat planı dönüştürücüsünü buradan yönetin.
+            Standart e-ticaret veya emlak vitrinlerinden tamamen bağımsız; uluslararası yatırımcılar için tasarlanmış 4 mimari konsept, HTML5 drone video sahnesi ve Uiverse / Cloud LoRA görsel stüdyosunu buradan yönetin.
           </p>
         </div>
 
@@ -222,7 +224,7 @@ export const SettingsDeveloperWebTab: React.FC<SettingsDeveloperWebTabProps> = (
                       isSelected ? "text-indigo-700" : "text-slate-500"
                     }`}
                   >
-                    {isSelected ? "✓ Seçili Web Konsepti" : "Bu Konsepti Seç"}
+                    {isSelected ? "Seçili Web Konsepti" : "Bu Konsepti Seç"}
                   </span>
                   {isSelected && <CheckCircle2 className="w-4 h-4 text-indigo-600" />}
                 </div>
@@ -327,22 +329,6 @@ export const SettingsDeveloperWebTab: React.FC<SettingsDeveloperWebTabProps> = (
           </div>
 
           <div className="space-y-2">
-            <label className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer">
-              <div>
-                <div className="text-xs font-black text-slate-900">
-                  İnteraktif 2D → 3D WebGL Kat Planı Stüdyosu
-                </div>
-                <div className="text-[10px] text-slate-500">
-                  Müşteriler 2D kat planlarını web sitesinde 3 boyutlu mimari kütle olarak inceleyebilir
-                </div>
-              </div>
-              <input
-                type="checkbox"
-                checked={devConfig.show_3d_studio !== false}
-                onChange={e => updateDevConfig({ show_3d_studio: e.target.checked })}
-                className="w-4 h-4 accent-indigo-600"
-              />
-            </label>
 
             <label className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer">
               <div>
@@ -407,6 +393,15 @@ export const SettingsDeveloperWebTab: React.FC<SettingsDeveloperWebTabProps> = (
         </div>
       </div>
 
+      {/* SECTION 4: UIVERSE.IO MICRO-INTERACTION PRESETS & CLOUD LORA STUDIO */}
+      <UiverseAndLoraWebStudio
+        branding={branding}
+        onBrandingChange={onBrandingChange}
+        onSaveBranding={onSaveBranding}
+        savingBranding={savingBranding}
+        sectorLabel={`${companyDisplayName} (projectLP)`}
+      />
+
       {/* Fullscreen Live Website Preview Modal */}
       {showLivePreviewModal && (
         <div className="fixed inset-0 z-50 bg-black/80 flex flex-col">
@@ -430,9 +425,10 @@ export const SettingsDeveloperWebTab: React.FC<SettingsDeveloperWebTabProps> = (
               <button
                 type="button"
                 onClick={() => setShowLivePreviewModal(false)}
-                className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold cursor-pointer"
+                className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-1 cursor-pointer"
               >
-                Kapat ✕
+                <X className="w-3.5 h-3.5" />
+                <span>Kapat</span>
               </button>
             </div>
           </div>

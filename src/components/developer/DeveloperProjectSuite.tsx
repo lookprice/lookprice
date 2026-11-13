@@ -42,7 +42,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "../../services/api";
-import Architectural2DTo3DStudio from "./Architectural2DTo3DStudio";
 
 async function compressImageFile(file: File, maxWidth = 1600, quality = 0.84): Promise<File> {
   return new Promise((resolve) => {
@@ -113,7 +112,7 @@ export type SuiteTab =
   | "events"
   | "b2b_portal_preview";
 
-type InventoryViewMode = "grouped_types" | "block_matrix" | "drone_3d" | "table_list";
+type InventoryViewMode = "grouped_types" | "block_matrix" | "table_list";
 type ProjectSubTab = "property_types" | "common_areas" | "folders";
 
 interface DeveloperProjectSuiteProps {
@@ -158,6 +157,10 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
   // Project Directory vs. Single Selected Project Workspace Mode
   const [projectViewMode, setProjectViewMode] = useState<"grid" | "single">("single");
   const [projectSubTab, setProjectSubTab] = useState<ProjectSubTab>("property_types");
+  const [selectedPropertyTypeKey, setSelectedPropertyTypeKey] = useState<string>("");
+  const [propertyTypeLayer, setPropertyTypeLayer] = useState<
+    "overview" | "photos" | "videos" | "floorplans" | "units"
+  >("overview");
 
   const [companies, setCompanies] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
@@ -365,6 +368,8 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
     setUnitBlockFilter("all");
     setUnitTypeFilter("all");
     setUnitStatusFilter("all");
+    setSelectedPropertyTypeKey("");
+    setPropertyTypeLayer("overview");
     setNewUnitForm(prev => ({ ...prev, project_id: Number(proj.id) }));
     setBatchForm(prev => ({ ...prev, project_id: Number(proj.id) }));
     const firstProjUnit = units.find(u => Number(u.project_id) === Number(proj.id));
@@ -933,7 +938,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
     }
   };
 
-  const handleDeleteUnit = async (unitId: number) => {
+  const handleDeleteUnit = async (unitId: number, unitNoLabel?: string) => {
     try {
       const sid = storeId || user?.store_id || 1;
       const res = await fetch(`/api/developer-projects/units/${unitId}?store_id=${sid}`, {
@@ -941,12 +946,49 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
         headers: getAuthHeaders()
       });
       if (res.ok) {
-        setUnits(prev => prev.filter(u => u.id !== unitId));
-        if (revisingUnit?.id === unitId) setRevisingUnit(null);
-        toast.success("Bağımsız bölüm silindi ve Google Drive revize edildi.");
+        setUnits(prev => prev.filter(u => Number(u.id) !== Number(unitId)));
+        if (revisingUnit && Number(revisingUnit.id) === Number(unitId)) {
+          setRevisingUnit(null);
+        }
+        toast.success(
+          unitNoLabel
+            ? `Bağımsız bölüm Kapı No ${unitNoLabel} silindi ve Google Drive revize edildi.`
+            : "Bağımsız bölüm kapı numarası silindi ve Google Drive revize edildi."
+        );
+      } else {
+        toast.error("Bağımsız bölüm silinemedi.");
       }
     } catch {
       toast.error("Bağımsız bölüm silinemedi.");
+    }
+  };
+
+  const handleDeleteUnitGroup = async (unitIds: number[], groupLabel: string) => {
+    if (!Array.isArray(unitIds) || unitIds.length === 0) return;
+    try {
+      const sid = storeId || user?.store_id || 1;
+      const res = await fetch("/api/developer-projects/units/bulk-delete", {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ store_id: sid, unitIds })
+      });
+      if (res.ok) {
+        const idSet = new Set(unitIds.map(id => Number(id)));
+        setUnits(prev => prev.filter(u => !idSet.has(Number(u.id))));
+        if (revisingUnit && idSet.has(Number(revisingUnit.id))) {
+          setRevisingUnit(null);
+        }
+        if (revisingGroup) {
+          setRevisingGroup(null);
+        }
+        toast.success(
+          `${groupLabel} grubundaki ${unitIds.length} adet bağımsız bölüm kapı numarası silindi.`
+        );
+      } else {
+        toast.error("Grup kapı numaraları silinemedi.");
+      }
+    } catch {
+      toast.error("Toplu kapı numarası silme sırasında hata oluştu.");
     }
   };
 
@@ -1028,13 +1070,8 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
   };
 
   const triggerDroneFlyToUnit = (unit: any) => {
-    setDroneFlying(true);
-    setDroneTargetUnit(unit);
-    setInventoryViewMode("drone_3d");
+    setRevisingUnit({ ...unit });
     setActiveTab("inventory");
-    setTimeout(() => {
-      setDroneFlying(false);
-    }, 450);
   };
 
   // Internal Staff & Permissions Handlers
@@ -1215,7 +1252,19 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
   // STRICT SINGLE-PROJECT UNITS, BLOCKS, DOOR NUMBERS & PROPERTY TYPES
   // =========================================================================
   const selectedProjectUnits = useMemo(() => {
-    return units.filter(u => Number(u.project_id) === Number(activeProjectId));
+    const raw = units.filter(u => Number(u.project_id) === Number(activeProjectId));
+    const seen = new Set<string>();
+    return raw.map((u, idx) => {
+      const doorKey = `${String(u.block_name || "").trim()}__${String(u.unit_number || "").trim()}`;
+      if (seen.has(doorKey) && u.unit_number) {
+        return {
+          ...u,
+          unit_number: `${u.unit_number}-${idx + 1}`
+        };
+      }
+      seen.add(doorKey);
+      return u;
+    });
   }, [units, activeProjectId]);
 
   const availableBlocks = useMemo(() => {
@@ -1525,17 +1574,17 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
     const phone = activeCompany?.phone || branding?.phone || "+90 548 860 00 01";
 
     const text = [
-      `🏢 *${companyDisplayName} — ${activeProjectDetail.name}*`,
-      `📍 Bölge: ${activeProjectDetail.sub_region} | Teslim: ${activeProjectDetail.completion_date}`,
-      `🏠 *Mülk Tipi:* ${pt.unit_type}`,
-      `📐 *Alan:* ${pt.grossSqm} m² Brüt / ${pt.netSqm} m² Net (+${pt.terraceSqm} m² Teras)`,
-      `🚪 *Müsait Kapı Noları (${pt.available} Adet):* ${availDoors || "Sorunuz"}`,
-      `💷 *Fiyat:* ${pt.minPrice === pt.maxPrice ? formatGbp(pt.minPrice) : `${formatGbp(pt.minPrice)} - ${formatGbp(pt.maxPrice)}`}`,
-      `💳 *Ödeme Planı:* %${activeProjectDetail.payment_plan?.down_payment_percent || 35} Peşinat, ${activeProjectDetail.payment_plan?.installment_months || 36} Ay %0 Faiz Taksit`,
-      photoLinks ? `\n📸 *Mülk Tipi Görselleri:*\n${photoLinks}` : "",
-      videoLinks ? `\n🎬 *Tanıtım Videosu:*\n${videoLinks}` : "",
-      planLinks ? `\n📐 *Teknik Kat Çizimi (2D Plan):*\n${planLinks}` : "",
-      `\n📞 Detaylı Bilgi & Sunum: ${phone}`
+      `*${companyDisplayName} — ${activeProjectDetail.name}*`,
+      `Bölge: ${activeProjectDetail.sub_region} | Teslim: ${activeProjectDetail.completion_date}`,
+      `*Mülk Tipi:* ${pt.unit_type}`,
+      `*Alan:* ${pt.grossSqm} m² Brüt / ${pt.netSqm} m² Net (+${pt.terraceSqm} m² Teras)`,
+      `*Müsait Kapı Noları (${pt.available} Adet):* ${availDoors || "Sorunuz"}`,
+      `*Fiyat:* ${pt.minPrice === pt.maxPrice ? formatGbp(pt.minPrice) : `${formatGbp(pt.minPrice)} - ${formatGbp(pt.maxPrice)}`}`,
+      `*Ödeme Planı:* %${activeProjectDetail.payment_plan?.down_payment_percent || 35} Peşinat, ${activeProjectDetail.payment_plan?.installment_months || 36} Ay %0 Faiz Taksit`,
+      photoLinks ? `\n*Mülk Tipi Görselleri:*\n${photoLinks}` : "",
+      videoLinks ? `\n*Tanıtım Videosu:*\n${videoLinks}` : "",
+      planLinks ? `\n*Teknik Kat Çizimi (2D Plan):*\n${planLinks}` : "",
+      `\nDetaylı Bilgi & Sunum: ${phone}`
     ]
       .filter(Boolean)
       .join("\n");
@@ -1563,12 +1612,12 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
     const phone = activeCompany?.phone || branding?.phone || "+90 548 860 00 01";
 
     const text = [
-      `🌴 *${companyDisplayName} — ${activeProjectDetail.name} (Ortak Alanlar & Sosyal Tesisler)*`,
-      `📍 Lokasyon: ${activeProjectDetail.sub_region} | İnşaat: %${activeProjectDetail.construction_progress}`,
-      `✨ *Konsept:* ${activeProjectDetail.concept_tagline}`,
-      `🏊 *Sosyal Tesisler & Ortak Alanlar:* ${allFacs.join(", ")}`,
-      mediaLinks ? `\n📂 *Ortak Alan Görsel, Video & Vaziyet Planları:*\n${mediaLinks}` : "",
-      `\n📞 İletişim: ${phone}`
+      `*${companyDisplayName} — ${activeProjectDetail.name} (Ortak Alanlar & Sosyal Tesisler)*`,
+      `Lokasyon: ${activeProjectDetail.sub_region} | İnşaat: %${activeProjectDetail.construction_progress}`,
+      `*Konsept:* ${activeProjectDetail.concept_tagline}`,
+      `*Sosyal Tesisler & Ortak Alanlar:* ${allFacs.join(", ")}`,
+      mediaLinks ? `\n*Ortak Alan Görsel, Video & Vaziyet Planları:*\n${mediaLinks}` : "",
+      `\nİletişim: ${phone}`
     ]
       .filter(Boolean)
       .join("\n");
@@ -1613,54 +1662,44 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
 
   const SECTION_BAND_THEMES = [
     {
+      name: "slate",
+      cardBg: "bg-white border-slate-200 border-l-4 border-l-slate-800 shadow-2xs",
+      headerBg: "bg-slate-50 border-b border-slate-200 text-slate-950",
+      badgeBg: "bg-slate-900 text-white",
+      subBadgeBg: "bg-white text-slate-900 border-slate-300",
+      innerBoxBg: "bg-slate-50/70 border-slate-200",
+      footerBg: "bg-slate-50 border-t border-slate-200",
+      rowBg: "bg-white hover:bg-slate-50 border-l-4 border-l-slate-700"
+    },
+    {
       name: "indigo",
-      cardBg: "bg-indigo-50/65 border-indigo-300 border-l-4 border-l-indigo-600 shadow-2xs",
-      headerBg: "bg-indigo-100/80 border-b border-indigo-200 text-indigo-950",
+      cardBg: "bg-indigo-50/35 border-indigo-200 border-l-4 border-l-indigo-600 shadow-2xs",
+      headerBg: "bg-indigo-50/70 border-b border-indigo-200 text-slate-950",
       badgeBg: "bg-indigo-600 text-white",
-      subBadgeBg: "bg-white text-indigo-900 border-indigo-300",
-      innerBoxBg: "bg-white/95 border-indigo-200/90",
-      footerBg: "bg-indigo-100/50 border-t border-indigo-200",
-      rowBg: "bg-indigo-50/45 hover:bg-indigo-100/70 border-l-4 border-l-indigo-500"
+      subBadgeBg: "bg-white text-indigo-950 border-indigo-200",
+      innerBoxBg: "bg-white border-indigo-100",
+      footerBg: "bg-indigo-50/40 border-t border-indigo-200",
+      rowBg: "bg-indigo-50/30 hover:bg-indigo-50/70 border-l-4 border-l-indigo-500"
     },
     {
       name: "emerald",
-      cardBg: "bg-emerald-50/65 border-emerald-300 border-l-4 border-l-emerald-600 shadow-2xs",
-      headerBg: "bg-emerald-100/80 border-b border-emerald-200 text-emerald-950",
+      cardBg: "bg-emerald-50/35 border-emerald-200 border-l-4 border-l-emerald-600 shadow-2xs",
+      headerBg: "bg-emerald-50/70 border-b border-emerald-200 text-slate-950",
       badgeBg: "bg-emerald-600 text-white",
-      subBadgeBg: "bg-white text-emerald-900 border-emerald-300",
-      innerBoxBg: "bg-white/95 border-emerald-200/90",
-      footerBg: "bg-emerald-100/50 border-t border-emerald-200",
-      rowBg: "bg-emerald-50/45 hover:bg-emerald-100/70 border-l-4 border-l-emerald-500"
-    },
-    {
-      name: "amber",
-      cardBg: "bg-amber-50/70 border-amber-300 border-l-4 border-l-amber-500 shadow-2xs",
-      headerBg: "bg-amber-100/80 border-b border-amber-200 text-amber-950",
-      badgeBg: "bg-amber-500 text-slate-950",
-      subBadgeBg: "bg-white text-amber-950 border-amber-300",
-      innerBoxBg: "bg-white/95 border-amber-200/90",
-      footerBg: "bg-amber-100/50 border-t border-amber-200",
-      rowBg: "bg-amber-50/50 hover:bg-amber-100/70 border-l-4 border-l-amber-500"
+      subBadgeBg: "bg-white text-emerald-950 border-emerald-200",
+      innerBoxBg: "bg-white border-emerald-100",
+      footerBg: "bg-emerald-50/40 border-t border-emerald-200",
+      rowBg: "bg-emerald-50/30 hover:bg-emerald-50/70 border-l-4 border-l-emerald-500"
     },
     {
       name: "sky",
-      cardBg: "bg-sky-50/70 border-sky-300 border-l-4 border-l-sky-600 shadow-2xs",
-      headerBg: "bg-sky-100/80 border-b border-sky-200 text-sky-950",
+      cardBg: "bg-sky-50/35 border-sky-200 border-l-4 border-l-sky-600 shadow-2xs",
+      headerBg: "bg-sky-50/70 border-b border-sky-200 text-slate-950",
       badgeBg: "bg-sky-600 text-white",
-      subBadgeBg: "bg-white text-sky-950 border-sky-300",
-      innerBoxBg: "bg-white/95 border-sky-200/90",
-      footerBg: "bg-sky-100/50 border-t border-sky-200",
-      rowBg: "bg-sky-50/50 hover:bg-sky-100/70 border-l-4 border-l-sky-500"
-    },
-    {
-      name: "purple",
-      cardBg: "bg-purple-50/65 border-purple-300 border-l-4 border-l-purple-600 shadow-2xs",
-      headerBg: "bg-purple-100/80 border-b border-purple-200 text-purple-950",
-      badgeBg: "bg-purple-600 text-white",
-      subBadgeBg: "bg-white text-purple-950 border-purple-300",
-      innerBoxBg: "bg-white/95 border-purple-200/90",
-      footerBg: "bg-purple-100/50 border-t border-purple-200",
-      rowBg: "bg-purple-50/45 hover:bg-purple-100/70 border-l-4 border-l-purple-500"
+      subBadgeBg: "bg-white text-sky-950 border-sky-200",
+      innerBoxBg: "bg-white border-sky-100",
+      footerBg: "bg-sky-50/40 border-t border-sky-200",
+      rowBg: "bg-sky-50/30 hover:bg-sky-50/70 border-l-4 border-l-sky-500"
     }
   ];
 
@@ -1801,9 +1840,10 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
             setIsProjectFormOpen(false);
             setEditingProjectId(null);
           }}
-          className="px-2 py-0.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded text-xs font-bold cursor-pointer"
+          className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer"
         >
-          Kapat ✕
+          <X className="w-3.5 h-3.5" />
+          <span>Kapat</span>
         </button>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-2">
@@ -1959,10 +1999,14 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
       {/* SINGLE-COMPANY DAYLIGHT-READABLE HEADER & COLLAPSIBLE DASHBOARD       */}
       {/* (Hidden when Ekip & Yetkiler is opened from the left sidebar menu)    */}
       {/* ===================================================================== */}
+      {/* ===================================================================== */}
+      {/* UNIFIED SAP-GRADE SINGLE COMMAND HEADER (ZERO DUPLICATE BARS)         */}
+      {/* ===================================================================== */}
       {activeTab !== "agencies" && (
-        <div className="bg-white text-slate-900 rounded-xl p-3 border border-slate-200 shadow-2xs space-y-2">
-          <div className="flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
-            <div className="flex items-center gap-2 min-w-0">
+        <div className="bg-white text-slate-900 rounded-xl p-2.5 border border-slate-200 shadow-2xs space-y-2">
+          <div className="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+            {/* Left: Company Brand + Single Project Selector + All Projects Directory Toggle */}
+            <div className="flex items-center gap-2 shrink-0">
               {onBackToPortfolio && (
                 <button
                   type="button"
@@ -1972,36 +2016,109 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                   ← Geri
                 </button>
               )}
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-sm sm:text-base font-black tracking-tight text-slate-950 truncate">
-                    {companyDisplayName}
-                  </h2>
-                  {activeProjectDetail && (
-                    <span className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-900 border border-indigo-200 text-[11px] font-black truncate">
-                      Aktif Proje: {activeProjectDetail.name}
-                    </span>
-                  )}
-                </div>
-                <p className="text-[11px] text-slate-600 truncate">
-                  Seçili Proje Medya Havuzu, Mülk Tipi Görsel/Video/Kat Çizimi Eşleştirme, Ortak Alanlar ve Bağımsız Bölüm Kapı No Matrisi
-                </p>
+
+              <h2 className="text-sm font-black tracking-tight text-slate-950 whitespace-nowrap pr-1 border-r border-slate-200">
+                {companyDisplayName}
+              </h2>
+
+              {/* Primary Project Selector (Default Project 1) */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-bold uppercase text-slate-500 whitespace-nowrap">
+                  Proje:
+                </span>
+                <select
+                  value={activeProjectDetail?.id || ""}
+                  onChange={e => {
+                    const target = projects.find(p => Number(p.id) === Number(e.target.value));
+                    if (target) {
+                      handleSelectSingleProject(target, true);
+                      if (activeTab === "compare" || activeTab === "events") {
+                        setActiveTab("showcase");
+                      }
+                    }
+                  }}
+                  className="px-2.5 py-1 bg-slate-900 text-white rounded-lg text-xs font-bold outline-none cursor-pointer"
+                >
+                  {projects.map((p, idx) => (
+                    <option key={p.id} value={p.id} className="bg-white text-slate-900">
+                      {idx + 1}. {p.name} ({p.available_units} Müsait)
+                    </option>
+                  ))}
+                </select>
               </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("showcase");
+                  setProjectViewMode(prev => (prev === "grid" ? "single" : "grid"));
+                }}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap border transition-colors ${
+                  activeTab === "showcase" && projectViewMode === "grid"
+                    ? "bg-indigo-600 text-white border-indigo-600"
+                    : "bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-200"
+                }`}
+              >
+                <Grid className="w-3.5 h-3.5" />
+                <span>Tüm Projeler ({projects.length})</span>
+              </button>
             </div>
 
-            {/* Single-Row Header Controls: Collapsible Dashboard Toggle + New Project */}
+            {/* Right: Clean, Single-Word SAP Navigation & Actions */}
             <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("showcase");
+                  setProjectViewMode("single");
+                }}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap border transition-colors ${
+                  (activeTab === "showcase" && projectViewMode === "single") || activeTab === "inventory"
+                    ? "bg-indigo-600 text-white border-indigo-600"
+                    : "bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-200"
+                }`}
+              >
+                <FolderOpen className="w-3.5 h-3.5" />
+                <span>Proje Portföyü</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab("compare")}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap border transition-colors ${
+                  activeTab === "compare"
+                    ? "bg-indigo-600 text-white border-indigo-600"
+                    : "bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-200"
+                }`}
+              >
+                <ArrowLeftRight className="w-3.5 h-3.5" />
+                <span>Karşılaştırma</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab("events")}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap border transition-colors ${
+                  activeTab === "events"
+                    ? "bg-indigo-600 text-white border-indigo-600"
+                    : "bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-200"
+                }`}
+              >
+                <Calendar className="w-3.5 h-3.5" />
+                <span>Etkinlikler ({events.length})</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => setIsDashboardOpen(prev => !prev)}
                 className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0 border transition-colors ${
                   isDashboardOpen
                     ? "bg-slate-900 text-white border-slate-900"
-                    : "bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300"
+                    : "bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-200"
                 }`}
               >
                 <BarChart3 className="w-3.5 h-3.5" />
-                <span>{isDashboardOpen ? "Dashboard Özeti Kapat ▲" : "Dashboard Özeti Aç ▼"}</span>
+                <span>Dashboard</span>
               </button>
 
               <button
@@ -2030,31 +2147,29 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                   });
                   setIsProjectFormOpen(true);
                 }}
-                className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0 shadow-2xs"
+                className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>Yeni Proje Ekle</span>
+                <span>+ Yeni Proje</span>
               </button>
             </div>
           </div>
 
-          {/* COLLAPSIBLE PROJECTLP DASHBOARD SUMMARY STRIP */}
+          {/* COLLAPSIBLE DASHBOARD SUMMARY STRIP */}
           {isDashboardOpen && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-200">
               <div className="bg-slate-50 rounded-lg px-2.5 py-1.5 border border-slate-200">
-                <div className="text-[10px] text-slate-600 font-bold">Seçili Proje / Toplam Portföy</div>
+                <div className="text-[10px] text-slate-600 font-bold">Aktif Proje</div>
                 <div className="text-sm font-black text-slate-950 font-mono tabular-nums truncate">
                   {activeProjectDetail ? activeProjectDetail.name : `${projects.length} Proje`}
                 </div>
                 <div className="text-[10px] text-slate-500 truncate">
-                  Toplam {projects.length} Proje Klasörü Aktif
+                  Toplam {projects.length} Proje Klasörü
                 </div>
               </div>
 
               <div className="bg-emerald-50/70 rounded-lg px-2.5 py-1.5 border border-emerald-200">
-                <div className="text-[10px] text-emerald-800 font-bold">
-                  Seçili Proje Bağımsız Bölümler
-                </div>
+                <div className="text-[10px] text-emerald-800 font-bold">Bağımsız Bölümler</div>
                 <div className="text-sm font-black text-emerald-900 font-mono tabular-nums">
                   {selectedProjectUnits.filter(u => u.status === "available").length} Müsait{" "}
                   <span className="text-xs text-slate-600 font-semibold">
@@ -2062,18 +2177,18 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                   </span>
                 </div>
                 <div className="text-[10px] text-emerald-800 truncate">
-                  {selectedProjectUnits.filter(u => u.status === "optioned" || u.status === "negotiation").length} Opsiyon/Sözleşme ·{" "}
+                  {selectedProjectUnits.filter(u => u.status === "optioned" || u.status === "negotiation").length} Opsiyon ·{" "}
                   {selectedProjectUnits.filter(u => u.status === "sold").length} Satıldı
                 </div>
               </div>
 
-              <div className="bg-amber-50/70 rounded-lg px-2.5 py-1.5 border border-amber-200">
-                <div className="text-[10px] text-amber-900 font-bold">Seçili Proje Medya & Çizimler</div>
+              <div className="bg-slate-50 rounded-lg px-2.5 py-1.5 border border-slate-200">
+                <div className="text-[10px] text-slate-700 font-bold">Medya & Teknik Paftalar</div>
                 <div className="text-sm font-black text-slate-950 font-mono tabular-nums">
-                  {(activeProjectDetail?.media_vault || []).length} Dosya & Medya
+                  {(activeProjectDetail?.media_vault || []).length} Dosya
                 </div>
-                <div className="text-[10px] text-amber-900 truncate">
-                  {projectPropertyTypes.length} Mülk Tipi · {selectedProjectCommonAreaMedia.length} Ortak Alan Medyası
+                <div className="text-[10px] text-slate-500 truncate">
+                  {projectPropertyTypes.length} Mülk Tipi · {selectedProjectCommonAreaMedia.length} Ortak Medya
                 </div>
               </div>
 
@@ -2090,129 +2205,16 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
             </div>
           )}
 
-          {/* NEW PROJECT CREATION FORM (Only when adding a brand new project from the header button) */}
+          {/* NEW PROJECT CREATION FORM */}
           {isProjectFormOpen && !editingProjectId && renderProjectEditForm("Yeni Proje Klasörü Tanımla")}
-
-          {/* 4-TAB PROJECT WORKSPACE NAVIGATION (Ekip & Yetkiler is strictly in the sidebar menu only) */}
-          <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200 overflow-x-auto no-scrollbar">
-            <div className="flex items-center gap-1.5 shrink-0">
-              {[
-                {
-                  id: "showcase",
-                  label: `Projeler & Dosyalar (${activeProjectDetail?.name || projects.length})`,
-                  icon: FolderOpen
-                },
-                {
-                  id: "inventory",
-                  label: `Seçili Proje Ünite & Kapı No (${selectedProjectUnits.length})`,
-                  icon: Layers
-                },
-                { id: "compare", label: "Proje Karşılaştırma", icon: ArrowLeftRight },
-                { id: "events", label: `Etkinlik & Lansmanlar (${events.length})`, icon: Calendar }
-              ].map(tab => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setActiveTab(tab.id as SuiteTab)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shrink-0 whitespace-nowrap cursor-pointer border ${
-                      isActive
-                        ? "bg-indigo-600 text-white border-indigo-600 shadow-2xs"
-                        : "bg-slate-100 text-slate-800 border-slate-200 hover:bg-slate-200"
-                    }`}
-                  >
-                    <Icon className="w-3.5 h-3.5" />
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Global Active Project Quick Selector so operator is ALWAYS aware of the isolated project */}
-            <div className="flex items-center gap-1.5 shrink-0">
-              <span className="text-[10px] font-black uppercase text-slate-500 whitespace-nowrap">
-                Seçili Proje:
-              </span>
-              <select
-                value={activeProjectDetail?.id || ""}
-                onChange={e => {
-                  const target = projects.find(p => Number(p.id) === Number(e.target.value));
-                  if (target) handleSelectSingleProject(target);
-                }}
-                className="px-2.5 py-1 bg-indigo-50 border border-indigo-300 rounded-lg text-xs font-black text-indigo-950 outline-none cursor-pointer"
-              >
-                {projects.map(p => (
-                  <option key={p.id} value={p.id}>
-                    {p.folder_prefix || p.name} ({p.available_units} Müsait)
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
         </div>
       )}
 
       {/* ===================================================================== */}
-      {/* TAB 1: PROJELER & DOSYALAR (STRICT SINGLE-PROJECT ISOLATION)          */}
+      {/* TAB 1: PROJE PORTFÖYÜ (STEP-BY-STEP SAP WORKSPACE)                    */}
       {/* ===================================================================== */}
       {activeTab === "showcase" && (
         <div className="space-y-2.5">
-          {/* TOP BAR: SWITCH BETWEEN "SEÇİLİ PROJE ÇALIŞMA ALANI" AND "TÜM PROJE KLASÖRLERİ" */}
-          <div className="bg-white border border-slate-200 rounded-xl p-2 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
-            <div className="flex items-center gap-1 shrink-0">
-              <button
-                type="button"
-                onClick={() => setProjectViewMode("single")}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer whitespace-nowrap border transition-all ${
-                  projectViewMode === "single"
-                    ? "bg-indigo-600 text-white border-indigo-600 shadow-2xs"
-                    : "bg-slate-100 text-slate-800 border-slate-200 hover:bg-slate-200"
-                }`}
-              >
-                <FolderOpen className="w-3.5 h-3.5" />
-                <span>
-                  Seçili Proje Dosya & Medya Merkezi:{" "}
-                  <strong>{activeProjectDetail?.name || "Proje Seçin"}</strong>
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setProjectViewMode("grid")}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer whitespace-nowrap border transition-all ${
-                  projectViewMode === "grid"
-                    ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
-                    : "bg-slate-100 text-slate-800 border-slate-200 hover:bg-slate-200"
-                }`}
-              >
-                <Grid className="w-3.5 h-3.5" />
-                <span>Tüm Proje Klasörleri ({projects.length})</span>
-              </button>
-            </div>
-
-            {/* Compact Dropdown Project Selector (Prevents horizontal row overflow when projects grow) */}
-            <div className="flex items-center gap-1.5 shrink-0">
-              <span className="text-[10px] font-black uppercase text-slate-500 whitespace-nowrap">
-                Aktif Proje Seçimi ({projects.length}):
-              </span>
-              <select
-                value={activeProjectDetail?.id || ""}
-                onChange={e => {
-                  const target = projects.find(p => Number(p.id) === Number(e.target.value));
-                  if (target) handleSelectSingleProject(target);
-                }}
-                className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100/80 border border-indigo-300 rounded-lg text-xs font-black text-indigo-950 outline-none cursor-pointer min-w-[210px]"
-              >
-                {projects.map((proj, idx) => (
-                  <option key={proj.id} value={proj.id}>
-                    {idx + 1}. {proj.name} — {proj.sub_region} ({proj.available_units} Müsait)
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
 
           {/* ================================================================= */}
           {/* MODE A: ALL PROJECT FOLDERS DIRECTORY GRID                         */}
@@ -2367,7 +2369,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                   </div>
                 </div>
 
-                {/* Guaranteed Single-Row Action Bar */}
+                {/* Clean Single-Row Project Actions (No duplicate navigation buttons) */}
                 <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
                   <button
                     type="button"
@@ -2375,37 +2377,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                     className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold cursor-pointer flex items-center gap-1 whitespace-nowrap shrink-0"
                   >
                     <Upload className="w-3 h-3" />
-                    <span>+ Medya / Dosya Yükle</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedProjectId(activeProjectDetail.id);
-                      setInventoryViewMode("grouped_types");
-                      setActiveTab("inventory");
-                    }}
-                    className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-bold cursor-pointer flex items-center gap-1 whitespace-nowrap shrink-0"
-                  >
-                    <Layers className="w-3 h-3" />
-                    <span>
-                      Proje Üniteleri ({selectedProjectUnits.filter(u => u.status === "available").length} Müsait)
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedProjectId(activeProjectDetail.id);
-                      const projUnit = selectedProjectUnits[0];
-                      if (projUnit) setDroneTargetUnit(projUnit);
-                      setInventoryViewMode("drone_3d");
-                      setActiveTab("inventory");
-                    }}
-                    className="px-2.5 py-1 bg-sky-50 hover:bg-sky-100 text-sky-900 border border-sky-300 rounded-lg text-[11px] font-bold cursor-pointer flex items-center gap-1 whitespace-nowrap shrink-0"
-                  >
-                    <Compass className="w-3 h-3 text-sky-700" />
-                    <span>2D Mimari Plan</span>
+                    <span>+ Medya Yükle</span>
                   </button>
 
                   <button
@@ -2423,18 +2395,18 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                     }}
                     className={`px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer flex items-center gap-1 whitespace-nowrap shrink-0 border ${
                       isProjectFormOpen && Number(editingProjectId) === Number(activeProjectDetail.id)
-                        ? "bg-indigo-950 text-white border-indigo-950"
+                        ? "bg-slate-900 text-white border-slate-900"
                         : "bg-slate-100 hover:bg-slate-200 text-slate-900 border-slate-300"
                     }`}
                   >
-                    <Edit3 className="w-3 h-3 text-indigo-600" />
+                    <Edit3 className="w-3 h-3 text-slate-700" />
                     <span>Düzenle</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => handlePrintProjectSheet(activeProjectDetail)}
-                    className="px-2.5 py-1 bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-lg text-[11px] font-bold cursor-pointer flex items-center gap-1 whitespace-nowrap shrink-0"
+                    className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[11px] font-bold cursor-pointer flex items-center gap-1 whitespace-nowrap shrink-0"
                   >
                     <Printer className="w-3 h-3" />
                     <span>Bilgi Formu</span>
@@ -2458,13 +2430,13 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                     onClick={e => e.stopPropagation()}
                     className="w-full max-w-2xl p-4 bg-white text-slate-900 rounded-2xl border-2 border-emerald-500 shadow-2xl space-y-3"
                   >
-                    <div className="flex items-center justify-between gap-2 border-b border-slate-200 pb-2.5">
+                    <div className="flex items-center justify-between gap-2 border-b border-slate-200 pb-3">
                       <div>
-                        <span className="text-[10px] font-mono font-black uppercase text-emerald-700">
-                          PROJE MEDYA & DOKÜMAN YÜKLEME PENCERESİ
+                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-indigo-600">
+                          PROJE MEDYA & DOKÜMAN EŞLEŞTİRME STÜDYOSU
                         </span>
-                        <h4 className="text-sm font-black text-slate-950 flex items-center gap-1.5">
-                          <Upload className="w-4 h-4 text-emerald-600" />
+                        <h4 className="text-sm font-black text-slate-950 flex items-center gap-1.5 mt-0.5">
+                          <Upload className="w-4 h-4 text-indigo-600" />
                           <span>
                             {activeProjectDetail.name} — Medya, Kat Çizimi veya Ortak Alan Dosyası Ekle
                           </span>
@@ -2473,173 +2445,179 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                       <button
                         type="button"
                         onClick={() => setIsAddMediaOpen(false)}
-                        className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-lg text-xs font-bold cursor-pointer"
+                        className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
                       >
-                        Kapat ✕
+                        <X className="w-3.5 h-3.5" />
+                        <span>Kapat</span>
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                      {/* 1. Target Matching: Property Type vs Common Areas */}
-                      <div>
-                        <label className="block text-[10px] text-slate-700 font-bold uppercase mb-1">
-                          Eşleştirilecek Mülk Tipi / Ortak Alan *
-                        </label>
-                        <select
-                          value={
-                            newMediaForm.unit_type_match === "COMMON_AREAS"
-                              ? "__COMMON_AREA__"
-                              : newMediaForm.unit_type_match
-                          }
-                          onChange={e =>
-                            setNewMediaForm({ ...newMediaForm, unit_type_match: e.target.value })
-                          }
-                          className="w-full px-2.5 py-1.5 bg-indigo-50/60 border border-indigo-300 rounded-lg text-slate-950 text-xs font-black"
-                        >
-                          <option value="__COMMON_AREA__">🌴 Ortak Alanlar & Sosyal Tesisler</option>
-                          {projectPropertyTypes.map(pt => (
-                            <option key={pt.unit_type} value={pt.unit_type}>
-                              🏠 Mülk Tipi: {pt.unit_type}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* 2. Media Role: Photo / Video / Technical Floorplan / Document */}
-                      <div>
-                        <label className="block text-[10px] text-slate-700 font-bold uppercase mb-1">
-                          Medya Türü *
-                        </label>
-                        <select
-                          value={newMediaForm.media_role}
-                          onChange={e =>
-                            setNewMediaForm({
-                              ...newMediaForm,
-                              media_role: e.target.value as
-                                | "photo"
-                                | "video"
-                                | "floorplan"
-                                | "document"
-                            })
-                          }
-                          className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 text-xs font-bold"
-                        >
-                          <option value="photo">📷 Resim / Render Görseli</option>
-                          <option value="video">🎬 Tanıtım / Drone Videosu</option>
-                          <option value="floorplan">📐 Teknik Kat Çizimi (2D Plan)</option>
-                          <option value="document">📄 Fiyat Listesi / Katalog PDF</option>
-                        </select>
-                      </div>
-
-                      {/* 3. Device File Picker */}
-                      <div>
-                        <label className="block text-[10px] text-slate-700 font-bold uppercase mb-1">
-                          Bilgisayar veya Mobilden Dosya Seç
-                        </label>
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          onChange={handleDeviceFileSelect}
-                          accept=".pdf,.jpg,.jpeg,.png,.webp,.mp4,.mov,.dwg,.xlsx,.xls,.doc,.docx,.zip"
-                          className="hidden"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => fileInputRef.current?.click()}
-                          disabled={uploadingLocalFile}
-                          className="w-full px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
-                        >
-                          {uploadingLocalFile ? (
-                            <>
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              <span>Yükleniyor...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Upload className="w-3.5 h-3.5" />
-                              <span>Cihazdan Dosya Seç</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-
-                      {/* 4. Folder / Category */}
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <label className="text-[10px] text-slate-700 font-bold uppercase">
-                            Klasör Seçimi
+                    <div className="space-y-3.5">
+                      {/* 1. Target Matching & 2. Media Role: Clean Collapsible Dropdowns */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[10px] text-slate-700 font-bold uppercase tracking-wider mb-1">
+                            1. Eşleştirilecek Mülk Tipi veya Ortak Alan *
                           </label>
+                          <select
+                            value={
+                              newMediaForm.unit_type_match === "COMMON_AREAS"
+                                ? "__COMMON_AREA__"
+                                : newMediaForm.unit_type_match
+                            }
+                            onChange={e =>
+                              setNewMediaForm({
+                                ...newMediaForm,
+                                unit_type_match: e.target.value
+                              })
+                            }
+                            className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 text-xs font-bold cursor-pointer"
+                          >
+                            <option value="__COMMON_AREA__">Ortak Alanlar & Sosyal Tesisler</option>
+                            {projectPropertyTypes.map(pt => (
+                              <option key={pt.unit_type} value={pt.unit_type}>
+                                Mülk Tipi: {pt.unit_type}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] text-slate-700 font-bold uppercase tracking-wider mb-1">
+                            2. Medya Türü Seçin *
+                          </label>
+                          <select
+                            value={newMediaForm.media_role}
+                            onChange={e =>
+                              setNewMediaForm({
+                                ...newMediaForm,
+                                media_role: e.target.value as
+                                  | "photo"
+                                  | "video"
+                                  | "floorplan"
+                                  | "document"
+                              })
+                            }
+                            className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 text-xs font-bold cursor-pointer"
+                          >
+                            <option value="photo">Görsel / Render</option>
+                            <option value="video">Tanıtım Videosu</option>
+                            <option value="floorplan">Teknik Kat Planı</option>
+                            <option value="document">Katalog / PDF Dosya</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* 3. Device File Picker & 4. Folder Selection */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[10px] text-slate-700 font-bold uppercase tracking-wider mb-1">
+                            3. Bilgisayar veya Mobilden Dosya Seç
+                          </label>
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            onChange={handleDeviceFileSelect}
+                            accept=".pdf,.jpg,.jpeg,.png,.webp,.mp4,.mov,.dwg,.xlsx,.xls,.doc,.docx,.zip"
+                            className="hidden"
+                          />
                           <button
                             type="button"
-                            onClick={() => setIsCustomFolderMode(prev => !prev)}
-                            className="text-[10px] text-indigo-700 hover:underline font-bold cursor-pointer whitespace-nowrap"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={uploadingLocalFile}
+                            className="w-full px-3 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all whitespace-nowrap"
                           >
-                            {isCustomFolderMode ? "Listeden Seç" : "+ Yeni Klasör Tanımla"}
+                            {uploadingLocalFile ? (
+                              <>
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                <span>Yükleniyor...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Upload className="w-3.5 h-3.5" />
+                                <span>Cihazdan Dosya Seç</span>
+                              </>
+                            )}
                           </button>
                         </div>
-                        {isCustomFolderMode ? (
+
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-[10px] text-slate-700 font-bold uppercase tracking-wider">
+                              4. Klasör Seçimi
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => setIsCustomFolderMode(prev => !prev)}
+                              className="text-[10px] text-indigo-700 hover:underline font-bold cursor-pointer whitespace-nowrap"
+                            >
+                              {isCustomFolderMode ? "Listeden Seç" : "+ Yeni Klasör Tanımla"}
+                            </button>
+                          </div>
+                          {isCustomFolderMode ? (
+                            <input
+                              type="text"
+                              required
+                              placeholder="Yeni klasör adı yazın..."
+                              value={customFolderName}
+                              onChange={e => setCustomFolderName(e.target.value)}
+                              className="w-full px-3 py-2 bg-white border border-indigo-400 rounded-xl text-slate-900 text-xs font-bold"
+                            />
+                          ) : (
+                            <select
+                              value={newMediaForm.category}
+                              onChange={e => {
+                                if (e.target.value === "__NEW_FOLDER__") {
+                                  setIsCustomFolderMode(true);
+                                  return;
+                                }
+                                setNewMediaForm({ ...newMediaForm, category: e.target.value });
+                              }}
+                              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 text-xs font-bold"
+                            >
+                              {availableProjectFolders.map(folder => (
+                                <option key={folder} value={folder}>
+                                  {folder}
+                                </option>
+                              ))}
+                              <option value="__NEW_FOLDER__">+ Yeni Klasör Oluştur...</option>
+                            </select>
+                          )}
+                        </div>
+
+                        {/* 5. File Name */}
+                        <div>
+                          <label className="block text-[10px] text-slate-700 font-bold uppercase tracking-wider mb-1">
+                            5. Dosya Başlığı *
+                          </label>
                           <input
                             type="text"
                             required
-                            placeholder="Yeni klasör adı yazın..."
-                            value={customFolderName}
-                            onChange={e => setCustomFolderName(e.target.value)}
-                            className="w-full px-2.5 py-1.5 bg-white border border-indigo-400 rounded-lg text-slate-900 text-xs font-bold"
+                            placeholder="Örn: 2+1 Penthouse Kat Planı.pdf"
+                            value={newMediaForm.name}
+                            onChange={e => setNewMediaForm({ ...newMediaForm, name: e.target.value })}
+                            className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 text-xs font-semibold"
                           />
-                        ) : (
-                          <select
-                            value={newMediaForm.category}
-                            onChange={e => {
-                              if (e.target.value === "__NEW_FOLDER__") {
-                                setIsCustomFolderMode(true);
-                                return;
-                              }
-                              setNewMediaForm({ ...newMediaForm, category: e.target.value });
-                            }}
-                            className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 text-xs font-bold"
-                          >
-                            {availableProjectFolders.map(folder => (
-                              <option key={folder} value={folder}>
-                                {folder}
-                              </option>
-                            ))}
-                            <option value="__NEW_FOLDER__">+ Yeni Klasör Oluştur...</option>
-                          </select>
-                        )}
-                      </div>
+                        </div>
 
-                      {/* 5. File Name */}
-                      <div>
-                        <label className="block text-[10px] text-slate-700 font-bold uppercase mb-1">
-                          Dosya Başlığı *
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          placeholder="Örn: 2+1 Penthouse Kat Planı.pdf"
-                          value={newMediaForm.name}
-                          onChange={e => setNewMediaForm({ ...newMediaForm, name: e.target.value })}
-                          className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 text-xs font-semibold"
-                        />
-                      </div>
-
-                      {/* 6. Optional External URL */}
-                      <div>
-                        <label className="block text-[10px] text-slate-700 font-bold uppercase mb-1">
-                          Harici Link / URL (Opsiyonel)
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="Cihazdan seçtiyseniz otomatik dolar"
-                          value={newMediaForm.url}
-                          onChange={e => setNewMediaForm({ ...newMediaForm, url: e.target.value })}
-                          className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 text-xs"
-                        />
+                        {/* 6. Optional External URL */}
+                        <div>
+                          <label className="block text-[10px] text-slate-700 font-bold uppercase tracking-wider mb-1">
+                            6. Harici Link / URL (Opsiyonel)
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Cihazdan seçtiyseniz otomatik dolar"
+                            value={newMediaForm.url}
+                            onChange={e => setNewMediaForm({ ...newMediaForm, url: e.target.value })}
+                            className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-xs"
+                          />
+                        </div>
                       </div>
                     </div>
 
                     {existingDuplicateFile && (
-                      <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                         <div className="flex items-center gap-2 text-xs text-amber-950">
                           <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
                           <span>
@@ -2650,7 +2628,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                           <button
                             type="button"
                             onClick={() => setDuplicateConflictMode("overwrite")}
-                            className={`px-2.5 py-1 rounded text-[11px] font-bold cursor-pointer whitespace-nowrap transition-colors ${
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer whitespace-nowrap transition-colors ${
                               duplicateConflictMode === "overwrite"
                                 ? "bg-amber-500 text-slate-950"
                                 : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
@@ -2661,7 +2639,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                           <button
                             type="button"
                             onClick={() => setDuplicateConflictMode("new_version")}
-                            className={`px-2.5 py-1 rounded text-[11px] font-bold cursor-pointer whitespace-nowrap transition-colors ${
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer whitespace-nowrap transition-colors ${
                               duplicateConflictMode === "new_version"
                                 ? "bg-indigo-600 text-white"
                                 : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
@@ -2673,20 +2651,22 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                       </div>
                     )}
 
-                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200">
+                    <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
                       <button
                         type="button"
                         onClick={() => setIsAddMediaOpen(false)}
-                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold cursor-pointer"
+                        className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
                       >
-                        Vazgeç
+                        <X className="w-3.5 h-3.5" />
+                        <span>Vazgeç</span>
                       </button>
                       <button
                         type="submit"
                         disabled={uploadingLocalFile}
-                        className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-black cursor-pointer shrink-0 whitespace-nowrap"
+                        className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap transition-all"
                       >
-                        Kaydet & Eşleştir
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Kaydet & Eşleştir</span>
                       </button>
                     </div>
                   </form>
@@ -2694,47 +2674,57 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
               )}
 
               {/* ============================================================= */}
-              {/* 3 SUB-TABS FOR SELECTED PROJECT:                              */}
-              {/* 1. Mülk Tipleri & Eşleştirilmiş Medya (Resim, Video, 2D Plan) */}
-              {/* 2. Ortak Alanlar & Sosyal Tesisler                            */}
-              {/* 3. Proje Klasörleri & Tüm Dosyalar                            */}
+              {/* ADIM 1: BÖLÜM SEÇİMİ                                           */}
               {/* ============================================================= */}
               <div className="flex items-center justify-between gap-2 bg-slate-100 p-1 rounded-xl border border-slate-200 overflow-x-auto no-scrollbar">
                 <div className="flex items-center gap-1 shrink-0">
                   <button
                     type="button"
                     onClick={() => setProjectSubTab("property_types")}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-1.5 cursor-pointer whitespace-nowrap transition-all ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer whitespace-nowrap transition-all ${
                       projectSubTab === "property_types"
-                        ? "bg-indigo-600 text-white shadow-2xs"
+                        ? "bg-slate-900 text-white shadow-2xs"
                         : "text-slate-700 hover:text-slate-950 hover:bg-white"
                     }`}
                   >
                     <Building2 className="w-3.5 h-3.5" />
+                    <span>1. Mülk Tipleri ({projectPropertyTypes.length})</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedProjectId(activeProjectDetail.id);
+                      setInventoryViewMode("grouped_types");
+                      setActiveTab("inventory");
+                    }}
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer whitespace-nowrap text-slate-700 hover:text-slate-950 hover:bg-white transition-all"
+                  >
+                    <Layers className="w-3.5 h-3.5" />
                     <span>
-                      Mülk Tipleri & Eşleştirilmiş Medya ({projectPropertyTypes.length} Tip)
+                      2. Bağımsız Bölümler / Kapı No ({selectedProjectUnits.length})
                     </span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setProjectSubTab("common_areas")}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-1.5 cursor-pointer whitespace-nowrap transition-all ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer whitespace-nowrap transition-all ${
                       projectSubTab === "common_areas"
-                        ? "bg-emerald-600 text-white shadow-2xs"
+                        ? "bg-slate-900 text-white shadow-2xs"
                         : "text-slate-700 hover:text-slate-950 hover:bg-white"
                     }`}
                   >
                     <Sparkles className="w-3.5 h-3.5" />
                     <span>
-                      Ortak Alanlar & Sosyal Tesisler ({selectedProjectCommonAreaMedia.length} Medya)
+                      3. Ortak Alanlar ({selectedProjectCommonAreaMedia.length})
                     </span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setProjectSubTab("folders")}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-1.5 cursor-pointer whitespace-nowrap transition-all ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer whitespace-nowrap transition-all ${
                       projectSubTab === "folders"
                         ? "bg-slate-900 text-white shadow-2xs"
                         : "text-slate-700 hover:text-slate-950 hover:bg-white"
@@ -2742,76 +2732,137 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                   >
                     <FolderOpen className="w-3.5 h-3.5" />
                     <span>
-                      Proje Klasörleri & Tüm Dosyalar ({(activeProjectDetail.media_vault || []).length})
+                      4. Klasör Arşivi ({(activeProjectDetail.media_vault || []).length})
                     </span>
                   </button>
                 </div>
-
-                <span className="text-[11px] font-bold text-slate-600 pr-2 whitespace-nowrap hidden sm:inline">
-                  Yalnızca <strong className="text-slate-950">{activeProjectDetail.name}</strong> verileri gösteriliyor
-                </span>
               </div>
 
               {/* ============================================================= */}
-              {/* SUB-TAB 1: MÜLK TİPLERİ & EŞLEŞTİRİLMİŞ MEDYA                  */}
-              {/* Every Property Type has matched Photos, Videos, 2D Floorplans */}
+              {/* SUB-TAB 1: ADIM ADIM (STEP-BY-STEP) MÜLK TİPİ ÇALIŞMA ALANI   */}
+              {/* Collapsible <select> Dropdowns for Mülk Tipi & İçerik Katmanı  */}
               {/* ============================================================= */}
               {projectSubTab === "property_types" && (
-                <div className="space-y-3.5">
-                  {projectPropertyTypes.map((pt, ptIdx) => {
-                    const theme = getSectionBandTheme(ptIdx);
-                    return (
-                      <div
-                        key={pt.unit_type}
-                        className={`rounded-xl border overflow-hidden transition-all ${theme.cardBg}`}
+                <div className="space-y-3">
+                  {/* ADIM 2 & 3: AÇILIR KAPANIR (DROPDOWN) MÜLK TİPİ VE İÇERİK KATMANI SEÇİCİ */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label className="text-[11px] font-black uppercase text-slate-600 whitespace-nowrap">
+                        Mülk Tipi Seçin:
+                      </label>
+                      <select
+                        value={selectedPropertyTypeKey || projectPropertyTypes[0]?.unit_type || ""}
+                        onChange={e => setSelectedPropertyTypeKey(e.target.value)}
+                        className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-black text-slate-950 cursor-pointer outline-none focus:border-indigo-600"
                       >
-                        {/* Tinted Group Header Band: Specs + Price + 1-Click Share */}
-                        <div className={`px-3 py-2.5 flex flex-col lg:flex-row lg:items-center justify-between gap-2 ${theme.headerBg}`}>
+                        {projectPropertyTypes.map((pt, idx) => (
+                          <option key={pt.unit_type} value={pt.unit_type}>
+                            {idx + 1}. {pt.unit_type} ({pt.available} Müsait / {pt.total} Kapı No · {formatGbp(pt.minPrice)})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {(() => {
+                      const activeKey =
+                        selectedPropertyTypeKey || projectPropertyTypes[0]?.unit_type || "";
+                      const currentPt =
+                        projectPropertyTypes.find(item => item.unit_type === activeKey) ||
+                        projectPropertyTypes[0];
+                      return (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <label className="text-[11px] font-black uppercase text-slate-600 whitespace-nowrap">
+                            İçerik Katmanı:
+                          </label>
+                          <select
+                            value={propertyTypeLayer}
+                            onChange={e =>
+                              setPropertyTypeLayer(
+                                e.target.value as
+                                  | "overview"
+                                  | "photos"
+                                  | "videos"
+                                  | "floorplans"
+                                  | "units"
+                              )
+                            }
+                            className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-900 cursor-pointer outline-none focus:border-indigo-600"
+                          >
+                            <option value="overview">Tüm Özet Görünüm</option>
+                            <option value="units">
+                              Bağımsız Bölüm Kapı Numaraları ({currentPt?.units.length || 0})
+                            </option>
+                            <option value="photos">
+                              Görseller & Renderlar ({currentPt?.matchedPhotos.length || 0})
+                            </option>
+                            <option value="videos">
+                              Tanıtım Videoları ({currentPt?.matchedVideos.length || 0})
+                            </option>
+                            <option value="floorplans">
+                              Teknik Kat Çizimleri ({currentPt?.matchedFloorplans.length || 0})
+                            </option>
+                          </select>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* SEÇİLİ MÜLK TİPİ DETAY KARTI (Sirk Görünümü Yok, Tek ve Odaklı SAP Kartı) */}
+                  {(() => {
+                    const activeKey =
+                      selectedPropertyTypeKey || projectPropertyTypes[0]?.unit_type || "";
+                    const pt =
+                      projectPropertyTypes.find(item => item.unit_type === activeKey) ||
+                      projectPropertyTypes[0];
+                    if (!pt) return null;
+
+                    return (
+                      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
+                        {/* Selected Property Type Clean Enterprise Header */}
+                        <div className="px-3.5 py-2.5 bg-slate-50 border-b border-slate-200 flex flex-col lg:flex-row lg:items-center justify-between gap-2">
                           <div className="space-y-0.5">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${theme.badgeBg}`}>
-                                TİP #{ptIdx + 1}
-                              </span>
                               <h4 className="text-sm sm:text-base font-black text-slate-950">
                                 {pt.unit_type}
                               </h4>
                               <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-900 border border-emerald-300 text-[11px] font-black">
                                 {pt.available} Müsait / {pt.total} Kapı No
                               </span>
-                              <span className={`px-2 py-0.5 rounded border text-xs font-black font-mono ${theme.subBadgeBg}`}>
+                              <span className="px-2 py-0.5 rounded bg-white border border-slate-300 text-slate-950 text-xs font-black font-mono">
                                 {pt.minPrice === pt.maxPrice
                                   ? formatGbp(pt.minPrice)
                                   : `${formatGbp(pt.minPrice)} – ${formatGbp(pt.maxPrice)}`}
                               </span>
                             </div>
-                            <div className="text-[11px] text-slate-700 font-medium flex items-center gap-2 flex-wrap">
+                            <div className="text-[11px] text-slate-600 font-medium flex items-center gap-2 flex-wrap">
                               <span>
-                                Brüt: <strong>{pt.grossSqm} m²</strong> · Net: <strong>{pt.netSqm} m²</strong> · Teras:{" "}
-                                <strong>+{pt.terraceSqm} m²</strong>
+                                Brüt: <strong className="text-slate-900">{pt.grossSqm} m²</strong> · Net:{" "}
+                                <strong className="text-slate-900">{pt.netSqm} m²</strong> · Teras:{" "}
+                                <strong className="text-slate-900">+{pt.terraceSqm} m²</strong>
                               </span>
-                              <span>· Bloklar: {pt.blocks.join(", ") || "Ana Blok"}</span>
+                              <span>· Blok: {pt.blocks.join(", ") || "Ana Blok"}</span>
                               <span>· Cephe: {pt.views.join(" / ") || "Panoramik Deniz & Havuz"}</span>
                             </div>
                           </div>
 
-                          {/* Single-Row Share & Upload Actions for this Property Type */}
+                          {/* Single-Row Share & Upload Actions for Selected Property Type */}
                           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
                             <button
                               type="button"
                               onClick={() => openUploadForTarget(pt.unit_type, "photo")}
-                              className="px-2.5 py-1 bg-white hover:bg-indigo-50 text-indigo-900 border border-indigo-300 rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap"
+                              className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap"
                             >
                               <Upload className="w-3 h-3 text-indigo-600" />
-                              <span>+ Bu Tipe Medya Eşleştir</span>
+                              <span>+ Medya Ekle</span>
                             </button>
 
                             <button
                               type="button"
                               onClick={() => handleSharePropertyTypePackage(pt, "copy")}
-                              className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap"
+                              className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap"
                             >
                               <Copy className="w-3 h-3" />
-                              <span>Mülk Tipi Paketini Kopyala</span>
+                              <span>Paketi Kopyala</span>
                             </button>
 
                             <button
@@ -2825,216 +2876,234 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                           </div>
                         </div>
 
-                        {/* 3 MATCHED MEDIA COLUMNS FOR THIS PROPERTY TYPE: 1. RESİM 2. VİDEO 3. TEKNİK KAT ÇİZİMİ */}
-                        <div className="p-3 space-y-2.5">
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
-                            {/* COLUMN 1: MATCHED PHOTOS / RENDERS */}
-                            <div className="bg-white rounded-xl border border-indigo-200 border-t-4 border-t-indigo-500 p-2.5 space-y-2 flex flex-col justify-between shadow-2xs">
-                              <div className="space-y-1.5">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[11px] font-black text-indigo-950 flex items-center gap-1">
-                                    <ImageIcon className="w-3.5 h-3.5 text-indigo-600" />
-                                    <span>1. Mülk Tipi Görselleri ({pt.matchedPhotos.length})</span>
+                        {/* LAYER BODY */}
+                        <div className="p-3.5 space-y-3">
+                          {/* INDEPENDENT DOOR NUMBERS FOR THIS PROPERTY TYPE (WITH DIRECT DELETE) */}
+                          {(propertyTypeLayer === "overview" || propertyTypeLayer === "units") &&
+                            pt.units.length > 0 && (
+                              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <span className="text-[11px] font-black text-slate-900">
+                                    Bu Mülk Tipindeki Bağımsız Bölümler ({pt.units.length} Kapı No)
                                   </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => openUploadForTarget(pt.unit_type, "photo")}
-                                    className="text-[10px] font-bold text-indigo-700 hover:underline cursor-pointer"
-                                  >
-                                    + Resim Ekle
-                                  </button>
-                                </div>
-
-                                {pt.matchedPhotos.slice(0, 3).map((ph: any, idx: number) => (
-                                  <div
-                                    key={idx}
-                                    className={`flex items-center justify-between gap-1.5 rounded-lg p-1.5 text-[11px] border ${
-                                      idx % 2 === 0
-                                        ? "bg-indigo-50/50 border-indigo-200/80"
-                                        : "bg-slate-50 border-slate-200"
-                                    }`}
-                                  >
-                                    <span className="font-semibold text-slate-800 truncate">
-                                      {ph.name}
-                                    </span>
-                                    <div className="flex items-center gap-1 shrink-0">
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          setPreviewAsset({
-                                            name: `${pt.unit_type} — ${ph.name}`,
-                                            category: `${pt.unit_type} Görseli`,
-                                            type: "photos",
-                                            url: ph.url || activeProjectDetail.cover_image,
-                                            cover:
-                                              ph.url?.startsWith("/api/storage/") ||
-                                              ph.url?.startsWith("http")
-                                                ? ph.url
-                                                : activeProjectDetail.cover_image,
-                                            projectName: activeProjectDetail.name
-                                          })
-                                        }
-                                        className="px-2 py-0.5 bg-white hover:bg-indigo-600 text-indigo-800 hover:text-white border border-indigo-200 rounded text-[10px] font-bold cursor-pointer"
-                                      >
-                                        Aç
-                                      </button>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-
-                            {/* COLUMN 2: MATCHED PROMO / WALKTHROUGH VIDEOS */}
-                            <div className="bg-white rounded-xl border border-amber-200 border-t-4 border-t-amber-500 p-2.5 space-y-2 flex flex-col justify-between shadow-2xs">
-                              <div className="space-y-1.5">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[11px] font-black text-amber-950 flex items-center gap-1">
-                                    <Video className="w-3.5 h-3.5 text-rose-600" />
-                                    <span>2. Mülk Tipi Videoları ({pt.matchedVideos.length})</span>
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => openUploadForTarget(pt.unit_type, "video")}
-                                    className="text-[10px] font-bold text-indigo-700 hover:underline cursor-pointer"
-                                  >
-                                    + Video Ekle
-                                  </button>
-                                </div>
-
-                                {pt.matchedVideos.slice(0, 3).map((vid: any, idx: number) => (
-                                  <div
-                                    key={idx}
-                                    className={`flex items-center justify-between gap-1.5 rounded-lg p-1.5 text-[11px] border ${
-                                      idx % 2 === 0
-                                        ? "bg-amber-50/55 border-amber-200/80"
-                                        : "bg-slate-50 border-slate-200"
-                                    }`}
-                                  >
-                                    <span className="font-semibold text-slate-800 truncate">
-                                      {vid.name}
-                                    </span>
-                                    <div className="flex items-center gap-1 shrink-0">
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          setPreviewAsset({
-                                            name: `${pt.unit_type} — ${vid.name}`,
-                                            category: `${pt.unit_type} Tanıtım Videosu`,
-                                            type: "video",
-                                            url: vid.url || activeProjectDetail.cover_image,
-                                            cover: activeProjectDetail.cover_image,
-                                            projectName: activeProjectDetail.name
-                                          })
-                                        }
-                                        className="px-2 py-0.5 bg-white hover:bg-rose-600 text-rose-800 hover:text-white border border-rose-200 rounded text-[10px] font-bold cursor-pointer"
-                                      >
-                                        İzle
-                                      </button>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-
-                            {/* COLUMN 3: MATCHED TECHNICAL FLOORPLANS & 2D CAD PLAN */}
-                            <div className="bg-white rounded-xl border border-emerald-200 border-t-4 border-t-emerald-500 p-2.5 space-y-2 flex flex-col justify-between shadow-2xs">
-                              <div className="space-y-1.5">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[11px] font-black text-emerald-950 flex items-center gap-1">
-                                    <Compass className="w-3.5 h-3.5 text-emerald-600" />
-                                    <span>
-                                      3. Teknik Kat Çizimleri ({pt.matchedFloorplans.length})
-                                    </span>
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => openUploadForTarget(pt.unit_type, "floorplan")}
-                                    className="text-[10px] font-bold text-indigo-700 hover:underline cursor-pointer"
-                                  >
-                                    + Kat Çizimi Ekle
-                                  </button>
-                                </div>
-
-                                {pt.matchedFloorplans.slice(0, 2).map((fp: any, idx: number) => (
-                                  <div
-                                    key={idx}
-                                    className={`flex items-center justify-between gap-1.5 rounded-lg p-1.5 text-[11px] border ${
-                                      idx % 2 === 0
-                                        ? "bg-emerald-50/55 border-emerald-200/80"
-                                        : "bg-slate-50 border-slate-200"
-                                    }`}
-                                  >
-                                    <span className="font-semibold text-slate-800 truncate">
-                                      {fp.name}
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[10px] text-slate-500 font-semibold">
+                                      Revize için kapı numarasına, silmek için çöp kutusuna tıklayın
                                     </span>
                                     <button
                                       type="button"
                                       onClick={() =>
-                                        setPreviewAsset({
-                                          name: `${pt.unit_type} — ${fp.name}`,
-                                          category: `${pt.unit_type} Teknik Kat Planı`,
-                                          type: "pdf",
-                                          url: fp.url || activeProjectDetail.cover_image,
-                                          cover: activeProjectDetail.cover_image,
-                                          projectName: activeProjectDetail.name
-                                        })
+                                        handleDeleteUnitGroup(
+                                          pt.units.map((u: any) => u.id),
+                                          pt.unit_type
+                                        )
                                       }
-                                      className="px-2 py-0.5 bg-white hover:bg-emerald-600 text-emerald-800 hover:text-white border border-emerald-200 rounded text-[10px] font-bold cursor-pointer shrink-0"
+                                      className="px-2 py-0.5 bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 rounded text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
                                     >
-                                      Pafta Aç
+                                      <Trash2 className="w-3 h-3" />
+                                      <span>Bu Tipteki Kapı Nolarını Toplu Sil</span>
                                     </button>
                                   </div>
-                                ))}
+                                </div>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  {pt.units.map((u: any) => {
+                                    const meta = getStatusBadgeMeta(u.status);
+                                    return (
+                                      <div
+                                        key={u.id}
+                                        className={`inline-flex items-center rounded-lg border overflow-hidden shadow-2xs ${meta.chipBg}`}
+                                      >
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setSelectedProjectId(activeProjectDetail.id);
+                                            setRevisingUnit({ ...u });
+                                            setActiveTab("inventory");
+                                          }}
+                                          title={`${u.block_name} | Kapı No: ${u.unit_number} | ${u.floor_level} | ${formatGbp(u.price)} — Revize Et`}
+                                          className="px-2.5 py-1 text-[11px] font-mono font-black cursor-pointer hover:opacity-85 transition-opacity"
+                                        >
+                                          {u.unit_number} · {u.floor_level?.split(" ")[0]} ({formatGbp(u.price)})
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={e => {
+                                            e.stopPropagation();
+                                            handleDeleteUnit(u.id, u.unit_number);
+                                          }}
+                                          title={`Kapı No ${u.unit_number} Bağımsız Bölümünü Sil`}
+                                          className="px-1.5 py-1 border-l border-current/20 hover:bg-rose-600 hover:text-white cursor-pointer transition-colors flex items-center justify-center"
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </button>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
                               </div>
+                            )}
 
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedProjectId(activeProjectDetail.id);
-                                  if (pt.units[0]) setDroneTargetUnit(pt.units[0]);
-                                  setInventoryViewMode("drone_3d");
-                                  setActiveTab("inventory");
-                                }}
-                                className="w-full py-1 bg-sky-50 hover:bg-sky-600 text-sky-900 hover:text-white border border-sky-200 rounded-lg text-[10px] font-black cursor-pointer flex items-center justify-center gap-1 transition-colors"
-                              >
-                                <Compass className="w-3 h-3" />
-                                <span>{pt.unit_type} — 2D Ölçekli CAD Kat Planını Aç</span>
-                              </button>
-                            </div>
-                          </div>
+                          {/* CLEAN CORPORATE MEDIA GRID (Shown in overview or filtered by selected layer) */}
+                          {propertyTypeLayer !== "units" && (
+                            <div
+                              className={`grid grid-cols-1 ${
+                                propertyTypeLayer === "overview" ? "md:grid-cols-3" : "md:grid-cols-1"
+                              } gap-3`}
+                            >
+                              {/* PHOTOS */}
+                              {(propertyTypeLayer === "overview" || propertyTypeLayer === "photos") && (
+                                <div className="bg-slate-50/70 rounded-xl border border-slate-200 p-3 space-y-2 flex flex-col justify-between">
+                                  <div className="space-y-1.5">
+                                    <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
+                                      <span className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                                        <ImageIcon className="w-3.5 h-3.5 text-slate-700" />
+                                        <span>Görseller ({pt.matchedPhotos.length})</span>
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => openUploadForTarget(pt.unit_type, "photo")}
+                                        className="text-[11px] font-bold text-indigo-600 hover:underline cursor-pointer"
+                                      >
+                                        + Resim Ekle
+                                      </button>
+                                    </div>
 
-                          {/* Matched Independent Door Numbers for this Property Type in the Selected Project */}
-                          {pt.units.length > 0 && (
-                            <div className="p-2 rounded-lg bg-white/90 border border-slate-200/90 flex items-center justify-between gap-2 flex-wrap">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="text-[10px] font-black uppercase text-slate-700">
-                                  Bu Tipteki Bağımsız Kapı Noları ({activeProjectDetail.name}):
-                                </span>
-                                {pt.units.map((u: any) => {
-                                  const meta = getStatusBadgeMeta(u.status);
-                                  return (
-                                    <button
-                                      key={u.id}
-                                      type="button"
-                                      onClick={() => {
-                                        setSelectedProjectId(activeProjectDetail.id);
-                                        setRevisingUnit({ ...u });
-                                        setActiveTab("inventory");
-                                      }}
-                                      title={`${u.block_name} | Kapı No: ${u.unit_number} | ${u.floor_level} | ${formatGbp(u.price)}`}
-                                      className={`px-2 py-0.5 rounded text-[10px] font-mono font-black border cursor-pointer hover:scale-105 transition-transform ${meta.chipBg}`}
-                                    >
-                                      {u.unit_number} ({formatGbp(u.price)})
-                                    </button>
-                                  );
-                                })}
-                              </div>
+                                    {pt.matchedPhotos.map((ph: any, idx: number) => (
+                                      <div
+                                        key={idx}
+                                        className="flex items-center justify-between gap-2 bg-white rounded-lg p-2 text-xs border border-slate-200"
+                                      >
+                                        <span className="font-semibold text-slate-800 truncate">
+                                          {ph.name}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            setPreviewAsset({
+                                              name: `${pt.unit_type} — ${ph.name}`,
+                                              category: `${pt.unit_type} Görseli`,
+                                              type: "photos",
+                                              url: ph.url || activeProjectDetail.cover_image,
+                                              cover:
+                                                ph.url?.startsWith("/api/storage/") ||
+                                                ph.url?.startsWith("http")
+                                                  ? ph.url
+                                                  : activeProjectDetail.cover_image,
+                                              projectName: activeProjectDetail.name
+                                            })
+                                          }
+                                          className="px-2.5 py-0.5 bg-slate-100 hover:bg-slate-900 text-slate-800 hover:text-white rounded text-[11px] font-bold cursor-pointer shrink-0 transition-colors"
+                                        >
+                                          Aç
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* VIDEOS */}
+                              {(propertyTypeLayer === "overview" || propertyTypeLayer === "videos") && (
+                                <div className="bg-slate-50/70 rounded-xl border border-slate-200 p-3 space-y-2 flex flex-col justify-between">
+                                  <div className="space-y-1.5">
+                                    <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
+                                      <span className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                                        <Video className="w-3.5 h-3.5 text-slate-700" />
+                                        <span>Tanıtım Videoları ({pt.matchedVideos.length})</span>
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => openUploadForTarget(pt.unit_type, "video")}
+                                        className="text-[11px] font-bold text-indigo-600 hover:underline cursor-pointer"
+                                      >
+                                        + Video Ekle
+                                      </button>
+                                    </div>
+
+                                    {pt.matchedVideos.map((vid: any, idx: number) => (
+                                      <div
+                                        key={idx}
+                                        className="flex items-center justify-between gap-2 bg-white rounded-lg p-2 text-xs border border-slate-200"
+                                      >
+                                        <span className="font-semibold text-slate-800 truncate">
+                                          {vid.name}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            setPreviewAsset({
+                                              name: `${pt.unit_type} — ${vid.name}`,
+                                              category: `${pt.unit_type} Tanıtım Videosu`,
+                                              type: "video",
+                                              url: vid.url || activeProjectDetail.cover_image,
+                                              cover: activeProjectDetail.cover_image,
+                                              projectName: activeProjectDetail.name
+                                            })
+                                          }
+                                          className="px-2.5 py-0.5 bg-slate-100 hover:bg-slate-900 text-slate-800 hover:text-white rounded text-[11px] font-bold cursor-pointer shrink-0 transition-colors"
+                                        >
+                                          İzle
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* FLOORPLANS & 2D/3D */}
+                              {(propertyTypeLayer === "overview" ||
+                                propertyTypeLayer === "floorplans") && (
+                                <div className="bg-slate-50/70 rounded-xl border border-slate-200 p-3 space-y-2 flex flex-col justify-between">
+                                  <div className="space-y-1.5">
+                                    <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
+                                      <span className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                                        <Compass className="w-3.5 h-3.5 text-slate-700" />
+                                        <span>Teknik Kat Çizimleri ({pt.matchedFloorplans.length})</span>
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => openUploadForTarget(pt.unit_type, "floorplan")}
+                                        className="text-[11px] font-bold text-indigo-600 hover:underline cursor-pointer"
+                                      >
+                                        + Kat Çizimi Ekle
+                                      </button>
+                                    </div>
+
+                                    {pt.matchedFloorplans.map((fp: any, idx: number) => (
+                                      <div
+                                        key={idx}
+                                        className="flex items-center justify-between gap-2 bg-white rounded-lg p-2 text-xs border border-slate-200"
+                                      >
+                                        <span className="font-semibold text-slate-800 truncate">
+                                          {fp.name}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            setPreviewAsset({
+                                              name: `${pt.unit_type} — ${fp.name}`,
+                                              category: `${pt.unit_type} Teknik Kat Planı`,
+                                              type: "pdf",
+                                              url: fp.url || activeProjectDetail.cover_image,
+                                              cover: activeProjectDetail.cover_image,
+                                              projectName: activeProjectDetail.name
+                                            })
+                                          }
+                                          className="px-2.5 py-0.5 bg-slate-100 hover:bg-slate-900 text-slate-800 hover:text-white rounded text-[11px] font-bold cursor-pointer shrink-0 transition-colors"
+                                        >
+                                          Pafta Aç
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
                       </div>
                     );
-                  })}
+                  })()}
                 </div>
               )}
 
@@ -3246,32 +3315,24 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                         <FolderOpen className="w-4 h-4 text-indigo-600" />
                         <span>{activeProjectDetail.name} — Klasörler & Dosyalar</span>
                       </h4>
-                      <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
-                        <button
-                          type="button"
-                          onClick={() => setMediaCategoryFilter("all")}
-                          className={`px-2 py-1 rounded-lg text-[10px] font-bold cursor-pointer whitespace-nowrap shrink-0 transition-colors ${
-                            mediaCategoryFilter === "all"
-                              ? "bg-indigo-600 text-white"
-                              : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-100"
-                          }`}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <label className="text-[10px] font-black uppercase text-slate-500 whitespace-nowrap">
+                          Klasör Seçin:
+                        </label>
+                        <select
+                          value={mediaCategoryFilter}
+                          onChange={e => setMediaCategoryFilter(e.target.value)}
+                          className="px-2.5 py-1 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-900 cursor-pointer outline-none"
                         >
-                          Tümü ({(activeProjectDetail.media_vault || []).length})
-                        </button>
-                        {projectFolderTabs.map(folderName => (
-                          <button
-                            key={folderName}
-                            type="button"
-                            onClick={() => setMediaCategoryFilter(folderName)}
-                            className={`px-2 py-1 rounded-lg text-[10px] font-bold cursor-pointer whitespace-nowrap shrink-0 transition-colors ${
-                              mediaCategoryFilter === folderName
-                                ? "bg-indigo-600 text-white"
-                                : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-100"
-                            }`}
-                          >
-                            {folderName}
-                          </button>
-                        ))}
+                          <option value="all">
+                            Tüm Klasörler ({(activeProjectDetail.media_vault || []).length})
+                          </option>
+                          {projectFolderTabs.map(folderName => (
+                            <option key={folderName} value={folderName}>
+                              {folderName}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                     </div>
 
@@ -3300,8 +3361,8 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                                 <div className="text-[10px] text-slate-700 font-medium truncate">
                                   {doc.category}
                                   {doc.unit_type_match && doc.unit_type_match !== "COMMON_AREAS"
-                                    ? ` · 🏠 ${doc.unit_type_match}`
-                                    : " · 🌴 Ortak Alan / Proje"}
+                                    ? ` · ${doc.unit_type_match}`
+                                    : " · Ortak Alan & Sosyal Tesis"}
                                 </div>
                               </div>
                             </div>
@@ -3400,120 +3461,156 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
       {/* ===================================================================== */}
       {activeTab === "inventory" && (
         <div className="bg-white border border-slate-200 rounded-xl p-2.5 shadow-2xs space-y-2.5">
-          {/* SINGLE-LINE COMPACT TOOLBAR: VIEW MODES + SELECTED PROJECT ISOLATION + ACTIONS */}
-          <div className="flex items-center justify-between gap-1.5 pb-2 border-b border-slate-200 overflow-x-auto no-scrollbar">
-            {/* 4 Architectural View Modes */}
-            <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200 shrink-0">
-              {[
-                { id: "grouped_types", label: "Tip & Grup", icon: ListFilter },
-                { id: "block_matrix", label: "Blok & Kat Şeması", icon: Grid },
-                { id: "drone_3d", label: "2D / 3D Mimari Plan", icon: Compass },
-                { id: "table_list", label: `Kapı No Listesi (${filteredUnits.length})`, icon: Layers }
-              ].map(vm => {
-                const VIcon = vm.icon;
-                const active = inventoryViewMode === vm.id;
-                return (
-                  <button
-                    key={vm.id}
-                    type="button"
-                    onClick={() => setInventoryViewMode(vm.id as InventoryViewMode)}
-                    className={`px-2 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0 transition-all ${
-                      active
-                        ? "bg-indigo-600 text-white shadow-2xs"
-                        : "text-slate-700 hover:text-slate-950 hover:bg-white/70"
-                    }`}
-                  >
-                    <VIcon className="w-3 h-3 shrink-0" />
-                    <span>{vm.label}</span>
-                  </button>
-                );
-              })}
-            </div>
+          {/* STEP-BY-STEP MULTI-CHOICE INVENTORY FILTER & VIEW BAR (restateLP Style) */}
+          <div className="space-y-2 pb-2 border-b border-slate-200">
+            <div className="flex items-center justify-between gap-1.5 overflow-x-auto no-scrollbar">
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab("showcase");
+                    setProjectViewMode("single");
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 text-[11px] font-bold cursor-pointer whitespace-nowrap"
+                >
+                  ← Proje Portföyüne Dön
+                </button>
 
-            {/* Single-Line Compact Filters & Action Buttons (Strictly Selected Project Only - No "All Projects") */}
-            <div className="flex items-center gap-1.5 shrink-0">
-
-              <select
-                value={activeProjectDetail?.id || selectedProjectId}
-                onChange={e => {
-                  const target = projects.find(p => Number(p.id) === Number(e.target.value));
-                  if (target) handleSelectSingleProject(target);
-                }}
-                className="w-44 px-2 py-1 bg-indigo-50 border border-indigo-300 rounded-lg text-[11px] font-black text-indigo-950 outline-none shrink-0"
-              >
-                {projects.map(p => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} ({units.filter(u => Number(u.project_id) === Number(p.id)).length} Kapı No)
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={unitBlockFilter}
-                onChange={e => setUnitBlockFilter(e.target.value)}
-                className="w-28 px-2 py-1 bg-slate-50 border border-slate-300 rounded-lg text-[11px] font-bold text-slate-900 outline-none shrink-0"
-              >
-                <option value="all">Tüm Bloklar</option>
-                {availableBlocks.map(b => (
-                  <option key={b} value={b}>
-                    {b}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={unitStatusFilter}
-                onChange={e => setUnitStatusFilter(e.target.value)}
-                className="w-28 px-2 py-1 bg-slate-50 border border-slate-300 rounded-lg text-[11px] font-bold text-slate-900 outline-none shrink-0"
-              >
-                <option value="all">Tüm Statüler</option>
-                <option value="available">Müsait</option>
-                <option value="negotiation">Sonuçlanmakta</option>
-                <option value="optioned">Opsiyonlu</option>
-                <option value="sold">Satıldı</option>
-              </select>
-
-              <div className="relative shrink-0">
-                <Search className="w-3 h-3 text-slate-400 absolute left-2 top-2" />
-                <input
-                  type="text"
-                  value={unitSearch}
-                  onChange={e => setUnitSearch(e.target.value)}
-                  placeholder="Kapı no, tip, cephe..."
-                  className="pl-6 pr-2 py-1 bg-slate-50 border border-slate-300 rounded-lg text-[11px] font-semibold text-slate-900 outline-none w-32"
-                />
+                {/* View Mode Selector */}
+                <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200 shrink-0">
+                  {[
+                    { id: "grouped_types", label: "Tip & Grup", icon: ListFilter },
+                    { id: "block_matrix", label: "Blok & Kat Şeması", icon: Grid },
+                    { id: "table_list", label: `Kapı No Listesi (${filteredUnits.length})`, icon: Layers }
+                  ].map(vm => {
+                    const VIcon = vm.icon;
+                    const active = inventoryViewMode === vm.id;
+                    return (
+                      <button
+                        key={vm.id}
+                        type="button"
+                        onClick={() => setInventoryViewMode(vm.id as InventoryViewMode)}
+                        className={`px-2.5 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0 transition-all ${
+                          active
+                            ? "bg-slate-900 text-white shadow-2xs"
+                            : "text-slate-700 hover:text-slate-950 hover:bg-white/70"
+                        }`}
+                      >
+                        <VIcon className="w-3 h-3 shrink-0" />
+                        <span>{vm.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  if (activeProjectDetail) {
-                    setBatchForm(prev => ({ ...prev, project_id: activeProjectDetail.id }));
-                  }
-                  setIsBatchGeneratorOpen(prev => !prev);
-                  setIsAddUnitOpen(false);
-                }}
-                className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
-                title="Büyük Projeler İçin Toplu Blok, Kat & Kapı No Serisi Üret"
-              >
-                <Building2 className="w-3 h-3 shrink-0" />
-                <span>+ Seri Üret</span>
-              </button>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <select
+                  value={unitBlockFilter}
+                  onChange={e => setUnitBlockFilter(e.target.value)}
+                  className="w-28 px-2 py-1 bg-slate-50 border border-slate-300 rounded-lg text-[11px] font-bold text-slate-900 outline-none shrink-0 cursor-pointer"
+                >
+                  <option value="all">Tüm Bloklar</option>
+                  {availableBlocks.map(b => (
+                    <option key={b} value={b}>
+                      {b}
+                    </option>
+                  ))}
+                </select>
 
-              <button
-                type="button"
-                onClick={() => {
-                  if (activeProjectDetail) {
-                    setNewUnitForm(prev => ({ ...prev, project_id: activeProjectDetail.id }));
-                  }
-                  setIsAddUnitOpen(prev => !prev);
-                  setIsBatchGeneratorOpen(false);
-                }}
-                className="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
-              >
-                <Plus className="w-3 h-3 shrink-0" />
-                <span>+ Ünite</span>
-              </button>
+                <div className="relative shrink-0">
+                  <Search className="w-3 h-3 text-slate-400 absolute left-2 top-2" />
+                  <input
+                    type="text"
+                    value={unitSearch}
+                    onChange={e => setUnitSearch(e.target.value)}
+                    placeholder="Kapı no, tip, cephe..."
+                    className="pl-6 pr-2 py-1 bg-slate-50 border border-slate-300 rounded-lg text-[11px] font-semibold text-slate-900 outline-none w-32"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (activeProjectDetail) {
+                      setBatchForm(prev => ({ ...prev, project_id: activeProjectDetail.id }));
+                    }
+                    setIsBatchGeneratorOpen(prev => !prev);
+                    setIsAddUnitOpen(false);
+                  }}
+                  className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
+                >
+                  <Building2 className="w-3 h-3 shrink-0" />
+                  <span>+ Seri Üret</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (activeProjectDetail) {
+                      setNewUnitForm(prev => ({ ...prev, project_id: activeProjectDetail.id }));
+                    }
+                    setIsAddUnitOpen(prev => !prev);
+                    setIsBatchGeneratorOpen(false);
+                  }}
+                  className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
+                >
+                  <Plus className="w-3 h-3 shrink-0" />
+                  <span>+ Ünite</span>
+                </button>
+              </div>
+            </div>
+
+            {/* COLLAPSIBLE DROPDOWNS: 1. DURUM -> 2. MÜLK TİPİ */}
+            <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <label className="text-[10px] font-black uppercase text-slate-600 whitespace-nowrap">
+                    Durum:
+                  </label>
+                  <select
+                    value={unitStatusFilter}
+                    onChange={e => setUnitStatusFilter(e.target.value)}
+                    className="px-2.5 py-1 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-900 cursor-pointer outline-none focus:border-indigo-600"
+                  >
+                    <option value="all">Tümü ({selectedProjectUnits.length})</option>
+                    <option value="available">
+                      Müsait ({selectedProjectUnits.filter(u => u.status === "available").length})
+                    </option>
+                    <option value="negotiation">
+                      Sonuçlanmakta ({selectedProjectUnits.filter(u => u.status === "negotiation").length})
+                    </option>
+                    <option value="optioned">
+                      Opsiyonlu ({selectedProjectUnits.filter(u => u.status === "optioned").length})
+                    </option>
+                    <option value="sold">
+                      Satıldı ({selectedProjectUnits.filter(u => u.status === "sold").length})
+                    </option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <label className="text-[10px] font-black uppercase text-slate-600 whitespace-nowrap">
+                    Mülk Tipi:
+                  </label>
+                  <select
+                    value={unitTypeFilter}
+                    onChange={e => setUnitTypeFilter(e.target.value)}
+                    className="px-2.5 py-1 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-900 cursor-pointer outline-none focus:border-indigo-600"
+                  >
+                    <option value="all">Tüm Tipler ({availableUnitTypes.length} Tip)</option>
+                    {availableUnitTypes.map(ut => (
+                      <option key={ut} value={ut}>
+                        {ut} ({selectedProjectUnits.filter(u => String(u.unit_type || "").trim() === ut).length} Kapı No)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="text-[10px] font-semibold text-slate-500">
+                Kapı numarasını silmek için numaranın yanındaki çöp kutusu ikonuna tıklayın
+              </div>
             </div>
           </div>
 
@@ -3535,9 +3632,10 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsBatchGeneratorOpen(false)}
-                  className="text-slate-500 hover:text-slate-950 text-xs font-bold cursor-pointer"
+                  className="text-slate-500 hover:text-slate-950 text-xs font-bold flex items-center gap-1 cursor-pointer"
                 >
-                  Kapat ✕
+                  <X className="w-3.5 h-3.5" />
+                  <span>Kapat</span>
                 </button>
               </div>
 
@@ -3839,9 +3937,9 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsAddUnitOpen(false)}
-                  className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded text-xs font-bold cursor-pointer"
+                  className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded text-xs font-bold flex items-center justify-center cursor-pointer"
                 >
-                  ✕
+                  <X className="w-3.5 h-3.5" />
                 </button>
               </div>
             </form>
@@ -3868,18 +3966,19 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                 <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     type="button"
-                    onClick={() => triggerDroneFlyToUnit(revisingUnit)}
-                    className="px-2.5 py-1 bg-white hover:bg-indigo-600 text-indigo-800 hover:text-white rounded text-[11px] font-bold flex items-center gap-1 cursor-pointer border border-indigo-300 whitespace-nowrap"
+                    onClick={() => handleDeleteUnit(revisingUnit.id, revisingUnit.unit_number)}
+                    className="px-2.5 py-1 bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white rounded text-[11px] font-bold flex items-center gap-1 cursor-pointer border border-rose-300 whitespace-nowrap"
                   >
-                    <Compass className="w-3 h-3" />
-                    <span>2D Mimari Planda Göster</span>
+                    <Trash2 className="w-3 h-3" />
+                    <span>Kapı Numarasını Sil</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setRevisingUnit(null)}
-                    className="text-slate-600 hover:text-slate-950 text-xs font-bold cursor-pointer px-1"
+                    className="text-slate-600 hover:text-slate-950 text-xs font-bold flex items-center gap-1 cursor-pointer px-1"
                   >
-                    Kapat ✕
+                    <X className="w-3.5 h-3.5" />
+                    <span>Kapat</span>
                   </button>
                 </div>
               </div>
@@ -4037,7 +4136,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                 <div className="flex items-center justify-end gap-1.5">
                   <button
                     type="button"
-                    onClick={() => handleDeleteUnit(revisingUnit.id)}
+                    onClick={() => handleDeleteUnit(revisingUnit.id, revisingUnit.unit_number)}
                     className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-300 rounded-lg text-xs font-bold cursor-pointer flex items-center gap-1 whitespace-nowrap"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -4073,9 +4172,10 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                 <button
                   type="button"
                   onClick={() => setRevisingGroup(null)}
-                  className="text-slate-600 hover:text-slate-950 text-xs font-bold cursor-pointer"
+                  className="text-slate-600 hover:text-slate-950 text-xs font-bold flex items-center gap-1 cursor-pointer"
                 >
-                  Kapat ✕
+                  <X className="w-3.5 h-3.5" />
+                  <span>Kapat</span>
                 </button>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-2 items-end">
@@ -4244,32 +4344,47 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                           </div>
                         </div>
 
-                        {/* Interactive Independent Door Number Chips */}
+                        {/* Interactive Independent Door Number Chips with Direct Delete */}
                         <div className={`lg:col-span-7 rounded-xl p-2.5 border shadow-2xs ${theme.innerBoxBg}`}>
-                          <div className="flex items-center justify-between gap-2 mb-1.5 pb-1 border-b border-slate-100">
+                          <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5 pb-1 border-b border-slate-100">
                             <span className="text-[10px] font-black uppercase text-slate-700">
-                              Bağımsız Bölüm Kapı Numaraları ({grp.units.length} Adet — Revize İçin Tıklayın)
+                              Bağımsız Bölüm Kapı Numaraları ({grp.units.length} Adet — Revize İçin Tıklayın / Silin)
                             </span>
                             <span className="text-[10px] font-bold text-slate-500">
-                              Kapı No (Kat)
+                              Kapı No (Kat) · Sil
                             </span>
                           </div>
                           <div className="flex flex-wrap gap-1.5">
                             {grp.units.map(u => {
                               const meta = getStatusBadgeMeta(u.status);
                               return (
-                                <button
+                                <div
                                   key={u.id}
-                                  type="button"
-                                  onClick={() => setRevisingUnit({ ...u })}
-                                  title={`${u.block_name} | Kapı: ${u.unit_number} | Kat: ${u.floor_level} | Manzara: ${u.view_direction} | Fiyat: ${formatGbp(u.price)} (${meta.label})`}
-                                  className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-black border cursor-pointer transition-transform hover:scale-105 flex items-center gap-1 whitespace-nowrap shadow-2xs ${meta.chipBg}`}
+                                  className={`inline-flex items-center rounded-lg border overflow-hidden shadow-2xs ${meta.chipBg}`}
                                 >
-                                  <span>{u.unit_number}</span>
-                                  <span className="opacity-80 text-[9px] font-sans">
-                                    ({u.floor_level?.split(" ")[0]})
-                                  </span>
-                                </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setRevisingUnit({ ...u })}
+                                    title={`${u.block_name} | Kapı: ${u.unit_number} | Kat: ${u.floor_level} | Manzara: ${u.view_direction} | Fiyat: ${formatGbp(u.price)} (${meta.label})`}
+                                    className="px-2.5 py-1 text-[10px] font-mono font-black cursor-pointer flex items-center gap-1 whitespace-nowrap hover:opacity-85 transition-opacity"
+                                  >
+                                    <span>{u.unit_number}</span>
+                                    <span className="opacity-80 text-[9px] font-sans">
+                                      ({u.floor_level?.split(" ")[0]})
+                                    </span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={e => {
+                                      e.stopPropagation();
+                                      handleDeleteUnit(u.id, u.unit_number);
+                                    }}
+                                    title={`Kapı No ${u.unit_number} Bağımsız Bölümünü Sil`}
+                                    className="px-1.5 py-1 border-l border-current/20 hover:bg-rose-600 hover:text-white cursor-pointer transition-colors flex items-center justify-center"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                </div>
                               );
                             })}
                           </div>
@@ -4306,13 +4421,16 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
 
                           <button
                             type="button"
-                            onClick={() => {
-                              if (grp.units[0]) triggerDroneFlyToUnit(grp.units[0]);
-                            }}
-                            className="px-2.5 py-1 bg-sky-50 hover:bg-sky-600 text-sky-900 hover:text-white border border-sky-200 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap transition-colors"
+                            onClick={() =>
+                              handleDeleteUnitGroup(
+                                grp.units.map(u => u.id),
+                                grp.unit_type
+                              )
+                            }
+                            className="px-2.5 py-1 bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap transition-colors"
                           >
-                            <Compass className="w-3 h-3" />
-                            <span>2D Mimari Kat Planı</span>
+                            <Trash2 className="w-3 h-3" />
+                            <span>Grubun Kapı Nolarını Sil</span>
                           </button>
                         </div>
                       </div>
@@ -4412,11 +4530,12 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                                         </button>
                                         <button
                                           type="button"
-                                          onClick={() => triggerDroneFlyToUnit(u)}
-                                          className="px-1.5 py-0.5 bg-sky-100 hover:bg-sky-200 text-sky-900 border border-sky-300 rounded text-[9px] font-bold cursor-pointer whitespace-nowrap"
-                                          title="2D Mimari Kat Planını Göster"
+                                          onClick={() => handleDeleteUnit(u.id, u.unit_number)}
+                                          className="px-1.5 py-0.5 bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 rounded text-[9px] font-bold cursor-pointer flex items-center gap-0.5 whitespace-nowrap transition-colors"
+                                          title={`Kapı No ${u.unit_number} Sil`}
                                         >
-                                          2D Plan
+                                          <Trash2 className="w-2.5 h-2.5" />
+                                          <span>Sil</span>
                                         </button>
                                       </div>
                                     </div>
@@ -4435,512 +4554,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
           )}
 
           {/* ================================================================= */}
-          {/* VIEW MODE 3: 2D MİMARİ VAZİYET, BLOK KESİTİ & CAD KAT PLANI       */}
-          {/* ================================================================= */}
-          {inventoryViewMode === "drone_3d" && (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
-              {/* Left 4 Cols: Google Drive Architectural Files + Independent Unit Selector */}
-              <div className="lg:col-span-4 bg-slate-50 text-slate-900 rounded-xl p-3 border border-slate-200 flex flex-col justify-between space-y-2.5">
-                <div className="space-y-2.5">
-                  <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-                    <div className="flex items-center gap-1.5">
-                      <Compass className="w-4 h-4 text-indigo-600" />
-                      <h4 className="text-xs font-black uppercase text-slate-950">
-                        2D Mimari Vaziyet & Kat Planı
-                      </h4>
-                    </div>
-                    <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-800 border border-indigo-200 text-[10px] font-bold">
-                      CAD / Blueprint
-                    </span>
-                  </div>
-
-                  {/* Direct Access to Google Drive Architectural Drawings of the Project */}
-                  <div className="bg-white rounded-xl p-2.5 border border-slate-200 space-y-1.5">
-                    <div className="text-[10px] font-black uppercase text-slate-600 flex items-center justify-between">
-                      <span>Proje Mimari Çizim Paftaları (GD)</span>
-                      <span className="text-emerald-700">Senkronize</span>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {(() => {
-                        const targetProj =
-                          projects.find(p => Number(p.id) === Number(droneTargetUnit?.project_id)) ||
-                          activeProjectDetail ||
-                          projects[0];
-                        const archDocs = (targetProj?.media_vault || []).filter(
-                          (d: any) =>
-                            String(d.category || "").includes("Masterplan") ||
-                            String(d.category || "").includes("Kat Plan") ||
-                            String(d.name || "").toLowerCase().includes("plan") ||
-                            String(d.name || "").toLowerCase().includes("master")
-                        );
-                        const listToShow =
-                          archDocs.length > 0 ? archDocs : (targetProj?.media_vault || []).slice(0, 2);
-                        return listToShow.map((doc: any, idx: number) => (
-                          <button
-                            key={idx}
-                            type="button"
-                            onClick={() =>
-                              setPreviewAsset({
-                                name: doc.name,
-                                category: doc.category || "2D Mimari Pafta",
-                                type: doc.type || "pdf",
-                                url: doc.url,
-                                cover: targetProj?.cover_image,
-                                projectName: targetProj?.name || companyDisplayName
-                              })
-                            }
-                            className="px-2 py-1 bg-slate-50 hover:bg-indigo-600 text-slate-800 hover:text-white border border-slate-200 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap transition-colors"
-                          >
-                            <FileText className="w-3 h-3 text-indigo-600 shrink-0" />
-                            <span className="truncate max-w-[200px]">{doc.name}</span>
-                          </button>
-                        ));
-                      })()}
-                    </div>
-                  </div>
-
-                  {/* Door Number Quick Jump Grid (Daylight High-Contrast + Soft Alternating Tints) */}
-                  <div>
-                    <div className="text-[10px] font-bold uppercase text-slate-600 mb-1.5">
-                      Bağımsız Bölüm Kapı Numarası Seçin ({filteredUnits.length})
-                    </div>
-                    <div className="max-h-60 overflow-y-auto pr-1 grid grid-cols-2 gap-1.5">
-                      {filteredUnits.map((u, uIdx) => {
-                        const isTarget = droneTargetUnit?.id === u.id;
-                        const meta = getStatusBadgeMeta(u.status);
-                        const uTheme = getSectionBandTheme(uIdx);
-                        return (
-                          <button
-                            key={u.id}
-                            type="button"
-                            onClick={() => setDroneTargetUnit(u)}
-                            className={`p-2 rounded-lg border border-l-4 text-left transition-all cursor-pointer ${
-                              isTarget
-                                ? "bg-indigo-100/90 border-indigo-600 ring-2 ring-indigo-600/20"
-                                : `${uTheme.cardBg} hover:border-slate-300`
-                            }`}
-                          >
-                            <div className="flex items-center justify-between gap-1">
-                              <span className="font-mono text-xs font-black text-indigo-900">
-                                {u.unit_number}
-                              </span>
-                              <span className={`px-1.5 py-0.2 rounded text-[8px] font-black ${meta.chipBg}`}>
-                                {meta.label}
-                              </span>
-                            </div>
-                            <div className="text-[10px] text-slate-900 font-bold truncate mt-0.5">
-                              {u.block_name}
-                            </div>
-                            <div className="text-[9px] text-slate-600 truncate">
-                              {u.unit_type} · {formatGbp(u.price)}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Selected Unit Instant Inspector & Revision Card */}
-                {droneTargetUnit && (
-                  <div className="bg-white border border-indigo-200 rounded-xl p-2.5 space-y-2 shadow-2xs">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className="text-[10px] text-indigo-700 font-mono font-bold">
-                          SEÇİLİ BAĞIMSIZ BÖLÜM
-                        </span>
-                        <h5 className="text-xs font-black text-slate-950">
-                          {droneTargetUnit.block_name} — Kapı No: {droneTargetUnit.unit_number}
-                        </h5>
-                      </div>
-                      <span className="text-xs font-black text-emerald-700 font-mono">
-                        {formatGbp(droneTargetUnit.price)}
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-1 text-[10px] text-slate-700">
-                      <div>
-                        <strong className="text-slate-900">Tip:</strong> {droneTargetUnit.unit_type}
-                      </div>
-                      <div>
-                        <strong className="text-slate-900">Kat:</strong> {droneTargetUnit.floor_level}
-                      </div>
-                      <div>
-                        <strong className="text-slate-900">Alan:</strong> {droneTargetUnit.gross_sqm}m² Brüt /{" "}
-                        {droneTargetUnit.net_sqm}m² Net
-                      </div>
-                      <div>
-                        <strong className="text-slate-900">Cephe:</strong> {droneTargetUnit.view_direction}
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setRevisingUnit({ ...droneTargetUnit })}
-                      className="w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-black cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap"
-                    >
-                      <Edit3 className="w-3 h-3" />
-                      <span>Bu Bağımsız Bölümü Revize Et</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Right 8 Cols: Crisp 2D Architectural Site Elevation + Dimensioned 2D CAD Floorplan */}
-              <div className="lg:col-span-8 rounded-xl border border-slate-200 bg-white p-3 space-y-3">
-                {/* Top Architectural Sheet Title Bar */}
-                <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 px-3 py-2 rounded-lg border border-slate-200 text-[11px]">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded bg-indigo-600 text-white font-mono text-[10px] font-black">
-                      2D MİMARİ PAFTA
-                    </span>
-                    <span className="font-black text-slate-950">
-                      {droneTargetUnit?.project_name || activeProjectDetail?.name || "Proje Vaziyet & Kat Planı"}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3 font-mono text-[10px] text-slate-700">
-                    <span>
-                      BLOK: <strong>{droneTargetUnit?.block_name || "-"}</strong>
-                    </span>
-                    <span>
-                      KAPI NO: <strong className="text-indigo-700">{droneTargetUnit?.unit_number || "-"}</strong>
-                    </span>
-                    <span>
-                      ÖLÇEK: <strong>1:100 CAD</strong>
-                    </span>
-                  </div>
-                </div>
-
-                {/* SECTION A: 2D ARCHITECTURAL SITE & BLOCK ELEVATION DIAGRAM */}
-                <div className="rounded-xl border border-slate-300 bg-slate-50/70 p-3 space-y-2.5">
-                  {/* North Sea Coastline Axis */}
-                  <div className="w-full py-1.5 px-3 rounded-lg bg-sky-50 border border-sky-200 flex items-center justify-between text-[10px] font-black text-sky-900">
-                    <span>↑ KUZEY CEPHE — AKDENİZ SAHİL ŞERİDİ & PANORAMİK DENİZ HATTI</span>
-                    <span>🏊 MERKEZİ INFINITY LAGÜN HAVUZU & PEYZAJ AKSI</span>
-                  </div>
-
-                  {/* 2D Architectural Building Elevations (Floor-by-Floor CAD Stacking) */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {blockStackingMatrix.slice(0, 4).map((blk, bIdx) => {
-                      const blkTheme = getSectionBandTheme(bIdx);
-                      return (
-                        <div
-                          key={bIdx}
-                          className={`rounded-xl border-2 border-l-4 p-2.5 space-y-1.5 shadow-2xs ${blkTheme.cardBg}`}
-                        >
-                          {/* Architectural Roof Line */}
-                          <div className="flex items-center justify-between border-b-2 border-slate-800 pb-1">
-                            <span className="text-xs font-black text-slate-950 flex items-center gap-1">
-                              <Building2 className="w-3.5 h-3.5 text-indigo-600" />
-                              <span>{blk.blockTitle} — 2D Cephe Kesiti</span>
-                            </span>
-                            <span className="text-[10px] font-mono font-bold text-slate-600">
-                              {blk.projectName}
-                            </span>
-                          </div>
-
-                          <div className="space-y-1.5">
-                            {blk.floors.map((fl, fIdx) => {
-                              const flTheme = getSectionBandTheme(bIdx + fIdx);
-                              return (
-                                <div
-                                  key={fIdx}
-                                  className={`flex items-center gap-1.5 p-1.5 rounded-lg border ${flTheme.headerBg}`}
-                                >
-                                  <span className="w-20 text-[9px] font-black text-slate-800 uppercase truncate shrink-0 border-r border-slate-300 pr-1">
-                                    {fl.floorName}
-                                  </span>
-                                  <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-1">
-                                    {fl.units.map((u: any) => {
-                                      const isFocused = droneTargetUnit?.id === u.id;
-                                      const meta = getStatusBadgeMeta(u.status);
-                                      return (
-                                        <button
-                                          key={u.id}
-                                          type="button"
-                                          onClick={() => setDroneTargetUnit(u)}
-                                          className={`px-2 py-1 rounded border text-left transition-all cursor-pointer ${
-                                            isFocused
-                                              ? "bg-indigo-600 text-white border-indigo-900 ring-2 ring-indigo-600/30 font-black"
-                                              : `${meta.pillBg} hover:opacity-90`
-                                          }`}
-                                        >
-                                          <div className="font-mono text-[10px] font-black leading-none flex items-center justify-between">
-                                            <span>{u.unit_number}</span>
-                                            <span className="text-[8px]">{u.gross_sqm}m²</span>
-                                          </div>
-                                          <div className="text-[9px] font-bold truncate mt-0.5">
-                                            {u.unit_type?.split(" ")[0]} · {formatGbp(u.price)}
-                                          </div>
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* SECTION B: 2D DIMENSIONED CAD FLOORPLAN OF SELECTED UNIT TYPE */}
-                {droneTargetUnit && (
-                  <div className="rounded-xl border-2 border-slate-300 bg-white p-3 space-y-2.5">
-                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2">
-                      <div>
-                        <span className="text-[10px] font-mono font-bold text-indigo-700 uppercase">
-                          2D ÖLÇEKLİ MİMARİ KAT PLANI ŞEMASI — {droneTargetUnit.unit_type}
-                        </span>
-                        <h5 className="text-xs font-black text-slate-950">
-                          {droneTargetUnit.block_name} · Bağımsız Bölüm Kapı No: {droneTargetUnit.unit_number} ({droneTargetUnit.floor_level})
-                        </h5>
-                      </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <select
-                          value={droneTargetUnit.status}
-                          onChange={e => handleUnitStatusChange(droneTargetUnit.id, e.target.value)}
-                          className="px-2 py-1 bg-slate-50 border border-slate-300 rounded-lg text-[11px] font-bold text-slate-900 cursor-pointer"
-                        >
-                          <option value="available">Müsait</option>
-                          <option value="negotiation">Sonuçlanmakta (Sözleşme)</option>
-                          <option value="optioned">Opsiyonlu</option>
-                          <option value="sold">Satıldı</option>
-                        </select>
-                        <button
-                          type="button"
-                          onClick={() => setRevisingUnit({ ...droneTargetUnit })}
-                          className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-bold cursor-pointer whitespace-nowrap"
-                        >
-                          Detaylı Revize Et
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* 2D Architectural Blueprint SVG + Room Schedule */}
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
-                      <div className="md:col-span-7 bg-slate-50 border border-slate-300 rounded-lg p-2">
-                        <svg
-                          viewBox="0 0 520 260"
-                          className="w-full h-auto"
-                          role="img"
-                          aria-label="2D Mimari Kat Planı"
-                        >
-                          {/* Blueprint Grid Background */}
-                          <defs>
-                            <pattern id="cadGrid" width="20" height="20" patternUnits="userSpaceOnUse">
-                              <path
-                                d="M 20 0 L 0 0 0 20"
-                                fill="none"
-                                stroke="#e2e8f0"
-                                strokeWidth="0.7"
-                              />
-                            </pattern>
-                          </defs>
-                          <rect width="520" height="260" fill="url(#cadGrid)" />
-
-                          {/* North / Sea Terrace Zone (Top) */}
-                          <rect
-                            x="20"
-                            y="14"
-                            width="480"
-                            height="56"
-                            fill="#e0f2fe"
-                            stroke="#0284c7"
-                            strokeWidth="2"
-                            strokeDasharray="5,3"
-                          />
-                          <text x="260" y="36" textAnchor="middle" fill="#0369a1" fontSize="11" fontWeight="800">
-                            PANORAMİK TERAS &amp; BALKON ({droneTargetUnit.terrace_sqm || 18} m²) — {droneTargetUnit.view_direction}
-                          </text>
-                          <text x="260" y="54" textAnchor="middle" fill="#0284c7" fontSize="9" fontWeight="700">
-                            ↑ SÜRGÜLÜ CAM CEPHE (DENİZ &amp; HAVUZ MANZARASI)
-                          </text>
-
-                          {/* Main Structural Outer Walls */}
-                          <rect
-                            x="20"
-                            y="70"
-                            width="480"
-                            height="170"
-                            fill="#ffffff"
-                            stroke="#0f172a"
-                            strokeWidth="3.5"
-                          />
-
-                          {/* Living Room + Open Kitchen (Left Wing) */}
-                          <rect
-                            x="20"
-                            y="70"
-                            width="235"
-                            height="170"
-                            fill="#f8fafc"
-                            stroke="#0f172a"
-                            strokeWidth="2"
-                          />
-                          <text x="137" y="135" textAnchor="middle" fill="#0f172a" fontSize="12" fontWeight="800">
-                            SALON + AÇIK MUTFAK
-                          </text>
-                          <text x="137" y="155" textAnchor="middle" fill="#475569" fontSize="10" fontWeight="700">
-                            {Math.round((Number(droneTargetUnit.net_sqm) || 60) * 0.48)} m² Net
-                          </text>
-                          <rect x="30" y="205" width="95" height="24" fill="#e2e8f0" stroke="#64748b" strokeWidth="1" />
-                          <text x="77" y="221" textAnchor="middle" fill="#334155" fontSize="8" fontWeight="700">
-                            ANKASTRE MUTFAK ADA
-                          </text>
-
-                          {/* Master Bedroom (Top Right Wing) */}
-                          <rect
-                            x="255"
-                            y="70"
-                            width="165"
-                            height="105"
-                            fill="#eef2ff"
-                            stroke="#0f172a"
-                            strokeWidth="2"
-                          />
-                          <text x="337" y="118" textAnchor="middle" fill="#1e1b4b" fontSize="11" fontWeight="800">
-                            YATAK ODASI 1 (EBEVEYN)
-                          </text>
-                          <text x="337" y="136" textAnchor="middle" fill="#4338ca" fontSize="10" fontWeight="700">
-                            {Math.round((Number(droneTargetUnit.net_sqm) || 60) * 0.3)} m² Net
-                          </text>
-
-                          {/* En-Suite / Main Bathroom (Far Right Top) */}
-                          <rect
-                            x="420"
-                            y="70"
-                            width="80"
-                            height="105"
-                            fill="#f1f5f9"
-                            stroke="#0f172a"
-                            strokeWidth="2"
-                          />
-                          <text x="460" y="118" textAnchor="middle" fill="#0f172a" fontSize="10" fontWeight="800">
-                            BANYO / WC
-                          </text>
-                          <text x="460" y="134" textAnchor="middle" fill="#64748b" fontSize="9" fontWeight="700">
-                            {Math.max(5, Math.round((Number(droneTargetUnit.net_sqm) || 60) * 0.1))} m²
-                          </text>
-
-                          {/* Second Room / Study / Hallway (Bottom Right Wing) */}
-                          <rect
-                            x="255"
-                            y="175"
-                            width="155"
-                            height="65"
-                            fill="#f8fafc"
-                            stroke="#0f172a"
-                            strokeWidth="2"
-                          />
-                          <text x="332" y="205" textAnchor="middle" fill="#0f172a" fontSize="10" fontWeight="800">
-                            ODA / GİYİNME &amp; HOL
-                          </text>
-                          <text x="332" y="220" textAnchor="middle" fill="#475569" fontSize="9" fontWeight="700">
-                            {Math.max(8, Math.round((Number(droneTargetUnit.net_sqm) || 60) * 0.12))} m²
-                          </text>
-
-                          {/* Entry Hall & Independent Door Number */}
-                          <rect
-                            x="410"
-                            y="175"
-                            width="90"
-                            height="65"
-                            fill="#fef3c7"
-                            stroke="#d97706"
-                            strokeWidth="2"
-                          />
-                          <text x="455" y="202" textAnchor="middle" fill="#92400e" fontSize="9" fontWeight="800">
-                            BAĞIMSIZ GİRİŞ
-                          </text>
-                          <text x="455" y="218" textAnchor="middle" fill="#78350f" fontSize="11" fontWeight="900">
-                            KAPI: {droneTargetUnit.unit_number}
-                          </text>
-                        </svg>
-                      </div>
-
-                      {/* Room & Technical Dimension Schedule */}
-                      <div className="md:col-span-5 space-y-2 text-xs">
-                        <div className="bg-slate-50 border border-slate-200 rounded-lg p-2.5 space-y-1.5">
-                          <div className="text-[10px] font-black uppercase text-slate-700 border-b border-slate-200 pb-1">
-                            Bağımsız Bölüm Metrekare Cetveli
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-600">Toplam Brüt Alan:</span>
-                            <strong className="font-mono text-slate-950">{droneTargetUnit.gross_sqm} m²</strong>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-600">Kapalı Net Kullanım:</span>
-                            <strong className="font-mono text-slate-950">{droneTargetUnit.net_sqm} m²</strong>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-600">Teras / Balkon Alanı:</span>
-                            <strong className="font-mono text-sky-800">{droneTargetUnit.terrace_sqm} m²</strong>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-600">Kat / Konum Değişkeni:</span>
-                            <strong className="text-slate-950">{droneTargetUnit.floor_level}</strong>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-600">Cephe / Manzara:</span>
-                            <strong className="text-indigo-800">{droneTargetUnit.view_direction}</strong>
-                          </div>
-                          <div className="flex justify-between pt-1 border-t border-slate-200">
-                            <span className="font-bold text-slate-900">Güncel Liste Fiyatı:</span>
-                            <strong className="font-mono text-sm font-black text-emerald-700">
-                              {formatGbp(droneTargetUnit.price)}
-                            </strong>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* SECTION C: INTERACTIVE 2D-TO-3D WEBGL ARCHITECTURAL STUDIO (Agent3Dify & 2D-to-3D-Image-Converter) */}
-                <div className="pt-1">
-                  <Architectural2DTo3DStudio
-                    project={activeProjectDetail}
-                    selectedUnit={droneTargetUnit}
-                    themeMode="light"
-                    onSave3DRenderToVault={async (dataUrl, label) => {
-                      if (!activeProjectDetail) return;
-                      const currentVault = Array.isArray(activeProjectDetail.media_vault)
-                        ? [...activeProjectDetail.media_vault]
-                        : [];
-                      const newAsset = {
-                        name: `${label}.png`,
-                        type: "image",
-                        category: "Kat Planları & 3D Mimari",
-                        property_type: droneTargetUnit?.unit_type || "",
-                        scope: "property_type",
-                        url: dataUrl,
-                        updated_at: new Date().toISOString().slice(0, 10)
-                      };
-                      const nextVault = [newAsset, ...currentVault];
-                      try {
-                        await api.updateDeveloperProject(activeProjectDetail.id, {
-                          media_vault: nextVault
-                        });
-                      } catch {
-                        // Fallback to local state update
-                      }
-                      setProjects(prev =>
-                        prev.map(p =>
-                          Number(p.id) === Number(activeProjectDetail.id)
-                            ? { ...p, media_vault: nextVault }
-                            : p
-                        )
-                      );
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ================================================================= */}
-          {/* VIEW MODE 4: DETAYLI TABLO & SATIR İÇİ HIZLI REVİZYON             */}
+          {/* VIEW MODE 3: DETAYLI TABLO & SATIR İÇİ HIZLI REVİZYON             */}
           {/* ================================================================= */}
           {inventoryViewMode === "table_list" && (
             <div className="overflow-x-auto rounded-xl border border-slate-200">
@@ -4954,7 +4568,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                     <th className="py-2 px-2.5">Kat, Konum & Manzara</th>
                     <th className="py-2 px-2.5">Liste Fiyatı (GBP)</th>
                     <th className="py-2 px-2.5">Statü</th>
-                    <th className="py-2 px-2.5 text-right rounded-tr-lg">Revizyon & 2D Plan</th>
+                    <th className="py-2 px-2.5 text-right rounded-tr-lg">Revizyon, Durum & Sil</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 text-[11px]">
@@ -5036,14 +4650,6 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                               <Edit3 className="w-2.5 h-2.5" />
                               <span>Revize Et</span>
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => triggerDroneFlyToUnit(unit)}
-                              className="px-1.5 py-0.5 bg-sky-100 hover:bg-sky-200 text-sky-900 border border-sky-300 rounded text-[10px] font-bold cursor-pointer whitespace-nowrap"
-                              title="2D Mimari Kat Planını Göster"
-                            >
-                              2D Plan
-                            </button>
                             <select
                               value={unit.status}
                               onChange={e => handleUnitStatusChange(unit.id, e.target.value)}
@@ -5054,6 +4660,15 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                               <option value="optioned">Opsiyona Al</option>
                               <option value="sold">Satıldı İşaretle</option>
                             </select>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteUnit(unit.id, unit.unit_number)}
+                              className="px-2 py-0.5 bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 rounded text-[10px] font-bold cursor-pointer flex items-center gap-1 whitespace-nowrap transition-colors"
+                              title={`Kapı No ${unit.unit_number} Bağımsız Bölümünü Sil`}
+                            >
+                              <Trash2 className="w-2.5 h-2.5" />
+                              <span>Sil</span>
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -5327,9 +4942,10 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                       setIsNewEventOpen(false);
                       setEditingEventId(null);
                     }}
-                    className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-lg text-xs font-bold cursor-pointer"
+                    className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer"
                   >
-                    Kapat ✕
+                    <X className="w-3.5 h-3.5" />
+                    <span>Kapat</span>
                   </button>
                 </div>
 
@@ -5508,9 +5124,9 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                                 media_gallery: prev.media_gallery.filter(m => m.id !== item.id)
                               }))
                             }
-                            className="text-slate-400 hover:text-rose-600 cursor-pointer"
+                            className="text-slate-400 hover:text-rose-600 cursor-pointer flex items-center"
                           >
-                            ✕
+                            <X className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       ))}
@@ -5667,21 +5283,21 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
               </p>
             </div>
 
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
-              {["all", "Yönetim", "Teknik & Mimari", "Satış", "PR & Pazarlama"].map(dept => (
-                <button
-                  key={dept}
-                  type="button"
-                  onClick={() => setStaffDeptFilter(dept)}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer whitespace-nowrap shrink-0 transition-colors ${
-                    staffDeptFilter === dept
-                      ? "bg-indigo-600 text-white"
-                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                  }`}
-                >
-                  {dept === "all" ? `Tümü (${internalStaff.length})` : dept}
-                </button>
-              ))}
+            <div className="flex items-center gap-2 shrink-0">
+              <label className="text-[10px] font-black uppercase text-slate-500 whitespace-nowrap">
+                Departman:
+              </label>
+              <select
+                value={staffDeptFilter}
+                onChange={e => setStaffDeptFilter(e.target.value)}
+                className="px-2.5 py-1 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-900 cursor-pointer outline-none"
+              >
+                <option value="all">Tüm Departmanlar ({internalStaff.length})</option>
+                <option value="Yönetim">Yönetim</option>
+                <option value="Teknik & Mimari">Teknik & Mimari</option>
+                <option value="Satış">Satış</option>
+                <option value="PR & Pazarlama">PR & Pazarlama</option>
+              </select>
 
               <button
                 type="button"
