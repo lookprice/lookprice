@@ -1960,15 +1960,15 @@ router.delete('/projects/:id', authenticate, async (req: any, res) => {
 
 // POST /api/developer-projects/projects/:id/media (Add Media/Document to Project Data Room with Zero Supabase Egress & Conflict Resolution)
 router.post('/projects/:id/media', authenticate, async (req: any, res) => {
-  const storeId = Number(getAuthorizedStoreId(req, req.body.store_id || req.query.store_id) || req.user?.store_id || 1);
   const { id } = req.params;
   const { name, type, category, url, conflictMode, unit_type_match, unit_number_match, media_role, setAsCover } = req.body;
   try {
-    const existingRes = await pool.query('SELECT cover_image, media_vault FROM developer_projects WHERE id = $1 AND store_id = $2', [id, storeId]);
-    if (existingRes.rowCount === 0) return res.status(404).json({ error: 'Proje bulunamadı' });
+    const projCheck = await pool.query('SELECT store_id, cover_image, media_vault FROM developer_projects WHERE id = $1', [id]);
+    if (projCheck.rows.length === 0) return res.status(404).json({ error: 'Proje bulunamadı.' });
+    const storeId = projCheck.rows[0].store_id;
 
-    const currentCover = String(existingRes.rows[0].cover_image || '').trim();
-    const currentMedia: any[] = Array.isArray(existingRes.rows[0].media_vault) ? [...existingRes.rows[0].media_vault] : [];
+    const currentCover = String(projCheck.rows[0].cover_image || '').trim();
+    const currentMedia: any[] = Array.isArray(projCheck.rows[0].media_vault) ? [...projCheck.rows[0].media_vault] : [];
     const rawName = String(name || 'Yeni Proje Dosyası.pdf').trim();
     const cleanedUrl = await cleanDeepBase64(normalizeStorageUrl(url || ''));
     const targetCategory = String(category || 'Teknik & Mimari Planlar').trim();
@@ -2062,7 +2062,6 @@ router.post('/projects/:id/media', authenticate, async (req: any, res) => {
 
 // POST /api/developer-projects/projects/:id/media/batch (Batch Add Multiple Images/Files for Showcase Sections or Masterplan)
 router.post('/projects/:id/media/batch', authenticate, async (req: any, res) => {
-  const storeId = Number(getAuthorizedStoreId(req, req.body.store_id || req.query.store_id) || req.user?.store_id || 1);
   const { id } = req.params;
   const items = Array.isArray(req.body.items) ? req.body.items : [];
   const setFirstAsCover = Boolean(req.body.setFirstAsCover);
@@ -2070,15 +2069,13 @@ router.post('/projects/:id/media/batch', authenticate, async (req: any, res) => 
     return res.status(400).json({ error: 'Eklenecek medya listesi boş.' });
   }
   try {
-    const existingRes = await pool.query(
-      'SELECT cover_image, media_vault FROM developer_projects WHERE id = $1 AND store_id = $2',
-      [id, storeId]
-    );
-    if (existingRes.rowCount === 0) return res.status(404).json({ error: 'Proje bulunamadı' });
+    const projCheck = await pool.query('SELECT store_id, cover_image, media_vault FROM developer_projects WHERE id = $1', [id]);
+    if (projCheck.rows.length === 0) return res.status(404).json({ error: 'Proje bulunamadı.' });
+    const storeId = projCheck.rows[0].store_id;
 
-    const currentCover = String(existingRes.rows[0].cover_image || '').trim();
-    const currentMedia: any[] = Array.isArray(existingRes.rows[0].media_vault)
-      ? [...existingRes.rows[0].media_vault]
+    const currentCover = String(projCheck.rows[0].cover_image || '').trim();
+    const currentMedia: any[] = Array.isArray(projCheck.rows[0].media_vault)
+      ? [...projCheck.rows[0].media_vault]
       : [];
 
     const newItems: any[] = [];
@@ -2127,14 +2124,14 @@ router.post('/projects/:id/media/batch', authenticate, async (req: any, res) => 
 
 // DELETE /api/developer-projects/projects/:id/media/:mediaId (Remove Media/Document from Project Data Room)
 router.delete('/projects/:id/media/:mediaId', authenticate, async (req: any, res) => {
-  const storeId = Number(getAuthorizedStoreId(req, req.query.store_id) || req.user?.store_id || 1);
   const { id, mediaId } = req.params;
   const targetName = String(req.query.name || '').trim().toLowerCase();
   try {
-    const existingRes = await pool.query('SELECT media_vault FROM developer_projects WHERE id = $1 AND store_id = $2', [id, storeId]);
-    if (existingRes.rowCount === 0) return res.status(404).json({ error: 'Proje bulunamadı' });
+    const projCheck = await pool.query('SELECT store_id, media_vault FROM developer_projects WHERE id = $1', [id]);
+    if (projCheck.rows.length === 0) return res.status(404).json({ error: 'Proje bulunamadı.' });
+    const storeId = projCheck.rows[0].store_id;
 
-    const currentMedia = Array.isArray(existingRes.rows[0].media_vault) ? existingRes.rows[0].media_vault : [];
+    const currentMedia = Array.isArray(projCheck.rows[0].media_vault) ? projCheck.rows[0].media_vault : [];
     const nextMedia = currentMedia.filter((m: any) => {
       if (String(m.id) === String(mediaId)) return false;
       if (targetName && String(m.name || '').trim().toLowerCase() === targetName) return false;
@@ -2153,17 +2150,17 @@ router.delete('/projects/:id/media/:mediaId', authenticate, async (req: any, res
 
 // POST /api/developer-projects/projects/:id/media/bulk-delete (Remove multiple Media/Documents at once)
 router.post('/projects/:id/media/bulk-delete', authenticate, async (req: any, res) => {
-  const storeId = Number(getAuthorizedStoreId(req, req.body.store_id || req.query.store_id) || req.user?.store_id || 1);
   const { id } = req.params;
   const mediaIds: string[] = Array.isArray(req.body.mediaIds) ? req.body.mediaIds.map(String) : [];
   const mediaNames: string[] = Array.isArray(req.body.mediaNames)
     ? req.body.mediaNames.map((n: any) => String(n || '').trim().toLowerCase())
     : [];
   try {
-    const existingRes = await pool.query('SELECT media_vault FROM developer_projects WHERE id = $1 AND store_id = $2', [id, storeId]);
-    if (existingRes.rowCount === 0) return res.status(404).json({ error: 'Proje bulunamadı' });
+    const projCheck = await pool.query('SELECT store_id, media_vault FROM developer_projects WHERE id = $1', [id]);
+    if (projCheck.rows.length === 0) return res.status(404).json({ error: 'Proje bulunamadı.' });
+    const storeId = projCheck.rows[0].store_id;
 
-    const currentMedia = Array.isArray(existingRes.rows[0].media_vault) ? existingRes.rows[0].media_vault : [];
+    const currentMedia = Array.isArray(projCheck.rows[0].media_vault) ? projCheck.rows[0].media_vault : [];
     const idSet = new Set(mediaIds);
     const nameSet = new Set(mediaNames.filter(Boolean));
     const nextMedia = currentMedia.filter((m: any) => {
