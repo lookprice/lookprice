@@ -849,6 +849,9 @@ export const DeveloperShowcaseTab: React.FC<DeveloperShowcaseTabProps> = ({
                         <option value="floorplans">
                           Teknik Kat Çizimleri ({currentPt?.matchedFloorplans.length || 0})
                         </option>
+                        <option value="pricelists">
+                          Fiyat Listeleri ({currentPt?.matchedPricelists.length || 0})
+                        </option>
                       </select>
                     </div>
                   );
@@ -1400,6 +1403,100 @@ export const DeveloperShowcaseTab: React.FC<DeveloperShowcaseTabProps> = ({
                                           type="button"
                                           onClick={() => onDeleteMediaFromProject(fp.id, fp.name)}
                                           title="Kat Çizimini Sil"
+                                          className="p-1 rounded-md bg-slate-100 hover:bg-rose-600 text-slate-500 hover:text-white cursor-pointer transition-colors"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* PRICELISTS */}
+                          {(propertyTypeLayer === "overview" ||
+                            propertyTypeLayer === "pricelists") && (
+                            <div
+                              className={`bg-slate-50/70 rounded-xl border border-slate-200 p-3 space-y-2 flex flex-col justify-between ${
+                                propertyTypeLayer === "overview" ? "lg:col-span-3" : ""
+                              }`}
+                            >
+                              <div className="space-y-1.5">
+                                <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
+                                  <span className="text-xs font-semibold text-slate-900 flex items-center gap-1.5">
+                                    <FolderOpen className="w-3.5 h-3.5 text-slate-700" />
+                                    <span>Fiyat Listeleri & Klasörler ({pt.matchedPricelists.length})</span>
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => onOpenUploadForTarget(pt.unit_type, "masterplan", "Fiyat Listesi & Ödeme Planı")}
+                                    className="text-[11px] font-medium text-indigo-600 hover:underline cursor-pointer"
+                                  >
+                                    + Fiyat Listesi Ekle
+                                  </button>
+                                </div>
+
+                                {pt.matchedPricelists.map((pl: any, idx: number) => {
+                                  const plThumb = resolveDisplayImageUrl(
+                                    pl.url,
+                                    activeProjectDetail.cover_image
+                                  );
+                                  const openPlPreview = () =>
+                                    setPreviewAsset({
+                                      id: pl.id,
+                                      rawName: pl.name,
+                                      name: `${pt.unit_type} — ${pl.name}`,
+                                      category: `${pt.unit_type} Fiyat Listesi`,
+                                      type: "pricelist",
+                                      url: pl.url || activeProjectDetail.cover_image,
+                                      cover: plThumb,
+                                      projectName: activeProjectDetail.name
+                                    });
+                                  const canDownload = isDownloadableAssetUrl(pl.url);
+                                  return (
+                                    <div
+                                      key={pl.id || idx}
+                                      className="flex items-center justify-between gap-2 bg-white rounded-lg p-2 text-xs border border-slate-200"
+                                    >
+                                      <button
+                                        type="button"
+                                        onClick={openPlPreview}
+                                        title={`${pl.name} — Önizlemek için tıklayın`}
+                                        className="font-medium text-slate-800 hover:text-indigo-600 truncate text-left cursor-pointer flex-1"
+                                      >
+                                        {pl.name}
+                                      </button>
+                                      <div className="flex items-center gap-1 shrink-0">
+                                        <button
+                                          type="button"
+                                          onClick={openPlPreview}
+                                          title="Önizleme"
+                                          className="p-1 rounded-md bg-slate-100 hover:bg-indigo-600 text-slate-700 hover:text-white cursor-pointer transition-colors"
+                                        >
+                                          <Eye className="w-3.5 h-3.5" />
+                                        </button>
+                                        {canDownload && (
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              onDirectLocalDownload(
+                                                pl.url,
+                                                pl.name,
+                                                activeProjectDetail.cover_image
+                                              )
+                                            }
+                                            title="Yerel Dosyalara İndir"
+                                            className="p-1 rounded-md bg-slate-100 hover:bg-emerald-600 text-slate-700 hover:text-white cursor-pointer transition-colors"
+                                          >
+                                            <Download className="w-3.5 h-3.5" />
+                                          </button>
+                                        )}
+                                        <button
+                                          type="button"
+                                          onClick={() => onDeleteMediaFromProject(pl.id, pl.name)}
+                                          title="Fiyat Listesini Sil"
                                           className="p-1 rounded-md bg-slate-100 hover:bg-rose-600 text-slate-500 hover:text-white cursor-pointer transition-colors"
                                         >
                                           <Trash2 className="w-3.5 h-3.5" />
