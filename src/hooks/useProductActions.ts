@@ -67,8 +67,8 @@ export const useProductActions = (
     }
 
     const hasExplicitVariants = Array.isArray(parsedVariants) && parsedVariants.length > 0;
-    const isExplicitlyVariantsOff = !hasExplicitVariants && (hasVariantsRaw === false || hasVariantsRaw === 'false' || hasVariantsRaw === 'off');
-    const isVariantsActive = hasExplicitVariants || (!isExplicitlyVariantsOff && (hasVariantsRaw === 'on' || hasVariantsRaw === 'true' || hasVariantsRaw === true));
+    const isExplicitlyVariantsOff = hasVariantsRaw === false || hasVariantsRaw === 'false' || hasVariantsRaw === 'off';
+    const isVariantsActive = !isExplicitlyVariantsOff && hasExplicitVariants;
     
     // Parse allergens list from rawData
     let parsedAllergens: string[] = [];
@@ -282,6 +282,10 @@ export const useProductActions = (
 
     const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
     let barcode = String(data.barcode || '').trim();
+    if (!data.has_variants && (!barcode || barcode.startsWith('VAR-')) && Array.isArray(editingProduct?.variants) && editingProduct.variants.length === 1 && editingProduct.variants[0]?.barcode) {
+      barcode = String(editingProduct.variants[0].barcode).trim().replace(/-1$/, '');
+      data.barcode = barcode;
+    }
     if (!barcode && isCafeRestaurant) {
       barcode = 'HRC-' + Date.now().toString().slice(-8);
       data.barcode = barcode;

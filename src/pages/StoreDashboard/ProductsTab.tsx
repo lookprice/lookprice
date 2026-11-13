@@ -315,6 +315,77 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
     }
   };
 
+  // Helper to check if a product currently has variants
+  const hasProductVariants = (p: any): boolean => {
+    if (!p) return false;
+    if (p.has_variants === true || String(p.has_variants) === 'true') return true;
+    if (Array.isArray(p.variants)) return p.variants.length > 0;
+    if (typeof p.variants === 'string' && p.variants.trim().startsWith('[')) {
+      try {
+        const parsed = JSON.parse(p.variants);
+        return Array.isArray(parsed) && parsed.length > 0;
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  };
+
+  const variantProductsCount = useMemo(
+    () => products.filter(p => hasProductVariants(p)).length,
+    [products]
+  );
+
+  const selectedVariantIds = useMemo(
+    () => selectedIds.filter(id => {
+      const prod = products.find(p => Number(p.id) === Number(id));
+      return prod ? hasProductVariants(prod) : false;
+    }),
+    [selectedIds, products]
+  );
+
+  // Bulk convert selected variant products to single products
+  const handleBulkClearVariantsSelected = async () => {
+    if (selectedVariantIds.length === 0) return;
+    const msg = lang === 'tr'
+      ? `Seçili ${selectedVariantIds.length} ürünün varyantları kaldırılıp tekil ürüne dönüştürülecek (fiyat, stok ve barkod korunur). Devam edilsin mi?`
+      : `Remove variants from ${selectedVariantIds.length} selected products and convert them to single products?`;
+    if (!window.confirm(msg)) return;
+
+    const toastId = toast.loading(lang === 'tr' ? 'Varyantlar kaldırılıyor...' : 'Removing variants...');
+    try {
+      const res = await api.bulkClearProductVariants(selectedVariantIds, currentStoreId);
+      toast.success(
+        lang === 'tr'
+          ? `${res?.updatedCount ?? selectedVariantIds.length} ürün başarıyla tekil ürüne dönüştürüldü!`
+          : `Converted ${res?.updatedCount ?? selectedVariantIds.length} products to single products!`,
+        { id: toastId }
+      );
+      setSelectedIds([]);
+      if (onRefresh) onRefresh();
+    } catch (err: any) {
+      toast.error(err?.message || (lang === 'tr' ? 'Varyantlar kaldırılamadı.' : 'Failed to remove variants.'), { id: toastId });
+    }
+  };
+
+  // Single-row quick convert to single product
+  const handleConvertSingleProductToSimple = async (product: any) => {
+    if (!product?.id) return;
+    const msg = lang === 'tr'
+      ? `"${product.name}" ürününün varyantları kaldırılıp tekil ürüne dönüştürülsün mü? (Fiyat, stok ve barkod korunur)`
+      : `Convert "${product.name}" to a single product by removing its variants?`;
+    if (!window.confirm(msg)) return;
+
+    const toastId = toast.loading(lang === 'tr' ? 'Tekil ürüne dönüştürülüyor...' : 'Converting to single product...');
+    try {
+      await api.bulkClearProductVariants([Number(product.id)], currentStoreId);
+      toast.success(lang === 'tr' ? 'Ürün tekil ürüne dönüştürüldü!' : 'Converted to single product!', { id: toastId });
+      if (onRefresh) onRefresh();
+    } catch (err: any) {
+      toast.error(err?.message || (lang === 'tr' ? 'İşlem başarısız oldu.' : 'Conversion failed.'), { id: toastId });
+    }
+  };
+
   // Bulk delete selected
   const handleBulkDeleteSelected = () => {
     if (selectedIds.length === 0) return;
@@ -426,6 +497,8 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
       let matchesCategory = true;
       if (selectedCategory === "all") {
         matchesCategory = true;
+      } else if (selectedCategory === "__has_variants__") {
+        matchesCategory = hasProductVariants(p);
       } else if (selectedCategory === "bestsellers") {
         matchesCategory = getIsBestseller(p);
       } else if (selectedCategory.startsWith("badge_")) {
@@ -624,6 +697,8 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
         isViewer={isViewer}
         isCafe={isCafe}
         selectedIds={selectedIds}
+        selectedVariantCount={selectedVariantIds.length}
+        handleBulkClearVariantsSelected={handleBulkClearVariantsSelected}
         onAddNew={onAddNew}
         onImport={onImport}
         onExportReport={() => onExportReport && (onExportReport as any)(includeZeroStock, filteredProducts)}
@@ -679,6 +754,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
         branches={branches}
         includeBranches={includeBranches}
         onToggleIncludeBranches={setIncludeBranches}
+        variantProductsCount={variantProductsCount}
       />
 
       {/* 3. Products Table & Pagination */}
@@ -722,6 +798,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
         handleAutoFindImages={handleAutoFindImages}
         onEdit={onEdit}
         onDelete={onDelete}
+        onConvertToSingle={handleConvertSingleProductToSimple}
         setRecipeProduct={setRecipeProduct}
         setSharingProduct={setSharingProduct}
         setSelectedProduct={setSelectedProduct}

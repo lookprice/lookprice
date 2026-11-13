@@ -42,6 +42,7 @@ interface ProductsTableProps {
   handleAutoFindImages: (params: any) => void;
   onEdit: (product: any) => void;
   onDelete: (id: number) => void;
+  onConvertToSingle?: (product: any) => void;
   setRecipeProduct: (p: any) => void;
   setSharingProduct: (p: any) => void;
   setSelectedProduct: (p: any) => void;
@@ -92,6 +93,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
   handleAutoFindImages,
   onEdit,
   onDelete,
+  onConvertToSingle,
   setRecipeProduct,
   setSharingProduct,
   setSelectedProduct,
@@ -201,6 +203,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
                   handleAutoFindImages={handleAutoFindImages}
                   onEdit={onEdit}
                   onDelete={onDelete}
+                  onConvertToSingle={onConvertToSingle}
                   setRecipeProduct={setRecipeProduct}
                   setSharingProduct={setSharingProduct}
                   setSelectedProduct={setSelectedProduct}

@@ -14,7 +14,8 @@ import {
   Clock,
   Tag,
   ChevronDown,
-  Check
+  Check,
+  Layers
 } from "lucide-react";
 import { TableManager } from "@/components/common/TableManager";
 import { getSectorBadges } from "@/data/bookstoreBadges";
@@ -55,6 +56,7 @@ interface ProductsFilterToolbarProps {
   branches?: any[];
   includeBranches?: boolean;
   onToggleIncludeBranches?: (val: boolean) => void;
+  variantProductsCount?: number;
 }
 
 export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
@@ -91,7 +93,8 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
   t,
   branches = [],
   includeBranches = false,
-  onToggleIncludeBranches
+  onToggleIncludeBranches,
+  variantProductsCount = 0
 }) => {
   const [isBadgeMenuOpen, setIsBadgeMenuOpen] = useState(false);
   const badgeMenuRef = useRef<HTMLDivElement>(null);
@@ -165,6 +168,11 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
               title={lang === 'tr' ? 'Kategori Filtresi' : 'Category Filter'}
             >
               <option value="all">{lang === 'tr' ? 'Kategoriler' : (t.allCategories || 'Categories')}</option>
+              {variantProductsCount > 0 && (
+                <option value="__has_variants__">
+                  {lang === 'tr' ? `Varyantlılar (${variantProductsCount})` : `With Variants (${variantProductsCount})`}
+                </option>
+              )}
               {isCafe && <option value="bestsellers">{lang === 'tr' ? 'En Çok Satanlar' : 'Bestsellers'}</option>}
               <optgroup label={lang === 'tr' ? "Rozetler" : "Badges"}>
                 {sectorBadges.map((b) => (
@@ -178,6 +186,30 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
               ))}
             </select>
           </div>
+
+          {variantProductsCount > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedCategory(selectedCategory === '__has_variants__' ? 'all' : '__has_variants__');
+                setPage(1);
+              }}
+              className={`px-2 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 transition-all shrink-0 border cursor-pointer select-none ${
+                selectedCategory === '__has_variants__'
+                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                  : 'bg-indigo-50/70 text-indigo-800 hover:bg-indigo-100 border-indigo-200/80'
+              }`}
+              title={lang === 'tr' ? 'Sadece varyantlı ürünleri listele (toplu veya tekli kaldırma için)' : 'Filter products with variants'}
+            >
+              <Layers className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden md:inline">{lang === 'tr' ? 'Varyantlı' : 'Variants'}</span>
+              <span className={`px-1 py-0.2 rounded text-[9px] font-medium ${
+                selectedCategory === '__has_variants__' ? 'bg-white/20 text-white' : 'bg-indigo-200/70 text-indigo-900'
+              }`}>
+                {variantProductsCount}
+              </span>
+            </button>
+          )}
 
           {/* Quick Bestseller Filter Toggle for Cafe */}
           {isCafe && (

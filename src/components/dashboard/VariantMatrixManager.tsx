@@ -16,7 +16,8 @@ import {
   Copy,
   ChevronDown,
   ChevronUp,
-  Tag
+  Tag,
+  Unlink
 } from 'lucide-react';
 import { ProductVariant, VariantBehaviorType } from '@/types';
 import { 
@@ -29,6 +30,7 @@ import {
 interface VariantMatrixManagerProps {
   variants: ProductVariant[];
   onChange: (variants: ProductVariant[]) => void;
+  onConvertToSingleProduct?: () => void;
   baseProduct: {
     name?: string;
     price?: number;
@@ -54,6 +56,7 @@ interface WorkingAttribute {
 export const VariantMatrixManager: React.FC<VariantMatrixManagerProps> = ({
   variants,
   onChange,
+  onConvertToSingleProduct,
   baseProduct,
   isCafeRestaurant = false,
   lang = 'tr'
@@ -242,27 +245,39 @@ export const VariantMatrixManager: React.FC<VariantMatrixManagerProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto justify-end shrink-0">
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-end flex-wrap shrink-0">
+          {onConvertToSingleProduct && (
+            <button
+              type="button"
+              onClick={onConvertToSingleProduct}
+              className="px-2.5 sm:px-3 py-1.5 bg-rose-500/20 hover:bg-rose-600 text-rose-100 hover:text-white border border-rose-400/40 rounded-xl font-semibold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+              title={isTr ? 'Tüm varyantları kaldırıp ürünü tekil ürüne çevir' : 'Remove all variants and convert to single product'}
+            >
+              <Unlink className="w-3.5 h-3.5" />
+              <span>{isTr ? 'Tekil Ürüne Çevir' : 'Convert to Single'}</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => setShowGenerator(!showGenerator)}
-            className={`flex-1 sm:flex-none px-2.5 sm:px-3 py-1.5 rounded-xl font-black text-xs uppercase flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+            className={`flex-1 sm:flex-none px-2.5 sm:px-3 py-1.5 rounded-xl font-semibold text-xs uppercase flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
               showGenerator 
                 ? 'bg-amber-400 text-slate-950 shadow-md ring-2 ring-amber-300' 
                 : 'bg-indigo-800 hover:bg-indigo-700 text-white border border-indigo-600'
             }`}
           >
             <Wand2 className="w-3.5 h-3.5" />
-            <span>{showGenerator ? (isTr ? 'Ayarları Gizle' : 'Hide') : (isTr ? '⚡ Sihirbaz' : '⚡ Wizard')}</span>
+            <span>{showGenerator ? (isTr ? 'Ayarları Gizle' : 'Hide') : (isTr ? 'Sihirbaz' : 'Wizard')}</span>
           </button>
 
           <button
             type="button"
             onClick={handleAddSingleVariant}
-            className="flex-1 sm:flex-none px-2.5 sm:px-3 py-1.5 bg-white text-indigo-950 hover:bg-indigo-50 rounded-xl font-black text-xs uppercase flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
+            className="flex-1 sm:flex-none px-2.5 sm:px-3 py-1.5 bg-white text-indigo-950 hover:bg-indigo-50 rounded-xl font-semibold text-xs uppercase flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
           >
             <Plus className="w-3.5 h-3.5 text-indigo-600" />
-            <span>{isTr ? '+ Varyant' : '+ Variant'}</span>
+            <span>{isTr ? 'Varyant Ekle' : 'Add Variant'}</span>
           </button>
         </div>
       </div>
@@ -742,16 +757,28 @@ export const VariantMatrixManager: React.FC<VariantMatrixManagerProps> = ({
           })}
         </div>
       ) : (
-        <div className="p-8 text-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 space-y-2">
+        <div className="p-6 text-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 space-y-3">
           <Package className="w-8 h-8 text-slate-400 mx-auto" />
-          <p className="text-xs font-bold text-slate-600">
-            {isTr ? 'Henüz hiçbir varyant eklenmedi.' : 'No variants added yet.'}
+          <p className="text-xs font-semibold text-slate-700">
+            {isTr ? 'Bu üründe aktif varyant bulunmuyor.' : 'No variants in this product.'}
           </p>
-          <p className="text-[11px] text-slate-400 max-w-md mx-auto">
+          <p className="text-[11px] text-slate-500 max-w-md mx-auto">
             {isTr 
-              ? 'Yukarıdaki "⚡ Matris Oluşturucu" butonuna tıklayarak Renk, Beden, Hafıza gibi seçeneklerden saniyeler içinde onlarca varyant üretebilir veya tek tek ekleyebilirsiniz.'
-              : 'Click "⚡ Matrix Generator" above to create combinations or add variants manually.'}
+              ? 'Yukarıdaki "Sihirbaz" ile yeni varyant kombinasyonları üretebilir veya tekil ürün olarak kullanmak için varyant modunu kapatabilirsiniz.'
+              : 'Use the Wizard above to generate variants, or convert this item to a single product.'}
           </p>
+          {onConvertToSingleProduct && (
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={onConvertToSingleProduct}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-all cursor-pointer"
+              >
+                <Unlink className="w-3.5 h-3.5" />
+                <span>{isTr ? 'Tekil Ürüne Dönüştür (Varyantları Kaldır)' : 'Convert to Single Product'}</span>
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

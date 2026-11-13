@@ -245,7 +245,16 @@ router.post("/", upload.single("file"), async (req: any, res) => {
             ""
           ).trim();
 
-          if (vName || vColor || vSize || vBarcode || vSku || items.length > 1) {
+          const normalizedDummyName = vName.toLocaleLowerCase('tr-TR');
+          const isDummySingleLabel =
+            items.length === 1 &&
+            !vColor &&
+            !vSize &&
+            !vBarcode &&
+            !vSku &&
+            ['varyantlı', 'varyantli', 'tekil', 'tekil ürün', 'tekil urun', 'yok', 'hayır', 'hayir', 'false', '0', '-', 'standart'].includes(normalizedDummyName);
+
+          if (!isDummySingleLabel && (vName || vColor || vSize || vBarcode || vSku || items.length > 1)) {
             const parsedVPrice = parsePriceVal(vRawPrice);
             const parsedVStock = parseInt(String(vRawStock)) || 0;
             const finalVName = vName || [vColor, vSize].filter(Boolean).join(" / ") || `Varyant ${idx + 1}`;

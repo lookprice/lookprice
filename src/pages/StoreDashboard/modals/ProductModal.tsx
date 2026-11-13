@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { motion } from "motion/react";
-import { X, Plus, Trash2, Search, Flame, Sparkles, Camera, Upload, Palette, History, BookOpen, Check, Star, Award, Crown, Clock, Tag, Loader2, TrendingUp, ExternalLink, Layers } from "lucide-react";
+import { X, Plus, Trash2, Search, Flame, Sparkles, Camera, Upload, Palette, History, BookOpen, Check, Star, Award, Crown, Clock, Tag, Loader2, TrendingUp, ExternalLink, Layers, Unlink } from "lucide-react";
+import { toast } from "sonner";
 import { MultiImageUploader } from "../../../components/MultiImageUploader";
 import { api } from "../../../services/api";
 import { compressImageToWebP, normalizeImageUrl } from "../../../utils/imageUtils";
@@ -37,6 +38,7 @@ export const ProductModal = ({
   translations: t,
   products = [],
 }: ProductModalProps) => {
+  const formRef = useRef<HTMLFormElement>(null);
   const [productImageUrl, setProductImageUrl] = useState("");
   const [productExtraImages, setProductExtraImages] = useState<string[]>([]);
   const [newExtraImageUrl, setNewExtraImageUrl] = useState("");
@@ -462,9 +464,19 @@ export const ProductModal = ({
       setSelectedCategory2(editingProduct?.category_2 || "");
       setSelectedSubCategory2(editingProduct?.sub_category_2 || "");
 
-      const pHasVariants = !!editingProduct?.has_variants || (Array.isArray(editingProduct?.variants) && editingProduct.variants.length > 0);
+      setActiveTab('general');
+      let parsedVars: any[] = [];
+      if (Array.isArray(editingProduct?.variants)) {
+        parsedVars = editingProduct.variants;
+      } else if (typeof editingProduct?.variants === "string" && editingProduct.variants.trim()) {
+        try {
+          const parsed = JSON.parse(editingProduct.variants);
+          if (Array.isArray(parsed)) parsedVars = parsed;
+        } catch {}
+      }
+      const pHasVariants = parsedVars.length > 0;
       setHasVariants(pHasVariants);
-      setVariants(Array.isArray(editingProduct?.variants) ? editingProduct.variants : []);
+      setVariants(parsedVars);
 
       // Parse and set Allergens & Nutrition
       let initialAllergens: string[] = [];
@@ -574,6 +586,63 @@ export const ProductModal = ({
     }
   };
 
+  const handleConvertToSingleProduct = (switchToGeneral = true) => {
+    const form = formRef.current;
+    if (form && variants.length > 0) {
+      const priceInput = form.querySelector('input[name="price"]') as HTMLInputElement | null;
+      const stockInput = form.querySelector('input[name="stock_quantity"]') as HTMLInputElement | null;
+      const barcodeInput = form.querySelector('input[name="barcode"]') as HTMLInputElement | null;
+      const skuInput = form.querySelector('input[name="product_code"]') as HTMLInputElement | null;
+
+      if (priceInput) {
+        const curPrice = parseFloat(String(priceInput.value || "").replace(",", "."));
+        if (!curPrice || curPrice <= 0) {
+          const validPrices = variants
+            .map((v: any) => parseFloat(String(v?.price ?? "").replace(",", ".")))
+            .filter((p: number) => !isNaN(p) && p > 0);
+          if (validPrices.length > 0) {
+            priceInput.value = String(Math.min(...validPrices));
+          }
+        }
+      }
+
+      if (stockInput) {
+        const curStock = parseFloat(String(stockInput.value || "").replace(",", "."));
+        if (isNaN(curStock) || curStock <= 0) {
+          const totalVarStock = variants.reduce((acc: number, v: any) => acc + (Number(v?.stock_quantity ?? v?.stock) || 0), 0);
+          if (totalVarStock > 0) {
+            stockInput.value = String(totalVarStock);
+          }
+        }
+      }
+
+      if (barcodeInput) {
+        const curBarcode = String(barcodeInput.value || "").trim();
+        if ((!curBarcode || curBarcode.startsWith("VAR-")) && variants.length === 1 && variants[0]?.barcode) {
+          barcodeInput.value = String(variants[0].barcode).trim().replace(/-1$/, "");
+        }
+      }
+
+      if (skuInput && !String(skuInput.value || "").trim() && variants.length === 1 && variants[0]?.sku) {
+        const candidateSku = String(variants[0].sku).trim();
+        if (!candidateSku.endsWith("-V1")) {
+          skuInput.value = candidateSku;
+        }
+      }
+    }
+
+    setVariants([]);
+    setHasVariants(false);
+    if (switchToGeneral) {
+      setActiveTab("general");
+    }
+    toast.success(
+      isTr
+        ? "Varyantlar kaldırıldı. Kalıcı olması için 'Ürünü Kaydet' butonuna basın."
+        : "Variants cleared. Click 'Save Product' to save as a single product."
+    );
+  };
+
   if (!showProductModal) return null;
 
   return (
@@ -657,26 +726,34 @@ export const ProductModal = ({
           <button
             type="button"
             onClick={() => setActiveTab('variants')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium uppercase tracking-wider transition-all cursor-pointer shrink-0 ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium uppercase tracking-wider transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${
               activeTab === 'variants' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'
             }`}
           >
-            {isTr ? "2. Varyantlar" : "2. Variants"}
+            <span>{isTr ? "2. Varyantlar" : "2. Variants"}</span>
+            {variants.length > 0 && (
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${activeTab === 'variants' ? 'bg-white/20 text-white' : 'bg-indigo-100 text-indigo-800'}`}>
+                {variants.length}
+              </span>
+            )}
           </button>
         </div>
 
         {/* UNIFIED FORM WITH FIXED STICKY FOOTER */}
         <form
+          ref={formRef}
           key={editingProduct?.id ? `product-form-${editingProduct.id}` : 'product-form-new'}
           onSubmit={(e) => {
             if (handleAddProduct) handleAddProduct(e);
           }}
           className="flex-1 flex flex-col min-h-0 overflow-hidden"
         >
+          <input type="hidden" name="has_variants" value={hasVariants && variants.length > 0 ? "true" : "false"} />
+          <input type="hidden" name="variants_data" value={JSON.stringify(hasVariants ? variants : [])} />
+
           {/* SCROLLABLE BODY */}
           <div className="flex-1 overflow-y-auto p-2 sm:p-2.5 space-y-2 pb-24 sm:pb-2.5">
-            {activeTab === 'general' && (
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-2.5 items-start">
+            <div className={activeTab === 'general' ? "grid grid-cols-1 lg:grid-cols-12 gap-2.5 items-start" : "hidden"}>
                 
                 {/* LEFT COLUMN: IDENTIFICATION, SPECS, DESCRIPTION, RECIPE */}
                 <div className="contents lg:block lg:col-span-7 xl:col-span-8 lg:space-y-2">
@@ -1386,6 +1463,7 @@ export const ProductModal = ({
                     <VariantMatrixManager
                       variants={variants}
                       onChange={(updated) => setVariants(updated)}
+                      onConvertToSingleProduct={() => handleConvertToSingleProduct(false)}
                       baseProduct={{
                         name: editingProduct?.name,
                         price: editingProduct?.price,
@@ -1399,7 +1477,6 @@ export const ProductModal = ({
                       isCafeRestaurant={isCafeRestaurant}
                       lang={lang}
                     />
-                    <input type="hidden" name="variants_data" value={JSON.stringify(variants)} />
                   </div>
                 )}
               </div>
@@ -2018,13 +2095,16 @@ export const ProductModal = ({
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
-                      name="has_variants"
                       id="prod_has_variants"
                       checked={hasVariants}
                       onChange={(e) => {
                         const val = e.target.checked;
-                        setHasVariants(val);
-                        if (val && variants.length === 0) {
+                        if (!val) {
+                          handleConvertToSingleProduct(false);
+                          return;
+                        }
+                        setHasVariants(true);
+                        if (variants.length === 0) {
                           setVariants([{ 
                             id: `var_${Date.now()}_1`,
                             name: isTr ? (isBookstore ? "Ciltli / Özel Baskı" : isCafeRestaurant ? "Standart Porsiyon" : "Standart Boy") : "Standard", 
@@ -2044,29 +2124,52 @@ export const ProductModal = ({
                     </label>
                   </div>
                   {hasVariants && (
-                    <span className="text-[9px] font-medium text-indigo-700 bg-indigo-100 px-1.5 py-0.2 rounded">
-                      {variants.length} {isTr ? "Varyant" : "Vars"}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[9px] font-medium text-indigo-700 bg-indigo-100 px-1.5 py-0.2 rounded">
+                        {variants.length} {isTr ? "Varyant" : "Vars"}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleConvertToSingleProduct(false)}
+                        className="text-[10px] font-medium text-rose-700 hover:text-white bg-rose-50 hover:bg-rose-600 border border-rose-200 px-1.5 py-0.5 rounded transition-colors cursor-pointer flex items-center gap-1"
+                        title={isTr ? "Varyantları kaldırıp tekil ürüne çevir" : "Remove variants"}
+                      >
+                        <Unlink className="w-2.5 h-2.5" />
+                        <span>{isTr ? "Tekil Yap" : "Single"}</span>
+                      </button>
+                    </div>
                   )}
                 </div>
 
-
-
-
                 </div>
               </div>
-            )}
 
         {activeTab === 'variants' && (
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
             <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-3">
-              <h3 className="text-xs font-medium text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                <Layers className="h-4 w-4 text-indigo-600" />
-                <span>{isTr ? "Varyant Matrisi" : "Variant Matrix"}</span>
-              </h3>
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <h3 className="text-xs font-medium text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-indigo-600" />
+                  <span>{isTr ? "Varyant Matrisi" : "Variant Matrix"}</span>
+                </h3>
+                {(hasVariants || variants.length > 0) && (
+                  <button
+                    type="button"
+                    onClick={() => handleConvertToSingleProduct(true)}
+                    className="px-2.5 py-1 bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Unlink className="w-3.5 h-3.5" />
+                    <span>{isTr ? "Varyantları Kaldır (Tekil Ürüne Çevir)" : "Remove Variants (Make Single)"}</span>
+                  </button>
+                )}
+              </div>
               <VariantMatrixManager
                 variants={variants}
-                onChange={(updated) => setVariants(updated)}
+                onChange={(updated) => {
+                  setVariants(updated);
+                  if (updated.length > 0 && !hasVariants) setHasVariants(true);
+                }}
+                onConvertToSingleProduct={() => handleConvertToSingleProduct(true)}
                 baseProduct={{
                   name: editingProduct?.name,
                   price: editingProduct?.price,

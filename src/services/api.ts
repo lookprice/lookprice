@@ -171,6 +171,7 @@ export const api = {
   deleteBulkProducts: (ids: number[], storeId?: number) => api.post(`/api/store/products/bulk-delete${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { ids }),
   addBulkProducts: (products: any[], storeId?: number) => api.post(`/api/store/products/bulk-add${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { products }),
   bulkRenameProducts: (renames: { id: number, name: string }[], storeId?: number) => api.put(`/api/store/products/bulk-rename${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { renames }),
+  bulkClearProductVariants: (ids: number[], storeId?: number) => api.post(`/api/store/products/bulk-clear-variants${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { ids }),
   getProductRecipe: (id: number, storeId?: number) => api.get(`/api/store/products/${id}/recipe${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   saveProductRecipe: (id: number, items: any[], storeId?: number) => api.post(`/api/store/products/${id}/recipe${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { items }),
   reformatProductNames: (storeId?: number) => api.post(`/api/store/ai/reformat-product-names${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),

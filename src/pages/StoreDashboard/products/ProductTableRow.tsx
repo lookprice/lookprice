@@ -19,7 +19,8 @@ import {
   Check,
   X,
   Loader2,
-  Pencil
+  Pencil,
+  Unlink
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/services/api";
@@ -62,6 +63,7 @@ interface ProductTableRowProps {
   handleAutoFindImages: (params: any) => void;
   onEdit: (product: any) => void;
   onDelete: (id: number) => void;
+  onConvertToSingle?: (product: any) => void;
   setRecipeProduct: (p: any) => void;
   setSharingProduct: (p: any) => void;
   setSelectedProduct: (p: any) => void;
@@ -106,6 +108,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
   handleAutoFindImages,
   onEdit,
   onDelete,
+  onConvertToSingle,
   setRecipeProduct,
   setSharingProduct,
   setSelectedProduct,
@@ -895,6 +898,20 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                           <span>{t.movementHistory}</span>
                         </button>
 
+                        {onConvertToSingle && (Boolean(p.has_variants) || (Array.isArray(p.variants) && p.variants.length > 0)) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOpenActionMenuId(null);
+                              onConvertToSingle(p);
+                            }}
+                            className="w-full px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+                          >
+                            <Unlink className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                            <span>{lang === 'tr' ? "Varyantları Kaldır (Tekil)" : "Remove Variants"}</span>
+                          </button>
+                        )}
+
                         <div className="my-1 border-t border-slate-100" />
 
                         <button
@@ -929,6 +946,9 @@ export const ProductTableRow = React.memo(ProductTableRowComponent, (prevProps, 
     prevProps.product.updated_at === nextProps.product.updated_at &&
     prevProps.product.stock_quantity === nextProps.product.stock_quantity &&
     prevProps.product.price === nextProps.product.price &&
+    prevProps.product.has_variants === nextProps.product.has_variants &&
+    prevProps.product.variants === nextProps.product.variants &&
+    prevProps.product.barcode === nextProps.product.barcode &&
     prevProps.product.is_hepsiburada_active === nextProps.product.is_hepsiburada_active &&
     prevProps.product.is_trendyol_active === nextProps.product.is_trendyol_active &&
     prevProps.product.is_n11_active === nextProps.product.is_n11_active &&

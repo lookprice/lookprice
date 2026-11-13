@@ -8,7 +8,8 @@ import {
   Layers, 
   Activity,
   MoreHorizontal,
-  ChevronDown
+  ChevronDown,
+  Unlink
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/services/api";
@@ -19,6 +20,8 @@ interface ProductsHeaderActionsProps {
   isViewer: boolean;
   isCafe: boolean;
   selectedIds: number[];
+  selectedVariantCount?: number;
+  handleBulkClearVariantsSelected?: () => void;
   onAddNew: () => void;
   onImport: () => void;
   onExportReport: () => void;
@@ -44,6 +47,8 @@ export const ProductsHeaderActions: React.FC<ProductsHeaderActionsProps> = ({
   isViewer,
   isCafe,
   selectedIds,
+  selectedVariantCount = 0,
+  handleBulkClearVariantsSelected,
   onAddNew,
   onImport,
   onExportReport,
@@ -81,14 +86,26 @@ export const ProductsHeaderActions: React.FC<ProductsHeaderActionsProps> = ({
 
       {/* Action Buttons: Strictly single-line layout (flex-nowrap) */}
       <div className="flex items-center gap-1.5 shrink-0 flex-nowrap">
-        {/* Selection Actions (Bulk Delete & Merge 2) */}
+        {/* Selection Actions (Bulk Convert Single, Delete & Merge 2) */}
         {selectedIds.length > 0 && !isViewer && (
           <div className="flex items-center gap-1 shrink-0">
+            {selectedVariantCount > 0 && handleBulkClearVariantsSelected && (
+              <button
+                type="button"
+                onClick={handleBulkClearVariantsSelected}
+                className="px-2 py-1 bg-amber-50 text-amber-800 hover:bg-amber-600 hover:text-white rounded-lg transition-all border border-amber-200 font-semibold flex items-center gap-1 shadow-2xs text-[11px] cursor-pointer active:scale-95 shrink-0"
+                title={lang === 'tr' ? "Seçilen ürünlerin varyantlarını kaldırıp tekil ürüne çevir" : "Remove variants from selected products"}
+              >
+                <Unlink className="h-3.5 w-3.5" />
+                <span>Tekil Yap ({selectedVariantCount})</span>
+              </button>
+            )}
+
             {selectedIds.length === 2 && (
               <button 
                 type="button"
                 onClick={() => setIsMergeModalOpen(true)}
-                className="px-2 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white rounded-lg transition-all border border-indigo-200 font-black flex items-center gap-1 shadow-2xs text-[11px] cursor-pointer active:scale-95 shrink-0"
+                className="px-2 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white rounded-lg transition-all border border-indigo-200 font-semibold flex items-center gap-1 shadow-2xs text-[11px] cursor-pointer active:scale-95 shrink-0"
                 title={lang === 'tr' ? "Seçilen 2 Ürünü Birleştir" : "Merge Selected 2 Products"}
               >
                 <Layers className="h-3.5 w-3.5" />
@@ -99,7 +116,7 @@ export const ProductsHeaderActions: React.FC<ProductsHeaderActionsProps> = ({
             <button 
               type="button"
               onClick={handleBulkDeleteSelected}
-              className="px-2 py-1 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-lg transition-all border border-rose-200 font-black flex items-center gap-1 shadow-2xs text-[11px] cursor-pointer active:scale-95 shrink-0"
+              className="px-2 py-1 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-lg transition-all border border-rose-200 font-semibold flex items-center gap-1 shadow-2xs text-[11px] cursor-pointer active:scale-95 shrink-0"
               title={lang === 'tr' ? "Seçilenleri Sil" : "Delete Selected"}
             >
               <Trash2 className="h-3.5 w-3.5" />

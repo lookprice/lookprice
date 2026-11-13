@@ -1427,15 +1427,30 @@ router.put("/:id", async (req: any, res) => {
     const finalIsWebSale = is_web_sale !== undefined ? (is_web_sale === true || is_web_sale === 'true' || is_web_sale === 'on') : true;
     const finalIsBestseller = is_bestseller !== undefined ? (is_bestseller === true || is_bestseller === 'true' || is_bestseller === 'on') : existingIsBestseller;
     let parsedVariants: any[] = [];
-    if (variants) {
+    const hasExplicitFalseVariantFlag = has_variants === false || has_variants === 'false' || has_variants === 'off';
+    if (variants !== undefined) {
       try {
         parsedVariants = Array.isArray(variants) ? variants : (typeof variants === 'string' ? JSON.parse(variants || '[]') : []);
+        if (!Array.isArray(parsedVariants)) parsedVariants = [];
       } catch (e) {
         parsedVariants = [];
       }
+      if (hasExplicitFalseVariantFlag) {
+        parsedVariants = [];
+      }
+    } else if (hasExplicitFalseVariantFlag) {
+      parsedVariants = [];
+    } else {
+      // Partial update (e.g., inline price/stock/badge update) omitting variants: preserve existing variants
+      if (Array.isArray(existing.variants)) {
+        parsedVariants = existing.variants;
+      } else if (typeof existing.variants === 'string') {
+        try { parsedVariants = JSON.parse(existing.variants || '[]'); } catch { parsedVariants = []; }
+        if (!Array.isArray(parsedVariants)) parsedVariants = [];
+      }
     }
-    const finalHasVariants = (has_variants !== undefined ? (has_variants === true || has_variants === 'true' || has_variants === 'on') : false) || (Array.isArray(parsedVariants) && parsedVariants.length > 0);
-    const finalVariants = JSON.stringify(parsedVariants);
+    const finalHasVariants = !hasExplicitFalseVariantFlag && Array.isArray(parsedVariants) && parsedVariants.length > 0;
+    const finalVariants = JSON.stringify(finalHasVariants ? parsedVariants : []);
 
     let parsedImages: string[] = [];
     if (images !== undefined) {
@@ -2141,6 +2156,104 @@ router.post("/bulk-delete", async (req: any, res) => {
     await pool.query("DELETE FROM products WHERE store_id = $1 AND id = ANY($2::int[])", [storeId, ids]);
     await logAction(storeId, req.user.id, "product_bulk_delete", "product", null, `\${ids.length} adet ürün toplu olarak silindi`, null, null);
     res.json({ success: true, message: `\${ids.length} products deleted.` });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post("/bulk-clear-variants", async (req: any, res) => {
+  try {
+    const requestedId = req.query.storeId || req.body.storeId;
+    const storeId = await getAuthorizedStoreId(req, requestedId);
+    if (storeId === null) return res.status(403).json({ error: "Store ID unauthorized" });
+
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: "No IDs provided" });
+    }
+
+    const numericIds = ids.map((x: any) => Number(x)).filter((n: number) => !isNaN(n) && n > 0);
+    if (numericIds.length === 0) {
+      return res.status(400).json({ error: "Valid product IDs required" });
+    }
+
+    const existingRes = await pool.query(
+      "SELECT id, barcode, sku, product_code, price, stock_quantity, has_variants, variants FROM products WHERE store_id = $1 AND id = ANY($2::int[])",
+      [storeId, numericIds]
+    );
+
+    const updatedIds: number[] = [];
+    for (const row of existingRes.rows) {
+      let vars: any[] = [];
+      if (Array.isArray(row.variants)) {
+        vars = row.variants;
+      } else if (typeof row.variants === "string") {
+        try { vars = JSON.parse(row.variants || "[]"); } catch { vars = []; }
+        if (!Array.isArray(vars)) vars = [];
+      }
+
+      const validPrices = vars
+        .map((v: any) => parseFloat(String(v?.price ?? "").replace(",", ".")))
+        .filter((p: number) => !isNaN(p) && p > 0);
+      const currentPrice = parseFloat(String(row.price ?? "0").replace(",", ".")) || 0;
+      const nextPrice = currentPrice > 0 ? currentPrice : (validPrices.length > 0 ? Math.min(...validPrices) : 0);
+
+      const totalVariantStock = vars.reduce((acc: number, v: any) => acc + (Number(v?.stock_quantity ?? v?.stock) || 0), 0);
+      const currentStock = Number(row.stock_quantity) || 0;
+      const nextStock = currentStock > 0 ? currentStock : totalVariantStock;
+
+      let nextBarcode = String(row.barcode || "").trim();
+      if ((!nextBarcode || nextBarcode.startsWith("VAR-")) && vars.length === 1 && vars[0]?.barcode) {
+        const candidateBarcode = String(vars[0].barcode).trim().replace(/-1$/, "");
+        if (candidateBarcode) {
+          const dupCheck = await pool.query(
+            "SELECT id FROM products WHERE store_id = $1 AND barcode = $2 AND id != $3 LIMIT 1",
+            [storeId, candidateBarcode, row.id]
+          );
+          if (dupCheck.rows.length === 0) {
+            nextBarcode = candidateBarcode;
+          }
+        }
+      }
+
+      let nextSku = row.sku || row.product_code || null;
+      if (!nextSku && vars.length === 1 && vars[0]?.sku && !String(vars[0].sku).endsWith("-V1")) {
+        nextSku = String(vars[0].sku).trim();
+      }
+
+      await pool.query(
+        `UPDATE products
+         SET has_variants = false,
+             variants = '[]'::jsonb,
+             price = $1,
+             stock_quantity = $2,
+             barcode = $3,
+             sku = COALESCE($4, sku),
+             product_code = COALESCE($4, product_code),
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $5 AND store_id = $6`,
+        [nextPrice, nextStock, nextBarcode, nextSku, row.id, storeId]
+      );
+      updatedIds.push(row.id);
+    }
+
+    try {
+      const { publicApiCache } = await import("../public.js");
+      publicApiCache.clear();
+    } catch {}
+
+    await logAction(
+      storeId,
+      req.user.id,
+      "product_bulk_clear_variants",
+      "product",
+      null,
+      `${updatedIds.length} adet ürünün varyantları kaldırılarak tekil ürüne dönüştürüldü`,
+      null,
+      null
+    );
+
+    res.json({ success: true, updatedCount: updatedIds.length, updatedIds });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }

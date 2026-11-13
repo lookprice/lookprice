@@ -105,7 +105,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   };
 
   const pHasVars = React.useMemo(() => {
-    if (product.has_variants === true || String(product.has_variants) === 'true') return true;
     let vars = product.variants;
     if (typeof vars === 'string') {
       try { vars = JSON.parse(vars); } catch (e) { vars = []; }
