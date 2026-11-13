@@ -141,12 +141,12 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
           <div className="flex items-center gap-2 flex-wrap min-w-0">
             <button
               onClick={() => setViewMode('list')}
-              className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-black transition-all flex items-center gap-1 shadow-2xs active:scale-95 cursor-pointer shrink-0"
+              className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-medium transition-all flex items-center gap-1 shadow-2xs active:scale-95 cursor-pointer shrink-0"
             >
-              <ArrowLeft className="w-3.5 h-3.5 stroke-[3]" />
+              <ArrowLeft className="w-3.5 h-3.5 stroke-[2]" />
               <span>Portföy Listesi</span>
             </button>
-            <span className="text-xs font-black uppercase text-slate-900 tracking-tight shrink-0 flex items-center gap-1.5">
+            <span className="text-xs font-semibold uppercase text-slate-900 tracking-tight shrink-0 flex items-center gap-1.5">
               {viewMode === 'calendar' ? (
                 <>
                   <CalendarDays className="w-3.5 h-3.5 text-indigo-600" />
@@ -164,7 +164,7 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
           <div className="flex items-center gap-1 shrink-0">
             <button
               onClick={() => setViewMode('list')}
-              className={`px-2 py-1 rounded-lg text-[11px] font-black transition-all cursor-pointer flex items-center gap-1 ${
+              className={`px-2 py-1 rounded-lg text-[11px] font-medium transition-all cursor-pointer flex items-center gap-1 ${
                 (viewMode as string) === 'list' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
@@ -173,7 +173,7 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
             </button>
             <button
               onClick={() => setViewMode('calendar')}
-              className={`px-2 py-1 rounded-lg text-[11px] font-black transition-all cursor-pointer flex items-center gap-1 ${
+              className={`px-2 py-1 rounded-lg text-[11px] font-medium transition-all cursor-pointer flex items-center gap-1 ${
                 viewMode === 'calendar' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
@@ -182,7 +182,7 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
             </button>
             <button
               onClick={() => setViewMode('pipeline')}
-              className={`px-2 py-1 rounded-lg text-[11px] font-black transition-all cursor-pointer flex items-center gap-1 ${
+              className={`px-2 py-1 rounded-lg text-[11px] font-medium transition-all cursor-pointer flex items-center gap-1 ${
                 viewMode === 'pipeline' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
@@ -200,7 +200,7 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
           <div className="flex items-center justify-between gap-1.5 flex-wrap">
             {/* Left: Title + Collapsible Stats & Ref Trigger + Collapsible Search/Filter Trigger */}
             <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-              <span className="text-xs font-black uppercase text-slate-950 tracking-tight shrink-0 px-1">
+              <span className="text-xs font-semibold uppercase text-slate-900 tracking-tight shrink-0 px-1 font-display">
                 Portföy
               </span>
 
@@ -208,10 +208,10 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
               <button
                 type="button"
                 onClick={() => setIsRefAndStatsOpen(prev => !prev)}
-                className={`px-2 py-1 rounded-lg text-[10px] font-black flex items-center gap-1 transition-all cursor-pointer border shrink-0 ${
+                className={`px-2 py-1 rounded-lg text-[10px] font-medium flex items-center gap-1 transition-all cursor-pointer border shrink-0 ${
                   isRefAndStatsOpen
                     ? "bg-slate-900 text-amber-300 border-slate-900 shadow-2xs"
-                    : "bg-slate-100 hover:bg-slate-200/80 text-slate-800 border-slate-200"
+                    : "bg-slate-100 hover:bg-slate-200/80 text-slate-700 border-slate-200"
                 }`}
                 title="Ağ İstatistikleri ve Ardışık Referans Sayacını Aç / Gizle"
               >
@@ -232,7 +232,7 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
               <button
                 type="button"
                 onClick={() => setIsFilterOpen(prev => !prev)}
-                className={`px-2 py-1 rounded-lg text-[10px] font-black flex items-center gap-1 transition-all cursor-pointer border shrink-0 ${
+                className={`px-2 py-1 rounded-lg text-[10px] font-medium flex items-center gap-1 transition-all cursor-pointer border shrink-0 ${
                   isFilterOpen || activeFilterCount > 0
                     ? "bg-indigo-50 text-indigo-900 border-indigo-300"
                     : "bg-slate-100 hover:bg-slate-200/80 text-slate-700 border-slate-200"
@@ -260,7 +260,7 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
                   <input
                     type="text"
                     placeholder="Hızlı ref / başlık ara..."
-                    className="w-full pl-6 pr-5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-bold text-slate-800 outline-none focus:bg-white focus:border-indigo-500"
+                    className="w-full pl-6 pr-5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-normal text-slate-800 outline-none focus:bg-white focus:border-indigo-500"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                   />
@@ -322,7 +322,7 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
                     }
                   }}
                   disabled={isBackupLoading}
-                  className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg text-[10px] font-black transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                  className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg text-[10px] font-medium transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
                   title="Google Drive'a Excel Yedekle"
                 >
                   <Cloud className="w-3 h-3 text-emerald-600" />
@@ -334,7 +334,7 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
                 <button
                   type="button"
                   onClick={onOpenPartnerPortal}
-                  className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-lg text-[10px] font-black transition-all flex items-center gap-1 cursor-pointer"
+                  className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-lg text-[10px] font-medium transition-all flex items-center gap-1 cursor-pointer"
                   title="Paydaş Portföyleri & Bakiye Takibi"
                 >
                   <Handshake className="w-3 h-3 text-amber-700" />
@@ -345,7 +345,7 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
               <button
                 type="button"
                 onClick={() => setViewMode('developer_projects')}
-                className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-amber-300 border border-slate-800 rounded-lg text-[10px] font-black transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
+                className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-amber-300 border border-slate-800 rounded-lg text-[10px] font-medium transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
                 title="İnşaat / Proje Üreticisi Vitrini, Google Drive Veri Odası & Global B2B Emlakçı Portalı"
               >
                 <Building2 className="w-3 h-3 text-amber-400" />
@@ -354,7 +354,7 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
 
               <button
                 onClick={() => setViewMode('calendar')}
-                className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 rounded-lg text-[10px] font-black transition-all flex items-center gap-1 cursor-pointer"
+                className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 rounded-lg text-[10px] font-medium transition-all flex items-center gap-1 cursor-pointer"
                 title="Takvim Görünümü"
               >
                 <CalendarDays className="w-3 h-3 text-indigo-600" />
@@ -363,7 +363,7 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
 
               <button
                 onClick={() => setViewMode('pipeline')}
-                className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 rounded-lg text-[10px] font-black transition-all flex items-center gap-1 cursor-pointer"
+                className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 rounded-lg text-[10px] font-medium transition-all flex items-center gap-1 cursor-pointer"
                 title="CRM Pipeline"
               >
                 <Layout className="w-3 h-3 text-indigo-600" />
@@ -375,7 +375,7 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
                   <button
                     type="button"
                     onClick={() => onOpenPrePortfolioAuth('sales_authorization')}
-                    className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-300 rounded-lg text-[10px] font-black transition-all flex items-center gap-1 cursor-pointer"
+                    className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-300 rounded-lg text-[10px] font-medium transition-all flex items-center gap-1 cursor-pointer"
                     title="Henüz Portföye Alınmamış Satılık Mülk İçin Yetkili Satış Sözleşmesi (Hizmet Bedeli Eklenerek) Al (Ön Portföy Oluşturur)"
                   >
                     <FileSignature className="w-3 h-3 text-indigo-700" />
@@ -384,7 +384,7 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
                   <button
                     type="button"
                     onClick={() => onOpenPrePortfolioAuth('rental_authorization')}
-                    className="px-2 py-1 bg-teal-50 hover:bg-teal-100 text-teal-900 border border-teal-300 rounded-lg text-[10px] font-black transition-all flex items-center gap-1 cursor-pointer"
+                    className="px-2 py-1 bg-teal-50 hover:bg-teal-100 text-teal-900 border border-teal-300 rounded-lg text-[10px] font-medium transition-all flex items-center gap-1 cursor-pointer"
                     title="Henüz Portföye Alınmamış Kiralık Mülk İçin Kiralama Yetki Belgesi Al (Ön Portföy Oluşturur)"
                   >
                     <FileCheck className="w-3 h-3 text-teal-700" />
@@ -395,9 +395,9 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
 
               <button
                 onClick={() => onAddNewProperty()}
-                className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-lg text-[10px] transition-all flex items-center gap-1 cursor-pointer shadow-2xs active:scale-95"
+                className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg text-[10px] transition-all flex items-center gap-1 cursor-pointer shadow-2xs active:scale-95"
               >
-                <Plus className="w-3 h-3 stroke-[3]" />
+                <Plus className="w-3 h-3 stroke-[2]" />
                 <span>Portföy</span>
               </button>
             </div>
@@ -592,10 +592,10 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
             <div className="flex items-center gap-0.5">
               <button
                 onClick={() => setStatusTabFilter('all')}
-                className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-tight transition-all cursor-pointer whitespace-nowrap ${
+                className={`px-2 py-0.5 rounded-md text-[10px] font-medium uppercase tracking-tight transition-all cursor-pointer whitespace-nowrap ${
                   statusTabFilter === 'all'
-                    ? 'bg-white text-slate-950 shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-950'
+                    ? 'bg-white text-slate-900 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 Hepsi ({totalCount})
@@ -603,10 +603,10 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
 
               <button
                 onClick={() => setStatusTabFilter('sale')}
-                className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-tight transition-all cursor-pointer whitespace-nowrap ${
+                className={`px-2 py-0.5 rounded-md text-[10px] font-medium uppercase tracking-tight transition-all cursor-pointer whitespace-nowrap ${
                   statusTabFilter === 'sale'
                     ? 'bg-indigo-600 text-white shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-950'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 Satılık ({saleCount})
@@ -614,10 +614,10 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
 
               <button
                 onClick={() => setStatusTabFilter('rent')}
-                className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-tight transition-all cursor-pointer whitespace-nowrap ${
+                className={`px-2 py-0.5 rounded-md text-[10px] font-medium uppercase tracking-tight transition-all cursor-pointer whitespace-nowrap ${
                   statusTabFilter === 'rent'
                     ? 'bg-sky-600 text-white shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-950'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 Kiralık ({rentCount})
@@ -625,10 +625,10 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
 
               <button
                 onClick={() => setStatusTabFilter('optioned')}
-                className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-tight transition-all cursor-pointer whitespace-nowrap ${
+                className={`px-2 py-0.5 rounded-md text-[10px] font-medium uppercase tracking-tight transition-all cursor-pointer whitespace-nowrap ${
                   statusTabFilter === 'optioned'
                     ? 'bg-amber-600 text-white shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-950'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 Opsiyonlu ({optionedCount})
@@ -636,10 +636,10 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
 
               <button
                 onClick={() => setStatusTabFilter('sold')}
-                className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-tight transition-all cursor-pointer whitespace-nowrap ${
+                className={`px-2 py-0.5 rounded-md text-[10px] font-medium uppercase tracking-tight transition-all cursor-pointer whitespace-nowrap ${
                   statusTabFilter === 'sold'
                     ? 'bg-rose-600 text-white shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-950'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 Satıldı ({soldCount})
@@ -647,10 +647,10 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
 
               <button
                 onClick={() => setStatusTabFilter('rented')}
-                className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-tight transition-all cursor-pointer whitespace-nowrap ${
+                className={`px-2 py-0.5 rounded-md text-[10px] font-medium uppercase tracking-tight transition-all cursor-pointer whitespace-nowrap ${
                   statusTabFilter === 'rented'
                     ? 'bg-sky-700 text-white shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-950'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 Kiralandı ({rentedCount})
@@ -661,7 +661,7 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
               <button
                 type="button"
                 onClick={handleClearFilters}
-                className="px-1.5 py-0.5 text-[9px] font-black text-rose-700 hover:bg-rose-50 rounded whitespace-nowrap cursor-pointer shrink-0"
+                className="px-1.5 py-0.5 text-[9px] font-medium text-rose-700 hover:bg-rose-50 rounded whitespace-nowrap cursor-pointer shrink-0"
               >
                 Filtreyi Sıfırla ✕
               </button>

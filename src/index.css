@@ -1,20 +1,24 @@
-@import url('https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;800;900&family=Montserrat:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400..700;1,400..700&display=swap');
 @import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 @layer base {
   body {
-    @apply font-sans text-slate-900 antialiased leading-relaxed;
+    @apply font-sans text-slate-900 antialiased leading-relaxed font-normal;
   }
   h1, h2, h3, h4, h5, h6 {
-    @apply font-display tracking-tight text-inherit;
+    @apply font-display tracking-tight text-inherit font-medium;
   }
 }
 
 @theme {
-  --font-sans: "Golos Text", "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Montserrat", "Outfit", "Inter", sans-serif;
+  /* Veri yoğun tablolar ve POS modülleri için Inter & IBM Plex Sans */
+  --font-sans: "Inter", "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  /* Ana menüler, üst barlar ve dashboard başlıkları için estetik Manrope */
+  --font-display: "Manrope", "Inter", sans-serif;
+  /* Tablo ve POS veri hücreleri için IBM Plex Sans & Inter */
+  --font-data: "IBM Plex Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Playfair Display", ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
@@ -304,11 +308,65 @@ body:has(.dashboard-root-wrapper) {
 /* High-Density Compact Operator Workspace & Digital Menu */
 .operator-compact-layout {
   --compact-density: 1;
+  font-family: var(--font-sans);
   font-size: 0.875rem; /* 14px base for dense data screens */
+  font-weight: 400;
+}
+
+/* Sistemin ana menüleri ve başlıkları (dashboards) için Manrope */
+.operator-compact-layout .dashboard-top-header,
+.operator-compact-layout aside,
+.operator-compact-layout nav,
+.operator-compact-layout h1,
+.operator-compact-layout h2,
+.operator-compact-layout h3,
+.operator-compact-layout h4 {
+  font-family: var(--font-display);
+}
+
+/* Veri yoğun tablolar, POS modülleri ve veri girişleri için IBM Plex Sans & Inter */
+.operator-compact-layout table,
+.operator-compact-layout th,
+.operator-compact-layout td,
+.operator-compact-layout input,
+.operator-compact-layout select,
+.operator-compact-layout textarea {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+}
+
+/* İnce, zarif ve okunabilir tipografi: Panellerde aşırı BOLD (font-black / font-extrabold / font-bold) kullanımını minimuma indir */
+body:has(.operator-compact-layout) .font-black,
+body:has(.operator-compact-layout) .font-extrabold,
+.operator-compact-layout .font-black,
+.operator-compact-layout .font-extrabold {
+  font-weight: 500 !important;
+}
+
+body:has(.operator-compact-layout) h1.font-black,
+body:has(.operator-compact-layout) h2.font-black,
+body:has(.operator-compact-layout) h3.font-black,
+.operator-compact-layout h1,
+.operator-compact-layout h2,
+.operator-compact-layout h3 {
+  font-weight: 600 !important;
+}
+
+body:has(.operator-compact-layout) .font-bold,
+.operator-compact-layout .font-bold {
+  font-weight: 400 !important;
+}
+
+body:has(.operator-compact-layout) button.font-bold,
+body:has(.operator-compact-layout) a.font-bold,
+.operator-compact-layout button.font-bold,
+.operator-compact-layout a.font-bold {
+  font-weight: 500 !important;
 }
 
 .operator-compact-layout button {
   white-space: nowrap;
+  font-weight: 500;
 }
 
 /* Dense Data Tables in Operator Layout */
@@ -318,7 +376,8 @@ body:has(.dashboard-root-wrapper) {
   padding-left: 0.75rem;
   padding-right: 0.75rem;
   font-size: 0.6875rem; /* 11px */
-  letter-spacing: 0.05em;
+  font-weight: 500 !important;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
@@ -328,12 +387,14 @@ body:has(.dashboard-root-wrapper) {
   padding-left: 0.75rem;
   padding-right: 0.75rem;
   font-size: 0.75rem; /* 12px */
+  font-weight: 400;
 }
 
 /* Dense Inputs & Controls */
 .operator-compact-layout input:not([type="checkbox"]):not([type="radio"]),
 .operator-compact-layout select {
   font-size: 0.8125rem; /* 13px */
+  font-weight: 400 !important;
 }
 
 .digital-menu-compact {

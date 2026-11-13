@@ -3,7 +3,6 @@ import { motion } from "motion/react";
 import { ShopThemeStudio } from "../../../components/dashboard/ShopThemeStudio";
 import { HorecaThemeStudio } from "../../../components/dashboard/HorecaThemeStudio";
 import { BookstoreThemeStudio } from "../../../components/dashboard/BookstoreThemeStudio";
-import { UiverseAndLoraWebStudio } from "../../../components/developer/UiverseAndLoraWebStudio";
 import { resolveDomainId } from "../../../utils/sectorCapability";
 import {
   Palette,
@@ -91,12 +90,11 @@ export const SettingsWebTab = ({
     branding?.sector === 'corporate_website'
   );
 
-  const [activeSubTab, setActiveSubTab] = useState<'brand' | 'theme' | 'uiverse_lora' | 'labels' | 'legal' | 'contact' | 'analytics'>('brand');
+  const [activeSubTab, setActiveSubTab] = useState<'brand' | 'theme' | 'labels' | 'legal' | 'contact' | 'analytics'>('brand');
 
   const subNavItems = [
     { id: 'brand', label: txt('Logo & Favicon', 'Logo & Favicon', 'Λογότυπο & Favicon'), icon: ImageIcon, show: true },
     { id: 'theme', label: txt('Vitrin & Görsel Tasarım Stüdyosu', 'Visual Theme Studio', 'Βιτρίνα & Στούντιο Σχεδίασης'), icon: Palette, show: !isCorporateWebsite },
-    { id: 'uiverse_lora', label: txt('Buton Stili & Görsel Stüdyosu', 'Button Style & Visual Studio', 'Στούντιο Κουμπιών & Εικόνων'), icon: Palette, show: true },
     { id: 'legal', label: txt('Hakkımızda & Politikalar', 'About & Policies', 'Σχετικά & Πολιτικές'), icon: FileText, show: !isPortfolio && !isCafeRestaurant && !isCorporateWebsite },
     { id: 'contact', label: txt('İletişim', 'Contact', 'Επικοινωνία'), icon: Share2, show: true },
     { id: 'analytics', label: txt('SEO & Analitik', 'SEO & Analytics', 'SEO & Αναλυτικά'), icon: BarChart3, show: true },
@@ -486,17 +484,6 @@ export const SettingsWebTab = ({
             />
           )}
         </div>
-      )}
-
-      {/* SUB-TAB 1B: UIVERSE ETKİLEŞİM & BULUT LORA GÖRSEL STÜDYOSU */}
-      {activeSubTab === 'uiverse_lora' && (
-        <UiverseAndLoraWebStudio
-          branding={branding}
-          onBrandingChange={onBrandingChange}
-          onSaveBranding={onSaveBranding}
-          savingBranding={savingBranding}
-          sectorLabel={branding?.store_name || branding?.name || "Mağaza Web Vitrini"}
-        />
       )}
 
       {/* SUB-TAB 2: HAKKIMIZDA VE YASAL POLİTİKALAR */}

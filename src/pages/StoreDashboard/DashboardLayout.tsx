@@ -82,14 +82,14 @@ export const DashboardLayout = ({ children, modals, sidebarProps, loading, lang 
 
       <main className="flex-1 flex flex-col min-w-0 min-h-0 h-full max-h-full overflow-hidden relative">
         {/* Unified Full-Screen Top Header with Accessible Menü Toggle Button */}
-        <div className="dashboard-top-header flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3 min-h-[54px] sm:min-h-[58px] bg-white border-b border-slate-200/80 shrink-0 shadow-2xs z-20 select-none">
+        <div className="dashboard-top-header flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3 min-h-[54px] sm:min-h-[58px] bg-white border-b border-slate-200/80 shrink-0 shadow-2xs z-20 select-none font-display">
           <div className="flex items-center gap-2.5 min-w-0">
             <button 
               onClick={() => {
                 sidebarProps.setSidebarOpen(true);
                 sidebarProps.setDesktopSidebarCollapsed(false);
               }} 
-              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-900 hover:bg-indigo-600 text-white rounded-lg font-black text-xs uppercase tracking-wider transition-all cursor-pointer shadow-xs active:scale-95 shrink-0"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-900 hover:bg-indigo-600 text-white rounded-lg font-medium text-xs uppercase tracking-wider transition-all cursor-pointer shadow-xs active:scale-95 shrink-0"
               title={lang === 'tr' ? 'Menüyü Aç' : 'Open Menu'}
             >
               <Menu className="w-4 h-4" />
@@ -98,7 +98,7 @@ export const DashboardLayout = ({ children, modals, sidebarProps, loading, lang 
 
             <div className="flex items-center gap-2 min-w-0">
               <StoreLogo logoUrl={headerLogoUrl} storeName={headerStoreName} size="xs" />
-              <div className="font-black text-slate-900 truncate tracking-tight uppercase text-xs sm:text-sm max-w-[110px] xs:max-w-[140px] sm:max-w-xs md:max-w-md">
+              <div className="font-semibold text-slate-900 truncate tracking-tight uppercase text-xs sm:text-sm max-w-[110px] xs:max-w-[140px] sm:max-w-xs md:max-w-md">
                 {headerStoreName}
               </div>
             </div>
@@ -110,7 +110,7 @@ export const DashboardLayout = ({ children, modals, sidebarProps, loading, lang 
                 href={sidebarProps.publicUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg text-xs font-bold transition-all border border-slate-200/70"
+                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg text-xs font-medium transition-all border border-slate-200/70"
                 title={lang === 'tr' ? 'Müşteri Web Sitesi' : 'Customer Website'}
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />

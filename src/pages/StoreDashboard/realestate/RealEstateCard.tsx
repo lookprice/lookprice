@@ -495,11 +495,11 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
 
             {/* Top Left: Status + Ref Badge */}
             <div className="absolute top-2 left-2 flex items-center gap-1 z-10 pointer-events-none">
-              <span className={`font-black text-[9px] px-2 py-0.5 rounded-md shadow-xs uppercase tracking-wider ${statusBadgeClass}`}>
+              <span className={`font-medium text-[9px] px-2 py-0.5 rounded-md shadow-xs uppercase tracking-wider ${statusBadgeClass}`}>
                 {statusLabel}
               </span>
               {property.reference_no && (
-                <span className="font-mono font-black text-[9px] px-1.5 py-0.5 rounded-md bg-slate-900/85 text-white">
+                <span className="font-mono font-medium text-[9px] px-1.5 py-0.5 rounded-md bg-slate-900/85 text-white">
                   {property.reference_no}
                 </span>
               )}
@@ -511,7 +511,7 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="absolute top-2 right-2 z-10 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-950/85 hover:bg-indigo-600 text-white text-[9.5px] font-black shadow-sm transition-colors cursor-pointer"
+              className="absolute top-2 right-2 z-10 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-950/85 hover:bg-indigo-600 text-white text-[9.5px] font-medium shadow-sm transition-colors cursor-pointer"
               title="Web sitesinde ürün sayfasını yeni sekmede aç"
             >
               <ExternalLink className="w-2.5 h-2.5 shrink-0" />
@@ -527,7 +527,7 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
                   className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-slate-950/75 hover:bg-slate-950 text-white flex items-center justify-center shadow-md transition-all cursor-pointer active:scale-90"
                   title="Önceki Fotoğraf"
                 >
-                  <ChevronLeft className="w-4 h-4 stroke-[2.5]" />
+                  <ChevronLeft className="w-4 h-4 stroke-[2]" />
                 </button>
                 <button
                   type="button"
@@ -535,11 +535,11 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
                   className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-slate-950/75 hover:bg-slate-950 text-white flex items-center justify-center shadow-md transition-all cursor-pointer active:scale-90"
                   title="Sonraki Fotoğraf"
                 >
-                  <ChevronRight className="w-4 h-4 stroke-[2.5]" />
+                  <ChevronRight className="w-4 h-4 stroke-[2]" />
                 </button>
 
                 {/* Bottom Left Image Counter + Dots */}
-                <div className="absolute bottom-2 left-2 z-10 flex items-center gap-1.5 bg-slate-950/80 text-white px-2 py-0.5 rounded-md text-[9.5px] font-mono font-black">
+                <div className="absolute bottom-2 left-2 z-10 flex items-center gap-1.5 bg-slate-950/80 text-white px-2 py-0.5 rounded-md text-[9.5px] font-mono font-medium">
                   <span>
                     {safeImageIdx + 1}/{totalImages}
                   </span>
@@ -564,7 +564,7 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
             )}
 
             {/* Bottom Right: Price Badge */}
-            <div className="absolute bottom-2 right-2 z-10 bg-slate-950/90 text-white px-2 py-0.5 rounded-md font-mono font-black text-xs">
+            <div className="absolute bottom-2 right-2 z-10 bg-slate-950/90 text-white px-2 py-0.5 rounded-md font-mono font-semibold text-xs">
               {currencySymbol}{formatNumberVal(property.price)}
             </div>
           </div>
@@ -572,17 +572,17 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
           <div className="p-2.5 space-y-1.5">
             <h4
               onClick={() => onEdit(property)}
-              className="font-black text-xs text-slate-950 hover:text-indigo-600 transition-colors line-clamp-2 leading-snug cursor-pointer"
+              className="font-medium text-xs text-slate-900 hover:text-indigo-600 transition-colors line-clamp-2 leading-snug cursor-pointer font-display"
               title={cleanTitle}
             >
               {cleanTitle}
             </h4>
-            <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-bold text-slate-600">
+            <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-normal text-slate-500">
               <span>{locationText}</span>
               {property.room_count && (
                 <>
                   <span className="text-slate-300">·</span>
-                  <span className="text-slate-800">{property.room_count}</span>
+                  <span className="text-slate-700 font-medium">{property.room_count}</span>
                 </>
               )}
               {property.square_meters && (
@@ -594,7 +594,7 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
               {property.listing_intent === "rent" && (
                 <>
                   <span className="text-slate-300">·</span>
-                  <span className="text-indigo-700">{isFurnished ? "Eşyalı" : "Eşyasız"}</span>
+                  <span className="text-indigo-600 font-medium">{isFurnished ? "Eşyalı" : "Eşyasız"}</span>
                 </>
               )}
             </div>
@@ -603,14 +603,14 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
 
         <div className="px-2.5 py-2 bg-slate-50 border-t border-slate-100 rounded-b-xl flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-            <span className="text-[10px] font-bold text-slate-600 truncate">
+            <span className="text-[10px] font-normal text-slate-500 truncate">
               {property.responsible_agent || property.branch_name || "Merkez Ofis"}
             </span>
             {externalPartner && (
               <button
                 type="button"
                 onClick={() => onOpenCommission && onOpenCommission(property)}
-                className="px-1.5 py-0.2 bg-amber-50 text-amber-900 border border-amber-200 rounded text-[9px] font-black shrink-0 cursor-pointer"
+                className="px-1.5 py-0.2 bg-amber-50 text-amber-900 border border-amber-200 rounded text-[9px] font-medium shrink-0 cursor-pointer"
                 title="Paydaş & Hakediş Detayı"
               >
                 Paydaş: {externalPartner.name} (%{externalPartner.percentage})
@@ -620,7 +620,7 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
               <button
                 type="button"
                 onClick={() => onViewDocs(property)}
-                className="px-1.5 py-0.2 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded text-[9px] font-black shrink-0 cursor-pointer"
+                className="px-1.5 py-0.2 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded text-[9px] font-medium shrink-0 cursor-pointer"
               >
                 Evrak ({docCount})
               </button>
@@ -687,28 +687,28 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
           {/* Top Line: Portfolio Title (Full Width, 1-2 lines, clearly readable on mobile & desktop) */}
           <h4
             onClick={() => setIsDetailsExpanded((prev) => !prev)}
-            className="font-black text-xs sm:text-[13px] text-slate-950 hover:text-indigo-600 transition-colors line-clamp-2 sm:line-clamp-1 leading-snug cursor-pointer"
+            className="font-medium text-xs sm:text-[13px] text-slate-900 hover:text-indigo-600 transition-colors line-clamp-2 sm:line-clamp-1 leading-snug cursor-pointer font-display"
             title={cleanTitle}
           >
             {cleanTitle}
           </h4>
 
           {/* Bottom Line: Price + REF + Location + Room/m² + Web'de Gör + Docs */}
-          <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-bold text-slate-600 leading-tight">
+          <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-normal text-slate-500 leading-tight">
             {/* Price highlighted first so it never squeezes the title */}
-            <span className="font-mono font-black text-xs sm:text-[13px] text-indigo-700">
+            <span className="font-mono font-semibold text-xs sm:text-[13px] text-indigo-700">
               {currencySymbol}{formatNumberVal(property.price)}
             </span>
 
             <span className="text-slate-300">·</span>
 
             {property.reference_no && (
-              <span className="font-mono font-black text-[9.5px] text-slate-800 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200">
+              <span className="font-mono font-medium text-[9.5px] text-slate-700 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200">
                 {property.reference_no}
               </span>
             )}
 
-            <span className="text-slate-800 font-extrabold inline-flex items-center gap-0.5">
+            <span className="text-slate-700 font-medium inline-flex items-center gap-0.5">
               <MapPin className="w-2.5 h-2.5 text-indigo-600 shrink-0" />
               <span>{locationText}</span>
             </span>
@@ -716,7 +716,7 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
             {property.room_count && (
               <>
                 <span className="text-slate-300">·</span>
-                <span className="font-extrabold text-slate-900">{property.room_count}</span>
+                <span className="font-medium text-slate-800">{property.room_count}</span>
               </>
             )}
 
@@ -730,14 +730,14 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
             {property.listing_intent === "rent" ? (
               <>
                 <span className="text-slate-300 hidden sm:inline">·</span>
-                <span className={`hidden sm:inline font-extrabold ${isFurnished ? "text-indigo-700" : "text-amber-700"}`}>
+                <span className={`hidden sm:inline font-medium ${isFurnished ? "text-indigo-600" : "text-amber-700"}`}>
                   {isFurnished ? "Eşyalı" : "Eşyasız"}
                 </span>
               </>
             ) : property.kktc_title_type ? (
               <>
                 <span className="text-slate-300 hidden sm:inline">·</span>
-                <span className="hidden sm:inline text-indigo-700 font-extrabold">{property.kktc_title_type}</span>
+                <span className="hidden sm:inline text-indigo-600 font-medium">{property.kktc_title_type}</span>
               </>
             ) : null}
 
@@ -747,7 +747,7 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="inline-flex items-center gap-0.5 px-1.5 py-0.2 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 rounded text-[9px] font-black cursor-pointer transition-colors"
+              className="inline-flex items-center gap-0.5 px-1.5 py-0.2 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 rounded text-[9px] font-medium cursor-pointer transition-colors"
               title="Müşteriye göstermek için web sitesindeki ilan sayfasını yeni sekmede aç"
             >
               <ExternalLink className="w-2.5 h-2.5 text-indigo-600 shrink-0" />
@@ -761,7 +761,7 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
                   e.stopPropagation();
                   if (onOpenCommission) onOpenCommission(property);
                 }}
-                className="inline-flex items-center gap-0.5 px-1.5 py-0.2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded text-[9px] font-black cursor-pointer"
+                className="inline-flex items-center gap-0.5 px-1.5 py-0.2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded text-[9px] font-medium cursor-pointer"
                 title="Paydaş & Hakediş Detayı"
               >
                 <Handshake className="w-2.5 h-2.5 text-amber-700" />
@@ -776,7 +776,7 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
                   e.stopPropagation();
                   onViewDocs(property);
                 }}
-                className="inline-flex items-center gap-0.5 px-1.5 py-0.2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded text-[9px] font-black cursor-pointer"
+                className="inline-flex items-center gap-0.5 px-1.5 py-0.2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded text-[9px] font-medium cursor-pointer"
                 title="Yüklü resmî evrakları görüntüle"
               >
                 <FolderLock className="w-2.5 h-2.5 text-emerald-600" />

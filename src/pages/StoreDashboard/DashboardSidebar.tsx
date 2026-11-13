@@ -118,18 +118,18 @@ export const DashboardSidebar = ({
         fixed inset-y-0 left-0 w-64 bg-slate-950 text-slate-400 z-50 transition-transform duration-300 ease-in-out shrink-0 border-r border-slate-800/80 select-none shadow-2xl
         ${(sidebarOpen || !desktopSidebarCollapsed) ? 'translate-x-0' : '-translate-x-full'}
       `}>
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full font-display">
           {/* Header Block */}
           <div className="px-4 py-3.5 border-b border-white/5 flex items-center justify-between shrink-0">
             <div className="flex items-center space-x-2.5 min-w-0">
               <StoreLogo logoUrl={storeLogoUrl} storeName={displayName} size="xs" />
               <div className="min-w-0">
-                <h1 className="text-sm font-black text-white tracking-tight leading-none truncate" title={displayName}>
+                <h1 className="text-sm font-semibold text-white tracking-tight leading-none truncate" title={displayName}>
                   {displayName}
                 </h1>
                 <div className="flex items-center space-x-1.5 mt-1">
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'Bulut Panel' : 'Cloud POS'}</p>
+                  <p className="text-[9px] font-medium text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'Bulut Panel' : 'Cloud POS'}</p>
                 </div>
               </div>
             </div>
@@ -154,7 +154,7 @@ export const DashboardSidebar = ({
                   <div key={navItem.key} className="mb-1.5">
                     <button
                        onClick={() => setOpenCategories({...openCategories, [navItem.key]: !openCategories[navItem.key]})}
-                       className="flex items-center justify-between w-full text-[9px] font-black text-slate-500 uppercase tracking-wider px-2 py-1.5 hover:text-indigo-400 transition-colors cursor-pointer"
+                       className="flex items-center justify-between w-full text-[9px] font-medium text-slate-500 uppercase tracking-wider px-2 py-1.5 hover:text-indigo-400 transition-colors cursor-pointer"
                     >
                       <span>{navItem.title}</span>
                       {openCategories[navItem.key] ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
@@ -177,10 +177,10 @@ export const DashboardSidebar = ({
                                 setSidebarOpen(false);
                                 setDesktopSidebarCollapsed(true);
                               }}
-                              className={`w-full group flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 cursor-pointer ${
+                              className={`w-full group flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-all duration-150 cursor-pointer ${
                                 activeTab === item.id 
-                                  ? 'bg-slate-800 text-white shadow-xs border border-slate-700/80 font-bold' 
-                                  : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                                  ? 'bg-slate-800 text-white shadow-xs border border-slate-700/80 font-medium' 
+                                  : 'text-slate-400 hover:bg-white/5 hover:text-white font-normal'
                               }`}
                             >
                               <div className="flex items-center space-x-2.5 min-w-0">
@@ -214,10 +214,10 @@ export const DashboardSidebar = ({
                       setSidebarOpen(false);
                       setDesktopSidebarCollapsed(true);
                     }}
-                    className={`w-full group flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 cursor-pointer ${
+                    className={`w-full group flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-all duration-150 cursor-pointer ${
                       activeTab === navItem.id 
-                        ? 'bg-slate-800 text-white shadow-xs border border-slate-700/80 font-bold' 
-                        : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                        ? 'bg-slate-800 text-white shadow-xs border border-slate-700/80 font-medium' 
+                        : 'text-slate-400 hover:bg-white/5 hover:text-white font-normal'
                     }`}
                   >
                     <div className="flex items-center space-x-2.5 min-w-0">
@@ -239,7 +239,7 @@ export const DashboardSidebar = ({
             })}
 
             <div className="pt-3 mt-3 border-t border-white/5 space-y-0.5">
-              <div className="text-[9px] font-black text-slate-600 uppercase tracking-wider px-2 py-1">
+              <div className="text-[9px] font-medium text-slate-600 uppercase tracking-wider px-2 py-1">
                 {lang === 'tr' ? 'HARİCİ BAĞLANTILAR' : 'EXTERNAL ACCESS'}
               </div>
               <a
