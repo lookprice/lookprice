@@ -620,7 +620,7 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                            <input
                              type="text"
                              maxLength={2}
-                             value={item.tax_rate}
+                             value={Math.floor(Number(item.tax_rate) || 0)}
                              onChange={(e) => updateItem(index, 'tax_rate', e.target.value)}
                              className="w-12 mx-auto block px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-center text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
                            />
