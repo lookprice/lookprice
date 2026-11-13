@@ -1132,15 +1132,28 @@ async function ensureSeedDataForStore(storeId: number) {
     }
   ];
 
-  const existingProjsRes = await pool.query('SELECT id, project_code FROM developer_projects WHERE store_id = $1', [storeId]);
+  const existingProjsRes = await pool.query('SELECT id, project_code, media_vault FROM developer_projects WHERE store_id = $1', [storeId]);
   const insertedProjectIds: Record<string, number> = {};
+  const existingMediaMap: Record<string, any[]> = {};
   for (const row of existingProjsRes.rows) {
     insertedProjectIds[row.project_code] = row.id;
+    existingMediaMap[row.project_code] = Array.isArray(row.media_vault) ? row.media_vault : [];
   }
 
   for (const p of projectsSeed) {
     if (insertedProjectIds[p.project_code]) {
-      // Upgrade existing project with real Google Drive folder ID, thumbnail cover, and exact Drive media vault links
+      const currentVault = existingMediaMap[p.project_code] || [];
+      const customVaultItems = currentVault.filter((m: any) => String(m?.id || '').startsWith('media_'));
+      const seedIds = new Set(p.media_vault.map((m: any) => m.id));
+      const mergedVault = [
+        ...customVaultItems,
+        ...p.media_vault.map((seedItem: any) => {
+          const prevMatch = currentVault.find((c: any) => c.id === seedItem.id);
+          return prevMatch ? { ...seedItem, ...prevMatch } : seedItem;
+        }),
+        ...currentVault.filter((c: any) => !String(c?.id || '').startsWith('media_') && !seedIds.has(c?.id))
+      ];
+
       await pool.query(
         `UPDATE developer_projects
          SET folder_prefix = $1,
@@ -1154,7 +1167,7 @@ async function ensureSeedDataForStore(storeId: number) {
           p.drive_folder_id,
           p.drive_folder_url,
           p.cover_image,
-          JSON.stringify(p.media_vault),
+          JSON.stringify(mergedVault),
           insertedProjectIds[p.project_code]
         ]
       );
@@ -1178,40 +1191,76 @@ async function ensureSeedDataForStore(storeId: number) {
     }
   }
 
-  // Seed Live Unit Inventory across all 10 projects (only insert units that don't exist yet)
-  const existingUnitsRes = await pool.query('SELECT unit_number, block_name FROM developer_project_units WHERE store_id = $1', [storeId]);
-  const existingUnitKeys = new Set(existingUnitsRes.rows.map((u: any) => `${u.block_name}::${u.unit_number}`));
+  // Seed Live Unit Inventory across all 10 projects (isolated per project, multiple door numbers per property type)
+  const existingUnitsRes = await pool.query('SELECT unit_number, block_name, project_id FROM developer_project_units WHERE store_id = $1', [storeId]);
+  const existingUnitKeys = new Set(existingUnitsRes.rows.map((u: any) => `${u.project_id}::${u.block_name}::${u.unit_number}`));
 
   const unitsSeed = [
+    // 1. Maldives Homes
     { code: 'CC-PRJ-01', block: 'A Blok (Lagün)', floor: 'Zemin (Bahçe)', unit_no: 'A-04', type: '1+1 Garden Suite', gross: 78, net: 62, terrace: 16, view: 'Lagün Havuz & Deniz', price: 189000, status: 'available', agency: null, client: null },
-    { code: 'CC-PRJ-01', block: 'B Blok (Sahil)', floor: '1. Kat (Penthouse)', unit_no: 'B-12', type: '2+1 Penthouse + Roof', gross: 145, net: 95, terrace: 50, view: 'Panoramik Akdeniz', price: 295000, status: 'optioned', agency: 'Kuzey Prestige Realty (Girne)', client: 'M. Lindqvist (İsveç)' },
-    { code: 'CC-PRJ-01', block: 'VIP Villa Etabı', floor: 'Müstakil', unit_no: 'V-03', type: '3+1 Özel Havuzlu Villa', gross: 240, net: 175, terrace: 65, view: 'Denize Sıfır Ön Cephe', price: 625000, status: 'sold', agency: 'Thames Global Property (Londra)', client: 'R. Sterling (UK)' },
+    { code: 'CC-PRJ-01', block: 'A Blok (Lagün)', floor: 'Zemin (Bahçe)', unit_no: 'A-05', type: '1+1 Garden Suite', gross: 78, net: 62, terrace: 16, view: 'Lagün Havuz & Deniz', price: 192000, status: 'available', agency: null, client: null },
+    { code: 'CC-PRJ-01', block: 'B Blok (Sahil)', floor: '1. Kat (Penthouse)', unit_no: 'B-11', type: '2+1 Penthouse + Roof', gross: 145, net: 95, terrace: 50, view: 'Panoramik Akdeniz', price: 289000, status: 'available', agency: null, client: null },
+    { code: 'CC-PRJ-01', block: 'B Blok (Sahil)', floor: '1. Kat (Penthouse)', unit_no: 'B-12', type: '2+1 Penthouse + Roof', gross: 145, net: 95, terrace: 50, view: 'Panoramik Akdeniz', price: 295000, status: 'optioned', agency: 'Kuzey Prestige Realty', client: 'M. Lindqvist (İsveç)' },
+    { code: 'CC-PRJ-01', block: 'VIP Villa Etabı', floor: 'Müstakil', unit_no: 'V-01', type: '3+1 Özel Havuzlu Villa', gross: 240, net: 175, terrace: 65, view: 'Denize Sıfır Ön Cephe', price: 615000, status: 'available', agency: null, client: null },
+    { code: 'CC-PRJ-01', block: 'VIP Villa Etabı', floor: 'Müstakil', unit_no: 'V-03', type: '3+1 Özel Havuzlu Villa', gross: 240, net: 175, terrace: 65, view: 'Denize Sıfır Ön Cephe', price: 625000, status: 'sold', agency: 'Thames Global Property', client: 'R. Sterling (UK)' },
+
+    // 2. IDYLL Homes
     { code: 'CC-PRJ-02', block: 'IDYLL A Blok', floor: 'Zemin (Bahçe)', unit_no: 'ID-A02', type: '1+1 Garden Duplex', gross: 84, net: 66, terrace: 18, view: 'Havuz & Cali Pub Meydanı', price: 165000, status: 'available', agency: null, client: null },
+    { code: 'CC-PRJ-02', block: 'IDYLL A Blok', floor: 'Zemin (Bahçe)', unit_no: 'ID-A04', type: '1+1 Garden Duplex', gross: 84, net: 66, terrace: 18, view: 'Botanik Havuz Cephesi', price: 169000, status: 'available', agency: null, client: null },
     { code: 'CC-PRJ-02', block: 'IDYLL B Blok', floor: '1. Kat (Penthouse)', unit_no: 'ID-B08', type: '2+1 Penthouse + Roof', gross: 138, net: 92, terrace: 46, view: 'Panoramik Deniz & Dağ', price: 229000, status: 'available', agency: null, client: null },
+    { code: 'CC-PRJ-02', block: 'IDYLL B Blok', floor: '1. Kat (Penthouse)', unit_no: 'ID-B09', type: '2+1 Penthouse + Roof', gross: 138, net: 92, terrace: 46, view: 'Panoramik Deniz & Dağ', price: 235000, status: 'optioned', agency: 'Bosphorus Luxury Estates', client: 'E. Kaya (TR)' },
+
+    // 3. Mykonos Homes
     { code: 'CC-PRJ-03', block: 'Mykonos C Blok', floor: 'Zemin (Swim-Up)', unit_no: 'C-02', type: '1+1 Swim-Up Suite', gross: 82, net: 65, terrace: 17, view: 'Sonsuzluk Havuzu & Deniz', price: 215000, status: 'available', agency: null, client: null },
+    { code: 'CC-PRJ-03', block: 'Mykonos C Blok', floor: 'Zemin (Swim-Up)', unit_no: 'C-03', type: '1+1 Swim-Up Suite', gross: 82, net: 65, terrace: 17, view: 'Sonsuzluk Havuzu & Deniz', price: 219000, status: 'available', agency: null, client: null },
     { code: 'CC-PRJ-03', block: 'Mykonos A Blok', floor: '1. Kat (Loft)', unit_no: 'A-08', type: '2+1 Loft Penthouse', gross: 158, net: 102, terrace: 56, view: 'Full Deniz & Gün Batımı', price: 340000, status: 'available', agency: null, client: null },
-    { code: 'CC-PRJ-03', block: 'Santorini Villa', floor: 'Müstakil', unit_no: 'SV-02', type: '3+1 Signature Villa', gross: 260, net: 185, terrace: 75, view: 'Kesintisiz Kıyı & Koy', price: 680000, status: 'optioned', agency: 'Rheinland Invest GmbH (Berlin)', client: 'Dr. H. Weber (Almanya)' },
+    { code: 'CC-PRJ-03', block: 'Santorini Villa', floor: 'Müstakil', unit_no: 'SV-02', type: '3+1 Signature Villa', gross: 260, net: 185, terrace: 75, view: 'Kesintisiz Kıyı & Koy', price: 680000, status: 'optioned', agency: 'Rheinland Invest GmbH', client: 'Dr. H. Weber (Almanya)' },
+
+    // 4. Pearl Island Homes
     { code: 'CC-PRJ-04', block: 'Pearl A Blok', floor: 'Zemin (Ada Havuz)', unit_no: 'PI-A06', type: 'Studio Island Suite', gross: 52, net: 41, terrace: 11, view: 'Merkezi Ada Havuzu', price: 135000, status: 'available', agency: null, client: null },
+    { code: 'CC-PRJ-04', block: 'Pearl A Blok', floor: 'Zemin (Ada Havuz)', unit_no: 'PI-A07', type: 'Studio Island Suite', gross: 52, net: 41, terrace: 11, view: 'Merkezi Ada Havuzu', price: 138000, status: 'available', agency: null, client: null },
     { code: 'CC-PRJ-04', block: 'Pearl C Blok', floor: '1. Kat (Penthouse)', unit_no: 'PI-C11', type: '1+1 Roof Penthouse', gross: 96, net: 64, terrace: 32, view: 'Panoramik Akdeniz', price: 175000, status: 'available', agency: null, client: null },
+    { code: 'CC-PRJ-04', block: 'Pearl C Blok', floor: '1. Kat (Penthouse)', unit_no: 'PI-C12', type: '1+1 Roof Penthouse', gross: 96, net: 64, terrace: 32, view: 'Panoramik Akdeniz', price: 179000, status: 'sold', agency: 'Kuzey Prestige Realty', client: 'T. Arslan' },
+
+    // 5. MoonLight Villas
     { code: 'CC-PRJ-05', block: 'MoonLight VIP', floor: 'Müstakil', unit_no: 'ML-V04', type: '3+1 Infinity Pool Villa', gross: 255, net: 185, terrace: 70, view: 'Kesintisiz Deniz & Koy', price: 545000, status: 'available', agency: null, client: null },
-    { code: 'CC-PRJ-05', block: 'MoonLight VIP', floor: 'Müstakil', unit_no: 'ML-V07', type: '4+1 Signature Cliff Villa', gross: 310, net: 225, terrace: 85, view: '360° Deniz & Dağ Panoraması', price: 690000, status: 'optioned', agency: 'Eurasia Prime Overseas (Moskova)', client: 'A. Sokolov (CIS)' },
+    { code: 'CC-PRJ-05', block: 'MoonLight VIP', floor: 'Müstakil', unit_no: 'ML-V05', type: '3+1 Infinity Pool Villa', gross: 255, net: 185, terrace: 70, view: 'Kesintisiz Deniz & Koy', price: 555000, status: 'available', agency: null, client: null },
+    { code: 'CC-PRJ-05', block: 'MoonLight VIP', floor: 'Müstakil', unit_no: 'ML-V07', type: '4+1 Signature Cliff Villa', gross: 310, net: 225, terrace: 85, view: '360° Deniz & Dağ Panoraması', price: 690000, status: 'optioned', agency: 'Eurasia Prime Overseas', client: 'A. Sokolov (CIS)' },
+
+    // 6. Bahamas Homes
     { code: 'CC-PRJ-06', block: 'Bahamas Phase II', floor: 'Zemin (Swim-Up)', unit_no: 'BH-B09', type: '1+1 Lagoon Garden', gross: 80, net: 63, terrace: 17, view: 'Lagün Havuz & Plaj', price: 169000, status: 'available', agency: null, client: null },
+    { code: 'CC-PRJ-06', block: 'Bahamas Phase II', floor: 'Zemin (Swim-Up)', unit_no: 'BH-B10', type: '1+1 Lagoon Garden', gross: 80, net: 63, terrace: 17, view: 'Lagün Havuz & Plaj', price: 172000, status: 'available', agency: null, client: null },
     { code: 'CC-PRJ-06', block: 'Bahamas Phase III', floor: '1. Kat (Loft)', unit_no: 'BH-C14', type: '2+1 Seafront Loft', gross: 148, net: 98, terrace: 50, view: 'Denize Sıfır Kumsal', price: 285000, status: 'available', agency: null, client: null },
-    { code: 'CC-PRJ-06', block: 'Bahamas Beach Villa', floor: 'Müstakil', unit_no: 'BH-V02', type: '3+1 Beachfront Villa', gross: 245, net: 180, terrace: 65, view: 'Özel Kumsal Ön Cephe', price: 595000, status: 'sold', agency: 'Gulf Horizon Wealth (Dubai)', client: 'Al-Mansoor Fund (BAE)' },
+    { code: 'CC-PRJ-06', block: 'Bahamas Beach Villa', floor: 'Müstakil', unit_no: 'BH-V02', type: '3+1 Beachfront Villa', gross: 245, net: 180, terrace: 65, view: 'Özel Kumsal Ön Cephe', price: 595000, status: 'sold', agency: 'Gulf Horizon Wealth', client: 'Al-Mansoor Fund (BAE)' },
+
+    // 7. Hawaii Homes
     { code: 'CC-PRJ-07', block: 'Ohana D Blok', floor: 'Zemin', unit_no: 'D-09', type: 'Studio Resort Suite', gross: 54, net: 42, terrace: 12, view: 'Tropikal Nehir Havuzu', price: 155000, status: 'available', agency: null, client: null },
+    { code: 'CC-PRJ-07', block: 'Ohana D Blok', floor: 'Zemin', unit_no: 'D-10', type: 'Studio Resort Suite', gross: 54, net: 42, terrace: 12, view: 'Tropikal Nehir Havuzu', price: 158000, status: 'available', agency: null, client: null },
     { code: 'CC-PRJ-07', block: 'Maui B Blok', floor: '1. Kat (Loft)', unit_no: 'B-15', type: '1+1 Loft Penthouse', gross: 108, net: 72, terrace: 36, view: 'Deniz & Palmiye Adası', price: 210000, status: 'available', agency: null, client: null },
+    { code: 'CC-PRJ-07', block: 'Kauai A Blok', floor: '2. Kat (Penthouse)', unit_no: 'K-22', type: '2+1 Royal Penthouse', gross: 146, net: 96, terrace: 50, view: 'Tam Deniz & Lagün', price: 290000, status: 'optioned', agency: 'Nordic Sun Homes', client: 'S. Lindholm' },
+
+    // 8. Aloha Beach Resort
     { code: 'CC-PRJ-08', block: 'Aloha E Blok', floor: 'Zemin', unit_no: 'E-11', type: 'Studio Garden', gross: 52, net: 40, terrace: 12, view: 'Ana Resort Havuzu', price: 139000, status: 'available', agency: null, client: null },
-    { code: 'CC-PRJ-08', block: 'Aloha C Blok', floor: '1. Kat', unit_no: 'C-21', type: '1+1 Deluxe Suite', gross: 84, net: 64, terrace: 20, view: 'Akdeniz & Beach Club', price: 179000, status: 'optioned', agency: 'Bosphorus Luxury Estates (İstanbul)', client: 'K. Demirsoy (TR)' },
+    { code: 'CC-PRJ-08', block: 'Aloha E Blok', floor: 'Zemin', unit_no: 'E-12', type: 'Studio Garden', gross: 52, net: 40, terrace: 12, view: 'Ana Resort Havuzu', price: 142000, status: 'available', agency: null, client: null },
+    { code: 'CC-PRJ-08', block: 'Aloha C Blok', floor: '1. Kat', unit_no: 'C-21', type: '1+1 Deluxe Suite', gross: 84, net: 64, terrace: 20, view: 'Akdeniz & Beach Club', price: 179000, status: 'optioned', agency: 'Bosphorus Luxury Estates', client: 'K. Demirsoy (TR)' },
+    { code: 'CC-PRJ-08', block: 'Aloha A Blok', floor: '2. Kat (Loft)', unit_no: 'A-34', type: '2+1 Beachfront Loft', gross: 136, net: 92, terrace: 44, view: 'Panoramik Kıyı & Havuz', price: 249000, status: 'available', agency: null, client: null },
+
+    // 9. Phuket Health & Wellness Resort
     { code: 'CC-PRJ-09', block: 'Zen A Blok', floor: 'Zemin (Bahçe)', unit_no: 'Z-05', type: '1+1 Wellness Garden', gross: 80, net: 64, terrace: 16, view: 'Botanik Zen Bahçesi & Deniz', price: 169000, status: 'available', agency: null, client: null },
+    { code: 'CC-PRJ-09', block: 'Zen A Blok', floor: 'Zemin (Bahçe)', unit_no: 'Z-06', type: '1+1 Wellness Garden', gross: 80, net: 64, terrace: 16, view: 'Botanik Zen Bahçesi & Deniz', price: 172000, status: 'available', agency: null, client: null },
     { code: 'CC-PRJ-09', block: 'Lotus B Blok', floor: '1. Kat', unit_no: 'L-14', type: '2+1 Wellness Loft', gross: 135, net: 92, terrace: 43, view: 'Panoramik Deniz & Dağ', price: 248000, status: 'available', agency: null, client: null },
+    { code: 'CC-PRJ-09', block: 'Siam Villa Etabı', floor: 'Müstakil', unit_no: 'PV-02', type: '3+1 Terapi Havuzlu Villa', gross: 230, net: 170, terrace: 60, view: 'Zen Göleti & Deniz', price: 465000, status: 'available', agency: null, client: null },
+
+    // 10. Edremit Villas
     { code: 'CC-PRJ-10', block: 'Edremit Etabı', floor: 'Müstakil', unit_no: 'ED-V03', type: '4+1 Panoramik Havuzlu Villa', gross: 320, net: 245, terrace: 75, view: 'Girne Koyu & Karmi Dağları', price: 695000, status: 'available', agency: null, client: null },
+    { code: 'CC-PRJ-10', block: 'Edremit Etabı', floor: 'Müstakil', unit_no: 'ED-V04', type: '4+1 Panoramik Havuzlu Villa', gross: 320, net: 245, terrace: 75, view: 'Girne Koyu & Karmi Dağları', price: 715000, status: 'optioned', agency: 'Kuzey Prestige Realty', client: 'C. Soylu' },
     { code: 'CC-PRJ-10', block: 'Edremit VIP', floor: 'Müstakil', unit_no: 'ED-V08', type: '5+1 Signature Malikane Villa', gross: 410, net: 315, terrace: 95, view: 'Kesintisiz Girne & Akdeniz', price: 890000, status: 'available', agency: null, client: null }
   ];
 
   for (const u of unitsSeed) {
     const pid = insertedProjectIds[u.code];
     if (!pid) continue;
-    const uKey = `${u.block}::${u.unit_no}`;
+    const uKey = `${pid}::${u.block}::${u.unit_no}`;
     if (existingUnitKeys.has(uKey)) continue;
     await pool.query(
       `INSERT INTO developer_project_units (
@@ -1742,6 +1791,14 @@ router.put('/projects/:id', authenticate, async (req: any, res) => {
       ...(b.capital_appreciation_percent !== undefined ? { capital_appreciation_percent: Number(b.capital_appreciation_percent) } : {})
     };
 
+    const updatedSpecs = Array.isArray(b.architectural_specs)
+      ? b.architectural_specs
+      : cur.architectural_specs || [];
+
+    const updatedFacilities = b.lifestyle_facilities && typeof b.lifestyle_facilities === 'object'
+      ? { ...(cur.lifestyle_facilities || {}), ...b.lifestyle_facilities }
+      : cur.lifestyle_facilities || {};
+
     const result = await pool.query(
       `UPDATE developer_projects
        SET name = COALESCE($1, name),
@@ -1758,8 +1815,10 @@ router.put('/projects/:id', authenticate, async (req: any, res) => {
            available_units = COALESCE($12, available_units),
            payment_plan = $13,
            investment_metrics = $14,
+           architectural_specs = $15,
+           lifestyle_facilities = $16,
            updated_at = CURRENT_TIMESTAMP
-       WHERE id = $15 AND store_id = $16 RETURNING *`,
+       WHERE id = $17 AND store_id = $18 RETURNING *`,
       [
         b.name || null,
         b.folder_prefix || null,
@@ -1775,6 +1834,8 @@ router.put('/projects/:id', authenticate, async (req: any, res) => {
         b.available_units !== undefined ? Number(b.available_units) : null,
         JSON.stringify(updatedPaymentPlan),
         JSON.stringify(updatedMetrics),
+        JSON.stringify(updatedSpecs),
+        JSON.stringify(updatedFacilities),
         id,
         storeId
       ]
@@ -1800,7 +1861,7 @@ router.delete('/projects/:id', authenticate, async (req: any, res) => {
 router.post('/projects/:id/media', authenticate, async (req: any, res) => {
   const storeId = Number(getAuthorizedStoreId(req, req.body.store_id || req.query.store_id) || req.user?.store_id || 1);
   const { id } = req.params;
-  const { name, type, category, url, conflictMode } = req.body;
+  const { name, type, category, url, conflictMode, unit_type_match, media_role } = req.body;
   try {
     const existingRes = await pool.query('SELECT media_vault FROM developer_projects WHERE id = $1 AND store_id = $2', [id, storeId]);
     if (existingRes.rowCount === 0) return res.status(404).json({ error: 'Proje bulunamadı' });
@@ -1810,6 +1871,8 @@ router.post('/projects/:id/media', authenticate, async (req: any, res) => {
     const cleanedUrl = await cleanDeepBase64(normalizeStorageUrl(url || ''));
     const targetCategory = String(category || 'Teknik & Mimari Planlar').trim();
     const targetType = type || 'masterplan';
+    const targetUnitMatch = unit_type_match ? String(unit_type_match).trim() : '';
+    const targetMediaRole = media_role ? String(media_role).trim() : '';
 
     const existingIndex = currentMedia.findIndex(
       (m: any) => String(m?.name || '').trim().toLowerCase() === rawName.toLowerCase()
@@ -1827,6 +1890,8 @@ router.post('/projects/:id/media', authenticate, async (req: any, res) => {
         type: targetType,
         category: targetCategory,
         url: cleanedUrl || prev.url,
+        unit_type_match: targetUnitMatch || prev.unit_type_match || '',
+        media_role: targetMediaRole || prev.media_role || '',
         size: '',
         drive_synced: true,
         updated_at: new Date().toISOString()
@@ -1858,6 +1923,8 @@ router.post('/projects/:id/media', authenticate, async (req: any, res) => {
         type: targetType,
         size: '',
         category: targetCategory,
+        unit_type_match: targetUnitMatch,
+        media_role: targetMediaRole,
         url: cleanedUrl || 'https://drive.google.com/drive/folders/1oZDbLanKWW2ZkfF6WQkfRU2rlDyn0fDM',
         drive_synced: true,
         created_at: new Date().toISOString()
