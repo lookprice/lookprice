@@ -2,29 +2,20 @@ import React, { useState, useEffect, useMemo } from "react";
 import {
   ArrowRight,
   ArrowUpRight,
-  Award,
-  Box,
   Building2,
   Calculator,
   Calendar,
   CheckCircle2,
-  ChevronRight,
   Compass,
-  Download,
   Eye,
   FileText,
-  Globe,
   Image as ImageIcon,
   Layers,
   MapPin,
   MessageCircle,
-  Palette,
-  Phone,
   Play,
   Printer,
   ShieldCheck,
-  Sparkles,
-  Video,
   X
 } from "lucide-react";
 import { toast } from "sonner";
@@ -35,11 +26,16 @@ import {
   resolveArchitecturalAssetUrl,
   sanitizeArchitecturalGalleryRecord
 } from "./developer/UiverseAndLoraWebStudio";
+import resortHeroSunlitAsset from "../assets/images/cyprus_sunlit_resort_hero_1794578840052.jpg";
+import marinaLifestyleAsset from "../assets/images/cyprus_marina_lifestyle_1794578840217.jpg";
+import penthouseInteriorSunlitAsset from "../assets/images/cyprus_penthouse_interior_1794578840887.jpg";
+import masterplanAerialSunlitAsset from "../assets/images/cyprus_villa_masterplan_1794578840537.jpg";
+import isometricFloorplanAsset from "../assets/images/lora_isometric_3d_floorplan_1794568366571.jpg";
 
 export type DeveloperThemeId =
-  | "monolith_obsidian"
   | "mediterranean_resort"
   | "swiss_blueprint"
+  | "monolith_obsidian"
   | "cinematic_pavilion";
 
 export interface DeveloperThemeMeta {
@@ -63,12 +59,50 @@ export interface DeveloperThemeMeta {
 }
 
 export const DEVELOPER_ARCHITECTURAL_THEMES: Record<DeveloperThemeId, DeveloperThemeMeta> = {
+  mediterranean_resort: {
+    id: "mediterranean_resort",
+    index: "01",
+    name: "Akdeniz Sahil & Traverten (Parlak Vitrin)",
+    subtitle: "Güneşli Doğal Taş, Deniz Mavisi & Şampanya Altın",
+    inspiration: "Aydınlık Sahil Resort & Prestij Mimari Vitrini",
+    isDark: false,
+    canvasBg: "bg-[#FAF8F4]",
+    surfaceBg: "bg-[#F2EFE8]",
+    cardBg: "bg-white",
+    borderClass: "border-stone-200",
+    textPrimary: "text-slate-900",
+    textSecondary: "text-slate-700",
+    textMuted: "text-slate-500",
+    accentBg: "bg-slate-900 text-white hover:bg-slate-800",
+    accentText: "text-[#9A7228]",
+    accentBorder: "border-[#B68D40]/40",
+    headingFontClass: "font-serif tracking-tight"
+  },
+  swiss_blueprint: {
+    id: "swiss_blueprint",
+    index: "02",
+    name: "Kurumsal Mimari Izgara",
+    subtitle: "Aydınlık Beyaz & Safir Mühendislik Vurgusu",
+    inspiration: "Teknik Kesit, Net Çizgi & Aydınlık Galeri",
+    isDark: false,
+    canvasBg: "bg-white",
+    surfaceBg: "bg-slate-50",
+    cardBg: "bg-white",
+    borderClass: "border-slate-200",
+    textPrimary: "text-slate-900",
+    textSecondary: "text-slate-700",
+    textMuted: "text-slate-500",
+    accentBg: "bg-sky-700 text-white hover:bg-sky-800",
+    accentText: "text-sky-700",
+    accentBorder: "border-sky-300",
+    headingFontClass: "font-sans tracking-tight"
+  },
   monolith_obsidian: {
     id: "monolith_obsidian",
-    index: "01",
+    index: "03",
     name: "Koyu Mermer & Altın Monolit",
-    subtitle: "Koyu Antrasit & Şampanya Altın",
-    inspiration: "Prestijli Rezidans & Lüks Mimari Vitrin",
+    subtitle: "Gece Antrasit & Şampanya Altın",
+    inspiration: "Gece Rezidans & Özel Yatırım Kulübü",
     isDark: true,
     canvasBg: "bg-[#090D16]",
     surfaceBg: "bg-[#0F1624]",
@@ -82,54 +116,16 @@ export const DEVELOPER_ARCHITECTURAL_THEMES: Record<DeveloperThemeId, DeveloperT
     accentBorder: "border-[#C5A059]/40",
     headingFontClass: "font-serif tracking-tight"
   },
-  mediterranean_resort: {
-    id: "mediterranean_resort",
-    index: "02",
-    name: "Akdeniz Sahil & Traverten",
-    subtitle: "Doğal Taş & Kıyı Mavisi",
-    inspiration: "Sahil Resort & Akdeniz Minimalizmi",
-    isDark: false,
-    canvasBg: "bg-[#F7F5F0]",
-    surfaceBg: "bg-[#EFECE4]",
-    cardBg: "bg-white",
-    borderClass: "border-stone-200",
-    textPrimary: "text-slate-950",
-    textSecondary: "text-slate-700",
-    textMuted: "text-slate-500",
-    accentBg: "bg-[#0F172A] text-white hover:bg-slate-800",
-    accentText: "text-[#0369A1]",
-    accentBorder: "border-[#0369A1]/30",
-    headingFontClass: "font-serif tracking-tight"
-  },
-  swiss_blueprint: {
-    id: "swiss_blueprint",
-    index: "03",
-    name: "Kurumsal Mimari Izgara",
-    subtitle: "Aydınlık Teknik & Net Çizgi",
-    inspiration: "Mühendislik, Teknik Kesit & Mimari Izgara",
-    isDark: false,
-    canvasBg: "bg-white",
-    surfaceBg: "bg-slate-50",
-    cardBg: "bg-white",
-    borderClass: "border-slate-200",
-    textPrimary: "text-slate-950",
-    textSecondary: "text-slate-700",
-    textMuted: "text-slate-500",
-    accentBg: "bg-indigo-700 text-white hover:bg-indigo-800",
-    accentText: "text-indigo-700",
-    accentBorder: "border-indigo-300",
-    headingFontClass: "font-sans tracking-tight"
-  },
   cinematic_pavilion: {
     id: "cinematic_pavilion",
     index: "04",
     name: "Sinematik Sahil Panoraması",
-    subtitle: "Tam Ekran Video & Derin Kontrast",
-    inspiration: "Tam Ekran Sahne Geçişleri & Mekansal Deneyim",
+    subtitle: "Derin Kontrast & Zümrüt Kıyı Vurgusu",
+    inspiration: "Sahne Geçişleri & Mekansal Deneyim",
     isDark: true,
     canvasBg: "bg-slate-950",
     surfaceBg: "bg-slate-900",
-    cardBg: "bg-slate-900/90",
+    cardBg: "bg-slate-900/95",
     borderClass: "border-slate-800",
     textPrimary: "text-white",
     textSecondary: "text-slate-200",
@@ -141,6 +137,15 @@ export const DEVELOPER_ARCHITECTURAL_THEMES: Record<DeveloperThemeId, DeveloperT
   }
 };
 
+type DisplayCurrency = "GBP" | "EUR" | "USD" | "TRY";
+
+const CURRENCY_FX_APPROX: Record<DisplayCurrency, { symbol: string; rateFromGbp: number; label: string }> = {
+  GBP: { symbol: "£", rateFromGbp: 1, label: "GBP (£)" },
+  EUR: { symbol: "€", rateFromGbp: 1.18, label: "EUR (€)" },
+  USD: { symbol: "$", rateFromGbp: 1.28, label: "USD ($)" },
+  TRY: { symbol: "₺", rateFromGbp: 44.5, label: "TRY (₺)" }
+};
+
 interface ModernDeveloperProjectLayoutProps {
   store: any;
   products?: any[];
@@ -148,18 +153,13 @@ interface ModernDeveloperProjectLayoutProps {
 }
 
 export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayoutProps> = ({
-  store,
-  lang = "tr"
+  store
 }) => {
-  const rawName =
-    store?.branding?.store_name ||
-    store?.name ||
-    "Cyprus Constructions";
+  const rawName = store?.branding?.store_name || store?.name || "Cyprus Constructions";
   const companyName = String(rawName).replace(/\s*\(projectLP\)\s*/gi, "").trim();
 
   const [apiDevConfig, setApiDevConfig] = useState<Record<string, any>>({});
 
-  // Read saved developer website config from store.branding / page_layout_settings + API overview
   const savedDevConfig = useMemo(() => {
     const raw =
       store?.branding?.developer_web_config ||
@@ -182,10 +182,11 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
     };
   }, [store, apiDevConfig]);
 
+  // Default to bright sunlit "mediterranean_resort" theme unless explicitly set otherwise
   const activeThemeId: DeveloperThemeId = useMemo(() => {
     const configured = savedDevConfig?.theme_id as DeveloperThemeId;
     if (configured && DEVELOPER_ARCHITECTURAL_THEMES[configured]) return configured;
-    return "monolith_obsidian";
+    return "mediterranean_resort";
   }, [savedDevConfig?.theme_id]);
 
   const activeUiverseId: UiversePresetId = useMemo(() => {
@@ -195,38 +196,49 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
   }, [savedDevConfig?.uiverse_preset, store?.branding?.uiverse_preset]);
 
   const uiverse = UIVERSE_INTERACTION_PRESETS[activeUiverseId] || UIVERSE_INTERACTION_PRESETS.shimmer_glass;
-  const theme = DEVELOPER_ARCHITECTURAL_THEMES[activeThemeId] || DEVELOPER_ARCHITECTURAL_THEMES.monolith_obsidian;
+  const theme = DEVELOPER_ARCHITECTURAL_THEMES[activeThemeId] || DEVELOPER_ARCHITECTURAL_THEMES.mediterranean_resort;
 
   const shimmerEnabled = savedDevConfig?.uiverse_cta_shimmer !== false;
   const cardLiftEnabled = savedDevConfig?.uiverse_card_lift !== false;
 
   const ctaButtonClass = `${uiverse.primaryBtnClass} ${
-    shimmerEnabled ? "ring-1 ring-[#C5A059]/60 shadow-[0_0_24px_rgba(197,160,89,0.35)]" : ""
+    shimmerEnabled ? "ring-1 ring-[#C5A059]/60 shadow-[0_8px_22px_rgba(182,141,64,0.28)]" : ""
   }`;
   const cardInteractiveClass = `${uiverse.cardHoverClass} ${
-    cardLiftEnabled ? "hover:-translate-y-1.5 hover:shadow-2xl" : ""
+    cardLiftEnabled ? "hover:-translate-y-1 hover:shadow-lg" : ""
   }`;
 
   const [projects, setProjects] = useState<any[]>([]);
   const [units, setUnits] = useState<any[]>([]);
-  const [events, setEvents] = useState<any[]>([]);
   const [activeCompany, setActiveCompany] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
   const [selectedProjectId, setSelectedProjectId] = useState<number>(1);
   const [selectedRegion, setSelectedRegion] = useState<string>("all");
   const [selectedUnit, setSelectedUnit] = useState<any>(null);
+  const [selectedUnitVisualTab, setSelectedUnitVisualTab] = useState<
+    "exterior" | "interior" | "floorplan" | "lifestyle"
+  >("exterior");
   const [unitTypeFilter, setUnitTypeFilter] = useState<string>("all");
   const [unitStatusFilter, setUnitStatusFilter] = useState<string>("all");
+  const [displayCurrency, setDisplayCurrency] = useState<DisplayCurrency>("GBP");
+
+  // Financial & Tax Engineering Simulator States
+  const [simulatorTab, setSimulatorTab] = useState<"payment_plan" | "tax_costs">("payment_plan");
   const [simulatorBudget, setSimulatorBudget] = useState<number>(225000);
+  const [customDownPct, setCustomDownPct] = useState<number>(35);
+  const [customMonths, setCustomMonths] = useState<number>(36);
+  const [buyerDeedRate, setBuyerDeedRate] = useState<6 | 12>(6);
+  const [includeLegalFee, setIncludeLegalFee] = useState<boolean>(true);
+
   const [activeMediaModal, setActiveMediaModal] = useState<any>(null);
 
-  // VIP Lead Form state
   const [leadForm, setLeadForm] = useState({
     fullName: "",
     phone: "",
     email: "",
     preferredProject: "",
+    preferredUnit: "",
     presentationType: "Canlı 3D Mimari Sunum & Online Görüşme",
     notes: ""
   });
@@ -247,16 +259,31 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
           const unitList = Array.isArray(data.units) ? data.units : [];
           setProjects(projList);
           setUnits(unitList);
-          setEvents(Array.isArray(data.events) ? data.events : []);
           if (data.activeCompany) setActiveCompany(data.activeCompany);
           if (data.developerWebConfig && typeof data.developerWebConfig === "object") {
             setApiDevConfig(data.developerWebConfig);
           }
           if (projList[0]) {
             setSelectedProjectId(projList[0].id);
-            setLeadForm(prev => ({ ...prev, preferredProject: projList[0].name }));
-            const firstProjUnits = unitList.filter((u: any) => Number(u.project_id) === Number(projList[0].id));
-            setSelectedUnit(firstProjUnits[0] || unitList[0] || null);
+            const firstProjUnits = unitList.filter(
+              (u: any) => Number(u.project_id) === Number(projList[0].id)
+            );
+            const initialUnit =
+              firstProjUnits.find((u: any) => u.status === "available") ||
+              firstProjUnits[0] ||
+              unitList[0] ||
+              null;
+            setSelectedUnit(initialUnit);
+            if (initialUnit) {
+              setSimulatorBudget(Number(initialUnit.price) || Number(projList[0].starting_price) || 225000);
+            }
+            setCustomDownPct(Number(projList[0]?.payment_plan?.down_payment_percent) || 35);
+            setCustomMonths(Number(projList[0]?.payment_plan?.installment_months) || 36);
+            setLeadForm(prev => ({
+              ...prev,
+              preferredProject: projList[0].name,
+              preferredUnit: initialUnit ? `${initialUnit.unit_number} (${initialUnit.unit_type})` : ""
+            }));
           }
         }
       } catch (err) {
@@ -309,14 +336,18 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
 
   const formatGbp = (val: number | string) => {
     const n = Number(val) || 0;
-    return `£${new Intl.NumberFormat("tr-TR").format(n)}`;
+    return `£${new Intl.NumberFormat("tr-TR").format(Math.round(n))}`;
+  };
+
+  const formatInSelectedCurrency = (gbpVal: number | string) => {
+    const base = Number(gbpVal) || 0;
+    const cfg = CURRENCY_FX_APPROX[displayCurrency];
+    const converted = Math.round(base * cfg.rateFromGbp);
+    return `${cfg.symbol}${new Intl.NumberFormat("tr-TR").format(converted)}`;
   };
 
   const phoneContact =
-    activeCompany?.phone ||
-    store?.branding?.phone ||
-    store?.phone ||
-    "+90 548 860 00 01";
+    activeCompany?.phone || store?.branding?.phone || store?.phone || "+90 548 860 00 01";
 
   const heroTitle =
     savedDevConfig?.hero_title ||
@@ -328,20 +359,73 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
     store?.hero_subtitle ||
     "Esentepe ve Tatlısu sahil hattında özel marina, lagün havuzları ve panoramik deniz manzaralı mimari yaşam alanları.";
 
-  const heroVideoUrl =
-    savedDevConfig?.hero_video_url ||
-    "https://assets.mixkit.co/videos/preview/mixkit-aerial-view-of-city-buildings-on-a-sunny-day-41463-large.mp4";
+  // Bright, luminous Hero image fallback chain (never a dark murky background)
+  const resolvedHeroImage = useMemo(() => {
+    if (savedDevConfig?.hero_image_url) {
+      return resolveArchitecturalAssetUrl(savedDevConfig.hero_image_url);
+    }
+    return resortHeroSunlitAsset;
+  }, [savedDevConfig?.hero_image_url]);
+
+  const heroVideoUrl = savedDevConfig?.hero_video_url || "";
 
   const showUnitMatrixSection = savedDevConfig?.show_unit_matrix !== false;
   const showLifestyleSection = savedDevConfig?.show_lifestyle !== false;
 
-  const handleSelectProject = (proj: any) => {
+  const getFallbackVisualForProject = (idx: number = 0) => {
+    const cycle = [
+      resortHeroSunlitAsset,
+      masterplanAerialSunlitAsset,
+      marinaLifestyleAsset,
+      penthouseInteriorSunlitAsset
+    ];
+    return cycle[idx % cycle.length];
+  };
+
+  const scrollToElement = (elId: string) => {
+    const el = document.getElementById(elId);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
+  const handleSelectProject = (proj: any, shouldScrollToDossier: boolean = true) => {
     setSelectedProjectId(proj.id);
     setUnitTypeFilter("all");
     setUnitStatusFilter("all");
     const pUnits = units.filter(u => Number(u.project_id) === Number(proj.id));
-    if (pUnits[0]) setSelectedUnit(pUnits[0]);
-    setLeadForm(prev => ({ ...prev, preferredProject: proj.name }));
+    const preferredUnit = pUnits.find(u => u.status === "available") || pUnits[0] || null;
+    setSelectedUnit(preferredUnit);
+    setSelectedUnitVisualTab("exterior");
+    if (preferredUnit) {
+      setSimulatorBudget(Number(preferredUnit.price) || Number(proj.starting_price) || 225000);
+    } else if (proj.starting_price) {
+      setSimulatorBudget(Number(proj.starting_price));
+    }
+    setCustomDownPct(Number(proj?.payment_plan?.down_payment_percent) || 35);
+    setCustomMonths(Number(proj?.payment_plan?.installment_months) || 36);
+    setLeadForm(prev => ({
+      ...prev,
+      preferredProject: proj.name,
+      preferredUnit: preferredUnit ? `${preferredUnit.unit_number} (${preferredUnit.unit_type})` : ""
+    }));
+    if (shouldScrollToDossier) {
+      setTimeout(() => scrollToElement("selected-project-dossier"), 80);
+    }
+  };
+
+  const handleInspectUnit = (u: any, scrollToShowcase: boolean = true) => {
+    setSelectedUnit(u);
+    setSelectedUnitVisualTab("exterior");
+    setSimulatorBudget(Number(u.price) || 225000);
+    setLeadForm(prev => ({
+      ...prev,
+      preferredProject: activeProject?.name || prev.preferredProject,
+      preferredUnit: `${u.unit_number} · ${u.unit_type}`
+    }));
+    if (scrollToShowcase) {
+      setTimeout(() => scrollToElement("selected-unit-showcase"), 60);
+    }
   };
 
   const handleLeadSubmit = (e: React.FormEvent) => {
@@ -358,8 +442,147 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
     const cleanPhone = String(phoneContact).replace(/[^0-9]/g, "");
     const msg =
       customText ||
-      `Merhaba ${companyName}, ${activeProject?.name || "projeleriniz"} hakkında detaylı bilgi, 3D mimari kat planları ve güncel fiyat listesini talep ediyorum.`;
+      `Merhaba ${companyName}, ${activeProject?.name || "projeleriniz"} ${
+        selectedUnit ? `(${selectedUnit.unit_number} - ${selectedUnit.unit_type})` : ""
+      } hakkında detaylı bilgi, kat planları ve güncel ödeme planını talep ediyorum.`;
     window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
+  };
+
+  const handlePrintUnitCard = () => {
+    window.print();
+  };
+
+  // Location & Distance Matrix derived cleanly per active project region
+  const locationDistances = useMemo(() => {
+    const sub = String(activeProject?.sub_region || "").toLowerCase();
+    if (sub.includes("edremit") || sub.includes("merkez")) {
+      return [
+        { label: "Girne Antik Liman", distance: "7 Dakika" },
+        { label: "Escape & Kervansaray Plajı", distance: "5 Dakika" },
+        { label: "Uluslararası Okullar & Kolejler", distance: "4 Dakika" },
+        { label: "Ercan Uluslararası Havalimanı", distance: "38 Dakika" }
+      ];
+    }
+    if (sub.includes("tatlısu") || sub.includes("bahçeli")) {
+      return [
+        { label: "Özel Kumsal & Beach Club", distance: "Yürüme Mesafesi (150m)" },
+        { label: "Korineum Golf & Resort", distance: "12 Dakika" },
+        { label: "Girne Merkez & Yat Limanı", distance: "25 Dakika" },
+        { label: "Ercan Uluslararası Havalimanı", distance: "42 Dakika" }
+      ];
+    }
+    return [
+      { label: "Özel Marina & Lagün Plajı", distance: "Denize Sıfır / 200m" },
+      { label: "Korineum Golf & Country Club", distance: "8 Dakika" },
+      { label: "Girne Merkez & Marina", distance: "20 Dakika" },
+      { label: "Ercan Uluslararası Havalimanı", distance: "40 Dakika" }
+    ];
+  }, [activeProject?.sub_region]);
+
+  // Financial & Tax calculations synced to simulatorBudget
+  const financialBreakdown = useMemo(() => {
+    const downPayment = Math.round((simulatorBudget * customDownPct) / 100);
+    const remaining = Math.max(0, simulatorBudget - downPayment);
+    const monthly = Math.round(remaining / Math.max(1, customMonths));
+    const reservationDeposit = Number(activeProject?.payment_plan?.reservation_deposit_gbp) || 5000;
+
+    // Side Costs & Taxes (KKTC Residential Property Acquisition Standard)
+    const vatAmount = Math.round(simulatorBudget * 0.05); // %5 KDV
+    const stampDuty = Math.round(simulatorBudget * 0.005); // %0.5 Damga Pulu
+    const deedTransferFee = Math.round((simulatorBudget * buyerDeedRate) / 100); // %6 veya %12 Tapu Devir Harcı
+    const transformerFee = simulatorBudget >= 450000 ? 3500 : 2500; // Trafo & Altyapı
+    const legalFee = includeLegalFee ? 1500 : 0; // Sözleşme & Hukuki Takip
+    const totalSideCosts = vatAmount + stampDuty + deedTransferFee + transformerFee + legalFee;
+    const turnkeyTotal = simulatorBudget + totalSideCosts;
+
+    const rentalYieldPct = Number(activeProject?.investment_metrics?.annual_rental_yield_percent) || 9.0;
+    const annualRentalIncome = Math.round((simulatorBudget * rentalYieldPct) / 100);
+
+    return {
+      downPayment,
+      remaining,
+      monthly,
+      reservationDeposit,
+      vatAmount,
+      stampDuty,
+      deedTransferFee,
+      transformerFee,
+      legalFee,
+      totalSideCosts,
+      turnkeyTotal,
+      rentalYieldPct,
+      annualRentalIncome
+    };
+  }, [simulatorBudget, customDownPct, customMonths, buyerDeedRate, includeLegalFee, activeProject]);
+
+  // Selected Unit Gallery Visuals (guaranteed high-res sunlit assets, no broken URLs)
+  const selectedUnitVisuals = useMemo(() => {
+    const projectCover = activeProject?.cover_image || resortHeroSunlitAsset;
+    return {
+      exterior: {
+        title: `${activeProject?.name || "Proje"} — Dış Cephe & Çevre Mimarisi`,
+        url: projectCover,
+        fallback: resortHeroSunlitAsset
+      },
+      interior: {
+        title: `${selectedUnit?.unit_type || "Ünite"} — İç Mekan & Deniz Manzaralı Teras`,
+        url: penthouseInteriorSunlitAsset,
+        fallback: penthouseInteriorSunlitAsset
+      },
+      floorplan: {
+        title: `${selectedUnit?.unit_number || ""} — 3B Ölçekli Kat Kesiti & Yerleşim Planı`,
+        url: isometricFloorplanAsset,
+        fallback: isometricFloorplanAsset
+      },
+      lifestyle: {
+        title: `${activeProject?.sub_region || "Sahil Hattı"} — Özel Beach Club & Marina`,
+        url: marinaLifestyleAsset,
+        fallback: marinaLifestyleAsset
+      }
+    };
+  }, [activeProject?.cover_image, activeProject?.name, activeProject?.sub_region, selectedUnit]);
+
+  const readyProjectsCount = useMemo(
+    () => projects.filter(p => Number(p.construction_progress) >= 95 || p.status === "ready_to_move").length,
+    [projects]
+  );
+
+  const totalAvailableUnitsCount = useMemo(
+    () => units.filter(u => u.status === "available").length,
+    [units]
+  );
+
+  const getStatusBadgeStyle = (status: string) => {
+    switch (status) {
+      case "available":
+        return {
+          label: "Müsait",
+          className: theme.isDark
+            ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+            : "bg-emerald-50 text-emerald-800 border-emerald-200"
+        };
+      case "negotiation":
+        return {
+          label: "Sonuçlanmakta",
+          className: theme.isDark
+            ? "bg-sky-500/15 text-sky-300 border-sky-500/30"
+            : "bg-sky-50 text-sky-800 border-sky-200"
+        };
+      case "optioned":
+        return {
+          label: "Opsiyonlu",
+          className: theme.isDark
+            ? "bg-amber-500/15 text-amber-300 border-amber-500/30"
+            : "bg-amber-50 text-amber-800 border-amber-200"
+        };
+      default:
+        return {
+          label: "Satıldı",
+          className: theme.isDark
+            ? "bg-rose-500/15 text-rose-300 border-rose-500/30"
+            : "bg-rose-50 text-rose-800 border-rose-200"
+        };
+    }
   };
 
   return (
@@ -368,57 +591,62 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
       {/* 1. TOP BAR CONTRACT (Strict 3-Zone Single-Row Architectural Header) */}
       {/* =================================================================== */}
       <header
-        className={`sticky top-0 z-40 flex items-center justify-between gap-8 px-6 lg:px-12 py-4 border-b transition-colors ${
+        className={`sticky top-0 z-40 flex items-center justify-between gap-8 px-6 lg:px-12 py-3.5 border-b backdrop-blur-md transition-colors ${
           theme.isDark
-            ? "bg-[#090D16]/95 border-white/10 text-white"
-            : "bg-white/95 border-slate-200 text-slate-950"
+            ? "bg-[#090D16]/90 border-white/10 text-white"
+            : "bg-white/95 border-stone-200 text-slate-900"
         }`}
       >
-        {/* Zone 1: Single text element wordmark */}
         <a
           href="#top"
-          className={`text-lg md:text-xl font-bold tracking-tight whitespace-nowrap shrink-0 ${theme.headingFontClass}`}
+          className={`text-lg md:text-xl font-semibold tracking-tight whitespace-nowrap shrink-0 ${theme.headingFontClass}`}
         >
           {companyName}
         </a>
 
-        {/* Zone 2: Concise single-line text navigation links */}
         <nav className="hidden lg:flex items-center gap-7 text-sm font-medium">
           <a
             href="#masterplan-portfolio"
-            className={`${theme.textSecondary} hover:${theme.textPrimary} transition-colors whitespace-nowrap shrink-0`}
+            className={`${theme.textSecondary} hover:opacity-75 transition-opacity whitespace-nowrap shrink-0`}
           >
             Masterplan Projeler
           </a>
           {showUnitMatrixSection && (
             <a
               href="#unit-availability"
-              className={`${theme.textSecondary} hover:${theme.textPrimary} transition-colors whitespace-nowrap shrink-0`}
+              className={`${theme.textSecondary} hover:opacity-75 transition-opacity whitespace-nowrap shrink-0`}
             >
-              Bağımsız Bölüm & Fiyatlar
+              Canlı Envanter & Mülkler
+            </a>
+          )}
+          {showUnitMatrixSection && (
+            <a
+              href="#financial-simulator"
+              className={`${theme.textSecondary} hover:opacity-75 transition-opacity whitespace-nowrap shrink-0`}
+            >
+              Ödeme & Vergi Motoru
             </a>
           )}
           {showLifestyleSection && (
             <a
               href="#coastal-lifestyle"
-              className={`${theme.textSecondary} hover:${theme.textPrimary} transition-colors whitespace-nowrap shrink-0`}
+              className={`${theme.textSecondary} hover:opacity-75 transition-opacity whitespace-nowrap shrink-0`}
             >
-              Sosyal Yaşam & Marina
+              Yaşam Tarzı & Güven
             </a>
           )}
           <a
             href="#investor-concierge"
-            className={`${theme.textSecondary} hover:${theme.textPrimary} transition-colors whitespace-nowrap shrink-0`}
+            className={`${theme.textSecondary} hover:opacity-75 transition-opacity whitespace-nowrap shrink-0`}
           >
-            Yatırımcı İletişim
+            İletişim
           </a>
         </nav>
 
-        {/* Zone 3: 1 Primary CTA button */}
         <div className="flex items-center gap-3 shrink-0">
           <a
             href="#investor-concierge"
-            className={`px-4 py-2 text-xs font-bold whitespace-nowrap shrink-0 ${theme.accentBg} ${ctaButtonClass}`}
+            className={`px-4 py-2 text-xs font-semibold whitespace-nowrap shrink-0 ${theme.accentBg} ${ctaButtonClass}`}
           >
             VIP Yatırımcı Sunumu
           </a>
@@ -426,36 +654,28 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
       </header>
 
       {/* =================================================================== */}
-      {/* 2. CINEMATIC VIDEO & ARCHITECTURAL HERO SECTION                     */}
+      {/* 2. RADIANT SUNLIT ARCHITECTURAL SHOWCASE HERO ("PARLAK PROJE VİTRİNİ") */}
       {/* =================================================================== */}
-      <section id="top" className="relative w-full overflow-hidden border-b border-white/10">
-        {/* Background Aerial Video + High-Resolution Fallback */}
-        <div className="relative min-h-[600px] lg:min-h-[680px] w-full flex flex-col justify-end">
-          <div className="absolute inset-0 z-0 overflow-hidden bg-slate-950">
-            <video
-              key={heroVideoUrl}
-              autoPlay
-              muted
-              loop
-              playsInline
-              poster={
-                (savedDevConfig?.hero_image_url
-                  ? resolveArchitecturalAssetUrl(savedDevConfig.hero_image_url)
-                  : activeProject?.cover_image) ||
-                "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1920&q=85"
-              }
-              className="w-full h-full object-cover opacity-65 scale-105 transition-transform duration-700"
-            >
-              <source src={heroVideoUrl} type="video/mp4" />
-            </video>
-            {/* Measured Contrast Scrim (4.5:1+ WCAG AA guaranteed) */}
-            <div className="absolute inset-0 bg-gradient-to-t from-[#090D16] via-[#090D16]/65 to-[#090D16]/40" />
+      <section id="top" className={`relative w-full overflow-hidden border-b ${theme.borderClass}`}>
+        <div className="relative min-h-[560px] lg:min-h-[620px] w-full flex flex-col justify-end">
+          {/* Crystal-Clear Sunlit Photography — NO murky full-frame darkening */}
+          <div className="absolute inset-0 z-0 overflow-hidden bg-sky-100">
+            <img
+              src={resolvedHeroImage}
+              alt={`${companyName} Akdeniz Sahil Masterplan Projeleri`}
+              referrerPolicy="no-referrer"
+              onError={e => {
+                (e.currentTarget as HTMLImageElement).src = resortHeroSunlitAsset;
+              }}
+              className="w-full h-full object-cover object-center opacity-100"
+            />
+            {/* Measured bottom-left editorial scrim ONLY behind headline legibility; sky & pool remain sunlit */}
+            <div className="absolute inset-0 bg-gradient-to-tr from-slate-950/75 via-slate-950/30 to-transparent" />
           </div>
 
-          {/* Main Hero Editorial Statement */}
           <div className="relative z-10 max-w-7xl mx-auto w-full px-6 lg:px-12 py-12 lg:py-16 grid grid-cols-1 lg:grid-cols-12 gap-8 items-end">
-            <div className="lg:col-span-8 space-y-5">
-              <div className="flex flex-wrap items-center gap-2 text-xs font-semibold tracking-wider uppercase text-[#C5A059]">
+            <div className="lg:col-span-8 space-y-4">
+              <div className="flex flex-wrap items-center gap-2 text-xs font-medium tracking-wide text-amber-200">
                 <span>Kuzey Kıbrıs Sahil Masterplan Geliştiricisi</span>
                 <span aria-hidden="true">·</span>
                 <span>Esentepe & Tatlısu Kıyı Şeridi</span>
@@ -464,117 +684,138 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
               </div>
 
               <h1
-                className={`text-white font-bold leading-[1.08] tracking-tight max-w-3xl ${theme.headingFontClass}`}
-                style={{ fontSize: "clamp(2.25rem, 4vw, 3.75rem)" }}
+                className={`text-white font-semibold leading-[1.08] tracking-tight max-w-3xl [text-wrap:balance] drop-shadow-sm ${theme.headingFontClass}`}
+                style={{ fontSize: "clamp(2.25rem, 4vw, 3.65rem)" }}
               >
                 {heroTitle}
               </h1>
 
-              <p className="text-slate-200 text-base lg:text-lg max-w-2xl leading-relaxed font-normal">
+              <p className="text-white/95 text-base lg:text-lg max-w-2xl leading-relaxed font-normal drop-shadow-xs">
                 {heroSubtitle}
               </p>
 
               <div className="pt-2 flex flex-wrap items-center gap-3">
                 <a
                   href="#masterplan-portfolio"
-                  className={`px-6 py-3.5 bg-[#C5A059] hover:bg-[#d4b06a] text-slate-950 text-xs font-black uppercase tracking-wider flex items-center gap-2 whitespace-nowrap ${ctaButtonClass}`}
+                  className={`px-6 py-3 bg-[#C5A059] hover:bg-[#d3af67] text-slate-950 text-xs font-semibold tracking-wide flex items-center gap-2 whitespace-nowrap ${ctaButtonClass}`}
                 >
                   <span>Masterplan Projeleri Keşfet ({projects.length})</span>
-                  <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                  <ArrowRight className="w-4 h-4" />
                 </a>
 
                 <a
                   href="#unit-availability"
-                  className={`px-5 py-3.5 bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-bold flex items-center gap-2 whitespace-nowrap ${uiverse.secondaryBtnClass}`}
+                  className="px-5 py-3 rounded-xl bg-white/95 hover:bg-white text-slate-900 text-xs font-semibold flex items-center gap-2 whitespace-nowrap shadow-sm transition-colors"
                 >
-                  <Layers className="w-4 h-4 text-[#C5A059]" />
-                  <span>Bağımsız Bölüm & Fiyatlar</span>
+                  <Layers className="w-4 h-4 text-[#9A7228]" />
+                  <span>Canlı Fiyat & Envanter</span>
                 </a>
 
-                <button
-                  type="button"
-                  onClick={() => handleWhatsAppDirect()}
-                  className={`px-5 py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-2 cursor-pointer whitespace-nowrap ${ctaButtonClass}`}
-                >
-                  <MessageCircle className="w-4 h-4" />
-                  <span>Satış Ofisi WhatsApp</span>
-                </button>
+                {heroVideoUrl && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setActiveMediaModal({
+                        name: `${companyName} — Sahil Masterplan Tanıtım Filmi`,
+                        category: "Tanıtım Videosu",
+                        type: "video",
+                        videoUrl: heroVideoUrl,
+                        cover: resolvedHeroImage,
+                        projectName: activeProject?.name || companyName
+                      })
+                    }
+                    className="px-4 py-3 rounded-xl bg-slate-950/65 hover:bg-slate-950/85 backdrop-blur-sm text-white border border-white/30 text-xs font-medium flex items-center gap-2 cursor-pointer whitespace-nowrap transition-colors"
+                  >
+                    <Play className="w-3.5 h-3.5 text-amber-300" />
+                    <span>Tanıtım Filmini İzle</span>
+                  </button>
+                )}
               </div>
             </div>
 
-            {/* Right Spotlight Card: Featured Flagship Project */}
+            {/* Bright Architectural Spotlight Card for Active Flagship Masterplan */}
             {activeProject && (
-              <div className="lg:col-span-4 bg-slate-950/90 border border-white/15 rounded-2xl p-5 text-white space-y-3 shadow-2xl">
-                <div className="flex items-center justify-between text-xs text-slate-300">
-                  <span>Öne Çıkan Masterplan</span>
-                  <span className="font-mono text-[#C5A059] font-bold">
+              <div className="lg:col-span-4 bg-white/95 backdrop-blur-md border border-white/80 rounded-2xl p-5 text-slate-900 space-y-3.5 shadow-xl">
+                <div className="flex items-center justify-between text-xs text-slate-500">
+                  <span className="font-medium text-[#9A7228]">Öne Çıkan Masterplan</span>
+                  <span className="font-mono text-slate-700 font-medium">
                     Teslim: {activeProject.completion_date}
                   </span>
                 </div>
-                <h2 className={`text-xl font-bold text-white ${theme.headingFontClass}`}>
-                  {activeProject.name}
-                </h2>
-                <p className="text-xs text-slate-300 line-clamp-2">
-                  {activeProject.concept_tagline || activeProject.description}
-                </p>
-                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-white/10 text-center">
+                <div>
+                  <h2 className={`text-xl font-semibold text-slate-950 ${theme.headingFontClass}`}>
+                    {activeProject.name}
+                  </h2>
+                  <p className="text-xs text-slate-600 line-clamp-2 mt-1 leading-relaxed">
+                    {activeProject.concept_tagline || activeProject.description}
+                  </p>
+                </div>
+                <div className="grid grid-cols-3 gap-2 pt-2.5 border-t border-stone-200 text-center">
                   <div>
-                    <div className="text-[10px] text-slate-400">Başlangıç</div>
-                    <div className="text-sm font-black text-[#C5A059] font-mono tabular-nums">
+                    <div className="text-[11px] text-slate-500">Başlangıç</div>
+                    <div className="text-sm font-semibold text-[#9A7228] font-mono tabular-nums mt-0.5">
                       {formatGbp(activeProject.starting_price)}
                     </div>
                   </div>
                   <div>
-                    <div className="text-[10px] text-slate-400">Müsait Ünite</div>
-                    <div className="text-sm font-black text-emerald-400 font-mono tabular-nums">
+                    <div className="text-[11px] text-slate-500">Müsait Ünite</div>
+                    <div className="text-sm font-semibold text-emerald-700 font-mono tabular-nums mt-0.5">
                       {activeProject.available_units} / {activeProject.total_units}
                     </div>
                   </div>
                   <div>
-                    <div className="text-[10px] text-slate-400">İnşaat</div>
-                    <div className="text-sm font-black text-white font-mono tabular-nums">
+                    <div className="text-[11px] text-slate-500">İnşaat</div>
+                    <div className="text-sm font-semibold text-slate-900 font-mono tabular-nums mt-0.5">
                       %{activeProject.construction_progress}
                     </div>
                   </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => scrollToElement("selected-project-dossier")}
+                  className="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <span>Masterplan & Kat Planlarını Aç</span>
+                  <ArrowUpRight className="w-3.5 h-3.5" />
+                </button>
               </div>
             )}
           </div>
+        </div>
 
-          {/* Full-Width 4-Column Quantitative Proof Bar */}
-          <div className="relative z-10 bg-slate-950/95 border-t border-white/10">
-            <div className="max-w-7xl mx-auto px-6 lg:px-12 py-5 grid grid-cols-2 lg:grid-cols-4 gap-6">
-              <div>
-                <div className="text-2xl lg:text-3xl font-black text-white font-mono tabular-nums">
-                  {projects.length || 10} Masterplan
-                </div>
-                <div className="text-xs text-slate-400 mt-0.5">
-                  Akdeniz Sıfır Denize Cephe Rezidans & Villa Projesi
-                </div>
+        {/* Full-Width 4-Column Quantitative Trust & Delivery Proof Strip */}
+        <div className={`border-t ${theme.cardBg} ${theme.borderClass}`}>
+          <div className="max-w-7xl mx-auto px-6 lg:px-12 py-6 grid grid-cols-2 lg:grid-cols-4 gap-6">
+            <div>
+              <div className="text-xl lg:text-2xl font-semibold font-mono tabular-nums">
+                {projects.length || 10} Masterplan Projesi
               </div>
-              <div>
-                <div className="text-2xl lg:text-3xl font-black text-[#C5A059] font-mono tabular-nums">
-                  %35 Peşinat
-                </div>
-                <div className="text-xs text-slate-400 mt-0.5">
-                  36 Aya Varan %0 Faizli Doğrudan Şirket İçi Taksit Planı
-                </div>
+              <div className={`text-xs mt-1 ${theme.textMuted}`}>
+                Akdeniz Sıfır Denize Cephe Rezidans & Villa Koleksiyonu
               </div>
-              <div>
-                <div className="text-2xl lg:text-3xl font-black text-emerald-400 font-mono tabular-nums">
-                  {units.filter(u => u.status === "available").length || 42} Müsait Bölüm
-                </div>
-                <div className="text-xs text-slate-400 mt-0.5">
-                  Canlı Kapı Numarası, Kat, Manzara ve Metrekare Seçimi
-                </div>
+            </div>
+            <div>
+              <div className={`text-xl lg:text-2xl font-semibold font-mono tabular-nums ${theme.accentText}`}>
+                {readyProjectsCount} Tamamlanmış Etap
               </div>
-              <div>
-                <div className="text-2xl lg:text-3xl font-black text-sky-400 font-mono tabular-nums">
-                  4K Mimari Katalog
-                </div>
-                <div className="text-xs text-slate-400 mt-0.5">
-                  Yüksek Çözünürlüklü Mimari Katalog ve Sosyal Yaşam Vitrini
-                </div>
+              <div className={`text-xs mt-1 ${theme.textMuted}`}>
+                Hemen Anahtar Teslim & Aktif Kira Getirili Site Yönetimi
+              </div>
+            </div>
+            <div>
+              <div className="text-xl lg:text-2xl font-semibold text-emerald-700 dark:text-emerald-400 font-mono tabular-nums">
+                {totalAvailableUnitsCount || 42} Müsait Bölüm
+              </div>
+              <div className={`text-xs mt-1 ${theme.textMuted}`}>
+                Canlı Kapı Numarası, Kat, Manzara & Metrekare Seçimi
+              </div>
+            </div>
+            <div>
+              <div className="text-xl lg:text-2xl font-semibold text-sky-700 dark:text-sky-400 font-mono tabular-nums">
+                %0 Faizli Ödeme Planı
+              </div>
+              <div className={`text-xs mt-1 ${theme.textMuted}`}>
+                36 Aya Varan Doğrudan Şirket İçi Taksit & Şeffaf Vergi Hesabı
               </div>
             </div>
           </div>
@@ -582,26 +823,25 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
       </section>
 
       {/* =================================================================== */}
-      {/* 3. NUMBERED ARCHITECTURAL MASTERPLAN PORTFOLIO & PROJECT DOSSIER    */}
+      {/* 3. MASTERPLAN COLLECTION & SELECTED PROJECT SHOWCASE DOSSIER        */}
       {/* =================================================================== */}
       <section id="masterplan-portfolio" className="max-w-7xl mx-auto px-6 lg:px-12 py-16 space-y-10">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b pb-6 border-current/10">
-          <div className="space-y-2">
-            <div className={`text-xs font-semibold uppercase tracking-wider ${theme.accentText}`}>
-              01. Masterplan Koleksiyonu & Mimari Portföy
+        <div className={`flex flex-col md:flex-row md:items-end justify-between gap-4 border-b pb-6 ${theme.borderClass}`}>
+          <div className="space-y-1.5">
+            <div className={`text-xs font-medium tracking-wide ${theme.accentText}`}>
+              01. Masterplan Koleksiyonu & Konum Hakimiyeti
             </div>
-            <h2 className={`text-2xl lg:text-4xl font-bold ${theme.headingFontClass}`}>
+            <h2 className={`text-2xl lg:text-4xl font-semibold ${theme.headingFontClass}`}>
               Sahil Rezidansları, Marina & Sağlık Köyü Projeleri
             </h2>
           </div>
 
-          {/* Collapsible Region Filter Dropdown */}
-          <div className="flex items-center gap-2 shrink-0">
-            <label className={`text-xs font-bold uppercase ${theme.textMuted}`}>Bölge:</label>
+          <div className="flex items-center gap-2.5 shrink-0">
+            <label className={`text-xs font-medium ${theme.textMuted}`}>Bölge:</label>
             <select
               value={selectedRegion}
               onChange={e => setSelectedRegion(e.target.value)}
-              className={`px-3.5 py-2 rounded-xl border text-xs font-bold cursor-pointer outline-none ${theme.cardBg} ${theme.borderClass} ${theme.textPrimary}`}
+              className={`px-3.5 py-2 rounded-xl border text-xs font-medium cursor-pointer outline-none ${theme.cardBg} ${theme.borderClass} ${theme.textPrimary}`}
             >
               <option value="all">Tüm Bölgeler ({projects.length})</option>
               {regions.map(reg => (
@@ -614,158 +854,265 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
         </div>
 
         {/* Project Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredProjects.map((proj, idx) => {
-            const isSelected = Number(proj.id) === Number(activeProject?.id);
-            const chapterNum = String(idx + 1).padStart(2, "0");
-            return (
-              <div
-                key={proj.id}
-                onClick={() => handleSelectProject(proj)}
-                className={`group overflow-hidden border cursor-pointer flex flex-col justify-between ${
-                  theme.cardBg
-                } ${cardInteractiveClass} ${
-                  isSelected
-                    ? "ring-2 ring-[#C5A059] border-[#C5A059]"
-                    : `${theme.borderClass} hover:border-[#C5A059]/60`
-                }`}
-              >
-                <div>
-                  {/* 16:9 Architectural Visual Cover */}
-                  <div className="relative aspect-video w-full overflow-hidden bg-slate-900">
-                    <img
-                      src={proj.cover_image}
-                      alt={proj.name}
-                      referrerPolicy="no-referrer"
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
-                    <div className="absolute top-3 left-3 right-3 flex items-center justify-between text-xs text-white font-mono">
-                      <span className="font-bold text-[#C5A059]">{chapterNum}. MASTERPLAN</span>
-                      <span>İnşaat: %{proj.construction_progress}</span>
-                    </div>
-                    <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between text-white">
-                      <div>
-                        <div className="text-[11px] text-slate-300">{proj.sub_region}</div>
-                        <h3 className={`text-lg font-bold leading-tight ${theme.headingFontClass}`}>
-                          {proj.name}
-                        </h3>
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3].map(sk => (
+              <div key={sk} className={`rounded-2xl border h-80 animate-pulse ${theme.cardBg} ${theme.borderClass}`} />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredProjects.map((proj, idx) => {
+              const isSelected = Number(proj.id) === Number(activeProject?.id);
+              const chapterNum = String(idx + 1).padStart(2, "0");
+              const fallbackSrc = getFallbackVisualForProject(idx);
+              return (
+                <div
+                  key={proj.id}
+                  onClick={() => handleSelectProject(proj, true)}
+                  className={`group overflow-hidden border cursor-pointer flex flex-col justify-between ${
+                    theme.cardBg
+                  } ${cardInteractiveClass} ${
+                    isSelected
+                      ? "ring-2 ring-[#C5A059] border-[#C5A059]"
+                      : `${theme.borderClass} hover:border-[#C5A059]/70`
+                  }`}
+                >
+                  <div>
+                    <div className="relative aspect-video w-full overflow-hidden bg-stone-200">
+                      <img
+                        src={proj.cover_image || fallbackSrc}
+                        alt={proj.name}
+                        referrerPolicy="no-referrer"
+                        onError={e => {
+                          (e.currentTarget as HTMLImageElement).src = fallbackSrc;
+                        }}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/15 to-transparent" />
+                      <div className="absolute top-3 left-3 right-3 flex items-center justify-between text-xs text-white font-mono">
+                        <span className="font-semibold text-amber-200">{chapterNum}. Masterplan</span>
+                        <span className="bg-slate-950/60 backdrop-blur-xs px-2 py-0.5 rounded text-[11px]">
+                          İnşaat %{proj.construction_progress}
+                        </span>
                       </div>
-                      <div className="text-right font-mono">
-                        <div className="text-[10px] text-slate-300">Başlangıç</div>
-                        <div className="text-sm font-black text-[#C5A059] tabular-nums">
-                          {formatGbp(proj.starting_price)}
+                      <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between text-white gap-2">
+                        <div>
+                          <div className="text-[11px] text-white/85">{proj.sub_region}</div>
+                          <h3 className={`text-lg font-semibold leading-tight ${theme.headingFontClass}`}>
+                            {proj.name}
+                          </h3>
+                        </div>
+                        <div className="text-right font-mono shrink-0">
+                          <div className="text-[10px] text-white/80">Başlangıç</div>
+                          <div className="text-sm font-semibold text-amber-300 tabular-nums">
+                            {formatGbp(proj.starting_price)}
+                          </div>
                         </div>
                       </div>
                     </div>
+
+                    <div className="p-5 space-y-2.5">
+                      <div className={`flex flex-wrap items-center gap-2 text-xs ${theme.textMuted}`}>
+                        <span>Teslim: {proj.completion_date}</span>
+                        <span aria-hidden="true">·</span>
+                        <span>{proj.available_units} Müsait Bölüm</span>
+                        <span aria-hidden="true">·</span>
+                        <span>%{proj.payment_plan?.down_payment_percent || 35} Peşinat</span>
+                      </div>
+
+                      <p className={`text-xs leading-relaxed line-clamp-2 ${theme.textSecondary}`}>
+                        {proj.concept_tagline || proj.description}
+                      </p>
+                    </div>
                   </div>
 
-                  {/* Clean Unboxed Metadata & Description */}
-                  <div className="p-5 space-y-3">
-                    <div className={`flex flex-wrap items-center gap-2 text-xs ${theme.textMuted}`}>
-                      <span>Teslim: {proj.completion_date}</span>
-                      <span aria-hidden="true">·</span>
-                      <span>{proj.available_units} Müsait Bölüm</span>
-                      <span aria-hidden="true">·</span>
-                      <span>%{proj.payment_plan?.down_payment_percent || 35} Peşinat</span>
-                    </div>
+                  <div
+                    className={`px-5 py-3 border-t ${theme.borderClass} flex items-center justify-between text-xs font-medium`}
+                  >
+                    <span className={isSelected ? `${theme.accentText} font-semibold` : theme.textSecondary}>
+                      {isSelected ? "Aktif Masterplan Vitrini" : "Projeyi & Kat Planlarını İncele"}
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-xs">
+                      <span>{isSelected ? "Vitrinde Açık" : "İncele"}</span>
+                      <ArrowUpRight className="w-3.5 h-3.5" />
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
-                    <p className={`text-xs leading-relaxed line-clamp-2 ${theme.textSecondary}`}>
-                      {proj.concept_tagline || proj.description}
+        {/* Interactive Selected Project Dossier + Konum & Masterplan Hakimiyeti */}
+        {activeProject && (
+          <div
+            id="selected-project-dossier"
+            className={`rounded-2xl border p-6 lg:p-8 space-y-6 scroll-mt-24 ${theme.cardBg} ${theme.borderClass} shadow-sm`}
+          >
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+              {/* Left 5 Cols: Project Sunlit Architectural Visual + Progress + ROI */}
+              <div className="lg:col-span-5 space-y-4">
+                <div
+                  onClick={() =>
+                    setActiveMediaModal({
+                      name: `${activeProject.name} — Ana Masterplan Görünümü`,
+                      category: activeProject.sub_region,
+                      type: "photos",
+                      cover: activeProject.cover_image || masterplanAerialSunlitAsset,
+                      projectName: activeProject.name
+                    })
+                  }
+                  className="relative aspect-[16/10] w-full rounded-xl overflow-hidden border border-stone-200 cursor-pointer group"
+                >
+                  <img
+                    src={activeProject.cover_image || masterplanAerialSunlitAsset}
+                    alt={activeProject.name}
+                    referrerPolicy="no-referrer"
+                    onError={e => {
+                      (e.currentTarget as HTMLImageElement).src = masterplanAerialSunlitAsset;
+                    }}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  <div className="absolute bottom-3 right-3 px-3 py-1.5 rounded-lg bg-white/95 text-slate-900 text-[11px] font-medium flex items-center gap-1.5 shadow-sm">
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>Tam Ekran İncele</span>
+                  </div>
+                </div>
+
+                {/* Construction Progress & Delivery Proof */}
+                <div className={`p-4 rounded-xl border ${theme.surfaceBg} ${theme.borderClass} space-y-2.5`}>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-medium">İnşaat İlerleme & Teslim Güvencesi</span>
+                    <span className="font-mono font-semibold tabular-nums">
+                      %{activeProject.construction_progress} · {activeProject.completion_date}
+                    </span>
+                  </div>
+                  <div className="h-2 w-full rounded-full bg-stone-200 dark:bg-slate-800 overflow-hidden">
+                    <div
+                      className="h-full bg-emerald-600 rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(100, Number(activeProject.construction_progress) || 0)}%` }}
+                    />
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 pt-1 text-xs">
+                    <div>
+                      <div className={theme.textMuted}>Yıllık Kira Getirisi</div>
+                      <div className="font-mono font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
+                        %{activeProject.investment_metrics?.annual_rental_yield_percent || "9.2"} GBP
+                      </div>
+                    </div>
+                    <div>
+                      <div className={theme.textMuted}>Değer Artışı</div>
+                      <div className="font-mono font-semibold tabular-nums">
+                        +%{activeProject.investment_metrics?.capital_appreciation_percent || "38"}
+                      </div>
+                    </div>
+                    <div>
+                      <div className={theme.textMuted}>Doluluk Ort.</div>
+                      <div className="font-mono font-semibold tabular-nums">
+                        %{activeProject.investment_metrics?.short_term_occupancy_percent || "84"}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right 7 Cols: Dossier Header, Location Distance Matrix & Media Vault */}
+              <div className="lg:col-span-7 space-y-5">
+                <div className={`flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b pb-4 ${theme.borderClass}`}>
+                  <div className="space-y-1.5">
+                    <div className={`flex flex-wrap items-center gap-2 text-xs font-medium ${theme.accentText}`}>
+                      <span>{activeProject.region}</span>
+                      <span aria-hidden="true">·</span>
+                      <span>{activeProject.sub_region}</span>
+                      <span aria-hidden="true">·</span>
+                      <span>{activeProject.available_units} Müsait Bağımsız Bölüm</span>
+                    </div>
+                    <h3 className={`text-2xl lg:text-3xl font-semibold ${theme.headingFontClass}`}>
+                      {activeProject.name}
+                    </h3>
+                    <p className={`text-sm leading-relaxed ${theme.textSecondary}`}>
+                      {activeProject.concept_tagline || activeProject.description}
                     </p>
                   </div>
+
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    <a
+                      href="#unit-availability"
+                      className={`px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap ${theme.accentBg}`}
+                    >
+                      <Layers className="w-4 h-4" />
+                      <span>Mülk & Fiyat Listesine Git</span>
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleWhatsAppDirect(
+                          `Merhaba ${companyName}, ${activeProject.name} projesi için katalog, kat planları ve ödeme planı talep ediyorum.`
+                        )
+                      }
+                      className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer whitespace-nowrap transition-colors"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      <span>Katalog & Teklif Al</span>
+                    </button>
+                  </div>
                 </div>
 
-                <div className={`px-5 py-3.5 border-t ${theme.borderClass} flex items-center justify-between text-xs font-bold`}>
-                  <span className={isSelected ? theme.accentText : theme.textSecondary}>
-                    {isSelected ? "Seçili Proje — Detaylar Aşağıda" : "Mimari Dosyayı & 3D Planı Aç"}
-                  </span>
-                  <ArrowUpRight className="w-4 h-4" />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Selected Project Interactive Architectural Dossier */}
-        {activeProject && (
-          <div className={`rounded-2xl border p-6 lg:p-8 space-y-6 ${theme.surfaceBg} ${theme.borderClass}`}>
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b pb-5 border-current/10">
-              <div className="space-y-1">
-                <div className={`flex flex-wrap items-center gap-2 text-xs font-semibold ${theme.accentText}`}>
-                  <span>Seçili Masterplan Dosyası</span>
-                  <span aria-hidden="true">·</span>
-                  <span>{activeProject.sub_region}</span>
-                  <span aria-hidden="true">·</span>
-                  <span>Teslim: {activeProject.completion_date}</span>
-                </div>
-                <h3 className={`text-2xl lg:text-3xl font-bold ${theme.headingFontClass}`}>
-                  {activeProject.name} — Mimari & Teknik Dosya
-                </h3>
-                <p className={`text-sm ${theme.textSecondary}`}>
-                  {activeProject.description || activeProject.concept_tagline}
-                </p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-                <a
-                  href="#unit-availability"
-                  className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 whitespace-nowrap ${theme.accentBg}`}
-                >
-                  <Layers className="w-4 h-4" />
-                  <span>Bağımsız Bölüm & Fiyatları İncele</span>
-                </a>
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleWhatsAppDirect(
-                      `Merhaba ${companyName}, ${activeProject.name} projesi için katalog, kat planları ve ödeme planı talep ediyorum.`
-                    )
-                  }
-                  className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
-                >
-                  <MessageCircle className="w-4 h-4" />
-                  <span>Bu Proje İçin Teklif Al</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Project Media Vault & Architectural Sheets Strip */}
-            <div className="space-y-3">
-              <div className="text-xs font-bold uppercase tracking-wider">
-                Proje Görselleri, Tanıtım Videoları & 2D Mimari Vaziyet Paftaları (
-                {(activeProject.media_vault || []).length})
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                {(activeProject.media_vault || []).slice(0, 8).map((doc: any, dIdx: number) => (
-                  <button
-                    key={doc.id || dIdx}
-                    type="button"
-                    onClick={() =>
-                      setActiveMediaModal({
-                        name: doc.name,
-                        category: doc.category || "Proje Medyası",
-                        type: doc.type || "photos",
-                        url: doc.url,
-                        cover: activeProject.cover_image,
-                        projectName: activeProject.name
-                      })
-                    }
-                    className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex items-start justify-between gap-2 ${theme.cardBg} ${theme.borderClass} hover:border-[#C5A059]`}
-                  >
-                    <div className="space-y-1 min-w-0">
-                      <div className={`text-[11px] font-semibold ${theme.accentText}`}>
-                        {doc.category || "Mimari Doküman"}
+                {/* Konum & Masterplan Mesafe Hakimiyeti */}
+                <div className="space-y-2">
+                  <div className={`text-xs font-medium ${theme.textMuted}`}>
+                    Konum & Stratejik Mesafe Avantajları
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    {locationDistances.map((loc, lIdx) => (
+                      <div key={lIdx} className={`p-3 rounded-xl border ${theme.surfaceBg} ${theme.borderClass}`}>
+                        <div className={`text-[11px] ${theme.textMuted}`}>{loc.label}</div>
+                        <div className="text-xs font-semibold mt-0.5">{loc.distance}</div>
                       </div>
-                      <div className="text-xs font-bold truncate">{doc.name}</div>
-                    </div>
-                    {doc.type === "video" ? (
-                      <Play className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
-                    ) : (
-                      <Eye className="w-4 h-4 opacity-70 shrink-0 mt-0.5" />
-                    )}
-                  </button>
-                ))}
+                    ))}
+                  </div>
+                </div>
+
+                {/* Proje Görselleri, Videolar & 2D Kat Planları */}
+                <div className="space-y-2.5">
+                  <div className={`text-xs font-medium ${theme.textMuted}`}>
+                    Proje Dokümanları, Videolar & Kat Planları ({(activeProject.media_vault || []).length})
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {(activeProject.media_vault || []).slice(0, 6).map((doc: any, dIdx: number) => (
+                      <button
+                        key={doc.id || dIdx}
+                        type="button"
+                        onClick={() =>
+                          setActiveMediaModal({
+                            name: doc.name,
+                            category: doc.category || "Proje Medyası",
+                            type: doc.type || "photos",
+                            url: doc.url,
+                            cover: activeProject.cover_image || masterplanAerialSunlitAsset,
+                            projectName: activeProject.name
+                          })
+                        }
+                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between gap-2.5 ${theme.surfaceBg} ${theme.borderClass} hover:border-[#C5A059]`}
+                      >
+                        <div className="space-y-0.5 min-w-0">
+                          <div className={`text-[11px] font-medium ${theme.accentText}`}>
+                            {doc.category || "Mimari Doküman"}
+                          </div>
+                          <div className="text-xs font-medium truncate">{doc.name}</div>
+                        </div>
+                        {doc.type === "video" ? (
+                          <Play className="w-4 h-4 text-rose-600 shrink-0" />
+                        ) : doc.type === "pricelist" ? (
+                          <FileText className="w-4 h-4 text-sky-600 shrink-0" />
+                        ) : (
+                          <Eye className="w-4 h-4 opacity-70 shrink-0" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -773,7 +1120,707 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
       </section>
 
       {/* =================================================================== */}
-      {/* 4. ARCHITECTURAL VISUALIZATION & INTERIOR DESIGN GALLERY            */}
+      {/* 4. LIVE INVENTORY TABLE (ZERO CLIPPING) + SELECTED UNIT SHOWCASE +  */}
+      {/*    PAYMENT PLAN & TAX/SIDE-COST ENGINEERING SIMULATOR               */}
+      {/* =================================================================== */}
+      {showUnitMatrixSection && (
+        <section id="unit-availability" className={`border-y py-16 ${theme.surfaceBg} ${theme.borderClass}`}>
+          <div className="max-w-7xl mx-auto px-6 lg:px-12 space-y-10">
+            {/* Section Header + Clean Filter Controls */}
+            <div className={`flex flex-col lg:flex-row lg:items-end justify-between gap-4 border-b pb-6 ${theme.borderClass}`}>
+              <div className="space-y-1.5">
+                <div className={`text-xs font-medium tracking-wide ${theme.accentText}`}>
+                  02. Canlı Envanter, Seçili Mülk Vitrini & Finansal Mühendislik
+                </div>
+                <h2 className={`text-2xl lg:text-4xl font-semibold ${theme.headingFontClass}`}>
+                  {activeProject?.name || "Proje"} — Bağımsız Bölüm & Fiyat Listesi
+                </h2>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2.5">
+                <select
+                  value={unitTypeFilter}
+                  onChange={e => setUnitTypeFilter(e.target.value)}
+                  className={`px-3 py-2 rounded-xl border text-xs font-medium cursor-pointer ${theme.cardBg} ${theme.borderClass}`}
+                >
+                  <option value="all">Tüm Mülk Tipleri ({projectUnits.length})</option>
+                  {availableUnitTypes.map(tName => (
+                    <option key={tName} value={tName}>
+                      {tName}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={unitStatusFilter}
+                  onChange={e => setUnitStatusFilter(e.target.value)}
+                  className={`px-3 py-2 rounded-xl border text-xs font-medium cursor-pointer ${theme.cardBg} ${theme.borderClass}`}
+                >
+                  <option value="all">Tüm Statüler</option>
+                  <option value="available">Müsait</option>
+                  <option value="negotiation">Sonuçlanmakta</option>
+                  <option value="optioned">Opsiyonlu</option>
+                  <option value="sold">Satıldı</option>
+                </select>
+
+                <select
+                  value={displayCurrency}
+                  onChange={e => setDisplayCurrency(e.target.value as DisplayCurrency)}
+                  className={`px-3 py-2 rounded-xl border text-xs font-medium cursor-pointer ${theme.cardBg} ${theme.borderClass}`}
+                  title="Gösterim Para Birimi"
+                >
+                  <option value="GBP">GBP (£)</option>
+                  <option value="EUR">EUR (€)</option>
+                  <option value="USD">USD ($)</option>
+                  <option value="TRY">TRY (₺)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* FULL-WIDTH INVENTORY TABLE — Fits all columns comfortably with zero right-side clipping */}
+            <div className={`rounded-2xl border overflow-hidden shadow-xs ${theme.cardBg} ${theme.borderClass}`}>
+              {filteredProjectUnits.length === 0 ? (
+                <div className="p-10 text-center space-y-3">
+                  <p className={`text-sm font-medium ${theme.textSecondary}`}>
+                    Seçili mülk tipi veya durum filtresine uygun bağımsız bölüm bulunamadı.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUnitTypeFilter("all");
+                      setUnitStatusFilter("all");
+                    }}
+                    className={`px-4 py-2 rounded-xl text-xs font-medium cursor-pointer ${theme.accentBg}`}
+                  >
+                    Tüm Üniteleri Göster
+                  </button>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className={`border-b ${theme.surfaceBg} ${theme.borderClass} text-[11px] font-semibold ${theme.textMuted}`}>
+                        <th className="py-3.5 px-4">Kapı No & Blok</th>
+                        <th className="py-3.5 px-4">Mülk Tipi</th>
+                        <th className="py-3.5 px-4">Alan (Brüt / Net / Teras)</th>
+                        <th className="py-3.5 px-4">Kat & Manzara</th>
+                        <th className="py-3.5 px-4">Liste Fiyatı</th>
+                        <th className="py-3.5 px-4">Durum</th>
+                        <th className="py-3.5 px-4 text-right">Mülkü İncele & Hesapla</th>
+                      </tr>
+                    </thead>
+                    <tbody className={`divide-y ${theme.borderClass}`}>
+                      {filteredProjectUnits.map(u => {
+                        const isUnitSelected = Number(selectedUnit?.id) === Number(u.id);
+                        const statusMeta = getStatusBadgeStyle(u.status);
+                        return (
+                          <tr
+                            key={u.id}
+                            onClick={() => handleInspectUnit(u, true)}
+                            className={`cursor-pointer transition-colors ${
+                              isUnitSelected
+                                ? theme.isDark
+                                  ? "bg-[#C5A059]/15"
+                                  : "bg-amber-50/75"
+                                : "hover:bg-stone-50 dark:hover:bg-white/5"
+                            }`}
+                          >
+                            <td className="py-3.5 px-4 whitespace-nowrap">
+                              <div className="font-mono font-semibold text-sm">{u.unit_number}</div>
+                              <div className={`text-[11px] ${theme.textMuted}`}>{u.block_name}</div>
+                            </td>
+                            <td className="py-3.5 px-4 font-medium whitespace-nowrap">{u.unit_type}</td>
+                            <td className="py-3.5 px-4 font-mono tabular-nums whitespace-nowrap">
+                              {u.gross_sqm} m² Brüt · {u.net_sqm} m² Net{" "}
+                              <span className={theme.textMuted}>(+{u.terrace_sqm} m²)</span>
+                            </td>
+                            <td className="py-3.5 px-4">
+                              <div className="font-medium">{u.floor_level}</div>
+                              <div className={`text-[11px] ${theme.textMuted}`}>{u.view_direction}</div>
+                            </td>
+                            <td className="py-3.5 px-4 font-mono tabular-nums whitespace-nowrap">
+                              <div className="text-sm font-semibold">{formatGbp(u.price)}</div>
+                              {displayCurrency !== "GBP" && (
+                                <div className={`text-[11px] ${theme.textMuted}`}>
+                                  ≈ {formatInSelectedCurrency(u.price)}
+                                </div>
+                              )}
+                            </td>
+                            <td className="py-3.5 px-4 whitespace-nowrap">
+                              <span
+                                className={`inline-flex items-center px-2.5 py-0.5 rounded-md border text-[11px] font-medium ${statusMeta.className}`}
+                              >
+                                {statusMeta.label}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                              <button
+                                type="button"
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  handleInspectUnit(u, true);
+                                }}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-medium inline-flex items-center gap-1.5 cursor-pointer transition-colors ${
+                                  isUnitSelected
+                                    ? "bg-emerald-600 text-white"
+                                    : theme.accentBg
+                                }`}
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                                <span>{isUnitSelected ? "Seçili Mülk" : "Mülkü Gör & Hesapla"}</span>
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* TWO-COLUMN SHOWCASE BELOW TABLE: LEFT = SELECTED PROPERTY VISUAL & SPECS | RIGHT = PAYMENT & TAX SIMULATOR */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+              {/* LEFT 6 COLS: SHOWSTOPPING SELECTED PROPERTY SHOWCASE */}
+              <div
+                id="selected-unit-showcase"
+                className={`lg:col-span-6 rounded-2xl border p-6 flex flex-col justify-between space-y-5 scroll-mt-24 ${theme.cardBg} ${theme.borderClass} shadow-sm`}
+              >
+                {selectedUnit ? (
+                  <>
+                    <div className="space-y-4">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <div className={`text-xs font-medium ${theme.accentText}`}>
+                            Seçili Bağımsız Bölüm Vitrini · {activeProject?.name}
+                          </div>
+                          <h3 className={`text-2xl font-semibold mt-0.5 ${theme.headingFontClass}`}>
+                            {selectedUnit.unit_number} — {selectedUnit.unit_type}
+                          </h3>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-2xl font-semibold font-mono tabular-nums">
+                            {formatGbp(selectedUnit.price)}
+                          </div>
+                          {displayCurrency !== "GBP" && (
+                            <div className={`text-xs font-mono ${theme.textMuted}`}>
+                              ≈ {formatInSelectedCurrency(selectedUnit.price)}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Interactive Unit Visual Stage (Exterior, Interior, 3D Floorplan, Lifestyle) */}
+                      <div className="space-y-2.5">
+                        <div
+                          onClick={() =>
+                            setActiveMediaModal({
+                              name: selectedUnitVisuals[selectedUnitVisualTab].title,
+                              category: `${selectedUnit.unit_number} · ${selectedUnit.unit_type}`,
+                              type: "photos",
+                              cover: selectedUnitVisuals[selectedUnitVisualTab].url,
+                              projectName: activeProject?.name || companyName
+                            })
+                          }
+                          className="relative aspect-[16/10] w-full rounded-xl overflow-hidden border border-stone-200 cursor-pointer group"
+                        >
+                          <img
+                            src={selectedUnitVisuals[selectedUnitVisualTab].url}
+                            alt={selectedUnitVisuals[selectedUnitVisualTab].title}
+                            referrerPolicy="no-referrer"
+                            onError={e => {
+                              (e.currentTarget as HTMLImageElement).src =
+                                selectedUnitVisuals[selectedUnitVisualTab].fallback;
+                            }}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent" />
+                          <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-xs text-white">
+                            <span className="font-medium truncate pr-3">
+                              {selectedUnitVisuals[selectedUnitVisualTab].title}
+                            </span>
+                            <span className="px-2.5 py-1 rounded-md bg-white/95 text-slate-900 text-[11px] font-medium shrink-0">
+                              Büyüt
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Visual Perspective Selector Tabs */}
+                        <div className="grid grid-cols-4 gap-2">
+                          {(
+                            [
+                              { id: "exterior", label: "Dış Cephe" },
+                              { id: "interior", label: "İç Mekan" },
+                              { id: "floorplan", label: "3B Kat Planı" },
+                              { id: "lifestyle", label: "Sahil & Havuz" }
+                            ] as const
+                          ).map(vTab => (
+                            <button
+                              key={vTab.id}
+                              type="button"
+                              onClick={() => setSelectedUnitVisualTab(vTab.id)}
+                              className={`py-2 px-2 rounded-lg text-xs font-medium border cursor-pointer transition-colors whitespace-nowrap truncate ${
+                                selectedUnitVisualTab === vTab.id
+                                  ? `${theme.accentBg} border-transparent`
+                                  : `${theme.surfaceBg} ${theme.borderClass} ${theme.textSecondary} hover:opacity-85`
+                              }`}
+                            >
+                              {vTab.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Complete Architectural Unit Specs */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+                        <div className={`p-3 rounded-xl border ${theme.surfaceBg} ${theme.borderClass}`}>
+                          <div className={`text-[11px] ${theme.textMuted}`}>Blok & Kat</div>
+                          <div className="text-xs font-semibold mt-0.5">{selectedUnit.block_name}</div>
+                          <div className={`text-[11px] ${theme.textMuted}`}>{selectedUnit.floor_level}</div>
+                        </div>
+                        <div className={`p-3 rounded-xl border ${theme.surfaceBg} ${theme.borderClass}`}>
+                          <div className={`text-[11px] ${theme.textMuted}`}>Brüt / Net Alan</div>
+                          <div className="text-xs font-semibold font-mono tabular-nums mt-0.5">
+                            {selectedUnit.gross_sqm} m² Brüt
+                          </div>
+                          <div className={`text-[11px] font-mono ${theme.textMuted}`}>
+                            {selectedUnit.net_sqm} m² Net
+                          </div>
+                        </div>
+                        <div className={`p-3 rounded-xl border ${theme.surfaceBg} ${theme.borderClass}`}>
+                          <div className={`text-[11px] ${theme.textMuted}`}>Teras & Bahçe</div>
+                          <div className="text-xs font-semibold font-mono tabular-nums mt-0.5">
+                            +{selectedUnit.terrace_sqm} m²
+                          </div>
+                          <div className={`text-[11px] ${theme.textMuted}`}>Özel Açık Alan</div>
+                        </div>
+                        <div className={`p-3 rounded-xl border ${theme.surfaceBg} ${theme.borderClass}`}>
+                          <div className={`text-[11px] ${theme.textMuted}`}>Manzara & Cephe</div>
+                          <div className="text-xs font-semibold mt-0.5">{selectedUnit.view_direction}</div>
+                          <div className={`text-[11px] ${theme.textMuted}`}>
+                            {getStatusBadgeStyle(selectedUnit.status).label}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Unit Direct Conversion Actions */}
+                    <div className={`pt-4 border-t ${theme.borderClass} flex flex-wrap items-center gap-2.5`}>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleWhatsAppDirect(
+                            `Merhaba ${companyName}, ${activeProject?.name} projesindeki ${selectedUnit.unit_number} (${selectedUnit.unit_type}, ${selectedUnit.gross_sqm} m², ${formatGbp(
+                              selectedUnit.price
+                            )}) bağımsız bölümü için kat planı ve resmi satış teklifini rica ediyorum.`
+                          )
+                        }
+                        className="flex-1 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap transition-colors"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        <span>Bu Mülk İçin Teklif & Kat Planı İste</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handlePrintUnitCard}
+                        className={`py-2.5 px-3.5 rounded-xl border text-xs font-medium flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${theme.surfaceBg} ${theme.borderClass} ${theme.textPrimary}`}
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                        <span>Bilgi Kartı Yazdır</span>
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="py-12 text-center text-sm">
+                    Detaylarını görmek için yukarıdaki listeden bir bağımsız bölüm seçin.
+                  </div>
+                )}
+              </div>
+
+              {/* RIGHT 6 COLS: FINANCIAL ENGINEERING ENGINE (PAYMENT SIMULATOR + SIDE COSTS & TAXES) */}
+              <div
+                id="financial-simulator"
+                className={`lg:col-span-6 rounded-2xl border p-6 flex flex-col justify-between space-y-5 scroll-mt-24 ${theme.cardBg} ${theme.borderClass} shadow-sm`}
+              >
+                <div className="space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <div className={`text-xs font-medium ${theme.accentText}`}>
+                        Finansal Mühendislik & Şeffaf Maliyet Analizi
+                      </div>
+                      <h3 className={`text-2xl font-semibold mt-0.5 ${theme.headingFontClass}`}>
+                        {selectedUnit ? `${selectedUnit.unit_number} Finansman Dosyası` : `${activeProject?.name || companyName} Planı`}
+                      </h3>
+                    </div>
+
+                    {/* 2-Mode Simulator Switcher */}
+                    <div className={`inline-flex p-1 rounded-xl border ${theme.surfaceBg} ${theme.borderClass}`}>
+                      <button
+                        type="button"
+                        onClick={() => setSimulatorTab("payment_plan")}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors whitespace-nowrap ${
+                          simulatorTab === "payment_plan" ? theme.accentBg : theme.textSecondary
+                        }`}
+                      >
+                        %0 Faiz Ödeme Planı
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSimulatorTab("tax_costs")}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors whitespace-nowrap ${
+                          simulatorTab === "tax_costs" ? theme.accentBg : theme.textSecondary
+                        }`}
+                      >
+                        Yan Maliyet & Vergiler
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Interactive Property Budget Control */}
+                  <div className={`p-4 rounded-xl border ${theme.surfaceBg} ${theme.borderClass} space-y-2.5`}>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className={theme.textSecondary}>Hesaplanan Mülk Bedeli (GBP £):</span>
+                      <div className="text-right font-mono tabular-nums">
+                        <span className="text-base font-semibold">{formatGbp(simulatorBudget)}</span>
+                        {displayCurrency !== "GBP" && (
+                          <span className={`ml-2 text-xs ${theme.textMuted}`}>
+                            (≈ {formatInSelectedCurrency(simulatorBudget)})
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <input
+                      type="range"
+                      min={115000}
+                      max={1250000}
+                      step={5000}
+                      value={simulatorBudget}
+                      onChange={e => setSimulatorBudget(Number(e.target.value))}
+                      className="w-full accent-[#B68D40] cursor-pointer"
+                    />
+                  </div>
+
+                  {simulatorTab === "payment_plan" ? (
+                    <div className="space-y-4">
+                      {/* Down Payment & Term Controls */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className={`p-3.5 rounded-xl border ${theme.surfaceBg} ${theme.borderClass} space-y-2`}>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className={theme.textSecondary}>Peşinat Oranı</span>
+                            <span className="font-mono font-semibold tabular-nums">%{customDownPct}</span>
+                          </div>
+                          <input
+                            type="range"
+                            min={30}
+                            max={75}
+                            step={5}
+                            value={customDownPct}
+                            onChange={e => setCustomDownPct(Number(e.target.value))}
+                            className="w-full accent-[#B68D40] cursor-pointer"
+                          />
+                        </div>
+
+                        <div className={`p-3.5 rounded-xl border ${theme.surfaceBg} ${theme.borderClass} space-y-2`}>
+                          <div className={`text-xs ${theme.textSecondary}`}>Faizsiz Taksit Vadesi</div>
+                          <div className="grid grid-cols-5 gap-1">
+                            {[12, 18, 24, 36, 48].map(m => (
+                              <button
+                                key={m}
+                                type="button"
+                                onClick={() => setCustomMonths(m)}
+                                className={`py-1.5 rounded-lg text-xs font-mono font-medium cursor-pointer transition-colors ${
+                                  customMonths === m
+                                    ? theme.accentBg
+                                    : `${theme.cardBg} border ${theme.borderClass} ${theme.textSecondary}`
+                                }`}
+                              >
+                                {m}A
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Payment Breakdown Rows */}
+                      <div className="space-y-2.5 text-xs">
+                        <div className={`flex justify-between py-2 border-b ${theme.borderClass}`}>
+                          <span className={theme.textSecondary}>Rezervasyon Kapora Depozitosu (Opsiyon Kilidi):</span>
+                          <span className="font-mono font-semibold tabular-nums">
+                            {formatGbp(financialBreakdown.reservationDeposit)}
+                          </span>
+                        </div>
+                        <div className={`flex justify-between py-2 border-b ${theme.borderClass}`}>
+                          <span className={theme.textSecondary}>
+                            Sözleşme Peşinatı (%{customDownPct} — Kapora Dahil):
+                          </span>
+                          <span className="font-mono font-semibold tabular-nums">
+                            {formatGbp(financialBreakdown.downPayment)}
+                          </span>
+                        </div>
+                        <div className={`flex justify-between py-2 border-b ${theme.borderClass}`}>
+                          <span className={theme.textSecondary}>
+                            Şirket İçi Faizsiz Kalan Anapara (%{100 - customDownPct}):
+                          </span>
+                          <span className="font-mono font-semibold tabular-nums">
+                            {formatGbp(financialBreakdown.remaining)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center py-2">
+                          <span className="font-medium">
+                            {customMonths} Ay Sabit Taksit (%0 Faiz):
+                          </span>
+                          <div className="text-right">
+                            <div className={`font-mono text-lg font-semibold tabular-nums ${theme.accentText}`}>
+                              {formatGbp(financialBreakdown.monthly)} / Ay
+                            </div>
+                            {displayCurrency !== "GBP" && (
+                              <div className={`text-[11px] font-mono ${theme.textMuted}`}>
+                                ≈ {formatInSelectedCurrency(financialBreakdown.monthly)} / Ay
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Rental Offset Projection */}
+                      <div className={`p-3.5 rounded-xl border ${theme.surfaceBg} ${theme.borderClass} flex items-center justify-between text-xs`}>
+                        <span className={theme.textSecondary}>
+                          Tahmini Yıllık Kira Getirisi (%{financialBreakdown.rentalYieldPct} GBP):
+                        </span>
+                        <span className="font-mono font-semibold text-emerald-700 dark:text-emerald-400 tabular-nums">
+                          ~{formatGbp(financialBreakdown.annualRentalIncome)} / Yıl
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    /* TAX & ACQUISITION SIDE-COSTS SIMULATOR */
+                    <div className="space-y-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setBuyerDeedRate(6)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium border cursor-pointer transition-colors ${
+                              buyerDeedRate === 6
+                                ? theme.accentBg
+                                : `${theme.surfaceBg} ${theme.borderClass} ${theme.textSecondary}`
+                            }`}
+                          >
+                            İlk Konut / Standart Tapu (%6)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setBuyerDeedRate(12)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium border cursor-pointer transition-colors ${
+                              buyerDeedRate === 12
+                                ? theme.accentBg
+                                : `${theme.surfaceBg} ${theme.borderClass} ${theme.textSecondary}`
+                            }`}
+                          >
+                            Yabancı / İkinci Konut (%12)
+                          </button>
+                        </div>
+
+                        <label className="flex items-center gap-1.5 text-xs cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={includeLegalFee}
+                            onChange={e => setIncludeLegalFee(e.target.checked)}
+                            className="w-3.5 h-3.5 accent-[#B68D40]"
+                          />
+                          <span className={theme.textSecondary}>Hukuki Tescil (£1.500)</span>
+                        </label>
+                      </div>
+
+                      <div className="space-y-2 text-xs">
+                        <div className={`flex justify-between py-2 border-b ${theme.borderClass}`}>
+                          <span className={theme.textSecondary}>Sözleşme Damga Pulu (%0,5 — Sözleşme Aşaması):</span>
+                          <span className="font-mono font-semibold tabular-nums">
+                            {formatGbp(financialBreakdown.stampDuty)}
+                          </span>
+                        </div>
+                        <div className={`flex justify-between py-2 border-b ${theme.borderClass}`}>
+                          <span className={theme.textSecondary}>Konut KDV Bedeli (%5 — Anahtar Tesliminde):</span>
+                          <span className="font-mono font-semibold tabular-nums">
+                            {formatGbp(financialBreakdown.vatAmount)}
+                          </span>
+                        </div>
+                        <div className={`flex justify-between py-2 border-b ${theme.borderClass}`}>
+                          <span className={theme.textSecondary}>
+                            Tapu Devir Harcı (%{buyerDeedRate} — Koçan Devri):
+                          </span>
+                          <span className="font-mono font-semibold tabular-nums">
+                            {formatGbp(financialBreakdown.deedTransferFee)}
+                          </span>
+                        </div>
+                        <div className={`flex justify-between py-2 border-b ${theme.borderClass}`}>
+                          <span className={theme.textSecondary}>Trafo & Altyapı Katkı Payı (Teslimde):</span>
+                          <span className="font-mono font-semibold tabular-nums">
+                            {formatGbp(financialBreakdown.transformerFee)}
+                          </span>
+                        </div>
+                        {includeLegalFee && (
+                          <div className={`flex justify-between py-2 border-b ${theme.borderClass}`}>
+                            <span className={theme.textSecondary}>Avukatlık & Tapu İzin Takip Ücreti (Tahmini):</span>
+                            <span className="font-mono font-semibold tabular-nums">
+                              {formatGbp(financialBreakdown.legalFee)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className={`p-4 rounded-xl border ${theme.surfaceBg} ${theme.borderClass} space-y-1.5`}>
+                        <div className="flex justify-between text-xs">
+                          <span className={theme.textSecondary}>Toplam Resmi Vergi & Yan Maliyetler:</span>
+                          <span className="font-mono font-semibold tabular-nums">
+                            {formatGbp(financialBreakdown.totalSideCosts)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center pt-1 border-t border-stone-200/70">
+                          <span className="text-xs font-semibold">Anahtar Teslim Toplam Yatırım Bütçesi:</span>
+                          <span className={`font-mono text-lg font-semibold tabular-nums ${theme.accentText}`}>
+                            {formatGbp(financialBreakdown.turnkeyTotal)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleWhatsAppDirect(
+                      `Merhaba ${companyName}, ${activeProject?.name || ""} ${
+                        selectedUnit ? `(${selectedUnit.unit_number} - ${selectedUnit.unit_type})` : ""
+                      } için ${formatGbp(simulatorBudget)} bütçeli %${customDownPct} peşinatlı ${customMonths} ay %0 faizli ödeme planı (Aylık ${formatGbp(
+                        financialBreakdown.monthly
+                      )}) ve tahmini ${formatGbp(
+                        financialBreakdown.totalSideCosts
+                      )} yan maliyet dosyası hakkında resmi teklif almak istiyorum.`
+                    )
+                  }
+                  className={`w-full py-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer ${theme.accentBg}`}
+                >
+                  <Calculator className="w-4 h-4" />
+                  <span>Bu Ödeme & Maliyet Dosyasını Resmi Teklife Dönüştür</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* =================================================================== */}
+      {/* 5. DESTINATION & LIFESTYLE SELLING + TRUST & PROOF OF DELIVERY      */}
+      {/* =================================================================== */}
+      {showLifestyleSection && activeProject && (
+        <section id="coastal-lifestyle" className="max-w-7xl mx-auto px-6 lg:px-12 py-16 space-y-12">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+            {/* Left 6 Cols: Sunlit Coastal Beach Club Photography */}
+            <div className="lg:col-span-6 relative rounded-2xl overflow-hidden border border-stone-200 min-h-[340px]">
+              <img
+                src={marinaLifestyleAsset}
+                alt="Akdeniz Özel Marina, Sahil Plajı & Beach Club Yaşamı"
+                referrerPolicy="no-referrer"
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent" />
+              <div className="absolute bottom-5 left-5 right-5 text-white space-y-1">
+                <div className="text-xs font-medium text-amber-200">
+                  Bölge & Yaşam Tarzı · {activeProject.sub_region}
+                </div>
+                <h3 className={`text-2xl font-semibold ${theme.headingFontClass}`}>
+                  Dört Mevsim Akdeniz Resort Ayrıcalığı
+                </h3>
+              </div>
+            </div>
+
+            {/* Right 6 Cols: Structured Social Facilities & Architectural Specs */}
+            <div className={`lg:col-span-6 rounded-2xl border p-6 lg:p-8 flex flex-col justify-between space-y-5 ${theme.cardBg} ${theme.borderClass}`}>
+              <div className="space-y-2">
+                <div className={`text-xs font-medium ${theme.accentText}`}>
+                  03. Bölgeyi & Yaşam Tarzını Deneyimleyin
+                </div>
+                <h2 className={`text-2xl lg:text-3xl font-semibold ${theme.headingFontClass}`}>
+                  {activeProject.name} — Sosyal Tesisler & Mimari Standartlar
+                </h2>
+                <p className={`text-sm leading-relaxed ${theme.textSecondary}`}>
+                  Özel kum plajlar, ısıtmalı kapalı havuzlar, spa & wellness merkezleri ve açık hava sinemasıyla yüksek kira doluluğu sağlayan entegre yaşam konsepti.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {[
+                  ...(activeProject.lifestyle_facilities?.beach_marina || []),
+                  ...(activeProject.lifestyle_facilities?.wellness_spa || []),
+                  ...(activeProject.lifestyle_facilities?.gastronomy || []),
+                  ...(activeProject.lifestyle_facilities?.entertainment || []),
+                  ...(activeProject.architectural_specs || [])
+                ]
+                  .slice(0, 8)
+                  .map((facility: string, fIdx: number) => (
+                    <div
+                      key={fIdx}
+                      className={`p-3.5 rounded-xl border flex items-start gap-2.5 ${theme.surfaceBg} ${theme.borderClass}`}
+                    >
+                      <span className={`font-mono text-xs font-semibold ${theme.accentText}`}>
+                        0{fIdx + 1}.
+                      </span>
+                      <div className="text-xs font-medium leading-snug">{facility}</div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Trust & Proof of Delivery Strip Across Projects */}
+          <div className={`rounded-2xl border p-6 lg:p-8 space-y-5 ${theme.cardBg} ${theme.borderClass}`}>
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+              <div>
+                <div className={`text-xs font-medium ${theme.accentText}`}>
+                  04. Kurumsal Güven & Teslimat Kanıtı
+                </div>
+                <h3 className={`text-2xl font-semibold mt-0.5 ${theme.headingFontClass}`}>
+                  Tamamlanmış Projeler & Şeffaf Şantiye İlerleme Raporu
+                </h3>
+              </div>
+              <div className={`text-xs ${theme.textMuted}`}>
+                1. Sınıf Müteahhitlik Lisansı · Onaylı İnşaat İzinleri & Tapu Güvencesi
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+              {projects.slice(0, 5).map(p => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => handleSelectProject(p, true)}
+                  className={`p-4 rounded-xl border text-left cursor-pointer transition-all space-y-2 ${theme.surfaceBg} ${theme.borderClass} hover:border-[#C5A059]`}
+                >
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold truncate pr-2">{p.name}</span>
+                    <span className="font-mono font-semibold text-emerald-700 dark:text-emerald-400">
+                      %{p.construction_progress}
+                    </span>
+                  </div>
+                  <div className="h-1.5 w-full rounded-full bg-stone-200 dark:bg-slate-800 overflow-hidden">
+                    <div
+                      className="h-full bg-emerald-600 rounded-full"
+                      style={{ width: `${Math.min(100, Number(p.construction_progress) || 0)}%` }}
+                    />
+                  </div>
+                  <div className={`text-[11px] ${theme.textMuted}`}>{p.completion_date}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* =================================================================== */}
+      {/* 6. ARCHITECTURAL VISUALIZATION & INTERIOR DESIGN GALLERY            */}
       {/* =================================================================== */}
       {savedDevConfig?.show_lora_showcase !== false && (
         <section
@@ -781,15 +1828,13 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
           className={`border-y py-14 ${theme.surfaceBg} ${theme.borderClass}`}
         >
           <div className="max-w-7xl mx-auto px-6 lg:px-12 space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
-              <div>
-                <div className={`text-xs font-semibold uppercase tracking-wider ${theme.accentText}`}>
-                  02. Mimari Görsel, Kat Kesiti & İç Mekan Tasarım Galerisi
-                </div>
-                <h2 className={`text-2xl lg:text-3xl font-bold mt-1 ${theme.headingFontClass}`}>
-                  Dış Cephe Konsepti, Kat Kesiti & İç Mekan Tasarımı
-                </h2>
+            <div>
+              <div className={`text-xs font-medium ${theme.accentText}`}>
+                05. Mimari Görsel, Kat Kesiti & İç Mekan Tasarım Galerisi
               </div>
+              <h2 className={`text-2xl lg:text-3xl font-semibold mt-1 ${theme.headingFontClass}`}>
+                Dış Cephe Konsepti, Kat Kesiti & İç Mekan Tasarımı
+              </h2>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -829,35 +1874,38 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
                     className={`group border overflow-hidden cursor-pointer flex flex-col justify-between ${theme.cardBg} ${theme.borderClass} ${cardInteractiveClass}`}
                   >
                     <div>
-                      <div className="relative aspect-video w-full overflow-hidden bg-slate-900">
+                      <div className="relative aspect-video w-full overflow-hidden bg-stone-200">
                         <img
                           src={resolvedImgUrl}
                           alt={vis.title}
                           referrerPolicy="no-referrer"
+                          onError={e => {
+                            (e.currentTarget as HTMLImageElement).src = resortHeroSunlitAsset;
+                          }}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/65 via-transparent to-transparent" />
                         <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-xs text-white">
-                          <span className="font-semibold text-[#C5A059]">
+                          <span className="font-medium text-amber-200">
                             0{vIdx + 1}. {vis.category || vis.loraUsed || "Mimari Görsel"}
                           </span>
-                          <span className="font-mono text-[11px] opacity-85">Tam Ekran İncele</span>
+                          <span className="font-mono text-[11px] opacity-90">Tam Ekran İncele</span>
                         </div>
                       </div>
                       <div className="p-4 space-y-1.5">
-                        <h4 className={`text-base font-bold ${theme.headingFontClass}`}>
+                        <h4 className={`text-base font-semibold ${theme.headingFontClass}`}>
                           {vis.title}
                         </h4>
-                        <p className={`text-xs line-clamp-2 ${theme.textSecondary}`}>
+                        <p className={`text-xs line-clamp-2 leading-relaxed ${theme.textSecondary}`}>
                           {vis.promptCommand}
                         </p>
                       </div>
                     </div>
                     <div
-                      className={`px-4 py-3 border-t ${theme.borderClass} flex items-center justify-between text-xs font-bold`}
+                      className={`px-4 py-3 border-t ${theme.borderClass} flex items-center justify-between text-xs font-medium`}
                     >
                       <span className={theme.accentText}>Yüksek Çözünürlüklü Görseli Aç</span>
-                      <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                      <ArrowUpRight className="w-4 h-4" />
                     </div>
                   </div>
                 );
@@ -868,245 +1916,17 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
       )}
 
       {/* =================================================================== */}
-      {/* 5. INDEPENDENT UNIT (KAPI NO) AVAILABILITY & %0 INTEREST SIMULATOR  */}
-      {/* =================================================================== */}
-      {showUnitMatrixSection && (
-        <section id="unit-availability" className="max-w-7xl mx-auto px-6 lg:px-12 py-16 space-y-8">
-          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 border-b pb-6 border-current/10">
-            <div className="space-y-2">
-              <div className={`text-xs font-semibold uppercase tracking-wider ${theme.accentText}`}>
-                03. Bağımsız Bölüm (Kapı No) Envanteri & Ödeme Planı Simülatörü
-              </div>
-              <h2 className={`text-2xl lg:text-4xl font-bold ${theme.headingFontClass}`}>
-                {activeProject?.name || "Proje"} — Canlı Kapı Numarası & Fiyat Çizelgesi
-              </h2>
-            </div>
-
-            {/* Filters for Unit Type and Status */}
-            <div className="flex flex-wrap items-center gap-2">
-              <select
-                value={unitTypeFilter}
-                onChange={e => setUnitTypeFilter(e.target.value)}
-                className={`px-3 py-2 rounded-xl border text-xs font-bold cursor-pointer ${theme.cardBg} ${theme.borderClass}`}
-              >
-                <option value="all">Tüm Mülk Tipleri ({projectUnits.length})</option>
-                {availableUnitTypes.map(tName => (
-                  <option key={tName} value={tName}>
-                    {tName}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={unitStatusFilter}
-                onChange={e => setUnitStatusFilter(e.target.value)}
-                className={`px-3 py-2 rounded-xl border text-xs font-bold cursor-pointer ${theme.cardBg} ${theme.borderClass}`}
-              >
-                <option value="all">Tüm Statüler</option>
-                <option value="available">Müsait</option>
-                <option value="negotiation">Sonuçlanmakta</option>
-                <option value="optioned">Opsiyonlu</option>
-                <option value="sold">Satıldı</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            {/* Left 8 Cols: Independent Door Number Table */}
-            <div className={`lg:col-span-8 rounded-2xl border overflow-hidden ${theme.cardBg} ${theme.borderClass}`}>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className={`border-b ${theme.surfaceBg} ${theme.borderClass} text-[11px] font-bold uppercase`}>
-                      <th className="py-3 px-4">Kapı No & Blok</th>
-                      <th className="py-3 px-4">Mülk Tipi</th>
-                      <th className="py-3 px-4">Brüt / Net Alan</th>
-                      <th className="py-3 px-4">Kat & Manzara</th>
-                      <th className="py-3 px-4">Liste Fiyatı</th>
-                      <th className="py-3 px-4">Durum</th>
-                      <th className="py-3 px-4 text-right">Ödeme Simülatörü</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-current/10">
-                    {filteredProjectUnits.map(u => {
-                      const statusLabel =
-                        u.status === "available"
-                          ? "Müsait"
-                          : u.status === "negotiation"
-                          ? "Sonuçlanmakta"
-                          : u.status === "optioned"
-                          ? "Opsiyonlu"
-                          : "Satıldı";
-                      const statusColor =
-                        u.status === "available"
-                          ? "text-emerald-500 font-bold"
-                          : u.status === "negotiation"
-                          ? "text-sky-400 font-bold"
-                          : u.status === "optioned"
-                          ? "text-amber-500 font-bold"
-                          : "text-rose-500 font-semibold";
-                      return (
-                        <tr key={u.id} className="hover:bg-current/5 transition-colors">
-                          <td className="py-3 px-4 whitespace-nowrap font-mono font-bold">
-                            {u.unit_number} · <span className="font-sans font-normal opacity-80">{u.block_name}</span>
-                          </td>
-                          <td className="py-3 px-4 font-semibold whitespace-nowrap">{u.unit_type}</td>
-                          <td className="py-3 px-4 font-mono tabular-nums whitespace-nowrap">
-                            {u.gross_sqm} m² / {u.net_sqm} m² (+{u.terrace_sqm}m²)
-                          </td>
-                          <td className="py-3 px-4">
-                            {u.floor_level} · <span className="opacity-75">{u.view_direction}</span>
-                          </td>
-                          <td className="py-3 px-4 font-mono font-black tabular-nums whitespace-nowrap">
-                            {formatGbp(u.price)}
-                          </td>
-                          <td className={`py-3 px-4 whitespace-nowrap ${statusColor}`}>{statusLabel}</td>
-                          <td className="py-3 px-4 text-right whitespace-nowrap">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedUnit(u);
-                                setSimulatorBudget(Number(u.price) || 225000);
-                              }}
-                              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer ${theme.accentBg}`}
-                            >
-                              <Calculator className="w-3 h-3" />
-                              <span>Taksit Hesapla</span>
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Right 4 Cols: %0 Interest Developer Payment Plan Calculator */}
-            <div className={`lg:col-span-4 rounded-2xl border p-6 space-y-5 ${theme.surfaceBg} ${theme.borderClass}`}>
-              <div className="space-y-1">
-                <div className={`text-xs font-semibold uppercase ${theme.accentText}`}>
-                  Şirket İçi %0 Faiz Ödeme Simülatörü
-                </div>
-                <h3 className={`text-xl font-bold ${theme.headingFontClass}`}>
-                  {activeProject?.name || companyName} Finansman Planı
-                </h3>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs">
-                  <span className={theme.textSecondary}>Seçili Bağımsız Bölüm / Bütçe (GBP):</span>
-                  <strong className="font-mono text-sm tabular-nums">{formatGbp(simulatorBudget)}</strong>
-                </div>
-                <input
-                  type="range"
-                  min={115000}
-                  max={1250000}
-                  step={5000}
-                  value={simulatorBudget}
-                  onChange={e => setSimulatorBudget(Number(e.target.value))}
-                  className="w-full accent-[#C5A059] cursor-pointer"
-                />
-              </div>
-
-              {(() => {
-                const downPct = Number(activeProject?.payment_plan?.down_payment_percent) || 35;
-                const months = Number(activeProject?.payment_plan?.installment_months) || 36;
-                const downPayment = Math.round((simulatorBudget * downPct) / 100);
-                const remaining = simulatorBudget - downPayment;
-                const monthly = Math.round(remaining / Math.max(1, months));
-                return (
-                  <div className="space-y-3 pt-2 border-t border-current/10 text-xs">
-                    <div className="flex justify-between py-1.5 border-b border-current/10">
-                      <span className={theme.textSecondary}>Sözleşme Peşinatı (%{downPct}):</span>
-                      <strong className="font-mono text-sm tabular-nums">{formatGbp(downPayment)}</strong>
-                    </div>
-                    <div className="flex justify-between py-1.5 border-b border-current/10">
-                      <span className={theme.textSecondary}>Faizsiz Kalan Anapara (%{100 - downPct}):</span>
-                      <strong className="font-mono text-sm tabular-nums">{formatGbp(remaining)}</strong>
-                    </div>
-                    <div className="flex justify-between py-1.5">
-                      <span className={theme.textSecondary}>{months} Ay Sabit Taksit (%0 Faiz):</span>
-                      <strong className={`font-mono text-base font-black tabular-nums ${theme.accentText}`}>
-                        {formatGbp(monthly)} / Ay
-                      </strong>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              <button
-                type="button"
-                onClick={() =>
-                  handleWhatsAppDirect(
-                    `Merhaba ${companyName}, ${activeProject?.name} projesinde ${formatGbp(
-                      simulatorBudget
-                    )} bütçeli ödeme planı hakkında detaylı teklif almak istiyorum.`
-                  )
-                }
-                className={`w-full py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer ${theme.accentBg}`}
-              >
-                <Calculator className="w-4 h-4" />
-                <span>Bu Ödeme Planını Resmi Teklife Dönüştür</span>
-              </button>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* =================================================================== */}
-      {/* 6. COASTAL LIFESTYLE, MARINA & COMMON AREAS SHOWCASE                */}
-      {/* =================================================================== */}
-      {showLifestyleSection && activeProject && (
-        <section
-          id="coastal-lifestyle"
-          className={`border-t py-16 ${theme.surfaceBg} ${theme.borderClass}`}
-        >
-          <div className="max-w-7xl mx-auto px-6 lg:px-12 space-y-8">
-            <div className="space-y-2 max-w-3xl">
-              <div className={`text-xs font-semibold uppercase tracking-wider ${theme.accentText}`}>
-                04. Ortak Alanlar, Özel Marina & Sosyal Yaşam Olanakları
-              </div>
-              <h2 className={`text-2xl lg:text-4xl font-bold ${theme.headingFontClass}`}>
-                {activeProject.name} — Resort Standartlarında Sosyal Tesisler
-              </h2>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {[
-                ...(activeProject.lifestyle_facilities?.beach_marina || []),
-                ...(activeProject.lifestyle_facilities?.wellness_spa || []),
-                ...(activeProject.lifestyle_facilities?.gastronomy || []),
-                ...(activeProject.lifestyle_facilities?.entertainment || []),
-                ...(activeProject.architectural_specs || [])
-              ]
-                .slice(0, 9)
-                .map((facility: string, fIdx: number) => (
-                  <div
-                    key={fIdx}
-                    className={`p-5 rounded-2xl border flex items-start gap-3.5 ${theme.cardBg} ${theme.borderClass}`}
-                  >
-                    <span className={`font-mono text-xs font-bold ${theme.accentText}`}>
-                      0{fIdx + 1}.
-                    </span>
-                    <div className="text-sm font-semibold leading-snug">{facility}</div>
-                  </div>
-                ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* =================================================================== */}
       {/* 7. VIP INVESTOR CONCIERGE & PRIVATE PRESENTATION BOOKING            */}
       {/* =================================================================== */}
       <section id="investor-concierge" className="max-w-7xl mx-auto px-6 lg:px-12 py-16">
-        <div className={`rounded-3xl border p-8 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-10 ${theme.cardBg} ${theme.borderClass}`}>
+        <div
+          className={`rounded-3xl border p-8 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-10 ${theme.cardBg} ${theme.borderClass} shadow-sm`}
+        >
           <div className="lg:col-span-5 space-y-5">
-            <div className={`text-xs font-semibold uppercase tracking-wider ${theme.accentText}`}>
-              05. VIP Yatırımcı İlişkileri & Mimari Sunum Merkezi
+            <div className={`text-xs font-medium ${theme.accentText}`}>
+              06. VIP Yatırımcı İlişkileri & Mimari Sunum Merkezi
             </div>
-            <h2 className={`text-2xl lg:text-4xl font-bold ${theme.headingFontClass}`}>
+            <h2 className={`text-2xl lg:text-4xl font-semibold ${theme.headingFontClass}`}>
               Özel Proje Sunumu & Yerinde İnceleme Randevusu
             </h2>
             <p className={`text-sm leading-relaxed ${theme.textSecondary}`}>
@@ -1116,11 +1936,11 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
             <div className="space-y-3 pt-2 text-sm">
               <div>
                 <div className={`text-xs ${theme.textMuted}`}>Doğrudan Satış & Yatırımcı Hattı</div>
-                <div className="font-mono font-bold text-base mt-0.5">{phoneContact}</div>
+                <div className="font-mono font-semibold text-base mt-0.5">{phoneContact}</div>
               </div>
               <div>
                 <div className={`text-xs ${theme.textMuted}`}>Merkez Satış Ofisi</div>
-                <div className="font-semibold mt-0.5">
+                <div className="font-medium mt-0.5">
                   Esentepe — Tatlısu Sahil Yolu, Girne, Kuzey Kıbrıs
                 </div>
               </div>
@@ -1130,16 +1950,17 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
           <div className="lg:col-span-7">
             {leadSubmitted ? (
               <div className={`p-8 rounded-2xl border text-center space-y-3 ${theme.surfaceBg} ${theme.borderClass}`}>
-                <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto" />
-                <h3 className="text-xl font-bold">Talebiniz Kaydedildi</h3>
+                <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto" />
+                <h3 className="text-xl font-semibold">Talebiniz Kaydedildi</h3>
                 <p className={`text-sm ${theme.textSecondary}`}>
-                  Sayın <strong>{leadForm.fullName}</strong>, <strong>{leadForm.preferredProject}</strong> projesi için{" "}
+                  Sayın <strong>{leadForm.fullName}</strong>, <strong>{leadForm.preferredProject}</strong>{" "}
+                  {leadForm.preferredUnit ? `(${leadForm.preferredUnit})` : ""} projesi için{" "}
                   {leadForm.presentationType} talebiniz alınmıştır. Yatırım ekibimiz en kısa sürede sizinle iletişime geçecektir.
                 </p>
                 <button
                   type="button"
                   onClick={() => setLeadSubmitted(false)}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold cursor-pointer ${theme.accentBg}`}
+                  className={`px-4 py-2 rounded-xl text-xs font-medium cursor-pointer ${theme.accentBg}`}
                 >
                   Yeni Talep Oluştur
                 </button>
@@ -1147,7 +1968,7 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
             ) : (
               <form onSubmit={handleLeadSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold mb-1.5">Adınız Soyadınız *</label>
+                  <label className="block text-xs font-medium mb-1.5">Adınız Soyadınız *</label>
                   <input
                     type="text"
                     required
@@ -1158,7 +1979,7 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold mb-1.5">Telefon / WhatsApp *</label>
+                  <label className="block text-xs font-medium mb-1.5">Telefon / WhatsApp *</label>
                   <input
                     type="tel"
                     required
@@ -1169,7 +1990,7 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold mb-1.5">Kurumsal E-Posta</label>
+                  <label className="block text-xs font-medium mb-1.5">Kurumsal E-Posta</label>
                   <input
                     type="email"
                     value={leadForm.email}
@@ -1179,11 +2000,11 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold mb-1.5">İlgilendiğiniz Masterplan Proje</label>
+                  <label className="block text-xs font-medium mb-1.5">İlgilendiğiniz Masterplan Proje</label>
                   <select
                     value={leadForm.preferredProject}
                     onChange={e => setLeadForm({ ...leadForm, preferredProject: e.target.value })}
-                    className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-semibold ${theme.surfaceBg} ${theme.borderClass}`}
+                    className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-medium ${theme.surfaceBg} ${theme.borderClass}`}
                   >
                     {projects.map(p => (
                       <option key={p.id} value={p.name}>
@@ -1193,11 +2014,11 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
                   </select>
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="block text-xs font-semibold mb-1.5">Sunum Tercihi</label>
+                  <label className="block text-xs font-medium mb-1.5">Sunum Tercihi</label>
                   <select
                     value={leadForm.presentationType}
                     onChange={e => setLeadForm({ ...leadForm, presentationType: e.target.value })}
-                    className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-semibold ${theme.surfaceBg} ${theme.borderClass}`}
+                    className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-medium ${theme.surfaceBg} ${theme.borderClass}`}
                   >
                     <option value="Canlı 3D Mimari Sunum & Online Görüşme">
                       Canlı 3D Mimari Sunum & Online Görüşme
@@ -1213,7 +2034,7 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
                 <div className="sm:col-span-2 pt-1">
                   <button
                     type="submit"
-                    className={`w-full py-3.5 rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer transition-all ${theme.accentBg}`}
+                    className={`w-full py-3.5 rounded-xl text-xs font-semibold tracking-wide cursor-pointer transition-all ${theme.accentBg}`}
                   >
                     VIP Sunum & Fiyat Dosyası Talep Et
                   </button>
@@ -1229,13 +2050,18 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
       {/* =================================================================== */}
       <footer className={`border-t py-10 px-6 lg:px-12 text-xs ${theme.surfaceBg} ${theme.borderClass} ${theme.textMuted}`}>
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="font-bold text-sm">{companyName}</div>
+          <div className={`font-semibold text-sm ${theme.textPrimary} ${theme.headingFontClass}`}>
+            {companyName}
+          </div>
           <div className="flex flex-wrap items-center gap-6">
             <a href="#masterplan-portfolio" className="hover:underline">
               Masterplan Projeler
             </a>
             <a href="#unit-availability" className="hover:underline">
-              Fiyat & Envanter
+              Canlı Envanter & Mülkler
+            </a>
+            <a href="#financial-simulator" className="hover:underline">
+              Ödeme & Vergi Motoru
             </a>
             <a href="#investor-concierge" className="hover:underline">
               İletişim
@@ -1245,51 +2071,66 @@ export const ModernDeveloperProjectLayout: React.FC<ModernDeveloperProjectLayout
         </div>
       </footer>
 
-      {/* Media Preview Lightbox Modal */}
+      {/* Media & Video Lightbox Modal */}
       {activeMediaModal && (
         <div
-          className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4"
           onClick={() => setActiveMediaModal(null)}
         >
           <div
-            className="bg-slate-900 border border-slate-700 rounded-2xl max-w-3xl w-full p-5 text-white space-y-4"
+            className="bg-white border border-stone-200 rounded-2xl max-w-4xl w-full p-5 text-slate-900 space-y-4 shadow-2xl"
             onClick={e => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div className="flex items-center justify-between border-b border-stone-200 pb-3">
               <div>
-                <div className="text-xs text-[#C5A059] font-semibold">
+                <div className="text-xs text-[#9A7228] font-medium">
                   {activeMediaModal.projectName} · {activeMediaModal.category}
                 </div>
-                <h4 className="text-base font-bold">{activeMediaModal.name}</h4>
+                <h4 className={`text-base font-semibold ${theme.headingFontClass}`}>{activeMediaModal.name}</h4>
               </div>
               <button
                 type="button"
                 onClick={() => setActiveMediaModal(null)}
-                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer"
+                className="p-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-slate-700 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="rounded-xl overflow-hidden bg-slate-950 border border-slate-800">
-              <img
-                src={activeMediaModal.cover || activeProject?.cover_image}
-                alt={activeMediaModal.name}
-                referrerPolicy="no-referrer"
-                className="w-full max-h-[420px] object-cover"
-              />
+            <div className="rounded-xl overflow-hidden bg-stone-100 border border-stone-200">
+              {activeMediaModal.videoUrl ? (
+                <video
+                  controls
+                  autoPlay
+                  playsInline
+                  poster={activeMediaModal.cover || resortHeroSunlitAsset}
+                  className="w-full max-h-[480px] object-cover"
+                >
+                  <source src={activeMediaModal.videoUrl} type="video/mp4" />
+                </video>
+              ) : (
+                <img
+                  src={activeMediaModal.cover || resortHeroSunlitAsset}
+                  alt={activeMediaModal.name}
+                  referrerPolicy="no-referrer"
+                  onError={e => {
+                    (e.currentTarget as HTMLImageElement).src = resortHeroSunlitAsset;
+                  }}
+                  className="w-full max-h-[480px] object-cover"
+                />
+              )}
             </div>
 
             <div className="flex items-center justify-between gap-3">
-              <span className="text-xs text-slate-400">
-                Ortak proje medya havuzu ile senkronize yüksek çözünürlüklü pafta / medya.
+              <span className="text-xs text-slate-500">
+                Ortak proje medya havuzu ile senkronize yüksek çözünürlüklü mimari görsel / doküman.
               </span>
               {activeMediaModal.url && (
                 <a
                   href={activeMediaModal.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-4 py-2 rounded-xl bg-[#C5A059] text-slate-950 text-xs font-bold whitespace-nowrap"
+                  className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium whitespace-nowrap"
                 >
                   Orijinal Dosyayı Aç
                 </a>

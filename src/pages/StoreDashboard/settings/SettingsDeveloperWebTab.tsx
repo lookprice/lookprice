@@ -82,7 +82,7 @@ export const SettingsDeveloperWebTab: React.FC<SettingsDeveloperWebTabProps> = (
   const activeThemeId: DeveloperThemeId =
     devConfig.theme_id && DEVELOPER_ARCHITECTURAL_THEMES[devConfig.theme_id as DeveloperThemeId]
       ? (devConfig.theme_id as DeveloperThemeId)
-      : "monolith_obsidian";
+      : "mediterranean_resort";
 
   const [showLivePreviewModal, setShowLivePreviewModal] = useState(false);
 

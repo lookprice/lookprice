@@ -471,8 +471,19 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const companyList = Array.isArray(companies) ? companies : [];
 
   useEffect(() => {
+    if (isDeveloperProject && typeof window !== 'undefined' && window.innerWidth >= 1024) {
+      if (localStorage.getItem('projectLP_sidebar_collapsed') !== 'true') {
+        setDesktopSidebarCollapsed(false);
+      }
+    }
+  }, [isDeveloperProject]);
+
+  useEffect(() => {
     localStorage.setItem('desktopSidebarCollapsed', desktopSidebarCollapsed.toString());
-  }, [desktopSidebarCollapsed]);
+    if (isDeveloperProject) {
+      localStorage.setItem('projectLP_sidebar_collapsed', desktopSidebarCollapsed.toString());
+    }
+  }, [desktopSidebarCollapsed, isDeveloperProject]);
 
   useEffect(() => {
     if (editingQuotation) {
@@ -1136,6 +1147,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         isPortfolio,
         isRealEstate,
         isAutomotive,
+        isDeveloperProject,
         isCafeRestaurant,
         isCorporateWebsite,
         currentStoreId,

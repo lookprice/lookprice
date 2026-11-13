@@ -13,6 +13,10 @@ import {
   Wand2
 } from "lucide-react";
 import { toast } from "sonner";
+import resortHeroSunlitAsset from "../../assets/images/cyprus_sunlit_resort_hero_1794578840052.jpg";
+import marinaLifestyleAsset from "../../assets/images/cyprus_marina_lifestyle_1794578840217.jpg";
+import penthouseInteriorSunlitAsset from "../../assets/images/cyprus_penthouse_interior_1794578840887.jpg";
+import masterplanAerialSunlitAsset from "../../assets/images/cyprus_villa_masterplan_1794578840537.jpg";
 import villaTwilightAsset from "../../assets/images/lora_cyprus_villa_twilight_1794568366585.jpg";
 import isometricFloorplanAsset from "../../assets/images/lora_isometric_3d_floorplan_1794568366571.jpg";
 import interiorStagingAsset from "../../assets/images/lora_virtual_staging_interior_1794568367265.jpg";
@@ -131,7 +135,11 @@ export interface ArchitecturalLoraModel {
 
 export function resolveArchitecturalAssetUrl(rawUrl: any): string {
   const s = String(rawUrl || "").trim();
-  if (!s) return villaTwilightAsset;
+  if (!s) return resortHeroSunlitAsset;
+  if (s.includes("cyprus_sunlit_resort_hero")) return resortHeroSunlitAsset;
+  if (s.includes("cyprus_marina_lifestyle")) return marinaLifestyleAsset;
+  if (s.includes("cyprus_penthouse_interior")) return penthouseInteriorSunlitAsset;
+  if (s.includes("cyprus_villa_masterplan")) return masterplanAerialSunlitAsset;
   if (s.includes("lora_cyprus_villa_twilight")) return villaTwilightAsset;
   if (s.includes("lora_isometric_3d_floorplan")) return isometricFloorplanAsset;
   if (s.includes("lora_virtual_staging_interior")) return interiorStagingAsset;
@@ -190,12 +198,12 @@ export const ARCHITECTURAL_LORA_MODELS: ArchitecturalLoraModel[] = [
     id: "cyprus_mediterranean_arch",
     name: "Dış Cephe & Sahil Masterplan Görünümü",
     category: "Dış Cephe & Masterplan",
-    defaultTitle: "Esentepe Sahil Villası — Gün Batımı Dış Cephe Görünümü",
+    defaultTitle: "Esentepe Sahil Rezidansları — Güneşli Dış Cephe & Lagün Havuzu",
     defaultPrompt:
-      "Doğal traverten taş cephe, sonsuzluk havuzu, Akdeniz gün batımı aydınlatması ve sahil palmiye peyzajı",
+      "Doğal traverten taş cephe, turkuaz lagün yüzme havuzu, Akdeniz gün ışığı ve sahil palmiye peyzajı",
     description:
-      "Doğal traverten taş cephe, sonsuzluk havuzu ve Akdeniz kıyı peyzajı ile bütünleşik mimari tasarım.",
-    previewImage: villaTwilightAsset
+      "Doğal traverten taş cephe, sonsuzluk havuzu ve Akdeniz kıyı peyzajı ile bütünleşik aydınlık mimari tasarım.",
+    previewImage: resortHeroSunlitAsset
   },
   {
     id: "isometric_3d_floorplan_v2",
@@ -212,12 +220,12 @@ export const ARCHITECTURAL_LORA_MODELS: ArchitecturalLoraModel[] = [
     id: "luxury_interior_staging",
     name: "İç Mekan & Panoramik Salon Tasarımı",
     category: "İç Mekan Tasarımı",
-    defaultTitle: "Akdeniz Sahil Rezidansı — Panoramik Salon & İç Mekan Tasarımı",
+    defaultTitle: "Akdeniz Sahil Penthouse — Panoramik Teras & Salon Tasarımı",
     defaultPrompt:
-      "Yüksek tavanlı panoramik deniz manzaralı salon, doğal mermer zemin, sıcak gizli aydınlatma ve modern mobilya kurgusu",
+      "Gün ışığı alan panoramik deniz manzaralı salon, doğal traverten mermer zemin ve özel teras havuzu",
     description:
-      "Akdeniz manzaralı panoramik salon, doğal taş zemin ve modern iç mekan kurgusu.",
-    previewImage: interiorStagingAsset
+      "Akdeniz manzaralı panoramik salon, doğal taş zemin ve aydınlık modern iç mekan kurgusu.",
+    previewImage: penthouseInteriorSunlitAsset
   }
 ];
 
@@ -275,12 +283,12 @@ export const UiverseAndLoraWebStudio: React.FC<UiverseAndLoraWebStudioProps> = (
   const defaultGallery = [
     {
       id: "arch-vis-1",
-      title: "Esentepe Sahil Villası — Gün Batımı Dış Cephe Görünümü",
+      title: "Esentepe Sahil Rezidansları — Güneşli Dış Cephe & Lagün Havuzu",
       loraUsed: "Dış Cephe & Masterplan",
       category: "Dış Cephe & Masterplan",
       promptCommand:
-        "Doğal traverten taş cephe, sonsuzluk havuzu ve Akdeniz kıyı peyzajı ile bütünleşik mimari tasarım.",
-      imageUrl: villaTwilightAsset,
+        "Doğal traverten taş cephe, sonsuzluk havuzu ve Akdeniz kıyı peyzajı ile bütünleşik aydınlık mimari tasarım.",
+      imageUrl: resortHeroSunlitAsset,
       createdAt: "Hazır Görsel"
     },
     {
@@ -295,12 +303,12 @@ export const UiverseAndLoraWebStudio: React.FC<UiverseAndLoraWebStudioProps> = (
     },
     {
       id: "arch-vis-3",
-      title: "Akdeniz Sahil Rezidansı — Panoramik Salon & İç Mekan",
+      title: "Akdeniz Sahil Penthouse — Panoramik Teras & Salon",
       loraUsed: "İç Mekan Tasarımı",
       category: "İç Mekan Tasarımı",
       promptCommand:
-        "Akdeniz manzaralı panoramik salon, doğal taş zemin ve modern iç mekan kurgusu.",
-      imageUrl: interiorStagingAsset,
+        "Akdeniz manzaralı panoramik salon, doğal taş zemin ve aydınlık modern iç mekan kurgusu.",
+      imageUrl: penthouseInteriorSunlitAsset,
       createdAt: "Hazır Görsel"
     }
   ];
