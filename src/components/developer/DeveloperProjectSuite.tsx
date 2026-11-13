@@ -273,6 +273,15 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
     facade_orientation: "Kuzey Akdeniz Cephesi"
   });
 
+  // Selectable & Addable Project Blocks State
+  const [customBlocksByProject, setCustomBlocksByProject] = useState<Record<number, string[]>>({});
+  const [isAddingCustomBlock, setIsAddingCustomBlock] = useState<boolean>(false);
+  const [newCustomBlockName, setNewCustomBlockName] = useState<string>("");
+
+  // Selected Media / Photos for Bulk Download & Bulk Delete
+  const [selectedPhotoIds, setSelectedPhotoIds] = useState<string[]>([]);
+  const [downloadingMedia, setDownloadingMedia] = useState<boolean>(false);
+
   const [revisingUnit, setRevisingUnit] = useState<any | null>(null);
   const [savingUnitRevision, setSavingUnitRevision] = useState(false);
 
@@ -779,12 +788,119 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
     setIsAddMediaOpen(true);
   };
 
-  const handleDeleteMediaFromProject = async (mediaId: string) => {
+  // Resolve visual thumbnail / display image URL for both local uploads and Google Drive links
+  const resolveDisplayImageUrl = (itemUrl?: string, fallbackCover?: string) => {
+    const raw = String(itemUrl || "").trim();
+    const fallback = fallbackCover || activeProjectDetail?.cover_image || "";
+    if (!raw) return fallback;
+    if (raw.startsWith("/api/storage/") || raw.startsWith("/uploads/") || raw.startsWith("data:image/")) {
+      return raw;
+    }
+    if (raw.includes("drive.google.com/drive/folders/")) {
+      return fallback;
+    }
+    const driveMatch =
+      raw.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || raw.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (driveMatch && driveMatch[1]) {
+      return `https://drive.google.com/thumbnail?id=${driveMatch[1]}&sz=w1200`;
+    }
+    if (raw.startsWith("http://") || raw.startsWith("https://")) {
+      return raw;
+    }
+    return fallback;
+  };
+
+  // Direct Local File Download to User's Computer (Single File)
+  const handleDirectLocalDownload = async (
+    url?: string,
+    rawFileName?: string,
+    fallbackCover?: string
+  ) => {
+    const effectiveUrl = String(url || fallbackCover || activeProjectDetail?.cover_image || "").trim();
+    if (!effectiveUrl) {
+      toast.error("İndirilecek dosya bağlantısı bulunamadı.");
+      return;
+    }
+
+    let safeFileName = String(rawFileName || "proje-dosyasi.jpg")
+      .replace(/[/\\?%*:|"<>]/g, "-")
+      .trim();
+    if (!safeFileName.match(/\.(jpg|jpeg|png|webp|mp4|mov|pdf|zip)$/i)) {
+      safeFileName = `${safeFileName}.jpg`;
+    }
+
+    try {
+      setDownloadingMedia(true);
+      let blob: Blob | null = null;
+
+      if (effectiveUrl.startsWith("/api/storage/") || effectiveUrl.startsWith("/uploads/")) {
+        const directRes = await fetch(effectiveUrl);
+        if (directRes.ok) {
+          blob = await directRes.blob();
+        }
+      }
+
+      if (!blob) {
+        const proxyUrl = `/api/developer-projects/download-asset?url=${encodeURIComponent(
+          effectiveUrl
+        )}&name=${encodeURIComponent(safeFileName)}&fallback=${encodeURIComponent(
+          fallbackCover || activeProjectDetail?.cover_image || ""
+        )}`;
+        const proxyRes = await fetch(proxyUrl);
+        if (proxyRes.ok) {
+          blob = await proxyRes.blob();
+        }
+      }
+
+      if (blob) {
+        const objectUrl = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = objectUrl;
+        link.download = safeFileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 2500);
+        toast.success(`"${safeFileName}" yerel dosyalara indirildi.`);
+      } else {
+        toast.error("Dosya yerel bilgisayara indirilemedi.");
+      }
+    } catch {
+      toast.error("İndirme sırasında hata oluştu.");
+    } finally {
+      setDownloadingMedia(false);
+    }
+  };
+
+  // Bulk Local Download for Selected Photos / Media Items
+  const handleBulkDownloadMedia = async (items: any[]) => {
+    if (!Array.isArray(items) || items.length === 0) {
+      toast.error("Lütfen indirilecek en az bir görsel seçin.");
+      return;
+    }
+    toast.info(`${items.length} adet görsel sırayla yerel dosyalara indiriliyor...`);
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      await handleDirectLocalDownload(
+        item.url || activeProjectDetail?.cover_image,
+        item.name || `gorsel-${i + 1}.jpg`,
+        activeProjectDetail?.cover_image
+      );
+      if (i < items.length - 1) {
+        await new Promise(r => setTimeout(r, 250));
+      }
+    }
+  };
+
+  const handleDeleteMediaFromProject = async (mediaId: string, mediaName?: string) => {
     if (!activeProjectDetail) return;
     try {
       const sid = storeId || user?.store_id || 1;
+      const nameParam = mediaName ? `&name=${encodeURIComponent(mediaName)}` : "";
       const res = await fetch(
-        `/api/developer-projects/projects/${activeProjectDetail.id}/media/${mediaId}?store_id=${sid}`,
+        `/api/developer-projects/projects/${activeProjectDetail.id}/media/${encodeURIComponent(
+          mediaId || "by_name"
+        )}?store_id=${sid}${nameParam}`,
         {
           method: "DELETE",
           headers: getAuthHeaders()
@@ -794,10 +910,44 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
         const updatedProj = await res.json();
         setProjects(prev => prev.map(p => (p.id === updatedProj.id ? updatedProj : p)));
         setActiveProjectDetail(updatedProj);
-        toast.success("Dosya kaldırıldı.");
+        setSelectedPhotoIds(prev => prev.filter(id => id !== String(mediaId)));
+        if (previewAsset && (previewAsset.id === mediaId || previewAsset.name?.includes(mediaName || ""))) {
+          setPreviewAsset(null);
+        }
+        toast.success("Görsel / dosya projeden silindi.");
+      } else {
+        toast.error("Dosya silinemedi.");
       }
     } catch {
       toast.error("Dosya silinemedi.");
+    }
+  };
+
+  const handleBulkDeleteMediaFromProject = async (items: any[]) => {
+    if (!activeProjectDetail || !Array.isArray(items) || items.length === 0) return;
+    try {
+      const sid = storeId || user?.store_id || 1;
+      const res = await fetch(
+        `/api/developer-projects/projects/${activeProjectDetail.id}/media/bulk-delete?store_id=${sid}`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            store_id: sid,
+            mediaIds: items.map(m => String(m.id || "")).filter(Boolean),
+            mediaNames: items.map(m => String(m.name || "")).filter(Boolean)
+          })
+        }
+      );
+      if (res.ok) {
+        const updatedProj = await res.json();
+        setProjects(prev => prev.map(p => (p.id === updatedProj.id ? updatedProj : p)));
+        setActiveProjectDetail(updatedProj);
+        setSelectedPhotoIds([]);
+        toast.success(`${items.length} adet seçili görsel silindi.`);
+      }
+    } catch {
+      toast.error("Toplu silme sırasında hata oluştu.");
     }
   };
 
@@ -1268,8 +1418,34 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
   }, [units, activeProjectId]);
 
   const availableBlocks = useMemo(() => {
-    return Array.from(new Set(selectedProjectUnits.map(u => String(u.block_name || "").trim()).filter(Boolean)));
-  }, [selectedProjectUnits]);
+    const unitBlocks = selectedProjectUnits
+      .map(u => String(u.block_name || "").trim())
+      .filter(Boolean);
+    const customBlocks = customBlocksByProject[activeProjectId] || [];
+    const fallbackDefaults = ["A Blok (Sahil)", "B Blok (Merkez)", "C Blok (Deniz Cephesi)", "VIP Villa Etabı"];
+    return Array.from(new Set([...unitBlocks, ...customBlocks, ...fallbackDefaults]));
+  }, [selectedProjectUnits, customBlocksByProject, activeProjectId]);
+
+  const handleConfirmAddCustomBlock = (targetProjId: number, onSelectBlock?: (blk: string) => void) => {
+    const clean = newCustomBlockName.trim();
+    if (!clean) {
+      toast.error("Lütfen eklenecek blok adını yazın.");
+      return;
+    }
+    setCustomBlocksByProject(prev => {
+      const existing = prev[targetProjId] || [];
+      return {
+        ...prev,
+        [targetProjId]: Array.from(new Set([clean, ...existing]))
+      };
+    });
+    if (onSelectBlock) {
+      onSelectBlock(clean);
+    }
+    setNewCustomBlockName("");
+    setIsAddingCustomBlock(false);
+    toast.success(`"${clean}" blok listesine eklendi ve seçildi.`);
+  };
 
   const availableUnitTypes = useMemo(() => {
     return Array.from(new Set(selectedProjectUnits.map(u => String(u.unit_type || "").trim()).filter(Boolean)));
@@ -1392,18 +1568,46 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
       ? activeProjectDetail.media_vault
       : [];
 
+    const isSharedOrDefaultMedia = (m: any) =>
+      !m.unit_type_match ||
+      m.unit_type_match === "ALL" ||
+      m.unit_type_match === "__COMMON_AREA__" ||
+      m.unit_type_match === "COMMON_AREAS";
+
     const generalPhotos = vault.filter(
-      m => m.type === "photos" || String(m.category || "").toLowerCase().includes("görsel")
+      m =>
+        isSharedOrDefaultMedia(m) &&
+        (m.type === "photos" ||
+          m.media_role === "photo" ||
+          String(m.category || "").toLowerCase().includes("görsel"))
     );
     const generalVideos = vault.filter(
-      m => m.type === "video" || String(m.category || "").toLowerCase().includes("video")
+      m =>
+        isSharedOrDefaultMedia(m) &&
+        (m.type === "video" ||
+          m.media_role === "video" ||
+          String(m.category || "").toLowerCase().includes("video"))
     );
     const generalFloorplans = vault.filter(
       m =>
-        m.type === "masterplan" ||
-        String(m.category || "").toLowerCase().includes("plan") ||
-        String(m.name || "").toLowerCase().includes("floor")
+        isSharedOrDefaultMedia(m) &&
+        (m.type === "masterplan" ||
+          m.media_role === "floorplan" ||
+          String(m.category || "").toLowerCase().includes("plan") ||
+          String(m.name || "").toLowerCase().includes("floor"))
     );
+
+    const mergeUniqueMedia = (specificList: any[], defaultList: any[]) => {
+      const seen = new Set<string>();
+      const combined: any[] = [];
+      for (const item of [...specificList, ...defaultList]) {
+        const key = String(item.id || item.name || item.url || "");
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        combined.push(item);
+      }
+      return combined;
+    };
 
     selectedProjectUnits.forEach(u => {
       const ut = String(u.unit_type || "Standart Daire").trim();
@@ -1439,9 +1643,9 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
           floors: [],
           views: [],
           units: [],
-          matchedPhotos: exactPhotos.length > 0 ? exactPhotos : generalPhotos.slice(0, 2),
-          matchedVideos: exactVideos.length > 0 ? exactVideos : generalVideos.slice(0, 2),
-          matchedFloorplans: exactFloorplans.length > 0 ? exactFloorplans : generalFloorplans.slice(0, 2)
+          matchedPhotos: mergeUniqueMedia(exactPhotos, generalPhotos),
+          matchedVideos: mergeUniqueMedia(exactVideos, generalVideos),
+          matchedFloorplans: mergeUniqueMedia(exactFloorplans, generalFloorplans)
         });
       }
       const entry = map.get(ut)!;
@@ -2845,26 +3049,8 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                             </div>
                           </div>
 
-                          {/* Single-Row Share & Upload Actions for Selected Property Type */}
+                          {/* Single-Row Share Action for Selected Property Type (No duplicate Medya Ekle or Paketi Kopyala) */}
                           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => openUploadForTarget(pt.unit_type, "photo")}
-                              className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap"
-                            >
-                              <Upload className="w-3 h-3 text-indigo-600" />
-                              <span>+ Medya Ekle</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => handleSharePropertyTypePackage(pt, "copy")}
-                              className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap"
-                            >
-                              <Copy className="w-3 h-3" />
-                              <span>Paketi Kopyala</span>
-                            </button>
-
                             <button
                               type="button"
                               onClick={() => handleSharePropertyTypePackage(pt, "whatsapp")}
@@ -2947,64 +3133,219 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                           {propertyTypeLayer !== "units" && (
                             <div
                               className={`grid grid-cols-1 ${
-                                propertyTypeLayer === "overview" ? "md:grid-cols-3" : "md:grid-cols-1"
+                                propertyTypeLayer === "overview" ? "lg:grid-cols-12" : "md:grid-cols-1"
                               } gap-3`}
                             >
-                              {/* PHOTOS */}
-                              {(propertyTypeLayer === "overview" || propertyTypeLayer === "photos") && (
-                                <div className="bg-slate-50/70 rounded-xl border border-slate-200 p-3 space-y-2 flex flex-col justify-between">
-                                  <div className="space-y-1.5">
-                                    <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
-                                      <span className="text-xs font-black text-slate-900 flex items-center gap-1.5">
-                                        <ImageIcon className="w-3.5 h-3.5 text-slate-700" />
-                                        <span>Görseller ({pt.matchedPhotos.length})</span>
-                                      </span>
-                                      <button
-                                        type="button"
-                                        onClick={() => openUploadForTarget(pt.unit_type, "photo")}
-                                        className="text-[11px] font-bold text-indigo-600 hover:underline cursor-pointer"
-                                      >
-                                        + Resim Ekle
-                                      </button>
-                                    </div>
+                              {/* PHOTOS (GRID THUMBNAIL VIEW + MULTI-SELECT BULK DOWNLOAD & DELETE) */}
+                              {(propertyTypeLayer === "overview" || propertyTypeLayer === "photos") &&
+                                (() => {
+                                  const allPtPhotoKeys = pt.matchedPhotos.map((ph: any, idx: number) =>
+                                    String(ph.id || ph.name || idx)
+                                  );
+                                  const selectedInPt = pt.matchedPhotos.filter((ph: any, idx: number) =>
+                                    selectedPhotoIds.includes(String(ph.id || ph.name || idx))
+                                  );
+                                  const allSelectedInPt =
+                                    allPtPhotoKeys.length > 0 &&
+                                    allPtPhotoKeys.every((k: string) => selectedPhotoIds.includes(k));
 
-                                    {pt.matchedPhotos.map((ph: any, idx: number) => (
-                                      <div
-                                        key={idx}
-                                        className="flex items-center justify-between gap-2 bg-white rounded-lg p-2 text-xs border border-slate-200"
-                                      >
-                                        <span className="font-semibold text-slate-800 truncate">
-                                          {ph.name}
-                                        </span>
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            setPreviewAsset({
-                                              name: `${pt.unit_type} — ${ph.name}`,
-                                              category: `${pt.unit_type} Görseli`,
-                                              type: "photos",
-                                              url: ph.url || activeProjectDetail.cover_image,
-                                              cover:
-                                                ph.url?.startsWith("/api/storage/") ||
-                                                ph.url?.startsWith("http")
-                                                  ? ph.url
-                                                  : activeProjectDetail.cover_image,
-                                              projectName: activeProjectDetail.name
-                                            })
-                                          }
-                                          className="px-2.5 py-0.5 bg-slate-100 hover:bg-slate-900 text-slate-800 hover:text-white rounded text-[11px] font-bold cursor-pointer shrink-0 transition-colors"
+                                  const toggleSelectAllPtPhotos = () => {
+                                    if (allSelectedInPt) {
+                                      setSelectedPhotoIds(prev =>
+                                        prev.filter(k => !allPtPhotoKeys.includes(k))
+                                      );
+                                    } else {
+                                      setSelectedPhotoIds(prev =>
+                                        Array.from(new Set([...prev, ...allPtPhotoKeys]))
+                                      );
+                                    }
+                                  };
+
+                                  return (
+                                    <div
+                                      className={`bg-slate-50/70 rounded-xl border border-slate-200 p-3 space-y-2.5 flex flex-col justify-between ${
+                                        propertyTypeLayer === "overview" ? "lg:col-span-6" : ""
+                                      }`}
+                                    >
+                                      <div className="space-y-2">
+                                        <div className="flex flex-wrap items-center justify-between gap-1.5 border-b border-slate-200 pb-2">
+                                          <span className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                                            <ImageIcon className="w-3.5 h-3.5 text-indigo-600" />
+                                            <span>Görseller ({pt.matchedPhotos.length})</span>
+                                          </span>
+
+                                          <div className="flex flex-wrap items-center gap-1.5">
+                                            {pt.matchedPhotos.length > 0 && (
+                                              <button
+                                                type="button"
+                                                onClick={toggleSelectAllPtPhotos}
+                                                className="px-2 py-0.5 rounded bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-[10px] font-bold cursor-pointer"
+                                              >
+                                                {allSelectedInPt ? "Seçimi Kaldır" : "Tümünü Seç"}
+                                              </button>
+                                            )}
+
+                                            {selectedInPt.length > 0 && (
+                                              <>
+                                                <button
+                                                  type="button"
+                                                  disabled={downloadingMedia}
+                                                  onClick={() => handleBulkDownloadMedia(selectedInPt)}
+                                                  className="px-2 py-0.5 rounded bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                                                >
+                                                  <Download className="w-3 h-3" />
+                                                  <span>Seçilenleri İndir ({selectedInPt.length})</span>
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleBulkDeleteMediaFromProject(selectedInPt)}
+                                                  className="px-2 py-0.5 rounded bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                                                >
+                                                  <Trash2 className="w-3 h-3" />
+                                                  <span>Sil ({selectedInPt.length})</span>
+                                                </button>
+                                              </>
+                                            )}
+
+                                            <button
+                                              type="button"
+                                              onClick={() => openUploadForTarget(pt.unit_type, "photo")}
+                                              className="px-2 py-0.5 rounded bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-[11px] font-bold cursor-pointer"
+                                            >
+                                              + Resim Ekle
+                                            </button>
+                                          </div>
+                                        </div>
+
+                                        {/* OPTIMUM GRID VIEW FOR PHOTOS */}
+                                        <div
+                                          className={`grid ${
+                                            propertyTypeLayer === "photos"
+                                              ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4"
+                                              : "grid-cols-2 sm:grid-cols-2"
+                                          } gap-2.5`}
                                         >
-                                          Aç
-                                        </button>
+                                          {pt.matchedPhotos.map((ph: any, idx: number) => {
+                                            const photoKey = String(ph.id || ph.name || idx);
+                                            const isChecked = selectedPhotoIds.includes(photoKey);
+                                            const thumbUrl = resolveDisplayImageUrl(
+                                              ph.url,
+                                              activeProjectDetail.cover_image
+                                            );
+                                            const openPhotoPreview = () =>
+                                              setPreviewAsset({
+                                                id: ph.id,
+                                                rawName: ph.name,
+                                                name: `${pt.unit_type} — ${ph.name}`,
+                                                category: `${pt.unit_type} Görseli`,
+                                                type: "photos",
+                                                url: ph.url || activeProjectDetail.cover_image,
+                                                cover: thumbUrl,
+                                                projectName: activeProjectDetail.name
+                                              });
+
+                                            return (
+                                              <div
+                                                key={photoKey}
+                                                className={`group rounded-xl bg-white border overflow-hidden shadow-2xs transition-all flex flex-col justify-between ${
+                                                  isChecked
+                                                    ? "border-indigo-600 ring-2 ring-indigo-500/20"
+                                                    : "border-slate-200 hover:border-slate-300"
+                                                }`}
+                                              >
+                                                {/* Image Thumbnail Container */}
+                                                <div
+                                                  onClick={openPhotoPreview}
+                                                  className="relative h-28 sm:h-32 w-full bg-slate-100 overflow-hidden cursor-pointer"
+                                                >
+                                                  <img
+                                                    src={thumbUrl}
+                                                    alt={ph.name}
+                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                                  />
+                                                  {/* Multi-Select Checkbox */}
+                                                  <label
+                                                    onClick={e => e.stopPropagation()}
+                                                    className="absolute top-2 left-2 z-10 w-5 h-5 rounded-md bg-white/95 border border-slate-300 shadow-xs flex items-center justify-center cursor-pointer"
+                                                    title="Çoklu indirme veya silme için seç"
+                                                  >
+                                                    <input
+                                                      type="checkbox"
+                                                      checked={isChecked}
+                                                      onChange={() => {
+                                                        setSelectedPhotoIds(prev =>
+                                                          prev.includes(photoKey)
+                                                            ? prev.filter(id => id !== photoKey)
+                                                            : [...prev, photoKey]
+                                                        );
+                                                      }}
+                                                      className="w-3.5 h-3.5 accent-indigo-600 cursor-pointer"
+                                                    />
+                                                  </label>
+                                                </div>
+
+                                                {/* Card Bottom Bar: Clickable Title + Eye + Download + Delete Icons */}
+                                                <div className="p-2 flex items-center justify-between gap-1.5 bg-white border-t border-slate-100">
+                                                  <button
+                                                    type="button"
+                                                    onClick={openPhotoPreview}
+                                                    title={`${ph.name} — Önizlemek için tıklayın`}
+                                                    className="text-[11px] font-bold text-slate-800 hover:text-indigo-600 truncate text-left cursor-pointer flex-1"
+                                                  >
+                                                    {ph.name}
+                                                  </button>
+
+                                                  <div className="flex items-center gap-1 shrink-0">
+                                                    <button
+                                                      type="button"
+                                                      onClick={openPhotoPreview}
+                                                      title="Önizleme"
+                                                      className="p-1 rounded-md bg-slate-100 hover:bg-indigo-600 text-slate-700 hover:text-white cursor-pointer transition-colors"
+                                                    >
+                                                      <Eye className="w-3.5 h-3.5" />
+                                                    </button>
+                                                    <button
+                                                      type="button"
+                                                      onClick={() =>
+                                                        handleDirectLocalDownload(
+                                                          ph.url,
+                                                          ph.name,
+                                                          activeProjectDetail.cover_image
+                                                        )
+                                                      }
+                                                      title="Yerel Dosyalara İndir"
+                                                      className="p-1 rounded-md bg-slate-100 hover:bg-emerald-600 text-slate-700 hover:text-white cursor-pointer transition-colors"
+                                                    >
+                                                      <Download className="w-3.5 h-3.5" />
+                                                    </button>
+                                                    <button
+                                                      type="button"
+                                                      onClick={() =>
+                                                        handleDeleteMediaFromProject(ph.id, ph.name)
+                                                      }
+                                                      title="Resmi Sil"
+                                                      className="p-1 rounded-md bg-slate-100 hover:bg-rose-600 text-slate-500 hover:text-white cursor-pointer transition-colors"
+                                                    >
+                                                      <Trash2 className="w-3.5 h-3.5" />
+                                                    </button>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
                                       </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
+                                    </div>
+                                  );
+                                })()}
 
                               {/* VIDEOS */}
                               {(propertyTypeLayer === "overview" || propertyTypeLayer === "videos") && (
-                                <div className="bg-slate-50/70 rounded-xl border border-slate-200 p-3 space-y-2 flex flex-col justify-between">
+                                <div
+                                  className={`bg-slate-50/70 rounded-xl border border-slate-200 p-3 space-y-2 flex flex-col justify-between ${
+                                    propertyTypeLayer === "overview" ? "lg:col-span-3" : ""
+                                  }`}
+                                >
                                   <div className="space-y-1.5">
                                     <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
                                       <span className="text-xs font-black text-slate-900 flex items-center gap-1.5">
@@ -3020,40 +3361,80 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                                       </button>
                                     </div>
 
-                                    {pt.matchedVideos.map((vid: any, idx: number) => (
-                                      <div
-                                        key={idx}
-                                        className="flex items-center justify-between gap-2 bg-white rounded-lg p-2 text-xs border border-slate-200"
-                                      >
-                                        <span className="font-semibold text-slate-800 truncate">
-                                          {vid.name}
-                                        </span>
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            setPreviewAsset({
-                                              name: `${pt.unit_type} — ${vid.name}`,
-                                              category: `${pt.unit_type} Tanıtım Videosu`,
-                                              type: "video",
-                                              url: vid.url || activeProjectDetail.cover_image,
-                                              cover: activeProjectDetail.cover_image,
-                                              projectName: activeProjectDetail.name
-                                            })
-                                          }
-                                          className="px-2.5 py-0.5 bg-slate-100 hover:bg-slate-900 text-slate-800 hover:text-white rounded text-[11px] font-bold cursor-pointer shrink-0 transition-colors"
+                                    {pt.matchedVideos.map((vid: any, idx: number) => {
+                                      const openVideoPreview = () =>
+                                        setPreviewAsset({
+                                          id: vid.id,
+                                          rawName: vid.name,
+                                          name: `${pt.unit_type} — ${vid.name}`,
+                                          category: `${pt.unit_type} Tanıtım Videosu`,
+                                          type: "video",
+                                          url: vid.url || activeProjectDetail.cover_image,
+                                          cover: activeProjectDetail.cover_image,
+                                          projectName: activeProjectDetail.name
+                                        });
+                                      return (
+                                        <div
+                                          key={vid.id || idx}
+                                          className="flex items-center justify-between gap-2 bg-white rounded-lg p-2 text-xs border border-slate-200"
                                         >
-                                          İzle
-                                        </button>
-                                      </div>
-                                    ))}
+                                          <button
+                                            type="button"
+                                            onClick={openVideoPreview}
+                                            title={`${vid.name} — Önizlemek için tıklayın`}
+                                            className="font-semibold text-slate-800 hover:text-indigo-600 truncate text-left cursor-pointer flex-1"
+                                          >
+                                            {vid.name}
+                                          </button>
+                                          <div className="flex items-center gap-1 shrink-0">
+                                            <button
+                                              type="button"
+                                              onClick={openVideoPreview}
+                                              title="Önizleme"
+                                              className="p-1 rounded-md bg-slate-100 hover:bg-indigo-600 text-slate-700 hover:text-white cursor-pointer transition-colors"
+                                            >
+                                              <Eye className="w-3.5 h-3.5" />
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                handleDirectLocalDownload(
+                                                  vid.url,
+                                                  vid.name,
+                                                  activeProjectDetail.cover_image
+                                                )
+                                              }
+                                              title="Yerel Dosyalara İndir"
+                                              className="p-1 rounded-md bg-slate-100 hover:bg-emerald-600 text-slate-700 hover:text-white cursor-pointer transition-colors"
+                                            >
+                                              <Download className="w-3.5 h-3.5" />
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                handleDeleteMediaFromProject(vid.id, vid.name)
+                                              }
+                                              title="Videoyu Sil"
+                                              className="p-1 rounded-md bg-slate-100 hover:bg-rose-600 text-slate-500 hover:text-white cursor-pointer transition-colors"
+                                            >
+                                              <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
                                   </div>
                                 </div>
                               )}
 
-                              {/* FLOORPLANS & 2D/3D */}
+                              {/* FLOORPLANS */}
                               {(propertyTypeLayer === "overview" ||
                                 propertyTypeLayer === "floorplans") && (
-                                <div className="bg-slate-50/70 rounded-xl border border-slate-200 p-3 space-y-2 flex flex-col justify-between">
+                                <div
+                                  className={`bg-slate-50/70 rounded-xl border border-slate-200 p-3 space-y-2 flex flex-col justify-between ${
+                                    propertyTypeLayer === "overview" ? "lg:col-span-3" : ""
+                                  }`}
+                                >
                                   <div className="space-y-1.5">
                                     <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
                                       <span className="text-xs font-black text-slate-900 flex items-center gap-1.5">
@@ -3069,32 +3450,72 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                                       </button>
                                     </div>
 
-                                    {pt.matchedFloorplans.map((fp: any, idx: number) => (
-                                      <div
-                                        key={idx}
-                                        className="flex items-center justify-between gap-2 bg-white rounded-lg p-2 text-xs border border-slate-200"
-                                      >
-                                        <span className="font-semibold text-slate-800 truncate">
-                                          {fp.name}
-                                        </span>
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            setPreviewAsset({
-                                              name: `${pt.unit_type} — ${fp.name}`,
-                                              category: `${pt.unit_type} Teknik Kat Planı`,
-                                              type: "pdf",
-                                              url: fp.url || activeProjectDetail.cover_image,
-                                              cover: activeProjectDetail.cover_image,
-                                              projectName: activeProjectDetail.name
-                                            })
-                                          }
-                                          className="px-2.5 py-0.5 bg-slate-100 hover:bg-slate-900 text-slate-800 hover:text-white rounded text-[11px] font-bold cursor-pointer shrink-0 transition-colors"
+                                    {pt.matchedFloorplans.map((fp: any, idx: number) => {
+                                      const fpThumb = resolveDisplayImageUrl(
+                                        fp.url,
+                                        activeProjectDetail.cover_image
+                                      );
+                                      const openFpPreview = () =>
+                                        setPreviewAsset({
+                                          id: fp.id,
+                                          rawName: fp.name,
+                                          name: `${pt.unit_type} — ${fp.name}`,
+                                          category: `${pt.unit_type} Teknik Kat Planı`,
+                                          type: "pdf",
+                                          url: fp.url || activeProjectDetail.cover_image,
+                                          cover: fpThumb,
+                                          projectName: activeProjectDetail.name
+                                        });
+                                      return (
+                                        <div
+                                          key={fp.id || idx}
+                                          className="flex items-center justify-between gap-2 bg-white rounded-lg p-2 text-xs border border-slate-200"
                                         >
-                                          Pafta Aç
-                                        </button>
-                                      </div>
-                                    ))}
+                                          <button
+                                            type="button"
+                                            onClick={openFpPreview}
+                                            title={`${fp.name} — Önizlemek için tıklayın`}
+                                            className="font-semibold text-slate-800 hover:text-indigo-600 truncate text-left cursor-pointer flex-1"
+                                          >
+                                            {fp.name}
+                                          </button>
+                                          <div className="flex items-center gap-1 shrink-0">
+                                            <button
+                                              type="button"
+                                              onClick={openFpPreview}
+                                              title="Önizleme"
+                                              className="p-1 rounded-md bg-slate-100 hover:bg-indigo-600 text-slate-700 hover:text-white cursor-pointer transition-colors"
+                                            >
+                                              <Eye className="w-3.5 h-3.5" />
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                handleDirectLocalDownload(
+                                                  fp.url,
+                                                  fp.name,
+                                                  activeProjectDetail.cover_image
+                                                )
+                                              }
+                                              title="Yerel Dosyalara İndir"
+                                              className="p-1 rounded-md bg-slate-100 hover:bg-emerald-600 text-slate-700 hover:text-white cursor-pointer transition-colors"
+                                            >
+                                              <Download className="w-3.5 h-3.5" />
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                handleDeleteMediaFromProject(fp.id, fp.name)
+                                              }
+                                              title="Kat Çizimini Sil"
+                                              className="p-1 rounded-md bg-slate-100 hover:bg-rose-600 text-slate-500 hover:text-white cursor-pointer transition-colors"
+                                            >
+                                              <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
                                   </div>
                                 </div>
                               )}
@@ -3128,24 +3549,6 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
-                      <button
-                        type="button"
-                        onClick={() => openUploadForTarget("COMMON_AREAS", "photo")}
-                        className="px-2.5 py-1 bg-white hover:bg-emerald-100 text-emerald-950 border border-emerald-300 rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap"
-                      >
-                        <Upload className="w-3 h-3 text-emerald-700" />
-                        <span>+ Ortak Alan Medyası Yükle</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => handleShareCommonAreasPackage("copy")}
-                        className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap"
-                      >
-                        <Copy className="w-3 h-3" />
-                        <span>Ortak Alan Paketini Kopyala</span>
-                      </button>
-
                       <button
                         type="button"
                         onClick={() => handleShareCommonAreasPackage("whatsapp")}
@@ -3211,14 +3614,25 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
 
                     {/* Right 7 Cols: Common Area Photos, Videos & Site Masterplan Files */}
                     <div className="lg:col-span-7 bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2.5">
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
                         <h5 className="text-xs font-black uppercase text-slate-950 flex items-center gap-1.5">
                           <ImageIcon className="w-3.5 h-3.5 text-indigo-600" />
                           <span>
                             Ortak Alan Görselleri, Drone Videoları & Vaziyet Planı ({selectedProjectCommonAreaMedia.length})
                           </span>
                         </h5>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {selectedProjectCommonAreaMedia.length > 0 && (
+                            <button
+                              type="button"
+                              disabled={downloadingMedia}
+                              onClick={() => handleBulkDownloadMedia(selectedProjectCommonAreaMedia)}
+                              className="px-2 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                            >
+                              <Download className="w-3 h-3" />
+                              <span>Tümünü İndir</span>
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => openUploadForTarget("COMMON_AREAS", "photo")}
@@ -3236,63 +3650,82 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                         {selectedProjectCommonAreaMedia.map((doc: any, dIdx: number) => {
-                          const band = getSectionBandTheme(dIdx);
+                          const thumbUrl = resolveDisplayImageUrl(
+                            doc.url,
+                            activeProjectDetail.cover_image
+                          );
+                          const openDocPreview = () =>
+                            setPreviewAsset({
+                              id: doc.id,
+                              rawName: doc.name,
+                              name: doc.name,
+                              category: `Ortak Alanlar — ${doc.category}`,
+                              type: doc.type,
+                              url: doc.url,
+                              cover: thumbUrl,
+                              projectName: activeProjectDetail.name
+                            });
                           return (
                             <div
-                              key={doc.id}
-                              className={`rounded-xl p-2 flex items-center justify-between gap-2 border transition-all ${band.rowBg}`}
+                              key={doc.id || dIdx}
+                              className="rounded-xl bg-white border border-slate-200 overflow-hidden shadow-2xs flex flex-col justify-between"
                             >
-                              <div className="flex items-center gap-2 min-w-0">
-                                <div className={`p-1.5 rounded-lg shrink-0 ${band.badgeBg}`}>
-                                  {doc.type === "video" || doc.media_role === "video" ? (
-                                    <Play className="w-3.5 h-3.5" />
-                                  ) : doc.type === "photos" || doc.media_role === "photo" ? (
-                                    <ImageIcon className="w-3.5 h-3.5" />
-                                  ) : (
-                                    <FileText className="w-3.5 h-3.5" />
-                                  )}
-                                </div>
-                                <div className="min-w-0">
-                                  <div className="text-xs font-bold text-slate-950 truncate" title={doc.name}>
-                                    {doc.name}
-                                  </div>
-                                  <div className="text-[10px] text-slate-700 font-semibold truncate">
-                                    Ortak Alan · {doc.category}
-                                  </div>
-                                </div>
+                              <div
+                                onClick={openDocPreview}
+                                className="relative h-28 w-full bg-slate-100 overflow-hidden cursor-pointer group"
+                              >
+                                <img
+                                  src={thumbUrl}
+                                  alt={doc.name}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                />
+                                <span className="absolute bottom-1.5 left-1.5 px-2 py-0.5 rounded bg-slate-900/80 text-white text-[9px] font-bold">
+                                  {doc.category}
+                                </span>
                               </div>
-                              <div className="flex items-center gap-1 shrink-0">
+                              <div className="p-2 flex items-center justify-between gap-2 bg-white border-t border-slate-100">
                                 <button
                                   type="button"
-                                  onClick={() =>
-                                    setPreviewAsset({
-                                      name: doc.name,
-                                      category: `Ortak Alanlar — ${doc.category}`,
-                                      type: doc.type,
-                                      url: doc.url,
-                                      cover:
-                                        doc.type === "photos" && doc.url?.startsWith("/api/storage/")
-                                          ? doc.url
-                                          : activeProjectDetail.cover_image,
-                                      projectName: activeProjectDetail.name
-                                    })
-                                  }
-                                  className="px-2 py-1 bg-white hover:bg-emerald-600 text-slate-800 hover:text-white border border-slate-200 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap"
+                                  onClick={openDocPreview}
+                                  className="text-xs font-bold text-slate-900 hover:text-indigo-600 truncate text-left cursor-pointer flex-1"
+                                  title={`${doc.name} — Önizlemek için tıklayın`}
                                 >
-                                  <Eye className="w-3 h-3" />
-                                  <span>Önizle</span>
+                                  {doc.name}
                                 </button>
-                                <a
-                                  href={doc.url || activeProjectDetail.cover_image}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="p-1.5 bg-white hover:bg-indigo-600 text-indigo-700 hover:text-white border border-slate-200 rounded-lg transition-colors"
-                                  title="İndir / Aç"
-                                >
-                                  <Download className="w-3.5 h-3.5" />
-                                </a>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={openDocPreview}
+                                    className="p-1 bg-slate-100 hover:bg-indigo-600 text-slate-700 hover:text-white rounded-md cursor-pointer transition-colors"
+                                    title="Önizleme"
+                                  >
+                                    <Eye className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleDirectLocalDownload(
+                                        doc.url,
+                                        doc.name,
+                                        activeProjectDetail.cover_image
+                                      )
+                                    }
+                                    className="p-1 bg-slate-100 hover:bg-emerald-600 text-slate-700 hover:text-white rounded-md cursor-pointer transition-colors"
+                                    title="Yerel Dosyalara İndir"
+                                  >
+                                    <Download className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteMediaFromProject(doc.id, doc.name)}
+                                    className="p-1 bg-slate-100 hover:bg-rose-600 text-slate-500 hover:text-white rounded-md cursor-pointer transition-colors"
+                                    title="Sil"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           );
@@ -3339,12 +3772,27 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {filteredProjectMedia.map((doc: any, fIdx: number) => {
                         const band = getSectionBandTheme(fIdx);
+                        const thumbUrl = resolveDisplayImageUrl(
+                          doc.url,
+                          activeProjectDetail.cover_image
+                        );
+                        const openFolderDocPreview = () =>
+                          setPreviewAsset({
+                            id: doc.id,
+                            rawName: doc.name,
+                            name: doc.name,
+                            category: doc.category,
+                            type: doc.type,
+                            url: doc.url,
+                            cover: thumbUrl,
+                            projectName: activeProjectDetail.name
+                          });
                         return (
                           <div
-                            key={doc.id}
+                            key={doc.id || fIdx}
                             className={`rounded-xl p-2 flex items-center justify-between gap-2 border transition-all ${band.rowBg}`}
                           >
-                            <div className="flex items-center gap-2 min-w-0">
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
                               <div className={`p-1.5 rounded-lg shrink-0 ${band.badgeBg}`}>
                                 {doc.type === "video" ? (
                                   <Play className="w-3.5 h-3.5" />
@@ -3354,10 +3802,15 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                                   <FileText className="w-3.5 h-3.5" />
                                 )}
                               </div>
-                              <div className="min-w-0">
-                                <div className="text-xs font-bold text-slate-950 truncate" title={doc.name}>
+                              <div className="min-w-0 flex-1">
+                                <button
+                                  type="button"
+                                  onClick={openFolderDocPreview}
+                                  className="text-xs font-bold text-slate-950 hover:text-indigo-600 truncate block w-full text-left cursor-pointer"
+                                  title={`${doc.name} — Önizlemek için tıklayın`}
+                                >
                                   {doc.name}
-                                </div>
+                                </button>
                                 <div className="text-[10px] text-slate-700 font-medium truncate">
                                   {doc.category}
                                   {doc.unit_type_match && doc.unit_type_match !== "COMMON_AREAS"
@@ -3369,37 +3822,30 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                             <div className="flex items-center gap-1 shrink-0">
                               <button
                                 type="button"
-                                onClick={() =>
-                                  setPreviewAsset({
-                                    name: doc.name,
-                                    category: doc.category,
-                                    type: doc.type,
-                                    url: doc.url,
-                                    cover:
-                                      doc.type === "photos" && doc.url?.startsWith("/api/storage/")
-                                        ? doc.url
-                                        : activeProjectDetail.cover_image,
-                                    projectName: activeProjectDetail.name
-                                  })
-                                }
-                                className="px-2 py-1 bg-white hover:bg-indigo-600 text-slate-800 hover:text-white border border-slate-200 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap transition-colors"
+                                onClick={openFolderDocPreview}
+                                className="p-1.5 bg-white hover:bg-indigo-600 text-slate-700 hover:text-white border border-slate-200 rounded-lg cursor-pointer transition-colors"
+                                title="Önizleme"
                               >
-                                <Eye className="w-3 h-3" />
-                                <span>Önizle</span>
+                                <Eye className="w-3.5 h-3.5" />
                               </button>
-                              <a
-                                href={doc.url || activeProjectDetail.cover_image}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="p-1.5 bg-white hover:bg-indigo-600 text-indigo-700 hover:text-white border border-slate-200 rounded-lg transition-colors"
-                                title="İndir / Aç"
-                              >
-                                <Download className="w-3.5 h-3.5" />
-                              </a>
                               <button
                                 type="button"
-                                onClick={() => handleDeleteMediaFromProject(doc.id)}
-                                className="p-1 text-slate-400 hover:text-rose-600 cursor-pointer"
+                                onClick={() =>
+                                  handleDirectLocalDownload(
+                                    doc.url,
+                                    doc.name,
+                                    activeProjectDetail.cover_image
+                                  )
+                                }
+                                className="p-1.5 bg-white hover:bg-emerald-600 text-indigo-700 hover:text-white border border-slate-200 rounded-lg cursor-pointer transition-colors"
+                                title="Yerel Dosyalara İndir"
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteMediaFromProject(doc.id, doc.name)}
+                                className="p-1.5 bg-white hover:bg-rose-600 text-slate-400 hover:text-white border border-slate-200 rounded-lg cursor-pointer transition-colors"
                                 title="Sil"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -3656,14 +4102,80 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[9px] text-slate-700 uppercase font-bold">Blok Adı</label>
-                  <input
-                    type="text"
-                    value={batchForm.block_name}
-                    onChange={e => setBatchForm({ ...batchForm, block_name: e.target.value })}
-                    placeholder="Örn: C Blok (Lagün)"
-                    className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-semibold"
-                  />
+                  <div className="flex items-center justify-between">
+                    <label className="block text-[9px] text-slate-700 uppercase font-bold">
+                      Blok Adı
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setIsAddingCustomBlock(prev => !prev)}
+                      className="text-[9px] font-black text-indigo-600 hover:underline cursor-pointer"
+                    >
+                      {isAddingCustomBlock ? "Listeden Seç" : "+ Yeni Blok Ekle"}
+                    </button>
+                  </div>
+                  {isAddingCustomBlock ? (
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="text"
+                        value={newCustomBlockName}
+                        onChange={e => setNewCustomBlockName(e.target.value)}
+                        placeholder="Yeni Blok (Örn: D Blok)"
+                        className="flex-1 min-w-0 px-2 py-1 bg-white border border-indigo-400 rounded text-xs text-slate-900 font-semibold"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleConfirmAddCustomBlock(
+                            Number(batchForm.project_id || activeProjectId),
+                            blk => {
+                              const prefixGuess = blk.split(" ")[0]?.replace(/[^A-Za-z0-9]/g, "") || "A";
+                              setBatchForm(prev => ({
+                                ...prev,
+                                block_name: blk,
+                                door_prefix: prefixGuess
+                              }));
+                            }
+                          )
+                        }
+                        className="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[10px] font-bold cursor-pointer shrink-0"
+                      >
+                        Ekle
+                      </button>
+                    </div>
+                  ) : (
+                    <select
+                      value={
+                        availableBlocks.includes(batchForm.block_name)
+                          ? batchForm.block_name
+                          : availableBlocks[0] || batchForm.block_name
+                      }
+                      onChange={e => {
+                        if (e.target.value === "__ADD_NEW_BLOCK__") {
+                          setIsAddingCustomBlock(true);
+                          return;
+                        }
+                        const blk = e.target.value;
+                        const prefixGuess = blk.split(" ")[0]?.replace(/[^A-Za-z0-9]/g, "") || "A";
+                        setBatchForm({
+                          ...batchForm,
+                          block_name: blk,
+                          door_prefix: prefixGuess
+                        });
+                      }}
+                      className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-bold cursor-pointer"
+                    >
+                      {!availableBlocks.includes(batchForm.block_name) && batchForm.block_name && (
+                        <option value={batchForm.block_name}>{batchForm.block_name}</option>
+                      )}
+                      {availableBlocks.map(b => (
+                        <option key={b} value={b}>
+                          {b}
+                        </option>
+                      ))}
+                      <option value="__ADD_NEW_BLOCK__">+ Yeni Blok Adı Ekle...</option>
+                    </select>
+                  )}
                 </div>
 
                 <div>
@@ -3683,11 +4195,17 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                   <label className="block text-[9px] text-slate-700 uppercase font-bold">Ünite Tipi</label>
                   <input
                     type="text"
+                    list="project-unit-types-list"
                     value={batchForm.unit_type}
                     onChange={e => setBatchForm({ ...batchForm, unit_type: e.target.value })}
                     placeholder="1+1 Loft Penthouse"
                     className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-semibold"
                   />
+                  <datalist id="project-unit-types-list">
+                    {availableUnitTypes.map(ut => (
+                      <option key={ut} value={ut} />
+                    ))}
+                  </datalist>
                 </div>
 
                 <div>
@@ -3857,13 +4375,61 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                 </select>
               </div>
               <div>
-                <label className="block text-[9px] text-slate-700 uppercase font-bold">Blok</label>
-                <input
-                  type="text"
-                  value={newUnitForm.block_name}
-                  onChange={e => setNewUnitForm({ ...newUnitForm, block_name: e.target.value })}
-                  className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-semibold"
-                />
+                <div className="flex items-center justify-between">
+                  <label className="block text-[9px] text-slate-700 uppercase font-bold">Blok Adı</label>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingCustomBlock(prev => !prev)}
+                    className="text-[9px] font-black text-indigo-600 hover:underline cursor-pointer"
+                  >
+                    {isAddingCustomBlock ? "Seç" : "+ Ekle"}
+                  </button>
+                </div>
+                {isAddingCustomBlock ? (
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="text"
+                      value={newCustomBlockName}
+                      onChange={e => setNewCustomBlockName(e.target.value)}
+                      placeholder="Yeni Blok"
+                      className="flex-1 min-w-0 px-2 py-1 bg-white border border-indigo-400 rounded text-xs text-slate-900 font-semibold"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleConfirmAddCustomBlock(
+                          Number(newUnitForm.project_id || activeProjectId),
+                          blk => setNewUnitForm(prev => ({ ...prev, block_name: blk }))
+                        )
+                      }
+                      className="px-1.5 py-1 bg-indigo-600 text-white rounded text-[10px] font-bold cursor-pointer"
+                    >
+                      Ekle
+                    </button>
+                  </div>
+                ) : (
+                  <select
+                    value={newUnitForm.block_name}
+                    onChange={e => {
+                      if (e.target.value === "__ADD_NEW_BLOCK__") {
+                        setIsAddingCustomBlock(true);
+                        return;
+                      }
+                      setNewUnitForm({ ...newUnitForm, block_name: e.target.value });
+                    }}
+                    className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-bold cursor-pointer"
+                  >
+                    {!availableBlocks.includes(newUnitForm.block_name) && newUnitForm.block_name && (
+                      <option value={newUnitForm.block_name}>{newUnitForm.block_name}</option>
+                    )}
+                    {availableBlocks.map(b => (
+                      <option key={b} value={b}>
+                        {b}
+                      </option>
+                    ))}
+                    <option value="__ADD_NEW_BLOCK__">+ Yeni Blok Ekle...</option>
+                  </select>
+                )}
               </div>
               <div>
                 <label className="block text-[9px] text-slate-700 uppercase font-bold">Kapı No</label>
@@ -3878,6 +4444,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                 <label className="block text-[9px] text-slate-700 uppercase font-bold">Ünite Tipi</label>
                 <input
                   type="text"
+                  list="project-unit-types-list"
                   value={newUnitForm.unit_type}
                   onChange={e => setNewUnitForm({ ...newUnitForm, unit_type: e.target.value })}
                   className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-semibold"
@@ -3989,10 +4556,16 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                   <input
                     type="text"
                     required
+                    list="project-blocks-datalist"
                     value={revisingUnit.block_name || ""}
                     onChange={e => setRevisingUnit({ ...revisingUnit, block_name: e.target.value })}
                     className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 font-bold"
                   />
+                  <datalist id="project-blocks-datalist">
+                    {availableBlocks.map(b => (
+                      <option key={b} value={b} />
+                    ))}
+                  </datalist>
                 </div>
 
                 <div>
@@ -5471,16 +6044,16 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
       {/* ===================================================================== */}
       {previewAsset && (
         <div
-          className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-3"
+          className="fixed inset-0 z-50 bg-slate-950/65 backdrop-blur-xs flex items-center justify-center p-3"
           onClick={() => setPreviewAsset(null)}
         >
           <div
-            className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-2xl overflow-hidden"
+            className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-4xl overflow-hidden"
             onClick={e => e.stopPropagation()}
           >
             <div className="bg-slate-50 border-b border-slate-200 text-slate-900 px-4 py-3 flex items-center justify-between">
               <div>
-                <h4 className="text-sm font-black text-slate-950">{previewAsset.name}</h4>
+                <h4 className="text-sm sm:text-base font-black text-slate-950">{previewAsset.name}</h4>
                 <p className="text-[11px] text-slate-600">
                   {previewAsset.projectName} · {previewAsset.category}
                 </p>
@@ -5488,7 +6061,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
               <button
                 type="button"
                 onClick={() => setPreviewAsset(null)}
-                className="p-1 text-slate-500 hover:text-slate-950 rounded-lg cursor-pointer"
+                className="p-1.5 text-slate-500 hover:text-slate-950 hover:bg-slate-200 rounded-lg cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -5501,23 +6074,23 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                 previewAsset.url.endsWith(".webm") ||
                 previewAsset.url.startsWith("/api/storage/")) &&
               previewAsset.type === "video" ? (
-                <div className="rounded-xl overflow-hidden bg-slate-950 border border-slate-200">
+                <div className="rounded-xl overflow-hidden bg-slate-950 border border-slate-200 flex items-center justify-center">
                   <video
                     src={previewAsset.url}
                     controls
                     autoPlay
-                    className="w-full max-h-72 object-contain"
+                    className="w-full max-h-[68vh] object-contain"
                   />
                 </div>
               ) : (
                 previewAsset.cover && (
-                  <div className="h-64 w-full rounded-xl overflow-hidden bg-slate-100 border border-slate-200 relative">
+                  <div className="w-full max-h-[70vh] min-h-[340px] rounded-xl overflow-hidden bg-slate-900/5 border border-slate-200 relative flex items-center justify-center p-2">
                     <img
                       src={previewAsset.cover}
                       alt={previewAsset.name}
-                      className="w-full h-full object-cover"
+                      className="max-h-[66vh] w-auto max-w-full object-contain rounded-lg shadow-sm"
                     />
-                    <div className="absolute bottom-2 left-2 px-2.5 py-1 rounded bg-white/95 text-slate-950 text-[11px] font-bold border border-slate-200">
+                    <div className="absolute bottom-3 left-3 px-2.5 py-1 rounded bg-white/95 text-slate-950 text-[11px] font-bold border border-slate-200 shadow-xs">
                       {previewAsset.projectName} — {previewAsset.category}
                     </div>
                   </div>
@@ -5557,23 +6130,43 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                 </div>
               )}
 
-              <div className="flex items-center justify-between pt-2 border-t border-slate-200">
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-200">
                 <span className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   <span>Proje Klasöründe Kayıtlı</span>
                 </span>
                 <div className="flex items-center gap-2">
-                  {previewAsset.url && (
-                    <a
-                      href={previewAsset.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 whitespace-nowrap"
+                  {(previewAsset.id || previewAsset.rawName) && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleDeleteMediaFromProject(previewAsset.id, previewAsset.rawName)
+                      }
+                      className="px-3 py-1.5 bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer whitespace-nowrap transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Sil</span>
+                    </button>
+                  )}
+
+                  {(previewAsset.url || previewAsset.cover) && (
+                    <button
+                      type="button"
+                      disabled={downloadingMedia}
+                      onClick={() =>
+                        handleDirectLocalDownload(
+                          previewAsset.url || previewAsset.cover,
+                          previewAsset.rawName || previewAsset.name,
+                          previewAsset.cover
+                        )
+                      }
+                      className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer whitespace-nowrap transition-colors"
                     >
                       <Download className="w-3.5 h-3.5" />
-                      <span>Dosyayı İndir / Aç</span>
-                    </a>
+                      <span>Yerel Dosyalara İndir</span>
+                    </button>
                   )}
+
                   <button
                     type="button"
                     onClick={() => setPreviewAsset(null)}

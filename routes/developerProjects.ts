@@ -2046,12 +2046,48 @@ router.post('/projects/:id/media', authenticate, async (req: any, res) => {
 router.delete('/projects/:id/media/:mediaId', authenticate, async (req: any, res) => {
   const storeId = Number(getAuthorizedStoreId(req, req.query.store_id) || req.user?.store_id || 1);
   const { id, mediaId } = req.params;
+  const targetName = String(req.query.name || '').trim().toLowerCase();
   try {
     const existingRes = await pool.query('SELECT media_vault FROM developer_projects WHERE id = $1 AND store_id = $2', [id, storeId]);
     if (existingRes.rowCount === 0) return res.status(404).json({ error: 'Proje bulunamadı' });
 
     const currentMedia = Array.isArray(existingRes.rows[0].media_vault) ? existingRes.rows[0].media_vault : [];
-    const nextMedia = currentMedia.filter((m: any) => String(m.id) !== String(mediaId));
+    const nextMedia = currentMedia.filter((m: any) => {
+      if (String(m.id) === String(mediaId)) return false;
+      if (targetName && String(m.name || '').trim().toLowerCase() === targetName) return false;
+      return true;
+    });
+
+    const updated = await pool.query(
+      'UPDATE developer_projects SET media_vault = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND store_id = $3 RETURNING *',
+      [JSON.stringify(nextMedia), id, storeId]
+    );
+    res.json(updated.rows[0]);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/developer-projects/projects/:id/media/bulk-delete (Remove multiple Media/Documents at once)
+router.post('/projects/:id/media/bulk-delete', authenticate, async (req: any, res) => {
+  const storeId = Number(getAuthorizedStoreId(req, req.body.store_id || req.query.store_id) || req.user?.store_id || 1);
+  const { id } = req.params;
+  const mediaIds: string[] = Array.isArray(req.body.mediaIds) ? req.body.mediaIds.map(String) : [];
+  const mediaNames: string[] = Array.isArray(req.body.mediaNames)
+    ? req.body.mediaNames.map((n: any) => String(n || '').trim().toLowerCase())
+    : [];
+  try {
+    const existingRes = await pool.query('SELECT media_vault FROM developer_projects WHERE id = $1 AND store_id = $2', [id, storeId]);
+    if (existingRes.rowCount === 0) return res.status(404).json({ error: 'Proje bulunamadı' });
+
+    const currentMedia = Array.isArray(existingRes.rows[0].media_vault) ? existingRes.rows[0].media_vault : [];
+    const idSet = new Set(mediaIds);
+    const nameSet = new Set(mediaNames.filter(Boolean));
+    const nextMedia = currentMedia.filter((m: any) => {
+      if (idSet.has(String(m.id))) return false;
+      if (nameSet.has(String(m.name || '').trim().toLowerCase())) return false;
+      return true;
+    });
 
     const updated = await pool.query(
       'UPDATE developer_projects SET media_vault = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND store_id = $3 RETURNING *',
@@ -3450,6 +3486,79 @@ Sadece JSON döndür: {"title": "...", "description": "..."}`,
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/developer-projects/download-asset (Direct Local File Download Proxy for Images & Media)
+router.get('/download-asset', async (req: any, res) => {
+  try {
+    const rawUrl = String(req.query.url || '').trim();
+    const fallbackUrl = String(req.query.fallback || '').trim();
+    let fileName = String(req.query.name || 'proje-gorseli.jpg')
+      .replace(/[/\\?%*:|"<>]/g, '-')
+      .trim();
+
+    if (!fileName.match(/\.(jpg|jpeg|png|webp|mp4|pdf|zip)$/i)) {
+      fileName = `${fileName}.jpg`;
+    }
+
+    // Resolve Google Drive file ID if present
+    let targetFetchUrl = rawUrl;
+    const driveFileMatch =
+      rawUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) ||
+      rawUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+
+    if (driveFileMatch && driveFileMatch[1]) {
+      const fileId = driveFileMatch[1];
+      targetFetchUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w2000`;
+    } else if (rawUrl.includes('drive.google.com/drive/folders/') && fallbackUrl) {
+      const fbMatch =
+        fallbackUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) ||
+        fallbackUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+      targetFetchUrl =
+        fbMatch && fbMatch[1]
+          ? `https://drive.google.com/thumbnail?id=${fbMatch[1]}&sz=w2000`
+          : fallbackUrl;
+    }
+
+    if (targetFetchUrl.startsWith('http://') || targetFetchUrl.startsWith('https://')) {
+      const upstream = await fetch(targetFetchUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+      });
+      if (upstream.ok) {
+        const contentType = upstream.headers.get('content-type') || 'application/octet-stream';
+        const arrayBuf = await upstream.arrayBuffer();
+        const buf = Buffer.from(arrayBuf);
+        res.setHeader('Content-Type', contentType);
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename="${encodeURIComponent(fileName)}"; filename*=UTF-8''${encodeURIComponent(fileName)}`
+        );
+        return res.send(buf);
+      }
+    }
+
+    // If fallbackUrl is available and primary failed
+    if (fallbackUrl && (fallbackUrl.startsWith('http://') || fallbackUrl.startsWith('https://'))) {
+      const fbUpstream = await fetch(fallbackUrl);
+      if (fbUpstream.ok) {
+        const contentType = fbUpstream.headers.get('content-type') || 'image/jpeg';
+        const arrayBuf = await fbUpstream.arrayBuffer();
+        const buf = Buffer.from(arrayBuf);
+        res.setHeader('Content-Type', contentType);
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename="${encodeURIComponent(fileName)}"; filename*=UTF-8''${encodeURIComponent(fileName)}`
+        );
+        return res.send(buf);
+      }
+    }
+
+    return res.status(404).json({ error: 'Dosya indirilemedi.' });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
   }
 });
 
