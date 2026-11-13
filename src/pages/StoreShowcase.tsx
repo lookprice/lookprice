@@ -21,6 +21,7 @@ import { ModernShopRetailLayout } from "../components/ModernShopRetailLayout";
 import { BookstoreNetflixLayout } from "../components/BookstoreNetflixLayout";
 import { ShopNetflixLayout } from "../components/ShopNetflixLayout";
 import { ModernCorporateWebsiteLayout } from "../components/ModernCorporateWebsiteLayout";
+import { ModernDeveloperProjectLayout } from "../components/ModernDeveloperProjectLayout";
 import ErrorBoundary from "../components/ErrorBoundary";
 
 // Types
@@ -880,6 +881,11 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   };
 
   const storeType = getStoreType(store);
+  const isDeveloperProject =
+    storeType === "developer_project" ||
+    store?.store_type === "developer_project" ||
+    store?.page_layout_settings?.sector === "developer_project" ||
+    String(store?.slug || "").toLowerCase().includes("cyprus-constructions");
   const isPortfolio = storeType === "real_estate" || storeType === "automotive";
   const isCafeRestaurant = storeType === "cafe_restaurant" || sector === "cafe_restaurant";
   const isCorporateWebsite = storeType === "corporate_website" || sector === "corporate_website";
@@ -1019,6 +1025,15 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
       <script type="application/ld+json">{JSON.stringify(clientSchemaData)}</script>
     </Helmet>
   );
+
+  if (isDeveloperProject) {
+    return (
+      <ErrorBoundary lang={lang}>
+        {seoHelmetNode}
+        <ModernDeveloperProjectLayout store={store} products={products} lang={lang} />
+      </ErrorBoundary>
+    );
+  }
 
   if (isCorporateWebsite) {
     return (

@@ -35,10 +35,14 @@ import {
   ChevronUp,
   Share2,
   Copy,
-  Home
+  Home,
+  BarChart3,
+  TrendingUp,
+  X
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "../../services/api";
+import Architectural2DTo3DStudio from "./Architectural2DTo3DStudio";
 
 async function compressImageFile(file: File, maxWidth = 1600, quality = 0.84): Promise<File> {
   return new Promise((resolve) => {
@@ -72,6 +76,32 @@ async function compressImageFile(file: File, maxWidth = 1600, quality = 0.84): P
     };
     img.src = objectUrl;
   });
+}
+
+function extractFacilityItems(val: any): string[] {
+  if (!val) return [];
+  if (Array.isArray(val)) {
+    return val.flatMap(item => extractFacilityItems(item));
+  }
+  if (typeof val === "string") {
+    const trimmed = val.trim();
+    if (!trimmed) return [];
+    if (
+      (trimmed.startsWith("[") && trimmed.endsWith("]")) ||
+      (trimmed.startsWith("{") && trimmed.endsWith("}"))
+    ) {
+      try {
+        return extractFacilityItems(JSON.parse(trimmed));
+      } catch {
+        // ignore JSON parse error
+      }
+    }
+    return [trimmed];
+  }
+  if (typeof val === "object") {
+    return Object.values(val).flatMap(v => extractFacilityItems(v));
+  }
+  return [String(val)];
 }
 
 export type SuiteTab =
@@ -627,13 +657,15 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
 
       let payload: any = { store_id: sid };
       if (group === "architectural_specs") {
-        const curSpecs = Array.isArray(activeProjectDetail.architectural_specs)
-          ? activeProjectDetail.architectural_specs
-          : [];
+        const curSpecs = extractFacilityItems(activeProjectDetail.architectural_specs);
         payload.architectural_specs = [...curSpecs, text];
       } else {
-        const curFac = activeProjectDetail.lifestyle_facilities || {};
-        const groupList = Array.isArray(curFac[group]) ? curFac[group] : [];
+        const rawFac = activeProjectDetail.lifestyle_facilities;
+        const curFac =
+          rawFac && typeof rawFac === "object" && !Array.isArray(rawFac)
+            ? { ...rawFac }
+            : { beach_marina: extractFacilityItems(rawFac) };
+        const groupList = extractFacilityItems(curFac[group]);
         payload.lifestyle_facilities = {
           ...curFac,
           [group]: [...groupList, text]
@@ -721,14 +753,21 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
   const openUploadForTarget = (
     targetMatch: string,
     role: "photo" | "video" | "floorplan" | "document",
-    defaultCategory: string
+    defaultCategory?: string
   ) => {
+    const resolvedCategory =
+      defaultCategory ||
+      (targetMatch === "COMMON_AREAS" || targetMatch === "__COMMON_AREA__"
+        ? "Ortak Alanlar & Sosyal Tesisler"
+        : role === "floorplan"
+        ? "Teknik & Mimari Planlar"
+        : "Render & Görseller");
     setNewMediaForm({
       name: "",
       type: role === "video" ? "video" : role === "photo" ? "photos" : "masterplan",
-      category: defaultCategory,
+      category: resolvedCategory,
       url: "",
-      unit_type_match: targetMatch,
+      unit_type_match: targetMatch === "COMMON_AREAS" ? "__COMMON_AREA__" : targetMatch,
       media_role: role
     });
     setIsCustomFolderMode(false);
@@ -1379,7 +1418,13 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
       ? activeProjectDetail.media_vault
       : [];
     return vault.filter(m => {
-      if (m.unit_type_match && m.unit_type_match !== "__COMMON_AREA__") return false;
+      if (
+        m.unit_type_match &&
+        m.unit_type_match !== "__COMMON_AREA__" &&
+        m.unit_type_match !== "COMMON_AREAS"
+      ) {
+        return false;
+      }
       return true;
     });
   }, [activeProjectDetail]);
@@ -1507,13 +1552,9 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
   // Copy & Share Common Area Package
   const handleShareCommonAreasPackage = (mode: "copy" | "whatsapp") => {
     if (!activeProjectDetail) return;
-    const fac = activeProjectDetail.lifestyle_facilities || {};
     const allFacs = [
-      ...(fac.beach_marina || []),
-      ...(fac.wellness_spa || []),
-      ...(fac.gastronomy || []),
-      ...(fac.entertainment || []),
-      ...(fac.family_sports || [])
+      ...extractFacilityItems(activeProjectDetail.lifestyle_facilities),
+      ...extractFacilityItems(activeProjectDetail.architectural_specs)
     ];
     const mediaLinks = selectedProjectCommonAreaMedia
       .slice(0, 5)
@@ -2151,25 +2192,25 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
               </button>
             </div>
 
-            {/* Single-line project pills for instant 1-click switching */}
-            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
-              {projects.map(proj => {
-                const isSelected = Number(activeProjectDetail?.id) === Number(proj.id);
-                return (
-                  <button
-                    key={proj.id}
-                    type="button"
-                    onClick={() => handleSelectSingleProject(proj)}
-                    className={`px-2 py-1 rounded-lg text-[11px] font-bold cursor-pointer whitespace-nowrap shrink-0 border transition-all ${
-                      isSelected
-                        ? "bg-indigo-50 text-indigo-950 border-indigo-500 font-black"
-                        : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
-                    }`}
-                  >
-                    {proj.name}
-                  </button>
-                );
-              })}
+            {/* Compact Dropdown Project Selector (Prevents horizontal row overflow when projects grow) */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="text-[10px] font-black uppercase text-slate-500 whitespace-nowrap">
+                Aktif Proje Seçimi ({projects.length}):
+              </span>
+              <select
+                value={activeProjectDetail?.id || ""}
+                onChange={e => {
+                  const target = projects.find(p => Number(p.id) === Number(e.target.value));
+                  if (target) handleSelectSingleProject(target);
+                }}
+                className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100/80 border border-indigo-300 rounded-lg text-xs font-black text-indigo-950 outline-none cursor-pointer min-w-[210px]"
+              >
+                {projects.map((proj, idx) => (
+                  <option key={proj.id} value={proj.id}>
+                    {idx + 1}. {proj.name} — {proj.sub_region} ({proj.available_units} Müsait)
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -2406,156 +2447,169 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                 Number(editingProjectId) === Number(activeProjectDetail.id) &&
                 renderProjectEditForm(`Projeyi Düzenle: ${activeProjectDetail.name}`)}
 
-              {/* UPGRADED FILE / MEDIA UPLOAD WORKSPACE WITH PROPERTY TYPE & COMMON AREA MATCHING */}
+              {/* CENTERED VIEWPORT-FIT MODAL FOR FILE / MEDIA UPLOAD & MATCHING */}
               {isAddMediaOpen && (
-                <form
-                  onSubmit={handleAddMediaToProject}
-                  className="p-3 bg-emerald-50/70 text-slate-900 rounded-xl border-2 border-emerald-400 space-y-2.5"
+                <div
+                  className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-3"
+                  onClick={() => setIsAddMediaOpen(false)}
                 >
-                  <div className="flex items-center justify-between gap-1.5 border-b border-emerald-200 pb-1.5">
-                    <span className="text-xs font-black text-emerald-950 flex items-center gap-1.5">
-                      <Upload className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>
-                        {activeProjectDetail.name} — Medya, Kat Çizimi veya Ortak Alan Dosyası Yükle & Eşleştir
-                      </span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setIsAddMediaOpen(false)}
-                      className="px-2 py-0.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded text-xs font-bold cursor-pointer"
-                    >
-                      Kapat ✕
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
-                    {/* 1. Target Matching: Property Type vs Common Areas */}
-                    <div className="md:col-span-3">
-                      <label className="block text-[10px] text-slate-700 font-bold uppercase mb-1">
-                        Eşleştirilecek Mülk Tipi / Ortak Alan *
-                      </label>
-                      <select
-                        value={newMediaForm.unit_type_match}
-                        onChange={e =>
-                          setNewMediaForm({ ...newMediaForm, unit_type_match: e.target.value })
-                        }
-                        className="w-full px-2.5 py-1.5 bg-white border border-indigo-300 rounded-lg text-slate-950 text-xs font-black"
-                      >
-                        <option value="COMMON_AREAS">🌴 Ortak Alanlar & Sosyal Tesisler</option>
-                        {projectPropertyTypes.map(pt => (
-                          <option key={pt.unit_type} value={pt.unit_type}>
-                            🏠 Mülk Tipi: {pt.unit_type}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* 2. Media Role: Photo / Video / Technical Floorplan / Document */}
-                    <div className="md:col-span-2">
-                      <label className="block text-[10px] text-slate-700 font-bold uppercase mb-1">
-                        Medya Türü *
-                      </label>
-                      <select
-                        value={newMediaForm.media_role}
-                        onChange={e =>
-                          setNewMediaForm({
-                            ...newMediaForm,
-                            media_role: e.target.value as
-                              | "photo"
-                              | "video"
-                              | "floorplan"
-                              | "document"
-                          })
-                        }
-                        className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 text-xs font-bold"
-                      >
-                        <option value="photo">📷 Resim / Render Görseli</option>
-                        <option value="video">🎬 Tanıtım / Drone Videosu</option>
-                        <option value="floorplan">📐 Teknik Kat Çizimi (2D Plan)</option>
-                        <option value="document">📄 Fiyat Listesi / Katalog PDF</option>
-                      </select>
-                    </div>
-
-                    {/* 3. Device File Picker */}
-                    <div className="md:col-span-2">
-                      <label className="block text-[10px] text-slate-700 font-bold uppercase mb-1">
-                        Cihazdan Seç
-                      </label>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        onChange={handleDeviceFileSelect}
-                        accept=".pdf,.jpg,.jpeg,.png,.webp,.mp4,.mov,.dwg,.xlsx,.xls,.doc,.docx,.zip"
-                        className="hidden"
-                      />
+                  <form
+                    onSubmit={handleAddMediaToProject}
+                    onClick={e => e.stopPropagation()}
+                    className="w-full max-w-2xl p-4 bg-white text-slate-900 rounded-2xl border-2 border-emerald-500 shadow-2xl space-y-3"
+                  >
+                    <div className="flex items-center justify-between gap-2 border-b border-slate-200 pb-2.5">
+                      <div>
+                        <span className="text-[10px] font-mono font-black uppercase text-emerald-700">
+                          PROJE MEDYA & DOKÜMAN YÜKLEME PENCERESİ
+                        </span>
+                        <h4 className="text-sm font-black text-slate-950 flex items-center gap-1.5">
+                          <Upload className="w-4 h-4 text-emerald-600" />
+                          <span>
+                            {activeProjectDetail.name} — Medya, Kat Çizimi veya Ortak Alan Dosyası Ekle
+                          </span>
+                        </h4>
+                      </div>
                       <button
                         type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={uploadingLocalFile}
-                        className="w-full px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap"
+                        onClick={() => setIsAddMediaOpen(false)}
+                        className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-lg text-xs font-bold cursor-pointer"
                       >
-                        {uploadingLocalFile ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Yükleniyor...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Upload className="w-3.5 h-3.5" />
-                            <span>Dosya Seç</span>
-                          </>
-                        )}
+                        Kapat ✕
                       </button>
                     </div>
 
-                    {/* 4. Folder / Category */}
-                    <div className="md:col-span-2">
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-[10px] text-slate-700 font-bold uppercase">
-                          Klasör
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {/* 1. Target Matching: Property Type vs Common Areas */}
+                      <div>
+                        <label className="block text-[10px] text-slate-700 font-bold uppercase mb-1">
+                          Eşleştirilecek Mülk Tipi / Ortak Alan *
                         </label>
-                        <button
-                          type="button"
-                          onClick={() => setIsCustomFolderMode(prev => !prev)}
-                          className="text-[10px] text-indigo-700 hover:underline font-bold cursor-pointer whitespace-nowrap"
-                        >
-                          {isCustomFolderMode ? "Listeden" : "+ Yeni Klasör"}
-                        </button>
-                      </div>
-                      {isCustomFolderMode ? (
-                        <input
-                          type="text"
-                          required
-                          placeholder="Klasör adı..."
-                          value={customFolderName}
-                          onChange={e => setCustomFolderName(e.target.value)}
-                          className="w-full px-2 py-1.5 bg-white border border-indigo-400 rounded-lg text-slate-900 text-xs font-bold"
-                        />
-                      ) : (
                         <select
-                          value={newMediaForm.category}
-                          onChange={e => {
-                            if (e.target.value === "__NEW_FOLDER__") {
-                              setIsCustomFolderMode(true);
-                              return;
-                            }
-                            setNewMediaForm({ ...newMediaForm, category: e.target.value });
-                          }}
-                          className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 text-xs font-bold"
+                          value={
+                            newMediaForm.unit_type_match === "COMMON_AREAS"
+                              ? "__COMMON_AREA__"
+                              : newMediaForm.unit_type_match
+                          }
+                          onChange={e =>
+                            setNewMediaForm({ ...newMediaForm, unit_type_match: e.target.value })
+                          }
+                          className="w-full px-2.5 py-1.5 bg-indigo-50/60 border border-indigo-300 rounded-lg text-slate-950 text-xs font-black"
                         >
-                          {availableProjectFolders.map(folder => (
-                            <option key={folder} value={folder}>
-                              {folder}
+                          <option value="__COMMON_AREA__">🌴 Ortak Alanlar & Sosyal Tesisler</option>
+                          {projectPropertyTypes.map(pt => (
+                            <option key={pt.unit_type} value={pt.unit_type}>
+                              🏠 Mülk Tipi: {pt.unit_type}
                             </option>
                           ))}
-                          <option value="__NEW_FOLDER__">+ Yeni Klasör Oluştur...</option>
                         </select>
-                      )}
-                    </div>
+                      </div>
 
-                    {/* 5. File Name & URL + Save */}
-                    <div className="md:col-span-3 flex items-end gap-1.5">
-                      <div className="flex-1 min-w-0">
+                      {/* 2. Media Role: Photo / Video / Technical Floorplan / Document */}
+                      <div>
+                        <label className="block text-[10px] text-slate-700 font-bold uppercase mb-1">
+                          Medya Türü *
+                        </label>
+                        <select
+                          value={newMediaForm.media_role}
+                          onChange={e =>
+                            setNewMediaForm({
+                              ...newMediaForm,
+                              media_role: e.target.value as
+                                | "photo"
+                                | "video"
+                                | "floorplan"
+                                | "document"
+                            })
+                          }
+                          className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 text-xs font-bold"
+                        >
+                          <option value="photo">📷 Resim / Render Görseli</option>
+                          <option value="video">🎬 Tanıtım / Drone Videosu</option>
+                          <option value="floorplan">📐 Teknik Kat Çizimi (2D Plan)</option>
+                          <option value="document">📄 Fiyat Listesi / Katalog PDF</option>
+                        </select>
+                      </div>
+
+                      {/* 3. Device File Picker */}
+                      <div>
+                        <label className="block text-[10px] text-slate-700 font-bold uppercase mb-1">
+                          Bilgisayar veya Mobilden Dosya Seç
+                        </label>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          onChange={handleDeviceFileSelect}
+                          accept=".pdf,.jpg,.jpeg,.png,.webp,.mp4,.mov,.dwg,.xlsx,.xls,.doc,.docx,.zip"
+                          className="hidden"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={uploadingLocalFile}
+                          className="w-full px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
+                        >
+                          {uploadingLocalFile ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>Yükleniyor...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="w-3.5 h-3.5" />
+                              <span>Cihazdan Dosya Seç</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      {/* 4. Folder / Category */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-[10px] text-slate-700 font-bold uppercase">
+                            Klasör Seçimi
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => setIsCustomFolderMode(prev => !prev)}
+                            className="text-[10px] text-indigo-700 hover:underline font-bold cursor-pointer whitespace-nowrap"
+                          >
+                            {isCustomFolderMode ? "Listeden Seç" : "+ Yeni Klasör Tanımla"}
+                          </button>
+                        </div>
+                        {isCustomFolderMode ? (
+                          <input
+                            type="text"
+                            required
+                            placeholder="Yeni klasör adı yazın..."
+                            value={customFolderName}
+                            onChange={e => setCustomFolderName(e.target.value)}
+                            className="w-full px-2.5 py-1.5 bg-white border border-indigo-400 rounded-lg text-slate-900 text-xs font-bold"
+                          />
+                        ) : (
+                          <select
+                            value={newMediaForm.category}
+                            onChange={e => {
+                              if (e.target.value === "__NEW_FOLDER__") {
+                                setIsCustomFolderMode(true);
+                                return;
+                              }
+                              setNewMediaForm({ ...newMediaForm, category: e.target.value });
+                            }}
+                            className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 text-xs font-bold"
+                          >
+                            {availableProjectFolders.map(folder => (
+                              <option key={folder} value={folder}>
+                                {folder}
+                              </option>
+                            ))}
+                            <option value="__NEW_FOLDER__">+ Yeni Klasör Oluştur...</option>
+                          </select>
+                        )}
+                      </div>
+
+                      {/* 5. File Name */}
+                      <div>
                         <label className="block text-[10px] text-slate-700 font-bold uppercase mb-1">
                           Dosya Başlığı *
                         </label>
@@ -2568,51 +2622,75 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                           className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 text-xs font-semibold"
                         />
                       </div>
+
+                      {/* 6. Optional External URL */}
+                      <div>
+                        <label className="block text-[10px] text-slate-700 font-bold uppercase mb-1">
+                          Harici Link / URL (Opsiyonel)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Cihazdan seçtiyseniz otomatik dolar"
+                          value={newMediaForm.url}
+                          onChange={e => setNewMediaForm({ ...newMediaForm, url: e.target.value })}
+                          className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    {existingDuplicateFile && (
+                      <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 text-xs text-amber-950">
+                          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                          <span>
+                            <strong>"{existingDuplicateFile.name}"</strong> isimli dosya bu projede mevcut ({existingDuplicateFile.category}). Nasıl kaydedilsin?
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => setDuplicateConflictMode("overwrite")}
+                            className={`px-2.5 py-1 rounded text-[11px] font-bold cursor-pointer whitespace-nowrap transition-colors ${
+                              duplicateConflictMode === "overwrite"
+                                ? "bg-amber-500 text-slate-950"
+                                : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
+                            }`}
+                          >
+                            Üzerine Yaz (Güncelle)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDuplicateConflictMode("new_version")}
+                            className={`px-2.5 py-1 rounded text-[11px] font-bold cursor-pointer whitespace-nowrap transition-colors ${
+                              duplicateConflictMode === "new_version"
+                                ? "bg-indigo-600 text-white"
+                                : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
+                            }`}
+                          >
+                            Yeni Versiyon Kaydet
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200">
+                      <button
+                        type="button"
+                        onClick={() => setIsAddMediaOpen(false)}
+                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold cursor-pointer"
+                      >
+                        Vazgeç
+                      </button>
                       <button
                         type="submit"
                         disabled={uploadingLocalFile}
-                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-black cursor-pointer shrink-0 whitespace-nowrap"
+                        className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-black cursor-pointer shrink-0 whitespace-nowrap"
                       >
                         Kaydet & Eşleştir
                       </button>
                     </div>
-                  </div>
-
-                  {existingDuplicateFile && (
-                    <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 text-xs text-amber-950">
-                        <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                        <span>
-                          <strong>"{existingDuplicateFile.name}"</strong> isimli dosya bu projede mevcut ({existingDuplicateFile.category}). Nasıl kaydedilsin?
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => setDuplicateConflictMode("overwrite")}
-                          className={`px-2.5 py-1 rounded text-[11px] font-bold cursor-pointer whitespace-nowrap transition-colors ${
-                            duplicateConflictMode === "overwrite"
-                              ? "bg-amber-500 text-slate-950"
-                              : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
-                          }`}
-                        >
-                          Üzerine Yaz (Güncelle)
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDuplicateConflictMode("new_version")}
-                          className={`px-2.5 py-1 rounded text-[11px] font-bold cursor-pointer whitespace-nowrap transition-colors ${
-                            duplicateConflictMode === "new_version"
-                              ? "bg-indigo-600 text-white"
-                              : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
-                          }`}
-                        >
-                          Yeni Versiyon Kaydet
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </form>
+                  </form>
+                </div>
               )}
 
               {/* ============================================================= */}
@@ -3026,8 +3104,10 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                       <form onSubmit={handleAddCommonAreaSpec} className="flex items-center gap-1.5">
                         <input
                           type="text"
-                          value={newCommonAreaSpec}
-                          onChange={e => setNewCommonAreaSpec(e.target.value)}
+                          value={newCommonSpecForm.spec_text}
+                          onChange={e =>
+                            setNewCommonSpecForm(prev => ({ ...prev, spec_text: e.target.value }))
+                          }
                           placeholder="Yeni ortak alan özelliği ekle (Örn: Isıtmalı Kapalı Havuz & Spa)..."
                           className="flex-1 px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 font-semibold"
                         />
@@ -3041,8 +3121,8 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
 
                       <div className="space-y-1.5">
                         {[
-                          ...(activeProjectDetail.lifestyle_facilities || []),
-                          ...(activeProjectDetail.architectural_specs || [])
+                          ...extractFacilityItems(activeProjectDetail.lifestyle_facilities),
+                          ...extractFacilityItems(activeProjectDetail.architectural_specs)
                         ].map((item: string, idx: number) => {
                           const band = getSectionBandTheme(idx);
                           return (
@@ -3327,7 +3407,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
               {[
                 { id: "grouped_types", label: "Tip & Grup", icon: ListFilter },
                 { id: "block_matrix", label: "Blok & Kat Şeması", icon: Grid },
-                { id: "drone_3d", label: "2D Mimari Plan", icon: Compass },
+                { id: "drone_3d", label: "2D / 3D Mimari Plan", icon: Compass },
                 { id: "table_list", label: `Kapı No Listesi (${filteredUnits.length})`, icon: Layers }
               ].map(vm => {
                 const VIcon = vm.icon;
@@ -3352,22 +3432,6 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
 
             {/* Single-Line Compact Filters & Action Buttons (Strictly Selected Project Only - No "All Projects") */}
             <div className="flex items-center gap-1.5 shrink-0">
-              <div className="flex items-center gap-1 bg-amber-50 border border-amber-300 rounded-lg px-1.5 py-0.5 shrink-0">
-                <span className="text-[10px] font-black text-amber-950 whitespace-nowrap">% Fiyat:</span>
-                <input
-                  type="number"
-                  value={bulkPricePercent}
-                  onChange={e => setBulkPricePercent(Number(e.target.value))}
-                  className="w-10 px-1 py-0.5 bg-white border border-amber-300 rounded text-[11px] font-black text-slate-900 text-center"
-                />
-                <button
-                  type="button"
-                  onClick={handleBulkPriceUpdate}
-                  className="px-1.5 py-0.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded text-[10px] font-black cursor-pointer whitespace-nowrap"
-                >
-                  Uygula
-                </button>
-              </div>
 
               <select
                 value={activeProjectDetail?.id || selectedProjectId}
@@ -4096,19 +4160,6 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
           {/* ================================================================= */}
           {inventoryViewMode === "grouped_types" && (
             <div className="space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200 text-xs">
-                <span className="font-bold text-slate-700">
-                  Aynı tipteki bağımsız bölümler yumuşak renk geçişli gruplar halinde alt alta sıralanmıştır. Herhangi bir{" "}
-                  <strong className="text-slate-950">Kapı Numarasına</strong> tıklayarak dairenin blok, kat, manzara, fiyat veya statüsünü revize edebilir ya da 2D Mimari Kat Planını açabilirsiniz.
-                </span>
-                <div className="flex items-center gap-1.5 text-[10px] font-black shrink-0">
-                  <span className="px-2 py-0.5 rounded bg-emerald-500 text-slate-950">MÜSAİT</span>
-                  <span className="px-2 py-0.5 rounded bg-sky-400 text-slate-950">SONUÇLANMAKTA</span>
-                  <span className="px-2 py-0.5 rounded bg-amber-400 text-slate-950">OPSİYONLU</span>
-                  <span className="px-2 py-0.5 rounded bg-rose-500 text-white">SATILDI</span>
-                </div>
-              </div>
-
               <div className="space-y-3.5">
                 {unitTypeGroups.map((grp, gIdx) => {
                   const theme = getSectionBandTheme(gIdx);
@@ -4845,6 +4896,45 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                     </div>
                   </div>
                 )}
+
+                {/* SECTION C: INTERACTIVE 2D-TO-3D WEBGL ARCHITECTURAL STUDIO (Agent3Dify & 2D-to-3D-Image-Converter) */}
+                <div className="pt-1">
+                  <Architectural2DTo3DStudio
+                    project={activeProjectDetail}
+                    selectedUnit={droneTargetUnit}
+                    themeMode="light"
+                    onSave3DRenderToVault={async (dataUrl, label) => {
+                      if (!activeProjectDetail) return;
+                      const currentVault = Array.isArray(activeProjectDetail.media_vault)
+                        ? [...activeProjectDetail.media_vault]
+                        : [];
+                      const newAsset = {
+                        name: `${label}.png`,
+                        type: "image",
+                        category: "Kat Planları & 3D Mimari",
+                        property_type: droneTargetUnit?.unit_type || "",
+                        scope: "property_type",
+                        url: dataUrl,
+                        updated_at: new Date().toISOString().slice(0, 10)
+                      };
+                      const nextVault = [newAsset, ...currentVault];
+                      try {
+                        await api.updateDeveloperProject(activeProjectDetail.id, {
+                          media_vault: nextVault
+                        });
+                      } catch {
+                        // Fallback to local state update
+                      }
+                      setProjects(prev =>
+                        prev.map(p =>
+                          Number(p.id) === Number(activeProjectDetail.id)
+                            ? { ...p, media_vault: nextVault }
+                            : p
+                        )
+                      );
+                    }}
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -5206,168 +5296,104 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
             </button>
           </div>
 
-          {/* CREATE / EDIT EVENT DRAWER WITH IMAGE & VIDEO UPLOAD (Daylight High-Contrast) */}
+          {/* CENTERED VIEWPORT-FIT MODAL FOR EVENT CREATION & MEDIA UPLOAD/EDIT */}
           {isNewEventOpen && (
-            <form
-              onSubmit={handleSaveEvent}
-              className="p-3.5 bg-slate-50 text-slate-900 rounded-xl border border-slate-300 space-y-3"
+            <div
+              className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-3"
+              onClick={() => {
+                setIsNewEventOpen(false);
+                setEditingEventId(null);
+              }}
             >
-              <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-                <span className="text-xs font-black text-indigo-950">
-                  {editingEventId
-                    ? `Etkinlik & Medya Düzenle: ${newEventForm.title}`
-                    : "Yeni Etkinlik / Lansman Oluştur (Resim & Video Destekli)"}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsNewEventOpen(false);
-                    setEditingEventId(null);
-                  }}
-                  className="text-slate-500 hover:text-slate-950 text-xs font-bold cursor-pointer"
-                >
-                  Kapat ✕
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
-                <div className="lg:col-span-2">
-                  <label className="block text-[9px] text-slate-700 uppercase font-bold mb-0.5">
-                    Etkinlik / Lansman Başlığı *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Örn: Mykonos Homes Yaz Lansmanı & Gala Gecesi"
-                    value={newEventForm.title}
-                    onChange={e => setNewEventForm({ ...newEventForm, title: e.target.value })}
-                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 font-semibold"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[9px] text-slate-700 uppercase font-bold mb-0.5">
-                    İlgili Proje
-                  </label>
-                  <select
-                    value={newEventForm.project_name}
-                    onChange={e => setNewEventForm({ ...newEventForm, project_name: e.target.value })}
-                    className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 font-black"
-                  >
-                    <option value="Tüm Projeler">Tüm Projeler</option>
-                    {projects.map(p => (
-                      <option key={p.id} value={p.name}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[9px] text-slate-700 uppercase font-bold mb-0.5">
-                    Tarih & Saat
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="2026-07-10 19:30"
-                    value={newEventForm.event_date}
-                    onChange={e => setNewEventForm({ ...newEventForm, event_date: e.target.value })}
-                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 font-semibold"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[9px] text-slate-700 uppercase font-bold mb-0.5">
-                    Konum / Mekan
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Esentepe Sahil Satış Ofisi"
-                    value={newEventForm.location}
-                    onChange={e => setNewEventForm({ ...newEventForm, location: e.target.value })}
-                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 font-semibold"
-                  />
-                </div>
-              </div>
-
-              {/* IMAGE & VIDEO UPLOAD CONTROLS FOR EVENT */}
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 items-end bg-white p-2.5 rounded-xl border border-slate-200">
-                <div className="md:col-span-3">
-                  <label className="block text-[9px] text-slate-700 uppercase font-bold mb-1">
-                    Fotoğraf / Görsel Ekle (Cihazdan)
-                  </label>
-                  <input
-                    ref={eventImageInputRef}
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={e => handleEventMediaUpload(e, "image")}
-                    className="hidden"
-                  />
+              <form
+                onSubmit={handleSaveEvent}
+                onClick={e => e.stopPropagation()}
+                className="w-full max-w-2xl p-4 bg-white text-slate-900 rounded-2xl border-2 border-indigo-500 shadow-2xl space-y-3 max-h-[90vh] overflow-y-auto"
+              >
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2.5">
+                  <div>
+                    <span className="text-[10px] font-mono font-black uppercase text-indigo-700">
+                      ETKİNLİK & LANSMAN MEDYA YÖNETİM PENCERESİ
+                    </span>
+                    <h4 className="text-sm font-black text-slate-950">
+                      {editingEventId
+                        ? `Etkinlik & Medya Düzenle: ${newEventForm.title}`
+                        : "Yeni Etkinlik / Lansman Oluştur (Resim & Video Destekli)"}
+                    </h4>
+                  </div>
                   <button
                     type="button"
-                    onClick={() => eventImageInputRef.current?.click()}
-                    disabled={uploadingEventMedia}
-                    className="w-full px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
+                    onClick={() => {
+                      setIsNewEventOpen(false);
+                      setEditingEventId(null);
+                    }}
+                    className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-lg text-xs font-bold cursor-pointer"
                   >
-                    {uploadingEventMedia ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <ImageIcon className="w-3.5 h-3.5" />
-                    )}
-                    <span>+ Resim Yükle</span>
+                    Kapat ✕
                   </button>
                 </div>
 
-                <div className="md:col-span-3">
-                  <label className="block text-[9px] text-slate-700 uppercase font-bold mb-1">
-                    Lansman Videosu Ekle (Cihazdan)
-                  </label>
-                  <input
-                    ref={eventVideoInputRef}
-                    type="file"
-                    multiple
-                    accept="video/*,.mp4,.mov,.webm"
-                    onChange={e => handleEventMediaUpload(e, "video")}
-                    className="hidden"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => eventVideoInputRef.current?.click()}
-                    disabled={uploadingEventMedia}
-                    className="w-full px-2.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-lg text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
-                  >
-                    {uploadingEventMedia ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Video className="w-3.5 h-3.5" />
-                    )}
-                    <span>+ Video Yükle (MP4/MOV)</span>
-                  </button>
-                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div className="sm:col-span-2">
+                    <label className="block text-[10px] text-slate-700 uppercase font-bold mb-1">
+                      Etkinlik / Lansman Başlığı *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Örn: Mykonos Homes Yaz Lansmanı & Gala Gecesi"
+                      value={newEventForm.title}
+                      onChange={e => setNewEventForm({ ...newEventForm, title: e.target.value })}
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 font-semibold"
+                    />
+                  </div>
 
-                <div className="md:col-span-3">
-                  <label className="block text-[9px] text-slate-700 uppercase font-bold mb-1">
-                    Harici Video / Görsel Linki
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Video veya görsel URL yapıştırın"
-                    value={newEventForm.video_url || newEventForm.cover_image}
-                    onChange={e =>
-                      setNewEventForm({
-                        ...newEventForm,
-                        video_url: e.target.value,
-                        media_preview_url: e.target.value
-                      })
-                    }
-                    className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900"
-                  />
-                </div>
+                  <div>
+                    <label className="block text-[10px] text-slate-700 uppercase font-bold mb-1">
+                      İlgili Proje
+                    </label>
+                    <select
+                      value={newEventForm.project_name}
+                      onChange={e => setNewEventForm({ ...newEventForm, project_name: e.target.value })}
+                      className="w-full px-2.5 py-1.5 bg-indigo-50/60 border border-indigo-300 rounded-lg text-xs text-slate-900 font-black"
+                    >
+                      <option value="Tüm Projeler">Tüm Projeler</option>
+                      {projects.map(p => (
+                        <option key={p.id} value={p.name}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                <div className="md:col-span-3 flex items-end gap-1.5">
-                  <div className="flex-1">
-                    <label className="block text-[9px] text-slate-700 uppercase font-bold mb-1">
+                  <div>
+                    <label className="block text-[10px] text-slate-700 uppercase font-bold mb-1">
+                      Tarih & Saat
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="2026-07-10 19:30"
+                      value={newEventForm.event_date}
+                      onChange={e => setNewEventForm({ ...newEventForm, event_date: e.target.value })}
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 font-semibold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] text-slate-700 uppercase font-bold mb-1">
+                      Konum / Mekan
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Esentepe Sahil Satış Ofisi"
+                      value={newEventForm.location}
+                      onChange={e => setNewEventForm({ ...newEventForm, location: e.target.value })}
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 font-semibold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] text-slate-700 uppercase font-bold mb-1">
                       Etkinlik Açıklaması
                     </label>
                     <input
@@ -5375,55 +5401,144 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
                       placeholder="Kısa açıklama / program özeti"
                       value={newEventForm.description}
                       onChange={e => setNewEventForm({ ...newEventForm, description: e.target.value })}
-                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900"
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900"
                     />
                   </div>
+                </div>
+
+                {/* IMAGE & VIDEO UPLOAD CONTROLS FOR EVENT */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 items-end bg-slate-50 p-3 rounded-xl border border-slate-200">
+                  <div>
+                    <label className="block text-[10px] text-slate-700 uppercase font-bold mb-1">
+                      Fotoğraf / Görsel Ekle (Cihazdan)
+                    </label>
+                    <input
+                      ref={eventImageInputRef}
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={e => handleEventMediaUpload(e, "image")}
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => eventImageInputRef.current?.click()}
+                      disabled={uploadingEventMedia}
+                      className="w-full px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
+                    >
+                      {uploadingEventMedia ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <ImageIcon className="w-3.5 h-3.5" />
+                      )}
+                      <span>+ Resim Yükle</span>
+                    </button>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] text-slate-700 uppercase font-bold mb-1">
+                      Lansman Videosu Ekle (Cihazdan)
+                    </label>
+                    <input
+                      ref={eventVideoInputRef}
+                      type="file"
+                      multiple
+                      accept="video/*,.mp4,.mov,.webm"
+                      onChange={e => handleEventMediaUpload(e, "video")}
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => eventVideoInputRef.current?.click()}
+                      disabled={uploadingEventMedia}
+                      className="w-full px-2.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-lg text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
+                    >
+                      {uploadingEventMedia ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Video className="w-3.5 h-3.5" />
+                      )}
+                      <span>+ Video Yükle (MP4/MOV)</span>
+                    </button>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] text-slate-700 uppercase font-bold mb-1">
+                      Harici Video / Görsel Linki
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Video veya görsel URL yapıştırın"
+                      value={newEventForm.video_url || newEventForm.cover_image}
+                      onChange={e =>
+                        setNewEventForm({
+                          ...newEventForm,
+                          video_url: e.target.value,
+                          media_preview_url: e.target.value
+                        })
+                      }
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900"
+                    />
+                  </div>
+                </div>
+
+                {/* Attached Event Media Gallery Preview Strip */}
+                {newEventForm.media_gallery.length > 0 && (
+                  <div className="space-y-1.5 bg-indigo-50/50 p-2.5 rounded-xl border border-indigo-200">
+                    <div className="text-[10px] font-black text-indigo-950 uppercase">
+                      Eklenen Etkinlik Medyaları ({newEventForm.media_gallery.length})
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {newEventForm.media_gallery.map(item => (
+                        <div
+                          key={item.id}
+                          className="flex items-center gap-2 bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs text-slate-900 font-semibold"
+                        >
+                          {item.type === "video" ? (
+                            <Video className="w-3.5 h-3.5 text-amber-600" />
+                          ) : (
+                            <ImageIcon className="w-3.5 h-3.5 text-emerald-600" />
+                          )}
+                          <span className="truncate max-w-[180px]">{item.name}</span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setNewEventForm(prev => ({
+                                ...prev,
+                                media_gallery: prev.media_gallery.filter(m => m.id !== item.id)
+                              }))
+                            }
+                            className="text-slate-400 hover:text-rose-600 cursor-pointer"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsNewEventOpen(false);
+                      setEditingEventId(null);
+                    }}
+                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold cursor-pointer"
+                  >
+                    Vazgeç
+                  </button>
                   <button
                     type="submit"
                     disabled={uploadingEventMedia}
-                    className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-black cursor-pointer shrink-0 whitespace-nowrap"
+                    className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-black cursor-pointer shrink-0 whitespace-nowrap"
                   >
-                    Kaydet
+                    Kaydet & Güncelle
                   </button>
                 </div>
-              </div>
-
-              {/* Attached Event Media Gallery Preview Strip */}
-              {newEventForm.media_gallery.length > 0 && (
-                <div className="space-y-1.5">
-                  <div className="text-[10px] font-bold text-indigo-900 uppercase">
-                    Eklenen Etkinlik Medyaları ({newEventForm.media_gallery.length})
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {newEventForm.media_gallery.map(item => (
-                      <div
-                        key={item.id}
-                        className="flex items-center gap-2 bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs text-slate-900 font-semibold"
-                      >
-                        {item.type === "video" ? (
-                          <Video className="w-3.5 h-3.5 text-amber-600" />
-                        ) : (
-                          <ImageIcon className="w-3.5 h-3.5 text-emerald-600" />
-                        )}
-                        <span className="truncate max-w-[180px]">{item.name}</span>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setNewEventForm(prev => ({
-                              ...prev,
-                              media_gallery: prev.media_gallery.filter(m => m.id !== item.id)
-                            }))
-                          }
-                          className="text-slate-400 hover:text-rose-600 cursor-pointer"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </form>
+              </form>
+            </div>
           )}
 
           {/* EVENTS GRID WITH COVER IMAGES, VIDEO PREVIEWS & EDIT ACTIONS */}

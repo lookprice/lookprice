@@ -64,9 +64,11 @@ import { SettingsLayoutTab } from "./settings/SettingsLayoutTab";
 import { SettingsMenuTab } from "./settings/SettingsMenuTab";
 import { SettingsDomainTab } from "./settings/SettingsDomainTab";
 import { SettingsWebTab } from "./settings/SettingsWebTab";
+import { SettingsDeveloperWebTab } from "./settings/SettingsDeveloperWebTab";
 import TeamAccessManagement from "../../components/TeamAccessManagement";
 import { RealEstateWebsiteGenerator } from "./RealEstateWebsiteGenerator";
 import { AutomotiveWebsiteGenerator } from "./AutomotiveWebsiteGenerator";
+import { resolveDomainId } from "../../utils/sectorCapability";
 
 interface SettingsTabProps {
   branding: any;
@@ -241,14 +243,23 @@ const SettingsTab = ({
     branding?.page_layout_settings?.sector === 'weblp' || 
     branding?.sector === 'corporate_website';
 
-  const isPortfolio = !isGapStore && !isCorporateWebsite && (branding?.store_type === 'real_estate' || branding?.store_type === 'motor_vehicle' || branding?.store_type === 'portfolio' || branding?.page_layout_settings?.sector === 'real_estate' || branding?.page_layout_settings?.sector === 'automotive');
-  const isAutomotive = !isCorporateWebsite && (branding?.store_type === 'motor_vehicle' || branding?.page_layout_settings?.sector === 'automotive');
-  const isCafeRestaurant = !isCorporateWebsite && (branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant');
+  const isDeveloperProject =
+    resolveDomainId(branding) === 'DEVELOPER_PROJECT' ||
+    branding?.store_type === 'developer_project' ||
+    branding?.page_layout_settings?.sector === 'developer_project' ||
+    branding?.sector === 'developer_project' ||
+    String(branding?.slug || currentUser?.store_slug || '').toLowerCase().includes('cyprus-constructions');
+
+  const isPortfolio = !isGapStore && !isCorporateWebsite && !isDeveloperProject && (branding?.store_type === 'real_estate' || branding?.store_type === 'motor_vehicle' || branding?.store_type === 'portfolio' || branding?.page_layout_settings?.sector === 'real_estate' || branding?.page_layout_settings?.sector === 'automotive');
+  const isAutomotive = !isCorporateWebsite && !isDeveloperProject && (branding?.store_type === 'motor_vehicle' || branding?.page_layout_settings?.sector === 'automotive');
+  const isCafeRestaurant = !isCorporateWebsite && !isDeveloperProject && (branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant');
   const isBranchStore = Boolean(branding?.parent_id);
 
   React.useEffect(() => {
     if (isBranchStore && (activeSubTab === 'web' || activeSubTab === 'domain' || activeSubTab === 'e-stores' || activeSubTab === 'layout' || activeSubTab === 'menu')) {
       setActiveSubTab('store-ops');
+    } else if (isDeveloperProject && (activeSubTab === 'pos' || activeSubTab === 'e-stores' || activeSubTab === 'e-invoice' || activeSubTab === 'financing' || activeSubTab === 'layout' || activeSubTab === 'menu')) {
+      setActiveSubTab('web');
     } else if (isCorporateWebsite && (activeSubTab === 'pos' || activeSubTab === 'e-stores' || activeSubTab === 'e-invoice' || activeSubTab === 'financing' || activeSubTab === 'layout' || activeSubTab === 'menu')) {
       setActiveSubTab('web');
     } else if (isPortfolio && (activeSubTab === 'pos' || activeSubTab === 'e-stores' || activeSubTab === 'e-invoice')) {
@@ -258,7 +269,7 @@ const SettingsTab = ({
     } else if (isCafeRestaurant && activeSubTab === 'e-stores') {
       setActiveSubTab('store-ops');
     }
-  }, [isBranchStore, isPortfolio, isCafeRestaurant, isCorporateWebsite, activeSubTab]);
+  }, [isBranchStore, isPortfolio, isCafeRestaurant, isCorporateWebsite, isDeveloperProject, activeSubTab]);
 
   const fetchLogs = async () => {
     setLoadingLogs(true);
@@ -472,7 +483,7 @@ const SettingsTab = ({
               className={`flex-shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-bold tracking-tight transition-all flex items-center justify-center gap-1.5 cursor-pointer ${activeSubTab === 'web' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
             >
               <Palette className="h-3.5 w-3.5" />
-              <span>Web</span>
+              <span>{isDeveloperProject ? 'Web Mimari Stüdyo' : 'Web'}</span>
             </button>
           )}
           <button 
@@ -480,9 +491,9 @@ const SettingsTab = ({
             className={`flex-shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-bold tracking-tight transition-all flex items-center justify-center gap-1.5 cursor-pointer ${activeSubTab === 'store-ops' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
           >
             <Wrench className="h-3.5 w-3.5" />
-            <span>{isBranchStore ? 'Şube' : 'Mağaza'}</span>
+            <span>{isBranchStore ? 'Şube' : isDeveloperProject ? 'Firma & İletişim' : 'Mağaza'}</span>
           </button>
-          {!isPortfolio && !isCorporateWebsite && (
+          {!isPortfolio && !isCorporateWebsite && !isDeveloperProject && (
             <button 
               onClick={() => setActiveSubTab('pos')}
               className={`flex-shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-bold tracking-tight transition-all flex items-center justify-center gap-1.5 cursor-pointer ${activeSubTab === 'pos' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
@@ -491,7 +502,7 @@ const SettingsTab = ({
               <span>POS</span>
             </button>
           )}
-          {!isPortfolio && !isCafeRestaurant && !isCorporateWebsite && !isBranchStore && (
+          {!isPortfolio && !isCafeRestaurant && !isCorporateWebsite && !isDeveloperProject && !isBranchStore && (
             <button 
               onClick={() => setActiveSubTab('e-stores')}
               className={`flex-shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-bold tracking-tight transition-all flex items-center justify-center gap-1.5 cursor-pointer ${activeSubTab === 'e-stores' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
@@ -518,7 +529,7 @@ const SettingsTab = ({
               <span>Domain</span>
             </button>
           )}
-          {!isPortfolio && !isCorporateWebsite && (
+          {!isPortfolio && !isCorporateWebsite && !isDeveloperProject && (
             <button 
               onClick={() => setActiveSubTab('e-invoice')}
               className={`flex-shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-bold tracking-tight transition-all flex items-center justify-center gap-1.5 cursor-pointer ${activeSubTab === 'e-invoice' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
@@ -587,7 +598,7 @@ const SettingsTab = ({
         />
       )}
 
-      {activeSubTab === 'e-invoice' && !isPortfolio && !isCorporateWebsite && (
+      {activeSubTab === 'e-invoice' && !isPortfolio && !isCorporateWebsite && !isDeveloperProject && (
         <SettingsEInvoiceTab 
           branding={branding} 
           onBrandingChange={onBrandingChange} 
@@ -597,7 +608,7 @@ const SettingsTab = ({
         />
       )}
 
-      {activeSubTab === 'pos' && !isCorporateWebsite && (
+      {activeSubTab === 'pos' && !isCorporateWebsite && !isDeveloperProject && (
         <SettingsPosTab 
           branding={branding} 
           onBrandingChange={onBrandingChange} 
@@ -605,7 +616,7 @@ const SettingsTab = ({
         />
       )}
 
-      {activeSubTab === 'layout' && !isCorporateWebsite && (
+      {activeSubTab === 'layout' && !isCorporateWebsite && !isDeveloperProject && (
         <SettingsLayoutTab 
           branding={branding} 
           onBrandingChange={onBrandingChange} 
@@ -613,7 +624,7 @@ const SettingsTab = ({
         />
       )}
 
-      {activeSubTab === 'menu' && !isCorporateWebsite && (
+      {activeSubTab === 'menu' && !isCorporateWebsite && !isDeveloperProject && (
         <SettingsMenuTab 
           branding={branding} 
           onBrandingChange={onBrandingChange} 
@@ -621,7 +632,7 @@ const SettingsTab = ({
         />
       )}
 
-      {activeSubTab === 'e-stores' && !isPortfolio && !isCafeRestaurant && !isCorporateWebsite && (
+      {activeSubTab === 'e-stores' && !isPortfolio && !isCafeRestaurant && !isCorporateWebsite && !isDeveloperProject && (
         <SettingsEStoresTab
           branding={branding}
           onBrandingChange={onBrandingChange}
@@ -663,7 +674,26 @@ const SettingsTab = ({
         />
       )}
 
-      {activeSubTab === 'web' && !isPortfolio && (
+      {activeSubTab === 'web' && isDeveloperProject && (
+        <SettingsDeveloperWebTab
+          branding={branding}
+          onBrandingChange={onBrandingChange}
+          onSaveBranding={onSaveBranding}
+          savingBranding={savingBranding}
+          onLogoUpload={onLogoUpload}
+          onFaviconUpload={onFaviconUpload}
+          emails={emails}
+          phones={phones}
+          updateEmail={updateEmail}
+          removeEmail={removeEmail}
+          addEmail={addEmail}
+          updatePhone={updatePhone}
+          removePhone={removePhone}
+          addPhone={addPhone}
+        />
+      )}
+
+      {activeSubTab === 'web' && !isPortfolio && !isDeveloperProject && (
         <SettingsWebTab
           branding={branding}
           onBrandingChange={onBrandingChange}
