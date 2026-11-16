@@ -24,8 +24,11 @@ export const DashboardLayout = ({ children, modals, sidebarProps, loading, lang 
   }, [children]);
 
   const branding = sidebarProps?.branding || {};
-  const headerLogoUrl = branding.logo_url || branding.logo;
-  const rawHeaderStoreName = (branding.store_name && !/^lookprice$/i.test(branding.store_name.trim()))
+  const isHydratingBranding = Boolean(branding.__isHydrating);
+  const headerLogoUrl = isHydratingBranding ? undefined : (branding.logo_url || branding.logo);
+  const rawHeaderStoreName = isHydratingBranding
+    ? (lang === 'tr' ? "Mağaza Yükleniyor..." : "Loading Store...")
+    : (branding.store_name && !/^lookprice$/i.test(branding.store_name.trim()))
     ? branding.store_name.trim()
     : (branding.name && !/^lookprice$/i.test(branding.name.trim()))
     ? branding.name.trim()
@@ -86,8 +89,13 @@ export const DashboardLayout = ({ children, modals, sidebarProps, loading, lang 
           <div className="flex items-center gap-2.5 min-w-0">
             <button 
               onClick={() => {
-                sidebarProps.setSidebarOpen(true);
-                sidebarProps.setDesktopSidebarCollapsed(false);
+                if (sidebarProps.isDeveloperProject && typeof window !== 'undefined' && window.innerWidth >= 1024) {
+                  sidebarProps.setSidebarOpen(false);
+                  sidebarProps.setDesktopSidebarCollapsed((prev: boolean) => !prev);
+                } else {
+                  sidebarProps.setSidebarOpen(true);
+                  sidebarProps.setDesktopSidebarCollapsed(false);
+                }
               }} 
               className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-900 hover:bg-indigo-600 text-white rounded-lg font-medium text-xs uppercase tracking-wider transition-all cursor-pointer shadow-xs active:scale-95 shrink-0"
               title={lang === 'tr' ? 'Menüyü Aç' : 'Open Menu'}

@@ -7,15 +7,40 @@ const router = express.Router();
 // GET /api/store/info
 router.get("/", async (req: any, res) => {
   try {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
     let targetStoreId: number;
 
     if (req.query.slug) {
-      const slug = req.query.slug as string;
-      const storeRes = await pool.query("SELECT id FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
+      const slug = String(req.query.slug || "").trim();
+      const storeRes = await pool.query("SELECT id, parent_id, slug FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
       if (storeRes.rows.length === 0) {
         return res.status(404).json({ error: "Store not found" });
       }
-      targetStoreId = storeRes.rows[0].id;
+      const targetRow = storeRes.rows[0];
+      targetStoreId = Number(targetRow.id);
+
+      const userRole = String(req.user?.role || "").toLowerCase();
+      const userStoreId = Number(req.user?.store_id || 0);
+      const isSuperAdmin = userRole === "superadmin";
+      const isSameStore = userStoreId > 0 && userStoreId === targetStoreId;
+      const isParentOpeningBranch = userStoreId > 0 && Number(targetRow.parent_id || 0) === userStoreId;
+
+      if (!isSuperAdmin && !isSameStore && !isParentOpeningBranch) {
+        let activeStoreSlug: string | null = req.user?.store_slug || null;
+        if (!activeStoreSlug && userStoreId > 0) {
+          try {
+            const activeRes = await pool.query("SELECT slug FROM stores WHERE id = $1 LIMIT 1", [userStoreId]);
+            activeStoreSlug = activeRes.rows[0]?.slug || null;
+          } catch {}
+        }
+        return res.status(403).json({
+          error: "unauthorized_store_context",
+          message: "Aktif oturumunuz farklı bir mağaza hesabına ait.",
+          active_store_id: userStoreId || null,
+          active_store_slug: activeStoreSlug,
+          requested_slug: slug
+        });
+      }
     } else {
       const reqStoreId = req.query.storeId ? parseInt(req.query.storeId as string) : undefined;
       const resolvedId = await getAuthorizedStoreId(req, reqStoreId);

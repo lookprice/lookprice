@@ -254,6 +254,7 @@ export const LandingPage = () => {
       if (res && res.token) {
         localStorage.setItem('token', res.token);
         localStorage.setItem('user', JSON.stringify(res.user));
+        window.dispatchEvent(new Event('lookprice-auth-changed'));
         navigate(targetPath);
       }
     } catch (err: any) {

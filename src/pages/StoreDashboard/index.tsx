@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, useTransition, useDeferredValue, Suspense } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { 
   Activity,
+  AlertTriangle,
   ArrowLeftRight,
   Bell,
   Building2,
@@ -45,7 +46,9 @@ import {
   CheckCircle2,
   Copy,
   ChevronRight,
-  FolderTree
+  FolderTree,
+  Loader2,
+  LogOut
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { translations } from "@/translations";
@@ -120,6 +123,7 @@ interface StoreDashboardProps {
 
 export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) {
   const { slug } = useParams();
+  const navigate = useNavigate();
   const { lang } = useLanguage();
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showPasswordBanner, setShowPasswordBanner] = useState(false);
@@ -148,7 +152,13 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const {
     activeTab, setActiveTab,
     branding, setBranding
-  } = useDashboardController(user);
+  } = useDashboardController(user, slug);
+
+  const [storeAccessError, setStoreAccessError] = useState<{
+    type: 'mismatch' | 'not_found' | 'error';
+    message: string;
+    activeStoreSlug?: string | null;
+  } | null>(null);
 
   const domainId = resolveDomainId({ ...branding, slug: slug || branding?.slug || user?.store_slug });
   const isRealEstate = domainId === 'REAL_ESTATE';
@@ -161,21 +171,41 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const isShopLp = domainId === 'RETAIL' || domainId === 'BOOKSTORE';
   const isCorporateWebsite = domainId === 'CORPORATE';
 
-  // Cafe/Restaurant Role-based authorization state
+  // Store-scoped Cafe/Restaurant Role-based authorization state
+  const staffScope = String(slug || user?.store_id || 'default').trim().toLowerCase();
+
   const [activeStaffRole, setActiveStaffRole] = useState<'manager' | 'cashier' | 'waiter'>(() => {
-    return (localStorage.getItem('lookprice_active_staff_role') as 'manager' | 'cashier' | 'waiter') || 'manager';
+    if (user?.role === 'superadmin') return 'manager';
+    return (localStorage.getItem(`lookprice_active_staff_role_${staffScope}`) as 'manager' | 'cashier' | 'waiter') || 'manager';
   });
 
   const [activeWaiterId, setActiveWaiterId] = useState<string>(() => {
-    return localStorage.getItem('lookprice_active_waiter_id') || 'w_1';
+    return localStorage.getItem(`lookprice_active_waiter_id_${staffScope}`) || 'w_1';
   });
   const [activeWaiterName, setActiveWaiterName] = useState<string>(() => {
-    return localStorage.getItem('lookprice_active_waiter_name') || 'Garson 1 (Ahmet)';
+    return localStorage.getItem(`lookprice_active_waiter_name_${staffScope}`) || 'Garson 1 (Ahmet)';
   });
 
-  const [managerPin, setManagerPin] = useState(() => localStorage.getItem('lookprice_manager_pin') || '1234');
-  const [cashierPin, setCashierPin] = useState(() => localStorage.getItem('lookprice_cashier_pin') || '2222');
-  const [waiterPin, setWaiterPin] = useState(() => localStorage.getItem('lookprice_waiter_pin') || '3333');
+  const [managerPin, setManagerPin] = useState(() => localStorage.getItem(`lookprice_manager_pin_${staffScope}`) || '1234');
+  const [cashierPin, setCashierPin] = useState(() => localStorage.getItem(`lookprice_cashier_pin_${staffScope}`) || '2222');
+  const [waiterPin, setWaiterPin] = useState(() => localStorage.getItem(`lookprice_waiter_pin_${staffScope}`) || '3333');
+
+  const lastStaffScopeRef = useRef(staffScope);
+  useEffect(() => {
+    if (lastStaffScopeRef.current !== staffScope) {
+      lastStaffScopeRef.current = staffScope;
+      setActiveStaffRole(
+        user?.role === 'superadmin'
+          ? 'manager'
+          : ((localStorage.getItem(`lookprice_active_staff_role_${staffScope}`) as 'manager' | 'cashier' | 'waiter') || 'manager')
+      );
+      setActiveWaiterId(localStorage.getItem(`lookprice_active_waiter_id_${staffScope}`) || 'w_1');
+      setActiveWaiterName(localStorage.getItem(`lookprice_active_waiter_name_${staffScope}`) || 'Garson 1 (Ahmet)');
+      setManagerPin(localStorage.getItem(`lookprice_manager_pin_${staffScope}`) || '1234');
+      setCashierPin(localStorage.getItem(`lookprice_cashier_pin_${staffScope}`) || '2222');
+      setWaiterPin(localStorage.getItem(`lookprice_waiter_pin_${staffScope}`) || '3333');
+    }
+  }, [staffScope, user?.role]);
 
   const [showRoleModal, setShowRoleModal] = useState(false);
   const [modalRole, setModalRole] = useState<'manager' | 'cashier' | 'waiter'>('waiter');
@@ -199,17 +229,23 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     }
   }, [waiterList]);
 
-  // Sync state with localStorage
+  // Sync state with scoped localStorage
   useEffect(() => {
-    localStorage.setItem('lookprice_active_staff_role', activeStaffRole);
-  }, [activeStaffRole]);
+    if (lastStaffScopeRef.current !== staffScope) return;
+    localStorage.setItem(`lookprice_active_staff_role_${staffScope}`, activeStaffRole);
+  }, [activeStaffRole, staffScope]);
 
   useEffect(() => {
-    localStorage.setItem('lookprice_active_waiter_id', activeWaiterId);
-    localStorage.setItem('lookprice_active_waiter_name', activeWaiterName);
-  }, [activeWaiterId, activeWaiterName]);
+    if (lastStaffScopeRef.current !== staffScope) return;
+    localStorage.setItem(`lookprice_active_waiter_id_${staffScope}`, activeWaiterId);
+    localStorage.setItem(`lookprice_active_waiter_name_${staffScope}`, activeWaiterName);
+  }, [activeWaiterId, activeWaiterName, staffScope]);
 
   useEffect(() => {
+    if (branding?.__isHydrating) {
+      document.title = `Mağaza Yükleniyor... - Bulut Panel`;
+      return;
+    }
     const rawStoreName = (branding?.store_name || "").trim();
     const rawName = (branding?.name || "").trim();
     const storeName = (rawStoreName && !/^lookprice$/i.test(rawStoreName))
@@ -230,16 +266,19 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   }, [branding]);
 
   useEffect(() => {
-    localStorage.setItem('lookprice_manager_pin', managerPin);
-  }, [managerPin]);
+    if (lastStaffScopeRef.current !== staffScope) return;
+    localStorage.setItem(`lookprice_manager_pin_${staffScope}`, managerPin);
+  }, [managerPin, staffScope]);
 
   useEffect(() => {
-    localStorage.setItem('lookprice_cashier_pin', cashierPin);
-  }, [cashierPin]);
+    if (lastStaffScopeRef.current !== staffScope) return;
+    localStorage.setItem(`lookprice_cashier_pin_${staffScope}`, cashierPin);
+  }, [cashierPin, staffScope]);
 
   useEffect(() => {
-    localStorage.setItem('lookprice_waiter_pin', waiterPin);
-  }, [waiterPin]);
+    if (lastStaffScopeRef.current !== staffScope) return;
+    localStorage.setItem(`lookprice_waiter_pin_${staffScope}`, waiterPin);
+  }, [waiterPin, staffScope]);
 
   const handleVerifyRolePin = (pinToVerify: string) => {
     let isValid = false;
@@ -376,11 +415,24 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
   const [customers, setCustomers] = useState<any[]>([]);
 
+  const normalizedRouteSlug = slug ? slug.trim().toLowerCase() : '';
+  const normalizedBrandingSlug = String(branding?.slug || '').trim().toLowerCase();
+  const isStoreIdentityReady = !normalizedRouteSlug
+    ? Boolean(currentStoreId && branding?.id && !branding?.__isHydrating)
+    : Boolean(
+        branding?.id &&
+        !branding?.__isHydrating &&
+        normalizedBrandingSlug === normalizedRouteSlug &&
+        Number(currentStoreId) === Number(branding.id)
+      );
+
   useEffect(() => {
-    if (currentStoreId) {
-      api.getCustomers(currentStoreId).then(setCustomers);
+    if (currentStoreId && isStoreIdentityReady && !storeAccessError) {
+      api.getCustomers(currentStoreId).then((res) => {
+        if (Array.isArray(res)) setCustomers(res);
+      });
     }
-  }, [currentStoreId]);
+  }, [currentStoreId, isStoreIdentityReady, storeAccessError]);
 
   const {
     sales, setSales,
@@ -452,10 +504,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     if (!Array.isArray(contacts)) return 0;
     return contacts.filter(c => c.notes && (c.notes.includes('[MÜLK SAHİBİ BAŞVURUSU]') || c.notes.includes('[ARAÇ SAHİBİ BAŞVURUSU]'))).length;
   }, [contacts]);
-
-  useEffect(() => {
-    localStorage.setItem(`storeDashboardTab_${user.store_id || 'admin'}`, activeTab);
-  }, [activeTab, user.store_id]);
   
   const [analytics, setAnalytics] = useState<any>(null);
   const [realEstateStatusFilter, setRealEstateStatusFilter] = useState("all");
@@ -474,20 +522,27 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
   const companyList = Array.isArray(companies) ? companies : [];
 
-  useEffect(() => {
-    if (isDeveloperProject && typeof window !== 'undefined' && window.innerWidth >= 1024) {
-      if (localStorage.getItem('projectLP_sidebar_collapsed') !== 'true') {
-        setDesktopSidebarCollapsed(false);
-      }
-    }
-  }, [isDeveloperProject]);
+  const prevDevSidebarModeRef = useRef<boolean | null>(null);
 
   useEffect(() => {
-    localStorage.setItem('desktopSidebarCollapsed', desktopSidebarCollapsed.toString());
+    if (!isStoreIdentityReady) return;
+    if (isDeveloperProject && typeof window !== 'undefined' && window.innerWidth >= 1024) {
+      setSidebarOpen(false);
+      setDesktopSidebarCollapsed(localStorage.getItem('projectLP_sidebar_collapsed') === 'true');
+    } else if (!isDeveloperProject) {
+      setDesktopSidebarCollapsed(localStorage.getItem('desktopSidebarCollapsed') !== 'false');
+    }
+    prevDevSidebarModeRef.current = isDeveloperProject;
+  }, [isDeveloperProject, isStoreIdentityReady]);
+
+  useEffect(() => {
+    if (!isStoreIdentityReady || prevDevSidebarModeRef.current !== isDeveloperProject) return;
     if (isDeveloperProject) {
       localStorage.setItem('projectLP_sidebar_collapsed', desktopSidebarCollapsed.toString());
+    } else {
+      localStorage.setItem('desktopSidebarCollapsed', desktopSidebarCollapsed.toString());
     }
-  }, [desktopSidebarCollapsed, isDeveloperProject]);
+  }, [desktopSidebarCollapsed, isDeveloperProject, isStoreIdentityReady]);
 
   useEffect(() => {
     if (editingQuotation) {
@@ -545,9 +600,25 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const scanUrl = `${window.location.origin}/scan/${effectiveSlug}`;
 
   const hasDashboardInitialLoaded = useRef(false);
+  const dashboardFetchSeqRef = useRef(0);
+  const lastDashboardSlugRef = useRef(slug);
+
+  useEffect(() => {
+    if (lastDashboardSlugRef.current !== slug) {
+      lastDashboardSlugRef.current = slug;
+      hasDashboardInitialLoaded.current = false;
+      setStoreAccessError(null);
+      setAnalytics(null);
+      setUsers([]);
+      setBranches([]);
+      setCustomers([]);
+      setSelectedPurchaseInvoice(null);
+      setSelectedSale(null);
+    }
+  }, [slug]);
 
   const fetchAnalytics = async (start?: string, end?: string) => {
-    if (!currentStoreId) return;
+    if (!currentStoreId || !isStoreIdentityReady || storeAccessError) return;
     try {
       const res = await api.getAnalytics(currentStoreId, start, end);
       setAnalytics(res && !res.error ? res : null);
@@ -557,54 +628,95 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   };
 
   const fetchData = useCallback(async (isSilent = false) => {
+    const seq = ++dashboardFetchSeqRef.current;
     const silent = isSilent || hasDashboardInitialLoaded.current;
     try {
       if (!silent) setLoading(true);
-      
-      let targetStoreId = currentStoreId || user.store_id;
-      
+
+      let targetStoreId: number | undefined = slug ? undefined : (user.store_id || undefined);
+      let resolvedBranding: any = null;
+
       if (slug) {
         const storeInfo = await api.getBranding(undefined, slug);
+        if (dashboardFetchSeqRef.current !== seq) return;
+
         if (storeInfo && storeInfo.id) {
           targetStoreId = storeInfo.id;
-        } else if (storeInfo && storeInfo.error) {
+          resolvedBranding = { ...storeInfo, __isHydrating: false };
+          setStoreAccessError(null);
+          setBranding(resolvedBranding);
+        } else {
+          const errCode = storeInfo?.error;
+          if (errCode === 'unauthorized_store_context') {
+            setStoreAccessError({
+              type: 'mismatch',
+              message: storeInfo.message || 'Aktif oturumunuz farklı bir mağaza hesabına ait.',
+              activeStoreSlug: storeInfo.active_store_slug || user?.store_slug || null
+            });
+          } else if (errCode === 'Store not found' || String(errCode || '').toLowerCase().includes('not found')) {
+            setStoreAccessError({
+              type: 'not_found',
+              message: isTr ? 'İstenen mağaza bulunamadı.' : 'Requested store not found.'
+            });
+          } else {
+            setStoreAccessError({
+              type: 'error',
+              message: errCode || (isTr ? 'Mağaza bilgileri yüklenemedi.' : 'Failed to load store data.')
+            });
+          }
           if (!silent) setLoading(false);
           return;
         }
       } else if (user.role === 'superadmin' && !targetStoreId) {
-        window.location.href = "/admin";
+        navigate("/admin", { replace: true });
         return;
       }
-      
+
       if (targetStoreId === undefined || targetStoreId === null) {
         if (!silent) setLoading(false);
         return;
       }
-      
-      const requests: any[] = [
-        api.getProducts("", targetStoreId, includeBranches),
-        api.getBranding(targetStoreId),
-        api.getUsers(targetStoreId),
-        api.getBranches(targetStoreId)
-      ];
 
-      const results = await Promise.all(requests);
-      const [productsRes, brandingRes, usersRes, branchesRes] = results;
+      const [productsRes, brandingOrUsersRes, usersOrBranchesRes, branchesMaybeRes] = resolvedBranding
+        ? await Promise.all([
+            api.getProducts("", targetStoreId, includeBranches),
+            api.getUsers(targetStoreId),
+            api.getBranches(targetStoreId),
+            Promise.resolve(null)
+          ])
+        : await Promise.all([
+            api.getProducts("", targetStoreId, includeBranches),
+            api.getBranding(targetStoreId),
+            api.getUsers(targetStoreId),
+            api.getBranches(targetStoreId)
+          ]);
+
+      if (dashboardFetchSeqRef.current !== seq) return;
 
       if (Array.isArray(productsRes)) {
         setProducts(productsRes);
       }
-      if (brandingRes && !brandingRes.error) setBranding(brandingRes);
-      setUsers(Array.isArray(usersRes) ? usersRes : []);
-      setBranches(Array.isArray(branchesRes) ? branchesRes : []);
+
+      if (!resolvedBranding) {
+        if (brandingOrUsersRes && !brandingOrUsersRes.error) {
+          setBranding({ ...brandingOrUsersRes, __isHydrating: false });
+        }
+        setUsers(Array.isArray(usersOrBranchesRes) ? usersOrBranchesRes : []);
+        setBranches(Array.isArray(branchesMaybeRes) ? branchesMaybeRes : []);
+      } else {
+        setUsers(Array.isArray(brandingOrUsersRes) ? brandingOrUsersRes : []);
+        setBranches(Array.isArray(usersOrBranchesRes) ? usersOrBranchesRes : []);
+      }
 
       hasDashboardInitialLoaded.current = true;
     } catch (error) {
       console.error("Fetch error in StoreDashboard:", error);
     } finally {
-      if (!silent) setLoading(false);
+      if (dashboardFetchSeqRef.current === seq && !silent) {
+        setLoading(false);
+      }
     }
-  }, [includeBranches, user.role, user.store_id, slug, currentStoreId, setProducts, setBranding, setLoading]);
+  }, [includeBranches, user.role, user.store_id, user?.store_slug, slug, setProducts, setBranding, setLoading, navigate, isTr]);
 
   const fetchDailySalesReport = async () => {
     if (!currentStoreId) return;
@@ -657,7 +769,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const prevHotelResCount = useRef<number>(0);
 
   const fetchNotifications = useCallback(async () => {
-    if (!currentStoreId) return;
+    if (!currentStoreId || !isStoreIdentityReady || storeAccessError) return;
     try {
       const data = await api.getNotifications(currentStoreId);
       setNotifications(data);
@@ -671,14 +783,18 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     } catch (error) {
       console.error("Failed to fetch notifications:", error);
     }
-  }, [currentStoreId]);
+  }, [currentStoreId, isStoreIdentityReady, storeAccessError]);
 
   useEffect(() => {
     fetchData();
+  }, [fetchData]);
+
+  useEffect(() => {
+    if (!isStoreIdentityReady || storeAccessError) return;
     fetchNotifications();
     const interval = setInterval(fetchNotifications, isHotelModuleActive ? 30000 : 300000); 
     return () => clearInterval(interval);
-  }, [fetchData, fetchNotifications, isHotelModuleActive]);
+  }, [fetchNotifications, isHotelModuleActive, isStoreIdentityReady, storeAccessError]);
 
   // Real-time custom event listeners for hotel reservations
   useEffect(() => {
@@ -717,23 +833,23 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   }, [currentStoreId, fetchNotifications]);
 
   useEffect(() => {
-    if (currentStoreId) {
+    if (currentStoreId && isStoreIdentityReady && !storeAccessError) {
       fetchQuotations();
       fetchCompanies();
     }
-  }, [fetchQuotations, fetchCompanies, currentStoreId]);
+  }, [fetchQuotations, fetchCompanies, currentStoreId, isStoreIdentityReady, storeAccessError]);
 
   useEffect(() => {
-    if ((activeTab === 'analytics' || activeTab === 'notifications') && !analytics && currentStoreId) {
+    if ((activeTab === 'analytics' || activeTab === 'notifications') && !analytics && currentStoreId && isStoreIdentityReady && !storeAccessError) {
       fetchAnalytics();
     }
-  }, [activeTab, analytics, currentStoreId]);
+  }, [activeTab, analytics, currentStoreId, isStoreIdentityReady, storeAccessError]);
 
   useEffect(() => {
-    if (activeTab === 'pos') {
+    if (activeTab === 'pos' && isStoreIdentityReady && !storeAccessError) {
       fetchSales();
     }
-  }, [activeTab, fetchSales]);
+  }, [activeTab, fetchSales, isStoreIdentityReady, storeAccessError]);
 
   const handleSaleSuccess = async (saleId?: any) => {
     await fetchData();
@@ -1096,6 +1212,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
   // Bulletproof fallback redirection for unauthorized/unrelated tabs (Zero-Stale Tab Protocol)
   useEffect(() => {
+    if (!isStoreIdentityReady || storeAccessError) return;
     if (permittedTabIds.size > 0 && !permittedTabIds.has(activeTab)) {
       if (isCorporateWebsite && permittedTabIds.has('corporate-website')) {
         setActiveTab('corporate-website');
@@ -1131,7 +1248,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         setActiveTab(firstTab);
       }
     }
-  }, [permittedTabIds, activeTab, setActiveTab, isCorporateWebsite, isDeveloperProject, isPortfolio, isAutomotive, isRealEstate, isCafeRestaurant]);
+  }, [isStoreIdentityReady, storeAccessError, permittedTabIds, activeTab, setActiveTab, isCorporateWebsite, isDeveloperProject, isPortfolio, isAutomotive, isRealEstate, isCafeRestaurant]);
 
   return (
     <DashboardLayout
@@ -1177,7 +1294,84 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         onRefreshNotifications: fetchData
       }}
     >
-      <div className={activeTab === 'fast-pos' ? "h-full w-full" : "w-full"}>
+      <div className={activeTab === 'fast-pos' && !storeAccessError && isStoreIdentityReady ? "h-full w-full" : "w-full"}>
+        {storeAccessError ? (
+          <div className="max-w-xl mx-auto my-12 bg-white border border-slate-200 rounded-2xl shadow-sm p-6 sm:p-8 text-slate-900">
+            <div className="flex items-start gap-4">
+              <div className="w-11 h-11 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div className="space-y-2 flex-1">
+                <h2 className="text-lg font-bold text-slate-900">
+                  {storeAccessError.type === 'mismatch'
+                    ? (isTr ? 'Oturum ve Mağaza Adresi Uyuşmazlığı' : 'Store Session Mismatch')
+                    : storeAccessError.type === 'not_found'
+                    ? (isTr ? 'Mağaza Bulunamadı' : 'Store Not Found')
+                    : (isTr ? 'Mağaza Paneli Açılamadı' : 'Unable to Open Store Panel')}
+                </h2>
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  {storeAccessError.message}
+                </p>
+                {storeAccessError.type === 'mismatch' && (
+                  <div className="mt-2 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-1">
+                    <div>
+                      <span className="font-semibold text-slate-900">{isTr ? 'Aktif Oturum:' : 'Active Session:'}</span>{' '}
+                      <span>{user?.email}</span>
+                      {storeAccessError.activeStoreSlug ? ` (${storeAccessError.activeStoreSlug})` : ''}
+                    </div>
+                    {slug && (
+                      <div>
+                        <span className="font-semibold text-slate-900">{isTr ? 'Açılmak İstenen Panel:' : 'Requested Store:'}</span>{' '}
+                        <span className="font-mono">/dashboard/{slug}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div className="pt-4 flex flex-wrap items-center gap-2.5">
+                  {storeAccessError.activeStoreSlug ? (
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/dashboard/${storeAccessError.activeStoreSlug}`)}
+                      className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+                    >
+                      {isTr ? 'Aktif Mağaza Paneline Git' : 'Go to Active Store Panel'}
+                    </button>
+                  ) : user?.role === 'superadmin' ? (
+                    <button
+                      type="button"
+                      onClick={() => navigate('/admin')}
+                      className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+                    >
+                      {isTr ? 'Süper Admin Paneline Dön' : 'Back to Super Admin'}
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const targetRedirect = `${window.location.pathname}${window.location.search}`;
+                      onLogout();
+                      navigate(`/login?redirect=${encodeURIComponent(targetRedirect)}`);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>
+                      {isTr ? 'Çıkış Yap ve Yetkili Hesapla Giriş Yap' : 'Sign Out & Sign In Again'}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : !isStoreIdentityReady ? (
+          <div className="flex flex-col items-center justify-center h-72 gap-3 text-slate-600">
+            <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              {isTr ? 'Mağaza paneli ve yetkiler doğrulanıyor...' : 'Verifying store panel and permissions...'}
+            </p>
+          </div>
+        ) : (
+          <>
         {user?.password_needs_update && (
           <div className="mb-4">
             {!showPasswordBanner ? (
@@ -1946,6 +2140,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
               )}
             </Suspense>
         </div>
+          </>
+        )}
       </div>
 
       <DashboardModals 

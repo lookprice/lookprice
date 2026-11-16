@@ -170,12 +170,56 @@ export default function App() {
     }
   });
 
+  useEffect(() => {
+    const syncAuthFromStorage = () => {
+      try {
+        const nextToken = localStorage.getItem("token");
+        const savedUser = localStorage.getItem("user");
+        const nextUser = savedUser ? JSON.parse(savedUser) : null;
+        setToken(nextToken);
+        setUser(nextUser);
+      } catch {
+        setToken(null);
+        setUser(null);
+      }
+    };
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "token" || e.key === "user" || e.key === null) {
+        syncAuthFromStorage();
+      }
+    };
+
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener("lookprice-auth-changed", syncAuthFromStorage);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("lookprice-auth-changed", syncAuthFromStorage);
+    };
+  }, []);
+
   const handleLogin = (newToken: string, newUser: User) => {
     setToken(newToken);
     setUser(newUser);
     localStorage.setItem("token", newToken);
     localStorage.setItem("user", JSON.stringify(newUser));
-    
+    window.dispatchEvent(new Event("lookprice-auth-changed"));
+
+    const redirectParam = new URLSearchParams(location.search).get("redirect");
+    if (redirectParam && redirectParam.startsWith("/")) {
+      if (newUser.role === "superadmin" && (redirectParam.startsWith("/dashboard/") || redirectParam === "/admin")) {
+        navigate(redirectParam);
+        return;
+      }
+      if (
+        newUser.store_slug &&
+        redirectParam.toLowerCase().startsWith(`/dashboard/${newUser.store_slug.toLowerCase()}`)
+      ) {
+        navigate(redirectParam);
+        return;
+      }
+    }
+
     // Redirect based on role and store
     if (newUser.role === 'superadmin') {
       navigate("/admin");
@@ -191,6 +235,7 @@ export default function App() {
     setUser(null);
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    window.dispatchEvent(new Event("lookprice-auth-changed"));
   };
 
   if (isCheckingDomain) {

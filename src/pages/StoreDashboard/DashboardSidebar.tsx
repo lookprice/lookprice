@@ -118,7 +118,7 @@ export const DashboardSidebar = ({
 
   return (
     <>
-      {/* Backdrop: Mobile/Tablet always; Desktop only for non-inline drawer mode */}
+      {/* Backdrop: Mobile/Tablet overlay only; never shown over inline desktop sidebar */}
       <AnimatePresence>
         {(sidebarOpen || (!desktopSidebarCollapsed && !isDeveloperProject)) && (
           <motion.div
@@ -126,8 +126,8 @@ export const DashboardSidebar = ({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={handleCloseMenu}
-            className={`fixed inset-0 bg-slate-950/50 z-50 backdrop-blur-xs transition-opacity ${
-              isDeveloperProject && !sidebarOpen ? "lg:hidden" : ""
+            className={`fixed inset-0 bg-slate-950/50 z-40 backdrop-blur-xs transition-opacity ${
+              isDeveloperProject ? "lg:hidden" : ""
             }`}
           />
         )}

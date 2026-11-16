@@ -42,6 +42,12 @@ if (process.env.NODE_ENV !== "production") {
   });
 }
 
+// Prevent browser or proxy caching on authenticated store routes
+router.use((_req, res, next) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
+  next();
+});
+
 // Auth middleware applied to all store routes
 router.use(authenticate);
 
