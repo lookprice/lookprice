@@ -52,6 +52,7 @@ interface ProductsTableProps {
   lang: string;
   t: any;
   onRefresh?: () => void;
+  onToggleWebSale?: (product: any) => void;
 }
 
 export const ProductsTable: React.FC<ProductsTableProps> = ({
@@ -104,6 +105,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
   lang,
   t,
   onRefresh,
+  onToggleWebSale,
 }) => {
   return (
     <div className="os-panel overflow-hidden">
@@ -212,6 +214,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
                   lang={lang}
                   t={t}
                   onRefresh={onRefresh}
+                  onToggleWebSale={onToggleWebSale}
                 />
               ))
             )}

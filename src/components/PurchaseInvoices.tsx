@@ -753,7 +753,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
           system_quantity: item.system_quantity != null ? String(item.system_quantity) : '',
           system_unit_code: item.system_unit_code || '',
           unit_price: String(displayPrice.toFixed(2)),
-          tax_rate: String(item.tax_rate || 0)
+          tax_rate: String(Math.floor(Number(item.tax_rate) || 0))
         };
       }));
       setShowModal(true);

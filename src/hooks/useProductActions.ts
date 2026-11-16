@@ -505,5 +505,83 @@ export const useProductActions = (
     });
   };
 
-  return { handleAddProduct, handleDeleteProduct, handleDeleteAllProducts, handleBulkDelete, handleBulkAdd, handleBulkRename, handleReformatProductNames, editingProduct, setEditingProduct };
+  const handleBulkWebSale = async (ids: number[], isWebSale: boolean) => {
+    if (!ids || ids.length === 0) return;
+    const targetStoreId = (user.role === 'superadmin' || user.store_id !== currentStoreId) ? currentStoreId : undefined;
+
+    if (setProducts) {
+      const idSet = new Set(ids.map(Number));
+      setProducts((prev: Product[]) =>
+        prev.map((p) => (idSet.has(Number(p.id)) ? { ...p, is_web_sale: isWebSale } : p))
+      );
+    }
+
+    const promise = (async () => {
+      const res = await api.bulkUpdateWebSale(ids, isWebSale, targetStoreId);
+      fetchData(true);
+      return res;
+    })();
+
+    toast.promise(promise, {
+      loading: lang === 'tr'
+        ? `${ids.length} ürünün vitrin durumu güncelleniyor...`
+        : `Updating showcase status for ${ids.length} products...`,
+      success: lang === 'tr'
+        ? `${ids.length} ürün vitrinde ${isWebSale ? 'aktif edildi (yayınlandı)' : 'pasife alındı (kaldırıldı)'}`
+        : `${ids.length} products ${isWebSale ? 'published to' : 'hidden from'} showcase`,
+      error: lang === 'tr' ? "Vitrin durumu güncellenemedi" : "Failed to update showcase status"
+    });
+
+    return promise;
+  };
+
+  const handleBulkCategoryAssign = async (ids: number[], category: string, subCategory = "", updateSubCategory = true) => {
+    if (!ids || ids.length === 0) return;
+    const targetStoreId = (user.role === 'superadmin' || user.store_id !== currentStoreId) ? currentStoreId : undefined;
+
+    if (setProducts) {
+      const idSet = new Set(ids.map(Number));
+      setProducts((prev: Product[]) =>
+        prev.map((p) =>
+          idSet.has(Number(p.id))
+            ? {
+                ...p,
+                category,
+                ...(updateSubCategory ? { sub_category: subCategory } : {}),
+              }
+            : p
+        )
+      );
+    }
+
+    const promise = (async () => {
+      const res = await api.bulkUpdateCategory(ids, category, subCategory, updateSubCategory, targetStoreId);
+      fetchData(true);
+      return res;
+    })();
+
+    toast.promise(promise, {
+      loading: lang === 'tr' ? `${ids.length} ürüne kategori atanıyor...` : `Assigning category to ${ids.length} products...`,
+      success: lang === 'tr'
+        ? `${ids.length} ürünün kategorisi güncellendi`
+        : `Category updated for ${ids.length} products`,
+      error: lang === 'tr' ? "Toplu kategori atama başarısız" : "Failed to update category"
+    });
+
+    return promise;
+  };
+
+  return {
+    handleAddProduct,
+    handleDeleteProduct,
+    handleDeleteAllProducts,
+    handleBulkDelete,
+    handleBulkAdd,
+    handleBulkRename,
+    handleReformatProductNames,
+    handleBulkWebSale,
+    handleBulkCategoryAssign,
+    editingProduct,
+    setEditingProduct
+  };
 };

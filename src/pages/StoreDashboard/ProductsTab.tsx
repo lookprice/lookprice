@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
+import { Globe, EyeOff, FolderTree, CheckSquare, X, Loader2 } from "lucide-react";
 import { api } from "@/services/api";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { translations } from "@/translations";
@@ -11,24 +12,29 @@ import { getConnectedMarketplaces } from "@/utils/marketplaceEStores";
 import { matchProductSearch } from "@/lib/searchUtils";
 
 // Vertical Slices
-import { ProductsTabProps, MarketplaceFilterType, MarketplaceModalTab, MarketplaceModalStatus } from "./products/types";
+import { ProductsTabProps, MarketplaceFilterType, MarketplaceModalTab, MarketplaceModalStatus, ShowcaseFilterType } from "./products/types";
 import { ProductsHeaderActions } from "./products/ProductsHeaderActions";
 import { ProductsFilterToolbar } from "./products/ProductsFilterToolbar";
 import { ProductsTable } from "./products/ProductsTable";
 import { ProductsModalsContainer } from "./products/ProductsModalsContainer";
+import CategoriesTab from "./CategoriesTab";
 
 export const ProductsTab: React.FC<ProductsTabProps> = ({
   products,
   loading,
   isViewer,
   onBulkDelete,
+  onBulkWebSale,
+  onBulkCategoryAssign,
   onEdit,
   onAddNew,
   onImport,
   onDelete,
   onExportReport,
+  onApplyTaxRule,
   onBulkRename,
   branding,
+  setBranding,
   showStoreName,
   currentStoreId,
   includeBranches,
@@ -78,10 +84,12 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
   const [highlightedProductId, setHighlightedProductId] = useState<number | null>(null);
   const [optimisticBadges, setOptimisticBadges] = useState<Record<number, string[]>>({});
 
-  // Marketplaces filtering & modal state
+  // Marketplaces & showcase filtering & modal state
   const [marketplaceFilter, setMarketplaceFilter] = useState<MarketplaceFilterType>('all');
+  const [showcaseFilter, setShowcaseFilter] = useState<ShowcaseFilterType>('all');
   const [driveConnected, setDriveConnected] = useState<boolean>(false);
   const [isBackupLoading, setIsBackupLoading] = useState<boolean>(false);
+  const [isBulkVitrinLoading, setIsBulkVitrinLoading] = useState<boolean>(false);
 
   // Modals state
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
@@ -92,6 +100,11 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
   const [isAiMenuModalOpen, setIsAiMenuModalOpen] = useState(false);
   const [showBulkPublishModal, setShowBulkPublishModal] = useState(false);
   const [showXRayModal, setShowXRayModal] = useState(false);
+  const [showCategoriesModal, setShowCategoriesModal] = useState(false);
+  const [showBulkCategoryModal, setShowBulkCategoryModal] = useState(false);
+  const [bulkCatInput, setBulkCatInput] = useState("");
+  const [bulkSubCatInput, setBulkSubCatInput] = useState("");
+  const [bulkCatSubmitting, setBulkCatSubmitting] = useState(false);
   const [showMarketplaceListingsModal, setShowMarketplaceListingsModal] = useState(() => {
     if (typeof window === 'undefined') return false;
     const url = new URL(window.location.href);
@@ -122,6 +135,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
   const isPortfolio = domainId === 'REAL_ESTATE' || domainId === 'AUTOMOTIVE';
   const isBookstore = domainId === 'BOOKSTORE';
   const isShopLp = domainId === 'RETAIL' || domainId === 'BOOKSTORE';
+  const hasShowcaseVisibility = isShopLp || isCafe;
 
   // Table Manager for responsive columns & metadata display modes
   const tableManager = useTableManager({
@@ -399,6 +413,85 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
     }
   };
 
+  // Bulk Showcase / Menu Visibility ("Vitrinde / Menüde Yayınla" Aktif / Pasif)
+  const handleBulkWebSaleSelected = async (isWebSale: boolean) => {
+    if (selectedIds.length === 0 || isViewer) return;
+    setIsBulkVitrinLoading(true);
+    try {
+      if (onBulkWebSale) {
+        await onBulkWebSale(selectedIds, isWebSale);
+      } else {
+        await api.bulkUpdateWebSale(selectedIds, isWebSale, currentStoreId);
+        toast.success(
+          isWebSale
+            ? (lang === 'tr'
+                ? `${selectedIds.length} ürün ${isCafe ? 'menüde yayınlandı.' : 'vitrinde yayınlandı.'}`
+                : `${selectedIds.length} products published.`)
+            : (lang === 'tr'
+                ? `${selectedIds.length} ürün ${isCafe ? 'menüden kaldırıldı.' : 'vitrinden kaldırıldı.'}`
+                : `${selectedIds.length} products hidden.`)
+        );
+        if (onRefresh) onRefresh();
+      }
+      setSelectedIds([]);
+    } catch {
+      // handled in hook / toast
+    } finally {
+      setIsBulkVitrinLoading(false);
+    }
+  };
+
+  // Single-row Showcase / Menu Toggle
+  const handleToggleSingleWebSale = async (product: any) => {
+    if (!product?.id || isViewer) return;
+    const nextState = product.is_web_sale === false;
+    try {
+      if (onBulkWebSale) {
+        await onBulkWebSale([Number(product.id)], nextState);
+      } else {
+        await api.bulkUpdateWebSale([Number(product.id)], nextState, currentStoreId);
+        toast.success(
+          nextState
+            ? (lang === 'tr'
+                ? `"${product.name}" ${isCafe ? 'menüde yayınlandı.' : 'vitrinde yayınlandı.'}`
+                : `"${product.name}" published.`)
+            : (lang === 'tr'
+                ? `"${product.name}" ${isCafe ? 'menüden kaldırıldı.' : 'vitrinden kaldırıldı.'}`
+                : `"${product.name}" hidden.`)
+        );
+        if (onRefresh) onRefresh();
+      }
+    } catch {
+      // handled by hook
+    }
+  };
+
+  // Bulk Category Assign submit
+  const handleBulkCategorySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedIds.length === 0 || isViewer) return;
+    const cleanCat = bulkCatInput.trim();
+    const cleanSub = bulkSubCatInput.trim();
+    setBulkCatSubmitting(true);
+    try {
+      if (onBulkCategoryAssign) {
+        await onBulkCategoryAssign(selectedIds, cleanCat, cleanSub, true);
+      } else {
+        await api.bulkUpdateCategory(selectedIds, cleanCat, cleanSub, true, currentStoreId);
+        toast.success(lang === 'tr' ? `${selectedIds.length} ürünün kategorisi güncellendi.` : `Updated category for ${selectedIds.length} products.`);
+        if (onRefresh) onRefresh();
+      }
+      setShowBulkCategoryModal(false);
+      setBulkCatInput("");
+      setBulkSubCatInput("");
+      setSelectedIds([]);
+    } catch {
+      // handled in hook
+    } finally {
+      setBulkCatSubmitting(false);
+    }
+  };
+
   // Selection handlers
   const toggleSelect = (id: number) => {
     setSelectedIds(prev => 
@@ -473,16 +566,79 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
     return false;
   };
 
-  // Distinct category list
+  // Distinct category list (respecting branding.operator_categories order + product categories)
+  const operatorCategoryTree = useMemo(() => {
+    const raw = branding?.operator_categories;
+    if (!Array.isArray(raw)) return [] as { name: string; sub_categories: string[] }[];
+    return raw
+      .map((item: any) => {
+        if (typeof item === 'string') return { name: item.trim(), sub_categories: [] as string[] };
+        if (item && typeof item === 'object' && item.name) {
+          return {
+            name: String(item.name).trim(),
+            sub_categories: Array.isArray(item.sub_categories)
+              ? item.sub_categories.map((s: any) => String(s || '').trim()).filter(Boolean)
+              : []
+          };
+        }
+        return null;
+      })
+      .filter((x): x is { name: string; sub_categories: string[] } => Boolean(x && x.name));
+  }, [branding?.operator_categories]);
+
   const categories = useMemo(() => {
     const cats = new Set<string>();
-    products.forEach(p => {
-      if (p.category) cats.add(p.category);
+    operatorCategoryTree.forEach((c) => {
+      if (c.name) cats.add(c.name);
     });
-    return Array.from(cats).sort();
-  }, [products]);
+    const extra: string[] = [];
+    products.forEach(p => {
+      const c = String(p.category || '').trim();
+      if (c && !cats.has(c)) {
+        cats.add(c);
+        extra.push(c);
+      }
+    });
+    return [
+      ...operatorCategoryTree.map((c) => c.name),
+      ...extra.sort((a, b) => a.localeCompare(b, 'tr'))
+    ];
+  }, [products, operatorCategoryTree]);
+
+  const subCategoriesByCategory = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    operatorCategoryTree.forEach((c) => {
+      if (!map.has(c.name)) map.set(c.name, new Set());
+      c.sub_categories.forEach((s) => map.get(c.name)!.add(s));
+    });
+    products.forEach((p) => {
+      const c = String(p.category || '').trim();
+      const s = String(p.sub_category || '').trim();
+      if (c && s) {
+        if (!map.has(c)) map.set(c, new Set());
+        map.get(c)!.add(s);
+      }
+    });
+    return map;
+  }, [products, operatorCategoryTree]);
 
   const effectiveShowStoreName = Boolean(showStoreName || includeBranches || (branches && branches.length > 0));
+
+  // Showcase & uncategorized summary counts (scoped by branch toggle)
+  const { webActiveCount, webPassiveCount, uncategorizedCount } = useMemo(() => {
+    let webOn = 0;
+    let webOff = 0;
+    let uncat = 0;
+    products.forEach((p) => {
+      if (currentStoreId && p.store_id && Number(p.store_id) !== Number(currentStoreId) && !includeBranches) {
+        return;
+      }
+      if (!p.category || !String(p.category).trim()) uncat++;
+      if (p.is_web_sale === false) webOff++;
+      else webOn++;
+    });
+    return { webActiveCount: webOn, webPassiveCount: webOff, uncategorizedCount: uncat };
+  }, [products, currentStoreId, includeBranches]);
 
   // Filtered products calculation
   const filteredProducts = useMemo(() => {
@@ -497,6 +653,8 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
       let matchesCategory = true;
       if (selectedCategory === "all") {
         matchesCategory = true;
+      } else if (selectedCategory === "__uncategorized__") {
+        matchesCategory = !p.category || !String(p.category).trim();
       } else if (selectedCategory === "__has_variants__") {
         matchesCategory = hasProductVariants(p);
       } else if (selectedCategory === "bestsellers") {
@@ -525,6 +683,15 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
           : Number(p.stock_quantity) || 0;
         
         matchesStock = effectiveStock > 0 || p.product_type === 'service';
+      }
+
+      let matchesShowcase = true;
+      if (hasShowcaseVisibility && showcaseFilter !== 'all') {
+        if (showcaseFilter === 'web_active') {
+          matchesShowcase = p.is_web_sale !== false;
+        } else if (showcaseFilter === 'web_passive') {
+          matchesShowcase = p.is_web_sale === false;
+        }
       }
 
       const isServiceItem = (() => {
@@ -591,9 +758,9 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
         }
       }
 
-      return matchesSearch && matchesCategory && matchesStock && matchesMarketplace;
+      return matchesSearch && matchesCategory && matchesStock && matchesShowcase && matchesMarketplace;
     });
-  }, [products, search, selectedCategory, includeZeroStock, marketplaceFilter, isShopLp, currentStoreId, includeBranches, effectiveShowStoreName, optimisticBadges]);
+  }, [products, search, selectedCategory, includeZeroStock, showcaseFilter, marketplaceFilter, isShopLp, hasShowcaseVisibility, currentStoreId, includeBranches, effectiveShowStoreName, optimisticBadges]);
 
   // Counts for quick chips
   const { 
@@ -716,6 +883,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
         isBookstore={isBookstore}
         onRefresh={onRefresh}
         currentStoreId={currentStoreId}
+        onOpenCategoriesModal={() => setShowCategoriesModal(true)}
       />
 
       {/* 2. Filter & Marketplace Toolbar */}
@@ -755,7 +923,96 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
         includeBranches={includeBranches}
         onToggleIncludeBranches={setIncludeBranches}
         variantProductsCount={variantProductsCount}
+        showcaseFilter={showcaseFilter}
+        setShowcaseFilter={setShowcaseFilter}
+        webActiveCount={webActiveCount}
+        webPassiveCount={webPassiveCount}
+        uncategorizedCount={uncategorizedCount}
       />
+
+      {/* Contextual Bulk Selection Toolbar */}
+      {selectedIds.length > 0 && !isViewer && (
+        <div className="my-2 px-3 py-2 bg-slate-900 text-white rounded-xl border border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs shadow-xs">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="inline-flex items-center gap-1.5 font-semibold text-white">
+              <CheckSquare className="w-3.5 h-3.5 text-indigo-400" />
+              <span className="font-mono tabular-nums">{selectedIds.length}</span>
+              <span>{lang === 'tr' ? 'ürün seçildi' : 'selected'}</span>
+            </span>
+
+            {filteredProducts.length > selectedIds.length && (
+              <button
+                type="button"
+                onClick={() => setSelectedIds(filteredProducts.map(p => p.id))}
+                className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-700 rounded-lg text-[11px] font-medium cursor-pointer transition-colors"
+              >
+                {lang === 'tr'
+                  ? `Filtrelenen Tümünü Seç (${filteredProducts.length})`
+                  : `Select All Filtered (${filteredProducts.length})`}
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setSelectedIds([])}
+              className="px-2 py-1 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg text-[11px] font-medium cursor-pointer transition-colors flex items-center gap-1"
+            >
+              <X className="w-3 h-3" />
+              <span>{lang === 'tr' ? 'Seçimi Temizle' : 'Clear'}</span>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {hasShowcaseVisibility && (
+              <>
+                <button
+                  type="button"
+                  disabled={isBulkVitrinLoading}
+                  onClick={() => handleBulkWebSaleSelected(true)}
+                  className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-lg text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  {isBulkVitrinLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Globe className="w-3 h-3" />}
+                  <span>
+                    {lang === 'tr'
+                      ? isCafe
+                        ? 'Menüde Yayınla (Aktif)'
+                        : 'Vitrinde Yayınla (Aktif)'
+                      : 'Publish to Web'}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  disabled={isBulkVitrinLoading}
+                  onClick={() => handleBulkWebSaleSelected(false)}
+                  className="px-2.5 py-1 bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white rounded-lg text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  {isBulkVitrinLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <EyeOff className="w-3 h-3" />}
+                  <span>
+                    {lang === 'tr'
+                      ? isCafe
+                        ? 'Menüden Kaldır (Pasif)'
+                        : 'Vitrinden Kaldır (Pasif)'
+                      : 'Hide from Web'}
+                  </span>
+                </button>
+              </>
+            )}
+
+            <button
+              type="button"
+              onClick={() => {
+                setBulkCatInput(selectedCategory !== 'all' && !selectedCategory.startsWith('__') && !selectedCategory.startsWith('badge_') && selectedCategory !== 'bestsellers' ? selectedCategory : '');
+                setBulkSubCatInput('');
+                setShowBulkCategoryModal(true);
+              }}
+              className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+            >
+              <FolderTree className="w-3 h-3" />
+              <span>{lang === 'tr' ? 'Kategori Ata' : 'Assign Category'}</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 3. Products Table & Pagination */}
       <ProductsTable
@@ -808,6 +1065,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
         lang={lang}
         t={t}
         onRefresh={onRefresh}
+        onToggleWebSale={hasShowcaseVisibility && !isViewer ? handleToggleSingleWebSale : undefined}
       />
 
       {/* 4. Modals & Dialogs Container */}
@@ -841,6 +1099,111 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
         onEdit={onEdit}
         lang={lang}
       />
+
+      {/* 5. Category Studio Modal (Opened from Products Header) */}
+      {showCategoriesModal && (
+        <CategoriesTab
+          mode="modal"
+          isOpen={showCategoriesModal}
+          onClose={() => setShowCategoriesModal(false)}
+          products={products}
+          branding={branding}
+          setBranding={setBranding}
+          currentStoreId={currentStoreId}
+          isViewer={isViewer}
+          onRefreshProducts={onRefresh}
+          onApplyTaxRule={onApplyTaxRule}
+          onNavigateToProducts={(cat) => {
+            if (cat) setSelectedCategory(cat);
+            setPage(1);
+            setShowCategoriesModal(false);
+          }}
+        />
+      )}
+
+      {/* 6. Bulk Category Assign Modal */}
+      {showBulkCategoryModal && (
+        <div className="fixed inset-0 z-[110] bg-slate-950/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="px-4 py-3 bg-slate-900 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FolderTree className="w-4 h-4 text-indigo-400" />
+                <h3 className="text-sm font-bold">
+                  {lang === 'tr' ? `Toplu Kategori Ata (${selectedIds.length} Ürün)` : `Bulk Assign Category (${selectedIds.length})`}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBulkCategoryModal(false)}
+                className="p-1 text-slate-300 hover:text-white rounded-lg cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleBulkCategorySubmit} className="p-4 space-y-3 text-xs">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                  {lang === 'tr' ? 'Ana Kategori' : 'Main Category'}
+                </label>
+                <input
+                  type="text"
+                  list="bulk-category-suggestions"
+                  value={bulkCatInput}
+                  onChange={(e) => {
+                    setBulkCatInput(e.target.value);
+                    setBulkSubCatInput('');
+                  }}
+                  placeholder={lang === 'tr' ? 'Mevcut seçin veya yeni yazın (boş = kategorisiz)' : 'Pick existing or type new'}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-slate-900 bg-white focus:outline-none focus:border-indigo-500"
+                />
+                <datalist id="bulk-category-suggestions">
+                  {categories.map((c) => (
+                    <option key={c} value={c} />
+                  ))}
+                </datalist>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                  {lang === 'tr' ? 'Alt Kategori (Opsiyonel)' : 'Sub-category (Optional)'}
+                </label>
+                <input
+                  type="text"
+                  list="bulk-subcategory-suggestions"
+                  value={bulkSubCatInput}
+                  onChange={(e) => setBulkSubCatInput(e.target.value)}
+                  placeholder={lang === 'tr' ? 'Alt kategori seçin veya yazın' : 'Sub-category'}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-slate-900 bg-white focus:outline-none focus:border-indigo-500"
+                />
+                <datalist id="bulk-subcategory-suggestions">
+                  {Array.from(subCategoriesByCategory.get(bulkCatInput.trim()) || []).map((s) => (
+                    <option key={s} value={s} />
+                  ))}
+                </datalist>
+              </div>
+
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowBulkCategoryModal(false)}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold cursor-pointer"
+                >
+                  {lang === 'tr' ? 'İptal' : 'Cancel'}
+                </button>
+                <button
+                  type="submit"
+                  disabled={bulkCatSubmitting}
+                  className="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                >
+                  {bulkCatSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{lang === 'tr' ? 'Uygula' : 'Apply'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

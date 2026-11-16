@@ -995,6 +995,7 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
                 onResetFilters={handleResetFilters}
                 lang={lang}
                 currency={store.currency || "TRY"}
+                operatorCategories={(store?.branding as any)?.operator_categories}
               />
             </div>
           </div>
@@ -1314,6 +1315,7 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
                 onResetFilters={handleResetFilters}
                 lang={lang}
                 currency={store.currency || "TRY"}
+                operatorCategories={(store?.branding as any)?.operator_categories}
                 isMobileDrawer
                 onCloseMobile={() => setIsMobileFiltersOpen(false)}
               />

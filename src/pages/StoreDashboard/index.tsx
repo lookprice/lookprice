@@ -44,7 +44,8 @@ import {
   UserPlus,
   CheckCircle2,
   Copy,
-  ChevronRight
+  ChevronRight,
+  FolderTree
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { translations } from "@/translations";
@@ -73,6 +74,7 @@ import { DashboardModals } from "./DashboardModals";
 // Lazy Tabs
 const CockpitTab = React.lazy(() => import("./CockpitTab"));
 const ProductsTab = React.lazy(() => import("./ProductsTab"));
+const CategoriesTab = React.lazy(() => import("./CategoriesTab"));
 const PurchaseInvoices = React.lazy(() => import("../../components/PurchaseInvoices"));
 const SalesInvoices = React.lazy(() => import("../../components/SalesInvoices"));
 const AnalyticsTab = React.lazy(() => import("./AnalyticsTab"));
@@ -333,6 +335,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     handleDeleteProduct,
     handleDeleteAllProducts,
     handleBulkDelete,
+    handleBulkWebSale,
+    handleBulkCategoryAssign,
     handleApplyTaxRule,
     handleBulkPriceSubmit,
     handleFileSelect,
@@ -949,6 +953,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   ] : [
     { type: 'category', key: "operations", title: txt('Operasyonlar', 'Operations', 'Λειτουργίες'), items: [
       { id: "products", label: t.products, icon: Package },
+      { id: "categories", label: txt('Kategoriler', 'Categories', 'Κατηγορίες'), icon: FolderTree },
       ...(isHotelModuleActive ? [{ 
         id: "hotel-rooms", 
         label: txt('Otel & Oda Yönetimi', 'Hotel & Room Management', 'Διαχείριση Δωματίων'), 
@@ -1490,6 +1495,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   isViewer={isViewer || (isCafeRestaurant && activeStaffRole !== 'manager')}
                   onDeleteAll={handleDeleteAllProducts}
                   onBulkDelete={handleBulkDelete}
+                  onBulkWebSale={handleBulkWebSale}
+                  onBulkCategoryAssign={handleBulkCategoryAssign}
                   onEdit={(p) => { setEditingProduct(p); setShowProductModal(true); }}
                   onAddNew={() => { setEditingProduct(null); setShowProductModal(true); }}
                   onImport={() => setShowImportModal(true)}
@@ -1503,6 +1510,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   onReformatNames={handleReformatProductNames}
                   onShowQr={() => setShowQrModal(true)}
                   branding={branding}
+                  setBranding={setBranding}
                   isCafeRestaurant={isCafeRestaurant}
                   showStoreName={branding?.show_store_name}
                   currentStoreId={currentStoreId!}
@@ -1512,6 +1520,19 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   propertiesCount={properties.length}
                   onSwitchTab={(tab) => setActiveTab(tab)}
                   onRefresh={fetchProductsData}
+                />
+              )}
+              {activeTab === "categories" && permittedTabIds.has("categories") && (
+                <CategoriesTab
+                  mode="tab"
+                  products={products}
+                  branding={branding}
+                  setBranding={setBranding}
+                  currentStoreId={currentStoreId!}
+                  isViewer={isViewer || (isCafeRestaurant && activeStaffRole !== 'manager')}
+                  onRefreshProducts={fetchProductsData}
+                  onApplyTaxRule={handleApplyTaxRule}
+                  onNavigateToProducts={() => setActiveTab("products")}
                 />
               )}
               {activeTab === "real_estate" && permittedTabIds.has("real_estate") && (

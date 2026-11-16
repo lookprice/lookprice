@@ -1582,6 +1582,15 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
           String(m.category || "").toLowerCase().includes("plan") ||
           String(m.name || "").toLowerCase().includes("floor"))
     );
+    const generalPricelists = vault.filter(
+      (m) =>
+        isSharedOrDefaultMedia(m) &&
+        (m.type === "pricelist" ||
+         m.media_role === "pricelist" ||
+         String(m.category || "").toLowerCase().includes("fiyat") ||
+         String(m.name || "").toLowerCase().includes("pricelist") ||
+         String(m.name || "").toLowerCase().includes("fiyat"))
+    );
     const mergeUniqueMedia = (specificList: any[], defaultList: any[]) => {
       const seen = new Set<string>();
       const combined: any[] = [];
@@ -1612,6 +1621,15 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
             String(m.unit_type_match || "").toLowerCase() === ut.toLowerCase() &&
             (m.media_role === "floorplan" || m.type === "masterplan")
         );
+        const exactPricelists = vault.filter(
+          (m) =>
+            String(m.unit_type_match || "").toLowerCase() === ut.toLowerCase() &&
+            (m.media_role === "pricelist" ||
+             m.type === "pricelist" ||
+             String(m.category || "").toLowerCase().includes("fiyat") ||
+             String(m.name || "").toLowerCase().includes("pricelist") ||
+             String(m.name || "").toLowerCase().includes("fiyat"))
+        );
         map.set(ut, {
           unit_type: ut,
           total: 0,
@@ -1629,7 +1647,8 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
           units: [],
           matchedPhotos: mergeUniqueMedia(exactPhotos, generalPhotos),
           matchedVideos: mergeUniqueMedia(exactVideos, generalVideos),
-          matchedFloorplans: mergeUniqueMedia(exactFloorplans, generalFloorplans)
+          matchedFloorplans: mergeUniqueMedia(exactFloorplans, generalFloorplans),
+          matchedPricelists: mergeUniqueMedia(exactPricelists, generalPricelists)
         });
       }
       const entry = map.get(ut)!;
@@ -1749,6 +1768,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
     const photoLinks = pt.matchedPhotos.map((m: any) => `${m.name}: ${m.url}`).join("\n");
     const videoLinks = pt.matchedVideos.map((m: any) => `${m.name}: ${m.url}`).join("\n");
     const planLinks = pt.matchedFloorplans.map((m: any) => `${m.name}: ${m.url}`).join("\n");
+    const pricelistLinks = (pt.matchedPricelists || []).map((m: any) => `${m.name}: ${m.url}`).join("\n");
     const phone = activeCompany?.phone || branding?.phone || "+90 548 860 00 01";
     const text = [
       `*${companyDisplayName} — ${activeProjectDetail.name}*`,
@@ -1767,6 +1787,7 @@ export const DeveloperProjectSuite: React.FC<DeveloperProjectSuiteProps> = ({
       photoLinks ? `\n*Mülk Tipi Görselleri:*\n${photoLinks}` : "",
       videoLinks ? `\n*Tanıtım Videosu:*\n${videoLinks}` : "",
       planLinks ? `\n*Teknik Kat Çizimi (2D Plan):*\n${planLinks}` : "",
+      pricelistLinks ? `\n*Fiyat Listesi & Klasör:*\n${pricelistLinks}` : "",
       `\nDetaylı Bilgi & Sunum: ${phone}`
     ]
       .filter(Boolean)

@@ -9,7 +9,8 @@ import {
   Activity,
   MoreHorizontal,
   ChevronDown,
-  Unlink
+  Unlink,
+  FolderTree
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/services/api";
@@ -39,6 +40,7 @@ interface ProductsHeaderActionsProps {
   isBookstore?: boolean;
   onRefresh?: () => void;
   currentStoreId?: number;
+  onOpenCategoriesModal?: () => void;
 }
 
 export const ProductsHeaderActions: React.FC<ProductsHeaderActionsProps> = ({
@@ -60,6 +62,7 @@ export const ProductsHeaderActions: React.FC<ProductsHeaderActionsProps> = ({
   isBookstore,
   onRefresh,
   currentStoreId,
+  onOpenCategoriesModal,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
@@ -141,6 +144,18 @@ export const ProductsHeaderActions: React.FC<ProductsHeaderActionsProps> = ({
 
         {/* Desktop Secondary Buttons: Single line, compact, with clean text & icons */}
         <div className="hidden sm:flex items-center gap-1.5 shrink-0">
+          {onOpenCategoriesModal && (
+            <button
+              type="button"
+              onClick={onOpenCategoriesModal}
+              className="px-2.5 py-1.5 bg-white hover:bg-indigo-50 text-slate-800 hover:text-indigo-700 border border-slate-200 hover:border-indigo-200 rounded-lg text-xs font-bold transition-all active:scale-95 shadow-2xs flex items-center gap-1.5 cursor-pointer shrink-0"
+              title={lang === 'tr' ? "Kategori & Alt Kategori Yönetimi" : "Category Management"}
+            >
+              <FolderTree className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
+              <span>{lang === 'tr' ? 'Kategoriler' : 'Categories'}</span>
+            </button>
+          )}
+
           {!isViewer && (
             <button 
               type="button"
@@ -237,6 +252,20 @@ export const ProductsHeaderActions: React.FC<ProductsHeaderActionsProps> = ({
           {mobileMenuOpen && (
             <div className="absolute right-0 mt-1 w-48 bg-white border border-slate-200 rounded-xl shadow-xl z-50 py-1 divide-y divide-slate-100 text-xs animate-in fade-in zoom-in-95 duration-100">
               <div className="p-1 space-y-0.5">
+                {onOpenCategoriesModal && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onOpenCategoriesModal();
+                      setMobileMenuOpen(false);
+                    }}
+                    className="w-full px-2.5 py-1.5 rounded-lg text-left text-indigo-700 hover:bg-indigo-50 font-bold flex items-center gap-2 transition-colors cursor-pointer"
+                  >
+                    <FolderTree className="h-3.5 w-3.5 text-indigo-600" />
+                    <span>{lang === 'tr' ? 'Kategori Yönetimi' : 'Categories'}</span>
+                  </button>
+                )}
+
                 {!isViewer && (
                   <button
                     type="button"

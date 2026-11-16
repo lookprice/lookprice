@@ -37,6 +37,7 @@ interface ShopFilterSidebarProps {
   onResetFilters: () => void;
   lang: string;
   currency: string;
+  operatorCategories?: any[];
   isMobileDrawer?: boolean;
   onCloseMobile?: () => void;
 }
@@ -48,6 +49,7 @@ export const ShopFilterSidebar: React.FC<ShopFilterSidebarProps> = ({
   onResetFilters,
   lang,
   currency,
+  operatorCategories,
   isMobileDrawer = false,
   onCloseMobile
 }) => {
@@ -73,6 +75,40 @@ export const ShopFilterSidebar: React.FC<ShopFilterSidebarProps> = ({
 
   // 1. Compute Category & Sub-Category Tree
   const categoryTree = React.useMemo(() => {
+    const hiddenMain = new Set<string>();
+    const mainOrder = new Map<string, number>();
+    const hiddenSubByMain = new Map<string, Set<string>>();
+    const subOrderByMain = new Map<string, Map<string, number>>();
+
+    if (Array.isArray(operatorCategories)) {
+      operatorCategories.forEach((cat: any, idx: number) => {
+        if (typeof cat === "string" && cat.trim()) {
+          mainOrder.set(cat.trim(), idx);
+        } else if (cat && typeof cat === "object" && cat.name) {
+          const cleanName = String(cat.name).trim();
+          if (!cleanName) return;
+          mainOrder.set(cleanName, idx);
+          if (cat.is_visible === false) {
+            hiddenMain.add(cleanName);
+            return;
+          }
+          const subMeta = cat.sub_category_meta && typeof cat.sub_category_meta === "object" ? cat.sub_category_meta : {};
+          if (Array.isArray(cat.sub_categories)) {
+            if (!subOrderByMain.has(cleanName)) subOrderByMain.set(cleanName, new Map());
+            if (!hiddenSubByMain.has(cleanName)) hiddenSubByMain.set(cleanName, new Set());
+            cat.sub_categories.forEach((s: any, sIdx: number) => {
+              const cleanSub = String(s || "").trim();
+              if (!cleanSub) return;
+              subOrderByMain.get(cleanName)!.set(cleanSub, sIdx);
+              if (subMeta[cleanSub]?.is_visible === false) {
+                hiddenSubByMain.get(cleanName)!.add(cleanSub);
+              }
+            });
+          }
+        }
+      });
+    }
+
     const tree: { 
       name: string; 
       count: number; 
@@ -82,7 +118,9 @@ export const ShopFilterSidebar: React.FC<ShopFilterSidebarProps> = ({
     const catMap = new Map<string, { count: number; subMap: Map<string, number> }>();
 
     products.forEach((p) => {
-      const cat = p.category || (lang === "tr" ? "Genel" : "General");
+      if ((p as any).is_web_sale === false) return;
+      const cat = (p.category || (lang === "tr" ? "Genel" : "General")).trim();
+      if (hiddenMain.has(cat)) return;
       if (!catMap.has(cat)) {
         catMap.set(cat, { count: 0, subMap: new Map() });
       }
@@ -92,15 +130,25 @@ export const ShopFilterSidebar: React.FC<ShopFilterSidebarProps> = ({
       const subCat = p.sub_category || p.sub_category_2;
       if (subCat && subCat.trim()) {
         const cleanSub = subCat.trim();
-        catEntry.subMap.set(cleanSub, (catEntry.subMap.get(cleanSub) || 0) + 1);
+        if (!hiddenSubByMain.get(cat)?.has(cleanSub)) {
+          catEntry.subMap.set(cleanSub, (catEntry.subMap.get(cleanSub) || 0) + 1);
+        }
       }
     });
 
     catMap.forEach((val, catName) => {
-      const subCategories = Array.from(val.subMap.entries()).map(([subName, count]) => ({
-        name: subName,
-        count
-      })).sort((a, b) => b.count - a.count);
+      const subOrder = subOrderByMain.get(catName);
+      const subCategories = Array.from(val.subMap.entries())
+        .map(([subName, count]) => ({
+          name: subName,
+          count
+        }))
+        .sort((a, b) => {
+          const iA = subOrder?.has(a.name) ? subOrder.get(a.name)! : Number.MAX_SAFE_INTEGER;
+          const iB = subOrder?.has(b.name) ? subOrder.get(b.name)! : Number.MAX_SAFE_INTEGER;
+          if (iA !== iB) return iA - iB;
+          return b.count - a.count;
+        });
 
       tree.push({
         name: catName,
@@ -109,8 +157,13 @@ export const ShopFilterSidebar: React.FC<ShopFilterSidebarProps> = ({
       });
     });
 
-    return tree.sort((a, b) => b.count - a.count);
-  }, [products, lang]);
+    return tree.sort((a, b) => {
+      const iA = mainOrder.has(a.name) ? mainOrder.get(a.name)! : Number.MAX_SAFE_INTEGER;
+      const iB = mainOrder.has(b.name) ? mainOrder.get(b.name)! : Number.MAX_SAFE_INTEGER;
+      if (iA !== iB) return iA - iB;
+      return b.count - a.count;
+    });
+  }, [products, lang, operatorCategories]);
 
   // 2. Compute Brands
   const brandsWithCounts = React.useMemo(() => {

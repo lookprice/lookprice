@@ -172,31 +172,83 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
 
   // Extract distinct categories, subcategories, authors, publishers
   const categories = useMemo(() => {
-    const set = new Set<string>();
-    // First include the official book taxonomy in standard order
-    BOOKSTORE_CATEGORIES.forEach((c) => set.add(c.mainCategory));
-    // Also include any custom category present in products
-    products.forEach((p) => {
-      if (p.category && p.category.trim()) set.add(p.category.trim());
-    });
-    return Array.from(set);
-  }, [products]);
+    const opCats = Array.isArray(store?.branding?.operator_categories)
+      ? store.branding.operator_categories
+      : [];
+    const hidden = new Set<string>();
+    const ordered: string[] = [];
 
-  const subCategories = useMemo(() => {
-    const set = new Set<string>();
-    // If a main category is selected, get its defined subcategories first
-    if (selectedCategory && selectedCategory !== "all") {
-      getBookstoreSubcategories(selectedCategory).forEach((sub) => set.add(sub));
-    }
-    // Also add any subcategory from existing products matching this scope
+    opCats.forEach((cat: any) => {
+      if (typeof cat === "string" && cat.trim()) {
+        ordered.push(cat.trim());
+      } else if (cat && typeof cat === "object" && cat.name) {
+        const clean = String(cat.name).trim();
+        if (!clean) return;
+        if (cat.is_visible === false) hidden.add(clean);
+        else ordered.push(clean);
+      }
+    });
+
+    const set = new Set<string>(ordered);
+    // Include official book taxonomy unless explicitly hidden
+    BOOKSTORE_CATEGORIES.forEach((c) => {
+      if (!hidden.has(c.mainCategory)) set.add(c.mainCategory);
+    });
+    // Also include any custom category present in visible products
     products.forEach((p) => {
-      if (selectedCategory === "all" || p.category === selectedCategory) {
-        const sub = p.sub_category || (p as any).sub_category_2 || (p as any).sector_data?.genre || (p as any).genre;
-        if (sub && typeof sub === "string" && sub.trim()) set.add(sub.trim());
+      if ((p as any).is_web_sale === false) return;
+      if (p.category && p.category.trim()) {
+        const clean = p.category.trim();
+        if (!hidden.has(clean)) set.add(clean);
       }
     });
     return Array.from(set);
-  }, [products, selectedCategory]);
+  }, [products, store?.branding?.operator_categories]);
+
+  const subCategories = useMemo(() => {
+    const opCats = Array.isArray(store?.branding?.operator_categories)
+      ? store.branding.operator_categories
+      : [];
+    const hiddenSubs = new Set<string>();
+    const orderedSubs: string[] = [];
+
+    opCats.forEach((cat: any) => {
+      if (cat && typeof cat === "object" && cat.name) {
+        const catName = String(cat.name).trim();
+        if (selectedCategory === "all" || catName === selectedCategory) {
+          const subMeta = cat.sub_category_meta && typeof cat.sub_category_meta === "object" ? cat.sub_category_meta : {};
+          if (Array.isArray(cat.sub_categories)) {
+            cat.sub_categories.forEach((s: any) => {
+              const cleanSub = String(s || "").trim();
+              if (!cleanSub) return;
+              if (subMeta[cleanSub]?.is_visible === false) hiddenSubs.add(cleanSub);
+              else orderedSubs.push(cleanSub);
+            });
+          }
+        }
+      }
+    });
+
+    const set = new Set<string>(orderedSubs);
+    // If a main category is selected, get its defined subcategories too
+    if (selectedCategory && selectedCategory !== "all") {
+      getBookstoreSubcategories(selectedCategory).forEach((sub) => {
+        if (!hiddenSubs.has(sub)) set.add(sub);
+      });
+    }
+    // Also add any subcategory from existing products matching this scope
+    products.forEach((p) => {
+      if ((p as any).is_web_sale === false) return;
+      if (selectedCategory === "all" || p.category === selectedCategory) {
+        const sub = p.sub_category || (p as any).sub_category_2 || (p as any).sector_data?.genre || (p as any).genre;
+        if (sub && typeof sub === "string" && sub.trim()) {
+          const cleanSub = sub.trim();
+          if (!hiddenSubs.has(cleanSub)) set.add(cleanSub);
+        }
+      }
+    });
+    return Array.from(set);
+  }, [products, selectedCategory, store?.branding?.operator_categories]);
 
   const authors = useMemo(() => {
     const set = new Set<string>();

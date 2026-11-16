@@ -20,7 +20,9 @@ import {
   X,
   Loader2,
   Pencil,
-  Unlink
+  Unlink,
+  Globe,
+  EyeOff
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/services/api";
@@ -72,6 +74,7 @@ interface ProductTableRowProps {
   rowIndex?: number;
   totalRows?: number;
   onRefresh?: () => void;
+  onToggleWebSale?: (product: any) => void;
 }
 
 export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
@@ -118,6 +121,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
   rowIndex,
   totalRows,
   onRefresh,
+  onToggleWebSale,
 }) => {
   const isNearBottom = totalRows !== undefined && rowIndex !== undefined && totalRows >= 4 && rowIndex >= totalRows - 2;
 
@@ -597,11 +601,51 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                       </>
                     );
                   })()}
-                  {p.is_web_sale === false && (
+                  {(isShopLp || isCafe) ? (
+                    <button
+                      type="button"
+                      disabled={isViewer || !onToggleWebSale}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!isViewer && onToggleWebSale) onToggleWebSale(p);
+                      }}
+                      className={`text-[8.5px] font-semibold px-1.5 py-0.5 rounded inline-flex items-center gap-0.5 border transition-colors ${
+                        isViewer || !onToggleWebSale ? 'cursor-default' : 'cursor-pointer'
+                      } ${
+                        p.is_web_sale !== false
+                          ? 'text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border-emerald-200'
+                          : 'text-rose-700 bg-rose-50 hover:bg-rose-100 border-rose-200'
+                      }`}
+                      title={
+                        !isViewer
+                          ? lang === 'tr'
+                            ? isCafe
+                              ? 'Tıkla: Menüde Yayınla / Kaldır'
+                              : 'Tıkla: Vitrinde Yayınla / Kaldır'
+                            : 'Click to toggle storefront visibility'
+                          : undefined
+                      }
+                    >
+                      {p.is_web_sale !== false ? <Globe className="w-2.5 h-2.5" /> : <EyeOff className="w-2.5 h-2.5" />}
+                      <span>
+                        {p.is_web_sale !== false
+                          ? lang === 'tr'
+                            ? isCafe
+                              ? 'Menüde'
+                              : 'Vitrinde'
+                            : 'LIVE'
+                          : lang === 'tr'
+                          ? isCafe
+                            ? 'Menü Kapalı'
+                            : 'Vitrin Kapalı'
+                          : 'HIDDEN'}
+                      </span>
+                    </button>
+                  ) : p.is_web_sale === false ? (
                     <span className="text-[8px] font-medium text-rose-500 bg-rose-50 border border-rose-100 px-1 py-0.2 rounded uppercase">
                       {lang === 'tr' ? 'KAPALI' : 'OFFLINE'}
                     </span>
-                  )}
+                  ) : null}
                 </div>
               )}
             </div>
@@ -1016,6 +1060,45 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                           </button>
                         )}
 
+                        {(isShopLp || isCafe) && !isViewer && onToggleWebSale && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOpenActionMenuId(null);
+                              onToggleWebSale(p);
+                            }}
+                            className={`w-full px-3 py-1.5 text-xs font-semibold flex items-center gap-2.5 transition-colors cursor-pointer ${
+                              p.is_web_sale !== false
+                                ? 'text-slate-700 hover:bg-rose-50 hover:text-rose-700'
+                                : 'text-emerald-700 hover:bg-emerald-50'
+                            }`}
+                          >
+                            {p.is_web_sale !== false ? (
+                              <>
+                                <EyeOff className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                                <span>
+                                  {lang === 'tr'
+                                    ? isCafe
+                                      ? 'Menüden Kaldır (Pasif)'
+                                      : 'Vitrinden Kaldır (Pasif)'
+                                    : 'Hide from Storefront'}
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <Globe className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                <span>
+                                  {lang === 'tr'
+                                    ? isCafe
+                                      ? 'Menüde Yayınla (Aktif)'
+                                      : 'Vitrinde Yayınla (Aktif)'
+                                    : 'Publish to Storefront'}
+                                </span>
+                              </>
+                            )}
+                          </button>
+                        )}
+
                         <button
                           type="button"
                           onClick={() => {
@@ -1074,6 +1157,11 @@ export const ProductTableRow = React.memo(ProductTableRowComponent, (prevProps, 
   return (
     prevProps.product.id === nextProps.product.id &&
     prevProps.product.updated_at === nextProps.product.updated_at &&
+    prevProps.product.name === nextProps.product.name &&
+    prevProps.product.category === nextProps.product.category &&
+    prevProps.product.sub_category === nextProps.product.sub_category &&
+    prevProps.product.is_web_sale === nextProps.product.is_web_sale &&
+    prevProps.product.tax_rate === nextProps.product.tax_rate &&
     prevProps.product.stock_quantity === nextProps.product.stock_quantity &&
     prevProps.product.reserved_stock === nextProps.product.reserved_stock &&
     prevProps.product.reserved_details === nextProps.product.reserved_details &&
@@ -1094,6 +1182,7 @@ export const ProductTableRow = React.memo(ProductTableRowComponent, (prevProps, 
     prevProps.showStoreName === nextProps.showStoreName &&
     prevProps.currentStoreId === nextProps.currentStoreId &&
     prevProps.lang === nextProps.lang &&
+    prevProps.onToggleWebSale === nextProps.onToggleWebSale &&
     prevProps.selectedIds.includes(prevProps.product.id) === nextProps.selectedIds.includes(nextProps.product.id) &&
     (prevProps.openActionMenuId === prevProps.product.id) === (nextProps.openActionMenuId === nextProps.product.id) &&
     (prevProps.badgePopoverProductId === prevProps.product.id) === (nextProps.badgePopoverProductId === nextProps.product.id) &&

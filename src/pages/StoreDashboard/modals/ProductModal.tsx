@@ -363,27 +363,37 @@ export const ProductModal = ({
   };
 
   const categoriesList = React.useMemo(() => {
-    const cats = new Set<string>();
-    // Only manual store categories created by operator in products or operator_categories
+    const orderedOps: string[] = [];
+    const seen = new Set<string>();
+    // Preserve exact operator_categories order first
     if (branding?.operator_categories && Array.isArray(branding.operator_categories)) {
       branding.operator_categories.forEach((c: any) => {
-        if (typeof c === "string" && c.trim()) cats.add(c.trim());
-        else if (c && typeof c === "object" && c.name && typeof c.name === "string") cats.add(c.name.trim());
+        const name = typeof c === "string" ? c.trim() : (c && typeof c === "object" && typeof c.name === "string" ? c.name.trim() : "");
+        if (name && !seen.has(name)) {
+          seen.add(name);
+          orderedOps.push(name);
+        }
       });
     }
+    const extra: string[] = [];
+    const addExtra = (val?: any) => {
+      if (val && typeof val === "string") {
+        const clean = val.trim();
+        if (clean && !seen.has(clean)) {
+          seen.add(clean);
+          extra.push(clean);
+        }
+      }
+    };
     if (products && Array.isArray(products)) {
       products.forEach((p: any) => {
-        if (p.category && typeof p.category === "string" && p.category.trim()) cats.add(p.category.trim());
-        if (p.category_2 && typeof p.category_2 === "string" && p.category_2.trim()) cats.add(p.category_2.trim());
+        addExtra(p.category);
+        addExtra(p.category_2);
       });
     }
-    if (editingProduct?.category && typeof editingProduct.category === "string" && editingProduct.category.trim()) {
-      cats.add(editingProduct.category.trim());
-    }
-    if (editingProduct?.category_2 && typeof editingProduct.category_2 === "string" && editingProduct.category_2.trim()) {
-      cats.add(editingProduct.category_2.trim());
-    }
-    return Array.from(cats).sort((a, b) => a.localeCompare(b, "tr"));
+    addExtra(editingProduct?.category);
+    addExtra(editingProduct?.category_2);
+    return [...orderedOps, ...extra.sort((a, b) => a.localeCompare(b, "tr"))];
   }, [products, branding?.operator_categories, editingProduct?.category, editingProduct?.category_2]);
 
   const subCategoriesMap = React.useMemo(() => {
@@ -2055,7 +2065,7 @@ export const ProductModal = ({
                         defaultChecked={editingProduct?.is_web_sale !== false}
                       />
                       <span className="text-[11px] font-medium text-slate-900">
-                        {isTr ? "Vitrinde Yayınla" : "Showcase"}
+                        {isTr ? (isCafeRestaurant ? "Menüde Yayınla" : "Vitrinde Yayınla") : "Showcase"}
                       </span>
                     </label>
 

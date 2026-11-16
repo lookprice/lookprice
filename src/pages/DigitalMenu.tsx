@@ -135,9 +135,16 @@ export default function DigitalMenuPage() {
       const cachedProducts = localStorage.getItem(`digitalMenuProducts_${storeId}`);
       
       if (cachedStore && cachedProducts) {
-        setStore(JSON.parse(cachedStore));
-        setProducts(JSON.parse(cachedProducts));
-        setLoading(false);
+        try {
+          setStore(JSON.parse(cachedStore));
+          const parsedCache = JSON.parse(cachedProducts);
+          setProducts(
+            Array.isArray(parsedCache)
+              ? parsedCache.filter((p: any) => p.is_sellable !== false && p.is_web_sale !== false)
+              : []
+          );
+          setLoading(false);
+        } catch {}
       }
 
       try {
@@ -152,7 +159,7 @@ export default function DigitalMenuPage() {
 
         const rawProds = Array.isArray(productsRes) ? productsRes : [];
         const parsedProds = rawProds
-          .filter((p: any) => p.is_sellable !== false)
+          .filter((p: any) => p.is_sellable !== false && p.is_web_sale !== false)
           .map((p: any) => {
             let vars = p.variants;
             if (typeof vars === 'string') {
@@ -368,35 +375,161 @@ export default function DigitalMenuPage() {
     return cat;
   };
 
-  // Group products by category dynamically (including primary category AND secondary category_2)
-  const categories = React.useMemo(() => {
-    const cats = new Set<string>();
-    products.forEach((p) => {
-      if (p.category && p.category.trim()) cats.add(p.category.trim());
-      if (p.category_2 && p.category_2.trim()) cats.add(p.category_2.trim());
-    });
-    return Array.from(cats);
-  }, [products]);
+  const categoryVisibilityMeta = React.useMemo(() => {
+    const raw = store?.branding?.operator_categories || (store as any)?.operator_categories;
+    const orderedCats: string[] = [];
+    const hiddenCats = new Set<string>();
+    const subOrderByCat = new Map<string, string[]>();
+    const hiddenSubsByCat = new Map<string, Set<string>>();
 
-  // Group subcategories dynamically for each category (including sub_category and sub_category_2)
+    if (Array.isArray(raw)) {
+      raw.forEach((item: any) => {
+        if (typeof item === "string") {
+          const clean = item.trim();
+          if (clean) orderedCats.push(clean);
+        } else if (item && typeof item === "object" && item.name) {
+          const catName = String(item.name).trim();
+          if (!catName) return;
+          const catKey = catName.toLocaleLowerCase("tr-TR");
+          if (item.is_visible === false) {
+            hiddenCats.add(catKey);
+          } else {
+            orderedCats.push(catName);
+          }
+
+          const subMeta = item.sub_category_meta && typeof item.sub_category_meta === "object" ? item.sub_category_meta : {};
+          const hiddenSubSet = new Set<string>();
+          Object.entries(subMeta).forEach(([subName, meta]: [string, any]) => {
+            if (meta && meta.is_visible === false) {
+              hiddenSubSet.add(subName.trim().toLocaleLowerCase("tr-TR"));
+            }
+          });
+          if (hiddenSubSet.size > 0) hiddenSubsByCat.set(catKey, hiddenSubSet);
+
+          if (Array.isArray(item.sub_categories)) {
+            const visibleSubs = item.sub_categories
+              .map((s: any) => String(s || "").trim())
+              .filter((s: string) => s && !hiddenSubSet.has(s.toLocaleLowerCase("tr-TR")));
+            subOrderByCat.set(catKey, visibleSubs);
+          }
+        }
+      });
+    }
+
+    return { orderedCats, hiddenCats, subOrderByCat, hiddenSubsByCat };
+  }, [store]);
+
+  const isPairVisible = React.useCallback((cat?: string, sub?: string) => {
+    const cleanCat = (cat || "").trim();
+    if (!cleanCat) return true;
+    const catKey = cleanCat.toLocaleLowerCase("tr-TR");
+    if (categoryVisibilityMeta.hiddenCats.has(catKey)) return false;
+    const cleanSub = (sub || "").trim();
+    if (cleanSub) {
+      const hiddenSubs = categoryVisibilityMeta.hiddenSubsByCat.get(catKey);
+      if (hiddenSubs && hiddenSubs.has(cleanSub.toLocaleLowerCase("tr-TR"))) return false;
+    }
+    return true;
+  }, [categoryVisibilityMeta]);
+
+  const visibleProducts = React.useMemo(() => {
+    return products.filter((p) => {
+      if (p.is_web_sale === false) return false;
+      const hasPrimary = Boolean(p.category && p.category.trim());
+      const hasSecondary = Boolean(p.category_2 && p.category_2.trim());
+      if (!hasPrimary && !hasSecondary) return true;
+      const primaryOk = hasPrimary && isPairVisible(p.category, p.sub_category);
+      const secondaryOk = hasSecondary && isPairVisible(p.category_2, p.sub_category_2);
+      return primaryOk || secondaryOk;
+    });
+  }, [products, isPairVisible]);
+
+  // Group products by category dynamically respecting operator_categories order & visibility
+  const categories = React.useMemo(() => {
+    const prodCatsMap = new Map<string, string>();
+    visibleProducts.forEach((p) => {
+      if (p.category && p.category.trim() && isPairVisible(p.category, p.sub_category)) {
+        const clean = p.category.trim();
+        const key = clean.toLocaleLowerCase("tr-TR");
+        if (!prodCatsMap.has(key)) prodCatsMap.set(key, clean);
+      }
+      if (p.category_2 && p.category_2.trim() && isPairVisible(p.category_2, p.sub_category_2)) {
+        const clean = p.category_2.trim();
+        const key = clean.toLocaleLowerCase("tr-TR");
+        if (!prodCatsMap.has(key)) prodCatsMap.set(key, clean);
+      }
+    });
+
+    const ordered: string[] = [];
+    const addedKeys = new Set<string>();
+    categoryVisibilityMeta.orderedCats.forEach((opCat) => {
+      const key = opCat.toLocaleLowerCase("tr-TR");
+      const matched = prodCatsMap.get(key);
+      if (matched && !addedKeys.has(key)) {
+        addedKeys.add(key);
+        ordered.push(matched);
+      }
+    });
+
+    prodCatsMap.forEach((origName, key) => {
+      if (!addedKeys.has(key)) {
+        addedKeys.add(key);
+        ordered.push(origName);
+      }
+    });
+
+    return ordered;
+  }, [visibleProducts, categoryVisibilityMeta, isPairVisible]);
+
+  // Group subcategories dynamically respecting operator_categories sub_categories order & visibility
   const subcategoriesMap = React.useMemo(() => {
-    const map = new Map<string, string[]>();
-    products.forEach((p) => {
+    const rawMap = new Map<string, string[]>();
+    visibleProducts.forEach((p) => {
       const addSub = (cat: string, sub: string) => {
         if (!cat || !sub) return;
         const trimmedCat = cat.trim();
         const trimmedSub = sub.trim();
-        const subs = map.get(trimmedCat) || [];
+        if (!isPairVisible(trimmedCat, trimmedSub)) return;
+        const subs = rawMap.get(trimmedCat) || [];
         if (!subs.includes(trimmedSub)) {
           subs.push(trimmedSub);
-          map.set(trimmedCat, subs);
+          rawMap.set(trimmedCat, subs);
         }
       };
       if (p.category && p.sub_category) addSub(p.category, p.sub_category);
       if (p.category_2 && p.sub_category_2) addSub(p.category_2, p.sub_category_2);
     });
-    return map;
-  }, [products]);
+
+    const orderedMap = new Map<string, string[]>();
+    rawMap.forEach((subs, catName) => {
+      const opSubs = categoryVisibilityMeta.subOrderByCat.get(catName.toLocaleLowerCase("tr-TR")) || [];
+      const subByLower = new Map<string, string>();
+      subs.forEach((s) => {
+        const k = s.toLocaleLowerCase("tr-TR");
+        if (!subByLower.has(k)) subByLower.set(k, s);
+      });
+      const finalSubs: string[] = [];
+      const used = new Set<string>();
+      opSubs.forEach((os) => {
+        const k = os.toLocaleLowerCase("tr-TR");
+        const matched = subByLower.get(k);
+        if (matched && !used.has(k)) {
+          used.add(k);
+          finalSubs.push(matched);
+        }
+      });
+      subs.forEach((s) => {
+        const k = s.toLocaleLowerCase("tr-TR");
+        if (!used.has(k)) {
+          used.add(k);
+          finalSubs.push(s);
+        }
+      });
+      orderedMap.set(catName, finalSubs);
+    });
+
+    return orderedMap;
+  }, [visibleProducts, categoryVisibilityMeta, isPairVisible]);
 
   // Available subcategories for selected category
   const availableSubCategories = React.useMemo(() => {
@@ -406,7 +539,7 @@ export default function DigitalMenuPage() {
 
   // Combined full-featured search & category/subcategory filter
   const filteredProducts = React.useMemo(() => {
-    let list = [...products];
+    let list = [...visibleProducts];
 
     // If there is an active search, perform a global menu-wide search
     if (productSearchQuery.trim()) {
@@ -429,7 +562,11 @@ export default function DigitalMenuPage() {
       }
       return list.slice(0, 6);
     } else if (selectedCategory !== "all") {
-      list = list.filter((p) => p.category === selectedCategory || p.category_2 === selectedCategory);
+      list = list.filter(
+        (p) =>
+          (p.category === selectedCategory && isPairVisible(p.category, p.sub_category)) ||
+          (p.category_2 === selectedCategory && isPairVisible(p.category_2, p.sub_category_2))
+      );
       if (selectedSubCategory !== "all") {
         list = list.filter((p) => 
           (p.category === selectedCategory && p.sub_category === selectedSubCategory) ||
@@ -439,7 +576,7 @@ export default function DigitalMenuPage() {
     }
 
     return list;
-  }, [products, productSearchQuery, selectedCategory, selectedSubCategory]);
+  }, [visibleProducts, productSearchQuery, selectedCategory, selectedSubCategory, isPairVisible]);
 
   if (loading) {
     return (

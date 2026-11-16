@@ -15,11 +15,13 @@ import {
   Tag,
   ChevronDown,
   Check,
-  Layers
+  Layers,
+  Globe,
+  EyeOff
 } from "lucide-react";
 import { TableManager } from "@/components/common/TableManager";
 import { getSectorBadges } from "@/data/bookstoreBadges";
-import { MarketplaceFilterType, MarketplaceModalTab, MarketplaceModalStatus } from "./types";
+import { MarketplaceFilterType, MarketplaceModalTab, MarketplaceModalStatus, ShowcaseFilterType } from "./types";
 
 interface ProductsFilterToolbarProps {
   search: string;
@@ -57,6 +59,11 @@ interface ProductsFilterToolbarProps {
   includeBranches?: boolean;
   onToggleIncludeBranches?: (val: boolean) => void;
   variantProductsCount?: number;
+  showcaseFilter?: ShowcaseFilterType;
+  setShowcaseFilter?: (filter: ShowcaseFilterType) => void;
+  webActiveCount?: number;
+  webPassiveCount?: number;
+  uncategorizedCount?: number;
 }
 
 export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
@@ -94,7 +101,12 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
   branches = [],
   includeBranches = false,
   onToggleIncludeBranches,
-  variantProductsCount = 0
+  variantProductsCount = 0,
+  showcaseFilter = 'all',
+  setShowcaseFilter,
+  webActiveCount = 0,
+  webPassiveCount = 0,
+  uncategorizedCount = 0,
 }) => {
   const [isBadgeMenuOpen, setIsBadgeMenuOpen] = useState(false);
   const badgeMenuRef = useRef<HTMLDivElement>(null);
@@ -168,6 +180,11 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
               title={lang === 'tr' ? 'Kategori Filtresi' : 'Category Filter'}
             >
               <option value="all">{lang === 'tr' ? 'Kategoriler' : (t.allCategories || 'Categories')}</option>
+              {uncategorizedCount > 0 && (
+                <option value="__uncategorized__">
+                  {lang === 'tr' ? `Kategorisiz (${uncategorizedCount})` : `Uncategorized (${uncategorizedCount})`}
+                </option>
+              )}
               {variantProductsCount > 0 && (
                 <option value="__has_variants__">
                   {lang === 'tr' ? `Varyantlılar (${variantProductsCount})` : `With Variants (${variantProductsCount})`}
@@ -408,10 +425,117 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
         </div>
       </div>
 
-      {/* E-Marketplace Quick Filter Chips for shopLP */}
+      {/* Menu Visibility Quick Filter Chips for horecaLP (strictly zero marketplace UI) */}
+      {!isShopLp && isCafe && setShowcaseFilter && (
+        <div className="flex items-center gap-1.5 pt-2 border-t border-slate-200/60 overflow-x-auto pb-1 scrollbar-none text-xs">
+          <span className="text-[11px] font-medium text-slate-400 mr-0.5 hidden sm:inline">
+            {lang === 'tr' ? 'Menü:' : 'Menu:'}
+          </span>
+          <button
+            type="button"
+            onClick={() => { setShowcaseFilter('all'); setPage(1); }}
+            className={`px-2 py-1 rounded-lg text-[11px] font-medium transition-all border shrink-0 cursor-pointer ${
+              showcaseFilter === 'all'
+                ? 'bg-slate-800 text-white border-slate-800 shadow-xs'
+                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            {lang === 'tr' ? 'Tümü' : 'All'}
+          </button>
+          <button
+            type="button"
+            onClick={() => { setShowcaseFilter(showcaseFilter === 'web_active' ? 'all' : 'web_active'); setPage(1); }}
+            className={`px-2 py-1 rounded-lg text-[11px] font-medium transition-all border shrink-0 flex items-center gap-1 cursor-pointer ${
+              showcaseFilter === 'web_active'
+                ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                : 'bg-white text-emerald-800 border-emerald-200 hover:bg-emerald-50'
+            }`}
+          >
+            <Globe className="w-3 h-3" />
+            <span>{lang === 'tr' ? 'Menüde' : 'Live'}</span>
+            <span className={`px-1 py-0.2 rounded text-[9px] font-mono tabular-nums ${
+              showcaseFilter === 'web_active' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-900'
+            }`}>
+              {webActiveCount}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => { setShowcaseFilter(showcaseFilter === 'web_passive' ? 'all' : 'web_passive'); setPage(1); }}
+            className={`px-2 py-1 rounded-lg text-[11px] font-medium transition-all border shrink-0 flex items-center gap-1 cursor-pointer ${
+              showcaseFilter === 'web_passive'
+                ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
+                : 'bg-white text-slate-600 border-slate-200 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200'
+            }`}
+          >
+            <EyeOff className="w-3 h-3" />
+            <span>{lang === 'tr' ? 'Menü Kapalı' : 'Hidden'}</span>
+            <span className={`px-1 py-0.2 rounded text-[9px] font-mono tabular-nums ${
+              showcaseFilter === 'web_passive' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+            }`}>
+              {webPassiveCount}
+            </span>
+          </button>
+        </div>
+      )}
+
+      {/* E-Marketplace & Vitrin Quick Filter Chips for shopLP */}
       {isShopLp && (
         <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200/60 overflow-x-auto pb-1 scrollbar-none text-xs">
           <div className="flex items-center gap-1.5 shrink-0">
+            {setShowcaseFilter && (
+              <div className="flex items-center gap-1 pr-2 mr-1 border-r border-slate-200 shrink-0">
+                <span className="text-[11px] font-medium text-slate-400 mr-0.5 hidden sm:inline">
+                  {lang === 'tr' ? 'Vitrin:' : 'Web:'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => { setShowcaseFilter('all'); setPage(1); }}
+                  className={`px-2 py-1 rounded-lg text-[11px] font-medium transition-all border shrink-0 cursor-pointer ${
+                    showcaseFilter === 'all'
+                      ? 'bg-slate-800 text-white border-slate-800 shadow-xs'
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  {lang === 'tr' ? 'Tümü' : 'All'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowcaseFilter(showcaseFilter === 'web_active' ? 'all' : 'web_active'); setPage(1); }}
+                  className={`px-2 py-1 rounded-lg text-[11px] font-medium transition-all border shrink-0 flex items-center gap-1 cursor-pointer ${
+                    showcaseFilter === 'web_active'
+                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                      : 'bg-white text-emerald-800 border-emerald-200 hover:bg-emerald-50'
+                  }`}
+                >
+                  <Globe className="w-3 h-3" />
+                  <span>{lang === 'tr' ? 'Vitrinde' : 'Live'}</span>
+                  <span className={`px-1 py-0.2 rounded text-[9px] font-mono tabular-nums ${
+                    showcaseFilter === 'web_active' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-900'
+                  }`}>
+                    {webActiveCount}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowcaseFilter(showcaseFilter === 'web_passive' ? 'all' : 'web_passive'); setPage(1); }}
+                  className={`px-2 py-1 rounded-lg text-[11px] font-medium transition-all border shrink-0 flex items-center gap-1 cursor-pointer ${
+                    showcaseFilter === 'web_passive'
+                      ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200'
+                  }`}
+                >
+                  <EyeOff className="w-3 h-3" />
+                  <span>{lang === 'tr' ? 'Vitrin Kapalı' : 'Hidden'}</span>
+                  <span className={`px-1 py-0.2 rounded text-[9px] font-mono tabular-nums ${
+                    showcaseFilter === 'web_passive' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+                  }`}>
+                    {webPassiveCount}
+                  </span>
+                </button>
+              </div>
+            )}
+
             <span className="text-[11px] font-medium text-slate-400 mr-1 hidden sm:inline">Pazaryeri:</span>
             
             <button

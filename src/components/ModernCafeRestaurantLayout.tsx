@@ -405,20 +405,113 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
 
   const [completedReservationVoucher, setCompletedReservationVoucher] = useState<any | null>(null);
 
-  // Group food products by category
+  const operatorCatMeta = React.useMemo(() => {
+    const raw = store?.branding?.operator_categories || (store as any)?.operator_categories;
+    const orderedCats: string[] = [];
+    const hiddenCats = new Set<string>();
+    const hiddenSubsByCat = new Map<string, Set<string>>();
+
+    if (Array.isArray(raw)) {
+      raw.forEach((item: any) => {
+        if (typeof item === "string") {
+          const clean = item.trim();
+          if (clean) orderedCats.push(clean);
+        } else if (item && typeof item === "object" && item.name) {
+          const catName = String(item.name).trim();
+          if (!catName) return;
+          const catKey = catName.toLocaleLowerCase("tr-TR");
+          if (item.is_visible === false) {
+            hiddenCats.add(catKey);
+          } else {
+            orderedCats.push(catName);
+          }
+          const subMeta = item.sub_category_meta && typeof item.sub_category_meta === "object" ? item.sub_category_meta : {};
+          const hiddenSubSet = new Set<string>();
+          Object.entries(subMeta).forEach(([subName, meta]: [string, any]) => {
+            if (meta && meta.is_visible === false) {
+              hiddenSubSet.add(subName.trim().toLocaleLowerCase("tr-TR"));
+            }
+          });
+          if (hiddenSubSet.size > 0) hiddenSubsByCat.set(catKey, hiddenSubSet);
+        }
+      });
+    }
+    return { orderedCats, hiddenCats, hiddenSubsByCat };
+  }, [store]);
+
+  const isCatPairVisible = React.useCallback((cat?: string, sub?: string) => {
+    const cleanCat = (cat || "").trim();
+    if (!cleanCat) return true;
+    const catKey = cleanCat.toLocaleLowerCase("tr-TR");
+    if (operatorCatMeta.hiddenCats.has(catKey)) return false;
+    const cleanSub = (sub || "").trim();
+    if (cleanSub) {
+      const hiddenSubs = operatorCatMeta.hiddenSubsByCat.get(catKey);
+      if (hiddenSubs && hiddenSubs.has(cleanSub.toLocaleLowerCase("tr-TR"))) return false;
+    }
+    return true;
+  }, [operatorCatMeta]);
+
+  const visibleMenuProducts = React.useMemo(() => {
+    return products.filter((p) => {
+      if (p.is_web_sale === false) return false;
+      const hasPrimary = Boolean(p.category && p.category.trim());
+      const hasSecondary = Boolean((p as any).category_2 && String((p as any).category_2).trim());
+      if (!hasPrimary && !hasSecondary) return true;
+      return (
+        (hasPrimary && isCatPairVisible(p.category, p.sub_category)) ||
+        (hasSecondary && isCatPairVisible((p as any).category_2, (p as any).sub_category_2))
+      );
+    });
+  }, [products, isCatPairVisible]);
+
+  // Group food products by category respecting operator_categories order & visibility
   const categories = React.useMemo(() => {
-    const list = products.map((p) => p.category).filter(Boolean);
-    return Array.from(new Set(list));
-  }, [products]);
+    const prodCatsMap = new Map<string, string>();
+    visibleMenuProducts.forEach((p) => {
+      if (p.category && p.category.trim() && isCatPairVisible(p.category, p.sub_category)) {
+        const clean = p.category.trim();
+        const k = clean.toLocaleLowerCase("tr-TR");
+        if (!prodCatsMap.has(k)) prodCatsMap.set(k, clean);
+      }
+      if ((p as any).category_2 && String((p as any).category_2).trim() && isCatPairVisible((p as any).category_2, (p as any).sub_category_2)) {
+        const clean = String((p as any).category_2).trim();
+        const k = clean.toLocaleLowerCase("tr-TR");
+        if (!prodCatsMap.has(k)) prodCatsMap.set(k, clean);
+      }
+    });
+
+    const ordered: string[] = [];
+    const added = new Set<string>();
+    operatorCatMeta.orderedCats.forEach((opCat) => {
+      const k = opCat.toLocaleLowerCase("tr-TR");
+      const matched = prodCatsMap.get(k);
+      if (matched && !added.has(k)) {
+        added.add(k);
+        ordered.push(matched);
+      }
+    });
+    prodCatsMap.forEach((origName, k) => {
+      if (!added.has(k)) {
+        added.add(k);
+        ordered.push(origName);
+      }
+    });
+    return ordered;
+  }, [visibleMenuProducts, operatorCatMeta, isCatPairVisible]);
 
   const filteredProducts = React.useMemo(() => {
     if (selectedCategory === "bestsellers") {
-      const explicit = products.filter((p) => p.is_bestseller);
-      return explicit.length > 0 ? explicit : products.slice(0, 6);
+      const explicit = visibleMenuProducts.filter((p) => p.is_bestseller);
+      return explicit.length > 0 ? explicit : visibleMenuProducts.slice(0, 6);
     }
-    if (selectedCategory === "all") return products;
-    return products.filter((p) => p.category === selectedCategory);
-  }, [products, selectedCategory]);
+    if (selectedCategory === "all") return visibleMenuProducts;
+    return visibleMenuProducts.filter(
+      (p) =>
+        (p.category === selectedCategory && isCatPairVisible(p.category, p.sub_category)) ||
+        ((p as any).category_2 === selectedCategory && isCatPairVisible((p as any).category_2, (p as any).sub_category_2))
+    );
+  }, [visibleMenuProducts, selectedCategory, isCatPairVisible]);
 
   const totalTables = store.page_layout_settings?.table_count || 12;
 

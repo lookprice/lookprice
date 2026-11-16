@@ -322,11 +322,22 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
       if (p.category_2 && p.category_2.trim()) catsInProducts.add(p.category_2.trim());
     });
     if (backendCategories.length > 0) {
-      const activeCats = backendCategories
-        .map(bc => bc.category)
-        .filter(c => catsInProducts.has(c));
-      if (activeCats.length > 0) {
-        return activeCats;
+      const ordered: string[] = [];
+      const added = new Set<string>();
+      backendCategories.forEach(bc => {
+        if (bc.category && catsInProducts.has(bc.category) && !added.has(bc.category)) {
+          added.add(bc.category);
+          ordered.push(bc.category);
+        }
+      });
+      catsInProducts.forEach(c => {
+        if (!added.has(c)) {
+          added.add(c);
+          ordered.push(c);
+        }
+      });
+      if (ordered.length > 0) {
+        return ordered;
       }
     }
     return Array.from(catsInProducts);
@@ -344,8 +355,21 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
     if (backendCategories.length > 0) {
       const match = backendCategories.find(bc => bc.category === selectedCategory);
       if (match && Array.isArray(match.sub_categories)) {
-        const activeSubs = match.sub_categories.filter(s => subsInProducts.has(s));
-        if (activeSubs.length > 0) return activeSubs;
+        const ordered: string[] = [];
+        const added = new Set<string>();
+        match.sub_categories.forEach(s => {
+          if (s && subsInProducts.has(s) && !added.has(s)) {
+            added.add(s);
+            ordered.push(s);
+          }
+        });
+        subsInProducts.forEach(s => {
+          if (!added.has(s)) {
+            added.add(s);
+            ordered.push(s);
+          }
+        });
+        if (ordered.length > 0) return ordered;
       }
     }
     return Array.from(subsInProducts);

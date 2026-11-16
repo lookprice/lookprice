@@ -290,40 +290,73 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
   // Extract distinct categories, subcategories, brands from processedProducts + store canonical taxonomy
   const categoryTree = useMemo(() => {
     const map = new Map<string, Set<string>>();
+    const opCats = Array.isArray(store?.branding?.operator_categories)
+      ? store.branding.operator_categories
+      : [];
 
-    if (store?.branding?.operator_categories && Array.isArray(store.branding.operator_categories)) {
-      store.branding.operator_categories.forEach((cat: any) => {
-        if (typeof cat === "string" && cat.trim()) {
-          const cleanCat = cat.trim();
-          if (!map.has(cleanCat)) map.set(cleanCat, new Set());
-        } else if (cat && typeof cat === "object" && cat.name) {
-          const cleanCat = String(cat.name).trim();
-          if (cleanCat) {
-            if (!map.has(cleanCat)) map.set(cleanCat, new Set());
-            if (Array.isArray(cat.sub_categories)) {
-              cat.sub_categories.forEach((s: string) => {
-                if (s && typeof s === "string" && s.trim()) map.get(cleanCat)!.add(s.trim());
-              });
-            }
-          }
+    const hiddenMainCats = new Set<string>();
+    const hiddenSubCatsByMain = new Map<string, Set<string>>();
+    const mainOrderIndex = new Map<string, number>();
+    const subOrderIndexByMain = new Map<string, Map<string, number>>();
+
+    opCats.forEach((cat: any, idx: number) => {
+      if (typeof cat === "string" && cat.trim()) {
+        const cleanCat = cat.trim();
+        mainOrderIndex.set(cleanCat, idx);
+        if (!map.has(cleanCat)) map.set(cleanCat, new Set());
+      } else if (cat && typeof cat === "object" && cat.name) {
+        const cleanCat = String(cat.name).trim();
+        if (!cleanCat) return;
+        mainOrderIndex.set(cleanCat, idx);
+        if (cat.is_visible === false) {
+          hiddenMainCats.add(cleanCat);
+          return;
         }
-      });
-    }
+        if (!map.has(cleanCat)) map.set(cleanCat, new Set());
+        const subMeta = cat.sub_category_meta && typeof cat.sub_category_meta === "object" ? cat.sub_category_meta : {};
+        if (Array.isArray(cat.sub_categories)) {
+          if (!subOrderIndexByMain.has(cleanCat)) subOrderIndexByMain.set(cleanCat, new Map());
+          if (!hiddenSubCatsByMain.has(cleanCat)) hiddenSubCatsByMain.set(cleanCat, new Set());
+          cat.sub_categories.forEach((s: any, sIdx: number) => {
+            const cleanSub = String(s || "").trim();
+            if (!cleanSub) return;
+            subOrderIndexByMain.get(cleanCat)!.set(cleanSub, sIdx);
+            if (subMeta[cleanSub]?.is_visible === false) {
+              hiddenSubCatsByMain.get(cleanCat)!.add(cleanSub);
+            } else {
+              map.get(cleanCat)!.add(cleanSub);
+            }
+          });
+        }
+      }
+    });
 
-    processedProducts.forEach((p) => {
+    const visibleProducts = processedProducts.filter((p) => p.is_web_sale !== false);
+
+    visibleProducts.forEach((p) => {
       if (p.category && typeof p.category === "string" && p.category.trim()) {
         const c1 = p.category.trim();
-        if (!map.has(c1)) map.set(c1, new Set());
-        if (p.sub_category && typeof p.sub_category === "string" && p.sub_category.trim()) {
-          map.get(c1)!.add(p.sub_category.trim());
+        if (!hiddenMainCats.has(c1)) {
+          if (!map.has(c1)) map.set(c1, new Set());
+          if (p.sub_category && typeof p.sub_category === "string" && p.sub_category.trim()) {
+            const s1 = p.sub_category.trim();
+            if (!hiddenSubCatsByMain.get(c1)?.has(s1)) {
+              map.get(c1)!.add(s1);
+            }
+          }
         }
       }
       if (p.category_2 && typeof p.category_2 === "string" && p.category_2.trim()) {
         const c2 = p.category_2.trim();
-        if (!map.has(c2)) map.set(c2, new Set());
-        const sub2 = (p as any).sub_category_2;
-        if (sub2 && typeof sub2 === "string" && sub2.trim()) {
-          map.get(c2)!.add(sub2.trim());
+        if (!hiddenMainCats.has(c2)) {
+          if (!map.has(c2)) map.set(c2, new Set());
+          const sub2 = (p as any).sub_category_2;
+          if (sub2 && typeof sub2 === "string" && sub2.trim()) {
+            const s2 = sub2.trim();
+            if (!hiddenSubCatsByMain.get(c2)?.has(s2)) {
+              map.get(c2)!.add(s2);
+            }
+          }
         }
       }
     });
@@ -335,13 +368,22 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
     }[] = [];
 
     Array.from(map.entries())
-      .sort((a, b) => a[0].localeCompare(b[0], "tr"))
+      .sort((a, b) => {
+        const idxA = mainOrderIndex.has(a[0]) ? mainOrderIndex.get(a[0])! : Number.MAX_SAFE_INTEGER;
+        const idxB = mainOrderIndex.has(b[0]) ? mainOrderIndex.get(b[0])! : Number.MAX_SAFE_INTEGER;
+        if (idxA !== idxB) return idxA - idxB;
+        return a[0].localeCompare(b[0], "tr");
+      })
       .forEach(([cat, subsSet]) => {
-        const catProducts = processedProducts.filter(
+        if (hiddenMainCats.has(cat)) return;
+        const catProducts = visibleProducts.filter(
           (p) => p.category?.trim() === cat || p.category_2?.trim() === cat
         );
         if (catProducts.length > 0) {
+          const subOrderMap = subOrderIndexByMain.get(cat);
+          const hiddenSubs = hiddenSubCatsByMain.get(cat);
           const subsWithCounts = Array.from(subsSet)
+            .filter((sub) => !hiddenSubs?.has(sub))
             .map((sub) => ({
               name: sub,
               count: catProducts.filter(
@@ -349,7 +391,12 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
               ).length,
             }))
             .filter((s) => s.count > 0)
-            .sort((a, b) => a.name.localeCompare(b.name, "tr"));
+            .sort((a, b) => {
+              const sIdxA = subOrderMap?.has(a.name) ? subOrderMap.get(a.name)! : Number.MAX_SAFE_INTEGER;
+              const sIdxB = subOrderMap?.has(b.name) ? subOrderMap.get(b.name)! : Number.MAX_SAFE_INTEGER;
+              if (sIdxA !== sIdxB) return sIdxA - sIdxB;
+              return a.name.localeCompare(b.name, "tr");
+            });
 
           tree.push({
             category: cat,
@@ -367,15 +414,14 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
   }, [categoryTree]);
 
   const subCategories = useMemo(() => {
+    if (selectedCategory !== "all") {
+      const node = categoryTree.find((c) => c.category === selectedCategory);
+      if (node) return node.subCategories.map((s) => s.name);
+    }
     const set = new Set<string>();
-    processedProducts.forEach((p) => {
-      if (selectedCategory === "all" || p.category === selectedCategory || p.category_2 === selectedCategory) {
-        const sub = p.sub_category || (p as any).sub_category_2;
-        if (sub && typeof sub === "string" && sub.trim()) set.add(sub.trim());
-      }
-    });
-    return Array.from(set).sort((a, b) => a.localeCompare(b, "tr"));
-  }, [processedProducts, selectedCategory]);
+    categoryTree.forEach((c) => c.subCategories.forEach((s) => set.add(s.name)));
+    return Array.from(set);
+  }, [categoryTree, selectedCategory]);
 
   const brands = useMemo(() => {
     const set = new Set<string>();

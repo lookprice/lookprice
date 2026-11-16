@@ -704,6 +704,1127 @@ router.get("/categories", async (req: any, res) => {
   }
 });
 
+async function clearPublicStoreCache() {
+  try {
+    const { publicApiCache } = await import("../public");
+    publicApiCache.clear();
+  } catch {}
+}
+
+interface OperatorCategoryMeta {
+  name: string;
+  sub_categories: string[];
+  is_visible?: boolean;
+  description?: string;
+  image_url?: string;
+  tax_rate?: number | null;
+  sub_category_meta?: Record<string, {
+    is_visible?: boolean;
+    description?: string;
+    image_url?: string;
+  }>;
+}
+
+function normalizeOperatorCategories(raw: any): OperatorCategoryMeta[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  const list: OperatorCategoryMeta[] = [];
+
+  for (const item of raw) {
+    if (typeof item === "string") {
+      const name = item.trim();
+      if (!name || seen.has(name.toLocaleLowerCase("tr-TR"))) continue;
+      seen.add(name.toLocaleLowerCase("tr-TR"));
+      list.push({ name, sub_categories: [], is_visible: true });
+    } else if (item && typeof item === "object" && item.name) {
+      const name = String(item.name).trim();
+      if (!name || seen.has(name.toLocaleLowerCase("tr-TR"))) continue;
+      seen.add(name.toLocaleLowerCase("tr-TR"));
+
+      const subSeen = new Set<string>();
+      const subs: string[] = [];
+      if (Array.isArray(item.sub_categories)) {
+        for (const s of item.sub_categories) {
+          const sName = String(s || "").trim();
+          if (sName && !subSeen.has(sName.toLocaleLowerCase("tr-TR"))) {
+            subSeen.add(sName.toLocaleLowerCase("tr-TR"));
+            subs.push(sName);
+          }
+        }
+      }
+
+      const subMeta: Record<string, { is_visible?: boolean; description?: string; image_url?: string }> = {};
+      if (item.sub_category_meta && typeof item.sub_category_meta === "object") {
+        for (const [k, v] of Object.entries(item.sub_category_meta as Record<string, any>)) {
+          const cleanK = String(k || "").trim();
+          if (cleanK && v && typeof v === "object") {
+            subMeta[cleanK] = {
+              is_visible: v.is_visible !== false,
+              description: v.description ? String(v.description) : undefined,
+              image_url: v.image_url ? String(v.image_url) : undefined,
+            };
+          }
+        }
+      }
+
+      list.push({
+        name,
+        sub_categories: subs,
+        is_visible: item.is_visible !== false,
+        description: item.description ? String(item.description) : undefined,
+        image_url: item.image_url ? String(item.image_url) : undefined,
+        tax_rate: item.tax_rate !== undefined && item.tax_rate !== null && item.tax_rate !== "" ? Number(item.tax_rate) : null,
+        ...(Object.keys(subMeta).length > 0 ? { sub_category_meta: subMeta } : {}),
+      });
+    }
+  }
+  return list;
+}
+
+async function loadStoreBrandingAndCategories(clientOrPool: any, storeId: number) {
+  const storeRes = await clientOrPool.query("SELECT branding FROM stores WHERE id = $1", [storeId]);
+  let branding: any = storeRes.rows[0]?.branding || {};
+  if (typeof branding === "string") {
+    try { branding = JSON.parse(branding || "{}"); } catch { branding = {}; }
+  }
+  if (!branding || typeof branding !== "object") branding = {};
+  const operatorCategories = normalizeOperatorCategories(branding.operator_categories);
+  const categoryTaxRules = Array.isArray(branding.category_tax_rules) ? branding.category_tax_rules : [];
+  return { branding, operatorCategories, categoryTaxRules };
+}
+
+async function saveStoreOperatorCategories(
+  clientOrPool: any,
+  storeId: number,
+  branding: any,
+  operatorCategories: OperatorCategoryMeta[],
+  categoryTaxRules?: any[]
+) {
+  const nextBranding = {
+    ...(branding || {}),
+    operator_categories: operatorCategories,
+    ...(categoryTaxRules !== undefined ? { category_tax_rules: categoryTaxRules } : {}),
+  };
+  await clientOrPool.query("UPDATE stores SET branding = $1 WHERE id = $2", [
+    JSON.stringify(nextBranding),
+    storeId,
+  ]);
+  invalidateStoreProductsCache(storeId);
+  await clearPublicStoreCache();
+  return nextBranding;
+}
+
+function buildSyncedTaxRules(existingRules: any[], operatorCategories: OperatorCategoryMeta[]) {
+  const ruleMap = new Map<string, { category: string; taxRate: number }>();
+  if (Array.isArray(existingRules)) {
+    for (const r of existingRules) {
+      if (r && r.category) {
+        ruleMap.set(String(r.category).trim().toLocaleLowerCase("tr-TR"), {
+          category: String(r.category).trim(),
+          taxRate: Number(r.taxRate ?? 20),
+        });
+      }
+    }
+  }
+  for (const c of operatorCategories) {
+    if (c.tax_rate !== undefined && c.tax_rate !== null && !isNaN(Number(c.tax_rate))) {
+      ruleMap.set(c.name.toLocaleLowerCase("tr-TR"), {
+        category: c.name,
+        taxRate: Number(c.tax_rate),
+      });
+    }
+  }
+  return Array.from(ruleMap.values());
+}
+
+// POST /products/bulk-web-sale - Toplu Vitrinde Yayınla (Aktif / Pasif)
+router.post("/bulk-web-sale", async (req: any, res) => {
+  try {
+    const requestedId = req.query.storeId || req.body.storeId;
+    const storeId = await getAuthorizedStoreId(req, requestedId);
+    if (storeId === null) return res.status(403).json({ error: "Store ID unauthorized" });
+
+    const { ids, is_web_sale } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: "En az bir ürün seçilmelidir." });
+    }
+    const numericIds = ids.map((x: any) => Number(x)).filter((n: number) => !isNaN(n) && n > 0);
+    if (numericIds.length === 0) {
+      return res.status(400).json({ error: "Geçerli ürün ID listesi gereklidir." });
+    }
+
+    const targetWebSale = is_web_sale === true || is_web_sale === "true" || is_web_sale === "on";
+    const result = await pool.query(
+      `UPDATE products
+       SET is_web_sale = $1, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ANY($2::int[])
+         AND (store_id = $3 OR store_id IN (SELECT id FROM stores WHERE parent_id = $3))`,
+      [targetWebSale, numericIds, storeId]
+    );
+
+    invalidateStoreProductsCache(storeId);
+    await clearPublicStoreCache();
+
+    await logAction(
+      storeId,
+      req.user.id,
+      "product_bulk_web_sale",
+      "product",
+      null,
+      `${result.rowCount || 0} ürünün vitrin yayın durumu "${targetWebSale ? "Aktif" : "Pasif"}" olarak güncellendi.`,
+      { ids: numericIds, is_web_sale: targetWebSale },
+      { updatedCount: result.rowCount || 0 }
+    );
+
+    res.json({
+      success: true,
+      updatedCount: result.rowCount || 0,
+      is_web_sale: targetWebSale,
+    });
+  } catch (e: any) {
+    console.error("Bulk web sale update error:", e);
+    res.status(500).json({ error: e.message || "Toplu vitrin güncelleme hatası" });
+  }
+});
+
+// POST /products/bulk-category - Seçili ürünlere toplu kategori / alt kategori atama
+router.post("/bulk-category", async (req: any, res) => {
+  const client = await pool.connect();
+  try {
+    const requestedId = req.query.storeId || req.body.storeId;
+    const storeId = await getAuthorizedStoreId(req, requestedId);
+    if (storeId === null) {
+      client.release();
+      return res.status(403).json({ error: "Store ID unauthorized" });
+    }
+
+    const { ids, category, sub_category, updateSubCategory = true } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      client.release();
+      return res.status(400).json({ error: "En az bir ürün seçilmelidir." });
+    }
+    const numericIds = ids.map((x: any) => Number(x)).filter((n: number) => !isNaN(n) && n > 0);
+    if (numericIds.length === 0) {
+      client.release();
+      return res.status(400).json({ error: "Geçerli ürün ID listesi gereklidir." });
+    }
+
+    const cleanCat = String(category ?? "").trim();
+    const cleanSub = String(sub_category ?? "").trim();
+
+    await client.query("BEGIN");
+
+    let result;
+    if (updateSubCategory) {
+      result = await client.query(
+        `UPDATE products
+         SET category = $1, sub_category = $2, updated_at = CURRENT_TIMESTAMP
+         WHERE id = ANY($3::int[])
+           AND (store_id = $4 OR store_id IN (SELECT id FROM stores WHERE parent_id = $4))`,
+        [cleanCat, cleanSub, numericIds, storeId]
+      );
+    } else {
+      result = await client.query(
+        `UPDATE products
+         SET category = $1, updated_at = CURRENT_TIMESTAMP
+         WHERE id = ANY($2::int[])
+           AND (store_id = $3 OR store_id IN (SELECT id FROM stores WHERE parent_id = $3))`,
+        [cleanCat, numericIds, storeId]
+      );
+    }
+
+    if (cleanCat) {
+      const { branding, operatorCategories } = await loadStoreBrandingAndCategories(client, storeId);
+      let existingCat = operatorCategories.find(
+        (c) => c.name.toLocaleLowerCase("tr-TR") === cleanCat.toLocaleLowerCase("tr-TR")
+      );
+      if (!existingCat) {
+        existingCat = { name: cleanCat, sub_categories: cleanSub ? [cleanSub] : [], is_visible: true };
+        operatorCategories.push(existingCat);
+      } else if (cleanSub) {
+        const hasSub = existingCat.sub_categories.some(
+          (s) => s.toLocaleLowerCase("tr-TR") === cleanSub.toLocaleLowerCase("tr-TR")
+        );
+        if (!hasSub) existingCat.sub_categories.push(cleanSub);
+      }
+      await saveStoreOperatorCategories(client, storeId, branding, operatorCategories);
+    } else {
+      invalidateStoreProductsCache(storeId);
+      await clearPublicStoreCache();
+    }
+
+    await client.query("COMMIT");
+
+    await logAction(
+      storeId,
+      req.user.id,
+      "product_bulk_category",
+      "product",
+      null,
+      `${result.rowCount || 0} ürünün kategorisi "${cleanCat || "Kategorisiz"}${cleanSub ? ` > ${cleanSub}` : ""}" olarak güncellendi.`,
+      { ids: numericIds, category: cleanCat, sub_category: cleanSub },
+      { updatedCount: result.rowCount || 0 }
+    );
+
+    res.json({ success: true, updatedCount: result.rowCount || 0 });
+  } catch (e: any) {
+    await client.query("ROLLBACK").catch(() => {});
+    console.error("Bulk category update error:", e);
+    res.status(500).json({ error: e.message || "Toplu kategori atama hatası" });
+  } finally {
+    client.release();
+  }
+});
+
+// GET /products/categories/studio - Tam kapsamlı kategori ağacı, ürün sayıları ve vitrin metrikleri
+router.get("/categories/studio", async (req: any, res) => {
+  try {
+    const requestedId = req.query.storeId;
+    const storeId = await getAuthorizedStoreId(req, requestedId);
+    if (storeId === null) return res.status(403).json({ error: "Store ID unauthorized" });
+
+    const { operatorCategories, categoryTaxRules } = await loadStoreBrandingAndCategories(pool, storeId);
+
+    const statsRes = await pool.query(
+      `SELECT
+         TRIM(COALESCE(category, '')) AS cat,
+         TRIM(COALESCE(sub_category, '')) AS sub,
+         COUNT(*)::int AS total_count,
+         SUM(CASE WHEN COALESCE(is_web_sale, TRUE) = TRUE THEN 1 ELSE 0 END)::int AS web_active_count,
+         SUM(CASE WHEN is_web_sale = FALSE THEN 1 ELSE 0 END)::int AS web_passive_count,
+         COALESCE(SUM(COALESCE(stock_quantity, 0)), 0)::numeric AS total_stock
+       FROM products
+       WHERE store_id = $1
+       GROUP BY TRIM(COALESCE(category, '')), TRIM(COALESCE(sub_category, ''))`,
+      [storeId]
+    );
+
+    const catStatsMap = new Map<string, {
+      name: string;
+      total_count: number;
+      web_active_count: number;
+      web_passive_count: number;
+      total_stock: number;
+      subs: Map<string, { name: string; total_count: number; web_active_count: number; web_passive_count: number; total_stock: number }>;
+    }>();
+
+    let uncategorized = {
+      product_count: 0,
+      web_active_count: 0,
+      web_passive_count: 0,
+      total_stock: 0,
+    };
+
+    for (const row of statsRes.rows) {
+      const cat = String(row.cat || "").trim();
+      const sub = String(row.sub || "").trim();
+      const total = Number(row.total_count || 0);
+      const webActive = Number(row.web_active_count || 0);
+      const webPassive = Number(row.web_passive_count || 0);
+      const stock = Number(row.total_stock || 0);
+
+      if (!cat) {
+        uncategorized.product_count += total;
+        uncategorized.web_active_count += webActive;
+        uncategorized.web_passive_count += webPassive;
+        uncategorized.total_stock += stock;
+        continue;
+      }
+
+      if (!catStatsMap.has(cat)) {
+        catStatsMap.set(cat, {
+          name: cat,
+          total_count: 0,
+          web_active_count: 0,
+          web_passive_count: 0,
+          total_stock: 0,
+          subs: new Map(),
+        });
+      }
+      const entry = catStatsMap.get(cat)!;
+      entry.total_count += total;
+      entry.web_active_count += webActive;
+      entry.web_passive_count += webPassive;
+      entry.total_stock += stock;
+
+      if (sub) {
+        const existingSub = entry.subs.get(sub) || {
+          name: sub,
+          total_count: 0,
+          web_active_count: 0,
+          web_passive_count: 0,
+          total_stock: 0,
+        };
+        existingSub.total_count += total;
+        existingSub.web_active_count += webActive;
+        existingSub.web_passive_count += webPassive;
+        existingSub.total_stock += stock;
+        entry.subs.set(sub, existingSub);
+      }
+    }
+
+    const taxRuleLookup = new Map<string, number>();
+    for (const r of categoryTaxRules) {
+      if (r && r.category) {
+        taxRuleLookup.set(String(r.category).trim().toLocaleLowerCase("tr-TR"), Number(r.taxRate));
+      }
+    }
+
+    const usedCatKeys = new Set<string>();
+    const mergedCategories: any[] = [];
+
+    const buildCategoryNode = (opCat: OperatorCategoryMeta | null, dbCatKey: string) => {
+      const statsEntry =
+        catStatsMap.get(dbCatKey) ||
+        Array.from(catStatsMap.values()).find(
+          (v) => v.name.toLocaleLowerCase("tr-TR") === dbCatKey.toLocaleLowerCase("tr-TR")
+        );
+
+      const usedSubKeys = new Set<string>();
+      const subsList: any[] = [];
+
+      if (opCat && Array.isArray(opCat.sub_categories)) {
+        for (const subName of opCat.sub_categories) {
+          const cleanSub = String(subName || "").trim();
+          if (!cleanSub) continue;
+          const subKey = cleanSub.toLocaleLowerCase("tr-TR");
+          if (usedSubKeys.has(subKey)) continue;
+          usedSubKeys.add(subKey);
+
+          const subStats = statsEntry
+            ? Array.from(statsEntry.subs.values()).find(
+                (s) => s.name.toLocaleLowerCase("tr-TR") === subKey
+              )
+            : undefined;
+          const meta = opCat.sub_category_meta?.[cleanSub];
+
+          subsList.push({
+            name: cleanSub,
+            is_visible: meta ? meta.is_visible !== false : true,
+            description: meta?.description || "",
+            image_url: meta?.image_url || "",
+            product_count: subStats?.total_count || 0,
+            web_active_count: subStats?.web_active_count || 0,
+            web_passive_count: subStats?.web_passive_count || 0,
+            total_stock: subStats?.total_stock || 0,
+          });
+        }
+      }
+
+      if (statsEntry) {
+        for (const subStats of statsEntry.subs.values()) {
+          const subKey = subStats.name.toLocaleLowerCase("tr-TR");
+          if (usedSubKeys.has(subKey)) continue;
+          usedSubKeys.add(subKey);
+          const meta = opCat?.sub_category_meta?.[subStats.name];
+          subsList.push({
+            name: subStats.name,
+            is_visible: meta ? meta.is_visible !== false : true,
+            description: meta?.description || "",
+            image_url: meta?.image_url || "",
+            product_count: subStats.total_count,
+            web_active_count: subStats.web_active_count,
+            web_passive_count: subStats.web_passive_count,
+            total_stock: subStats.total_stock,
+          });
+        }
+      }
+
+      const displayName = opCat?.name || statsEntry?.name || dbCatKey;
+      const ruleTax = taxRuleLookup.get(displayName.toLocaleLowerCase("tr-TR"));
+
+      return {
+        name: displayName,
+        is_visible: opCat ? opCat.is_visible !== false : true,
+        description: opCat?.description || "",
+        image_url: opCat?.image_url || "",
+        tax_rate:
+          opCat?.tax_rate !== undefined && opCat?.tax_rate !== null
+            ? opCat.tax_rate
+            : ruleTax !== undefined
+            ? ruleTax
+            : null,
+        product_count: statsEntry?.total_count || 0,
+        web_active_count: statsEntry?.web_active_count || 0,
+        web_passive_count: statsEntry?.web_passive_count || 0,
+        total_stock: statsEntry?.total_stock || 0,
+        sub_categories: subsList,
+      };
+    };
+
+    for (const opCat of operatorCategories) {
+      const key = opCat.name.toLocaleLowerCase("tr-TR");
+      if (usedCatKeys.has(key)) continue;
+      usedCatKeys.add(key);
+      mergedCategories.push(buildCategoryNode(opCat, opCat.name));
+    }
+
+    const discoveredOnly: any[] = [];
+    for (const entry of catStatsMap.values()) {
+      const key = entry.name.toLocaleLowerCase("tr-TR");
+      if (usedCatKeys.has(key)) continue;
+      usedCatKeys.add(key);
+      discoveredOnly.push(buildCategoryNode(null, entry.name));
+    }
+    discoveredOnly.sort((a, b) => a.name.localeCompare(b.name, "tr"));
+
+    res.json({
+      success: true,
+      categories: [...mergedCategories, ...discoveredOnly],
+      uncategorized,
+      category_tax_rules: categoryTaxRules,
+    });
+  } catch (err: any) {
+    console.error("Categories studio fetch error:", err);
+    res.status(500).json({ error: err.message || "Kategori bilgileri alınamadı" });
+  }
+});
+
+// POST /products/categories/save-tree - Sıralama, görünürlük, meta veriler ve KDV kurallarını kaydet
+router.post("/categories/save-tree", async (req: any, res) => {
+  try {
+    const requestedId = req.query.storeId || req.body.storeId;
+    const storeId = await getAuthorizedStoreId(req, requestedId);
+    if (storeId === null) return res.status(403).json({ error: "Store ID unauthorized" });
+
+    const { categories } = req.body;
+    if (!Array.isArray(categories)) {
+      return res.status(400).json({ error: "categories dizisi zorunludur." });
+    }
+
+    const normalized = normalizeOperatorCategories(categories);
+    const { branding, categoryTaxRules } = await loadStoreBrandingAndCategories(pool, storeId);
+    const syncedTaxRules = buildSyncedTaxRules(categoryTaxRules, normalized);
+
+    await saveStoreOperatorCategories(pool, storeId, branding, normalized, syncedTaxRules);
+
+    await logAction(
+      storeId,
+      req.user.id,
+      "categories_tree_saved",
+      "store",
+      storeId,
+      `Kategori ağacı ve sıralama güncellendi (${normalized.length} ana kategori).`,
+      { count: normalized.length },
+      null
+    );
+
+    res.json({ success: true, categories: normalized, category_tax_rules: syncedTaxRules });
+  } catch (err: any) {
+    console.error("Save category tree error:", err);
+    res.status(500).json({ error: err.message || "Kategori ağacı kaydedilemedi" });
+  }
+});
+
+// POST /products/categories/rename - Ana veya Alt Kategori Yeniden Adlandırma (Ürünler + Ayarlar senkron)
+router.post("/categories/rename", async (req: any, res) => {
+  const client = await pool.connect();
+  try {
+    const requestedId = req.query.storeId || req.body.storeId;
+    const storeId = await getAuthorizedStoreId(req, requestedId);
+    if (storeId === null) {
+      client.release();
+      return res.status(403).json({ error: "Store ID unauthorized" });
+    }
+
+    const oldCategory = String(req.body.oldCategory || "").trim();
+    const newCategory = String(req.body.newCategory || "").trim();
+    const oldSubCategory = req.body.oldSubCategory !== undefined ? String(req.body.oldSubCategory || "").trim() : undefined;
+    const newSubCategory = req.body.newSubCategory !== undefined ? String(req.body.newSubCategory || "").trim() : undefined;
+
+    if (!oldCategory) {
+      client.release();
+      return res.status(400).json({ error: "Mevcut kategori adı zorunludur." });
+    }
+
+    await client.query("BEGIN");
+    const { branding, operatorCategories, categoryTaxRules } = await loadStoreBrandingAndCategories(client, storeId);
+    let updatedProductsCount = 0;
+
+    if (oldSubCategory !== undefined && newSubCategory !== undefined) {
+      if (!newSubCategory) {
+        await client.query("ROLLBACK");
+        client.release();
+        return res.status(400).json({ error: "Yeni alt kategori adı boş olamaz." });
+      }
+      const r1 = await client.query(
+        `UPDATE products SET sub_category = $1, updated_at = CURRENT_TIMESTAMP
+         WHERE store_id = $2 AND LOWER(TRIM(COALESCE(category, ''))) = LOWER($3) AND LOWER(TRIM(COALESCE(sub_category, ''))) = LOWER($4)`,
+        [newSubCategory, storeId, oldCategory, oldSubCategory]
+      );
+      const r2 = await client.query(
+        `UPDATE products SET sub_category_2 = $1, updated_at = CURRENT_TIMESTAMP
+         WHERE store_id = $2 AND LOWER(TRIM(COALESCE(category_2, ''))) = LOWER($3) AND LOWER(TRIM(COALESCE(sub_category_2, ''))) = LOWER($4)`,
+        [newSubCategory, storeId, oldCategory, oldSubCategory]
+      );
+      updatedProductsCount = (r1.rowCount || 0) + (r2.rowCount || 0);
+
+      let targetCat = operatorCategories.find(
+        (c) => c.name.toLocaleLowerCase("tr-TR") === oldCategory.toLocaleLowerCase("tr-TR")
+      );
+      if (!targetCat) {
+        targetCat = { name: oldCategory, sub_categories: [newSubCategory], is_visible: true };
+        operatorCategories.push(targetCat);
+      } else {
+        const nextSubs: string[] = [];
+        const seen = new Set<string>();
+        let replaced = false;
+        for (const s of targetCat.sub_categories) {
+          const val = s.toLocaleLowerCase("tr-TR") === oldSubCategory.toLocaleLowerCase("tr-TR")
+            ? (replaced = true, newSubCategory)
+            : s;
+          if (!seen.has(val.toLocaleLowerCase("tr-TR"))) {
+            seen.add(val.toLocaleLowerCase("tr-TR"));
+            nextSubs.push(val);
+          }
+        }
+        if (!replaced && !seen.has(newSubCategory.toLocaleLowerCase("tr-TR"))) {
+          nextSubs.push(newSubCategory);
+        }
+        targetCat.sub_categories = nextSubs;
+        if (targetCat.sub_category_meta && targetCat.sub_category_meta[oldSubCategory]) {
+          targetCat.sub_category_meta[newSubCategory] = targetCat.sub_category_meta[oldSubCategory];
+          if (newSubCategory !== oldSubCategory) {
+            delete targetCat.sub_category_meta[oldSubCategory];
+          }
+        }
+      }
+
+      await saveStoreOperatorCategories(client, storeId, branding, operatorCategories, categoryTaxRules);
+    } else {
+      if (!newCategory) {
+        await client.query("ROLLBACK");
+        client.release();
+        return res.status(400).json({ error: "Yeni kategori adı boş olamaz." });
+      }
+
+      const r1 = await client.query(
+        `UPDATE products SET category = $1, updated_at = CURRENT_TIMESTAMP
+         WHERE store_id = $2 AND LOWER(TRIM(COALESCE(category, ''))) = LOWER($3)`,
+        [newCategory, storeId, oldCategory]
+      );
+      const r2 = await client.query(
+        `UPDATE products SET category_2 = $1, updated_at = CURRENT_TIMESTAMP
+         WHERE store_id = $2 AND LOWER(TRIM(COALESCE(category_2, ''))) = LOWER($3)`,
+        [newCategory, storeId, oldCategory]
+      );
+      updatedProductsCount = (r1.rowCount || 0) + (r2.rowCount || 0);
+
+      const oldIdx = operatorCategories.findIndex(
+        (c) => c.name.toLocaleLowerCase("tr-TR") === oldCategory.toLocaleLowerCase("tr-TR")
+      );
+      const targetIdx = operatorCategories.findIndex(
+        (c) => c.name.toLocaleLowerCase("tr-TR") === newCategory.toLocaleLowerCase("tr-TR")
+      );
+
+      if (oldIdx !== -1 && targetIdx !== -1 && oldIdx !== targetIdx) {
+        // Merge into existing target category in operatorCategories
+        const src = operatorCategories[oldIdx];
+        const dst = operatorCategories[targetIdx];
+        const subSeen = new Set(dst.sub_categories.map((s) => s.toLocaleLowerCase("tr-TR")));
+        for (const s of src.sub_categories) {
+          if (!subSeen.has(s.toLocaleLowerCase("tr-TR"))) {
+            subSeen.add(s.toLocaleLowerCase("tr-TR"));
+            dst.sub_categories.push(s);
+          }
+        }
+        operatorCategories.splice(oldIdx, 1);
+      } else if (oldIdx !== -1) {
+        operatorCategories[oldIdx].name = newCategory;
+      } else if (targetIdx === -1) {
+        operatorCategories.push({ name: newCategory, sub_categories: [], is_visible: true });
+      }
+
+      const updatedTaxRules = (categoryTaxRules || []).map((r: any) =>
+        String(r?.category || "").trim().toLocaleLowerCase("tr-TR") === oldCategory.toLocaleLowerCase("tr-TR")
+          ? { ...r, category: newCategory }
+          : r
+      );
+
+      await saveStoreOperatorCategories(client, storeId, branding, operatorCategories, updatedTaxRules);
+    }
+
+    await client.query("COMMIT");
+
+    await logAction(
+      storeId,
+      req.user.id,
+      "category_renamed",
+      "store",
+      storeId,
+      oldSubCategory
+        ? `Alt kategori yeniden adlandırıldı: "${oldCategory} > ${oldSubCategory}" -> "${newSubCategory}" (${updatedProductsCount} ürün).`
+        : `Kategori yeniden adlandırıldı: "${oldCategory}" -> "${newCategory}" (${updatedProductsCount} ürün).`,
+      { oldCategory, newCategory, oldSubCategory, newSubCategory },
+      { updatedProductsCount }
+    );
+
+    res.json({ success: true, updatedProductsCount });
+  } catch (err: any) {
+    await client.query("ROLLBACK").catch(() => {});
+    console.error("Rename category error:", err);
+    res.status(500).json({ error: err.message || "Kategori adı değiştirilemedi" });
+  } finally {
+    client.release();
+  }
+});
+
+// POST /products/categories/move-node - Alt kategori taşıma, yükseltme veya ana kategoriyi alt kategoriye indirme
+router.post("/categories/move-node", async (req: any, res) => {
+  const client = await pool.connect();
+  try {
+    const requestedId = req.query.storeId || req.body.storeId;
+    const storeId = await getAuthorizedStoreId(req, requestedId);
+    if (storeId === null) {
+      client.release();
+      return res.status(403).json({ error: "Store ID unauthorized" });
+    }
+
+    const { action, sourceCategory, subCategory, targetCategory, newName } = req.body;
+    const cleanSourceCat = String(sourceCategory || "").trim();
+    const cleanSubCat = String(subCategory || "").trim();
+    const cleanTargetCat = String(targetCategory || "").trim();
+    const cleanNewName = String(newName || "").trim();
+
+    if (!cleanSourceCat) {
+      client.release();
+      return res.status(400).json({ error: "Kaynak kategori belirtilmelidir." });
+    }
+
+    await client.query("BEGIN");
+    const { branding, operatorCategories, categoryTaxRules } = await loadStoreBrandingAndCategories(client, storeId);
+    let updatedProductsCount = 0;
+
+    if (action === "move_sub") {
+      if (!cleanSubCat || !cleanTargetCat) {
+        await client.query("ROLLBACK");
+        client.release();
+        return res.status(400).json({ error: "Alt kategori ve hedef ana kategori zorunludur." });
+      }
+      const r = await client.query(
+        `UPDATE products SET category = $1, updated_at = CURRENT_TIMESTAMP
+         WHERE store_id = $2 AND LOWER(TRIM(COALESCE(category, ''))) = LOWER($3) AND LOWER(TRIM(COALESCE(sub_category, ''))) = LOWER($4)`,
+        [cleanTargetCat, storeId, cleanSourceCat, cleanSubCat]
+      );
+      updatedProductsCount = r.rowCount || 0;
+
+      const srcNode = operatorCategories.find((c) => c.name.toLocaleLowerCase("tr-TR") === cleanSourceCat.toLocaleLowerCase("tr-TR"));
+      let movedMeta: any = undefined;
+      if (srcNode) {
+        srcNode.sub_categories = srcNode.sub_categories.filter((s) => s.toLocaleLowerCase("tr-TR") !== cleanSubCat.toLocaleLowerCase("tr-TR"));
+        if (srcNode.sub_category_meta?.[cleanSubCat]) {
+          movedMeta = srcNode.sub_category_meta[cleanSubCat];
+          delete srcNode.sub_category_meta[cleanSubCat];
+        }
+      }
+      let dstNode = operatorCategories.find((c) => c.name.toLocaleLowerCase("tr-TR") === cleanTargetCat.toLocaleLowerCase("tr-TR"));
+      if (!dstNode) {
+        dstNode = { name: cleanTargetCat, sub_categories: [], is_visible: true };
+        operatorCategories.push(dstNode);
+      }
+      if (!dstNode.sub_categories.some((s) => s.toLocaleLowerCase("tr-TR") === cleanSubCat.toLocaleLowerCase("tr-TR"))) {
+        dstNode.sub_categories.push(cleanSubCat);
+      }
+      if (movedMeta) {
+        dstNode.sub_category_meta = { ...(dstNode.sub_category_meta || {}), [cleanSubCat]: movedMeta };
+      }
+    } else if (action === "promote_sub") {
+      if (!cleanSubCat) {
+        await client.query("ROLLBACK");
+        client.release();
+        return res.status(400).json({ error: "Yükseltilecek alt kategori adı zorunludur." });
+      }
+      const promotedName = cleanNewName || cleanSubCat;
+      const r = await client.query(
+        `UPDATE products SET category = $1, sub_category = '', updated_at = CURRENT_TIMESTAMP
+         WHERE store_id = $2 AND LOWER(TRIM(COALESCE(category, ''))) = LOWER($3) AND LOWER(TRIM(COALESCE(sub_category, ''))) = LOWER($4)`,
+        [promotedName, storeId, cleanSourceCat, cleanSubCat]
+      );
+      updatedProductsCount = r.rowCount || 0;
+
+      const srcNode = operatorCategories.find((c) => c.name.toLocaleLowerCase("tr-TR") === cleanSourceCat.toLocaleLowerCase("tr-TR"));
+      let movedMeta: any = undefined;
+      if (srcNode) {
+        srcNode.sub_categories = srcNode.sub_categories.filter((s) => s.toLocaleLowerCase("tr-TR") !== cleanSubCat.toLocaleLowerCase("tr-TR"));
+        if (srcNode.sub_category_meta?.[cleanSubCat]) {
+          movedMeta = srcNode.sub_category_meta[cleanSubCat];
+          delete srcNode.sub_category_meta[cleanSubCat];
+        }
+      }
+      if (!operatorCategories.some((c) => c.name.toLocaleLowerCase("tr-TR") === promotedName.toLocaleLowerCase("tr-TR"))) {
+        operatorCategories.push({
+          name: promotedName,
+          sub_categories: [],
+          is_visible: movedMeta ? movedMeta.is_visible !== false : true,
+          description: movedMeta?.description,
+          image_url: movedMeta?.image_url,
+        });
+      }
+    } else if (action === "demote_main") {
+      if (!cleanTargetCat || cleanTargetCat.toLocaleLowerCase("tr-TR") === cleanSourceCat.toLocaleLowerCase("tr-TR")) {
+        await client.query("ROLLBACK");
+        client.release();
+        return res.status(400).json({ error: "Geçerli bir hedef ana kategori seçilmelidir." });
+      }
+      const asSubName = cleanNewName || cleanSourceCat;
+      const r = await client.query(
+        `UPDATE products SET category = $1, sub_category = $2, updated_at = CURRENT_TIMESTAMP
+         WHERE store_id = $3 AND LOWER(TRIM(COALESCE(category, ''))) = LOWER($4)`,
+        [cleanTargetCat, asSubName, storeId, cleanSourceCat]
+      );
+      updatedProductsCount = r.rowCount || 0;
+
+      const srcIdx = operatorCategories.findIndex((c) => c.name.toLocaleLowerCase("tr-TR") === cleanSourceCat.toLocaleLowerCase("tr-TR"));
+      const srcMeta = srcIdx !== -1 ? operatorCategories[srcIdx] : null;
+      if (srcIdx !== -1) operatorCategories.splice(srcIdx, 1);
+
+      let dstNode = operatorCategories.find((c) => c.name.toLocaleLowerCase("tr-TR") === cleanTargetCat.toLocaleLowerCase("tr-TR"));
+      if (!dstNode) {
+        dstNode = { name: cleanTargetCat, sub_categories: [], is_visible: true };
+        operatorCategories.push(dstNode);
+      }
+      if (!dstNode.sub_categories.some((s) => s.toLocaleLowerCase("tr-TR") === asSubName.toLocaleLowerCase("tr-TR"))) {
+        dstNode.sub_categories.push(asSubName);
+      }
+      if (srcMeta) {
+        dstNode.sub_category_meta = {
+          ...(dstNode.sub_category_meta || {}),
+          [asSubName]: {
+            is_visible: srcMeta.is_visible !== false,
+            description: srcMeta.description,
+            image_url: srcMeta.image_url,
+          },
+        };
+      }
+    } else {
+      await client.query("ROLLBACK");
+      client.release();
+      return res.status(400).json({ error: "Geçersiz taşıma aksiyonu." });
+    }
+
+    await saveStoreOperatorCategories(client, storeId, branding, operatorCategories, categoryTaxRules);
+    await client.query("COMMIT");
+
+    await logAction(
+      storeId,
+      req.user.id,
+      "category_hierarchy_moved",
+      "store",
+      storeId,
+      `Kategori hiyerarşisi güncellendi (${action}): ${cleanSourceCat}${cleanSubCat ? ` > ${cleanSubCat}` : ""} -> ${cleanTargetCat || cleanNewName || cleanSubCat} (${updatedProductsCount} ürün).`,
+      { action, sourceCategory: cleanSourceCat, subCategory: cleanSubCat, targetCategory: cleanTargetCat },
+      { updatedProductsCount }
+    );
+
+    res.json({ success: true, updatedProductsCount });
+  } catch (err: any) {
+    await client.query("ROLLBACK").catch(() => {});
+    console.error("Move category node error:", err);
+    res.status(500).json({ error: err.message || "Kategori taşıma işlemi başarısız oldu" });
+  } finally {
+    client.release();
+  }
+});
+
+// POST /products/categories/merge - İki kategori veya alt kategoriyi tek çatı altında birleştir
+router.post("/categories/merge", async (req: any, res) => {
+  const client = await pool.connect();
+  try {
+    const requestedId = req.query.storeId || req.body.storeId;
+    const storeId = await getAuthorizedStoreId(req, requestedId);
+    if (storeId === null) {
+      client.release();
+      return res.status(403).json({ error: "Store ID unauthorized" });
+    }
+
+    const sourceCategory = String(req.body.sourceCategory || "").trim();
+    const sourceSubCategory = req.body.sourceSubCategory !== undefined ? String(req.body.sourceSubCategory || "").trim() : undefined;
+    const targetCategory = String(req.body.targetCategory || "").trim();
+    const targetSubCategory = req.body.targetSubCategory !== undefined ? String(req.body.targetSubCategory || "").trim() : undefined;
+
+    if (!sourceCategory || !targetCategory) {
+      client.release();
+      return res.status(400).json({ error: "Kaynak ve hedef kategori seçilmelidir." });
+    }
+    if (
+      sourceCategory.toLocaleLowerCase("tr-TR") === targetCategory.toLocaleLowerCase("tr-TR") &&
+      (sourceSubCategory || "").toLocaleLowerCase("tr-TR") === (targetSubCategory || "").toLocaleLowerCase("tr-TR")
+    ) {
+      client.release();
+      return res.status(400).json({ error: "Kaynak ve hedef aynı olamaz." });
+    }
+
+    await client.query("BEGIN");
+    const { branding, operatorCategories, categoryTaxRules } = await loadStoreBrandingAndCategories(client, storeId);
+    let updatedProductsCount = 0;
+
+    if (sourceSubCategory) {
+      const nextSub = targetSubCategory ?? "";
+      const r = await client.query(
+        `UPDATE products
+         SET category = $1, sub_category = $2, updated_at = CURRENT_TIMESTAMP
+         WHERE store_id = $3
+           AND LOWER(TRIM(COALESCE(category, ''))) = LOWER($4)
+           AND LOWER(TRIM(COALESCE(sub_category, ''))) = LOWER($5)`,
+        [targetCategory, nextSub, storeId, sourceCategory, sourceSubCategory]
+      );
+      updatedProductsCount = r.rowCount || 0;
+
+      const srcNode = operatorCategories.find((c) => c.name.toLocaleLowerCase("tr-TR") === sourceCategory.toLocaleLowerCase("tr-TR"));
+      if (srcNode) {
+        srcNode.sub_categories = srcNode.sub_categories.filter((s) => s.toLocaleLowerCase("tr-TR") !== sourceSubCategory.toLocaleLowerCase("tr-TR"));
+        if (srcNode.sub_category_meta) delete srcNode.sub_category_meta[sourceSubCategory];
+      }
+      let dstNode = operatorCategories.find((c) => c.name.toLocaleLowerCase("tr-TR") === targetCategory.toLocaleLowerCase("tr-TR"));
+      if (!dstNode) {
+        dstNode = { name: targetCategory, sub_categories: [], is_visible: true };
+        operatorCategories.push(dstNode);
+      }
+      if (nextSub && !dstNode.sub_categories.some((s) => s.toLocaleLowerCase("tr-TR") === nextSub.toLocaleLowerCase("tr-TR"))) {
+        dstNode.sub_categories.push(nextSub);
+      }
+    } else {
+      const r1 = targetSubCategory
+        ? await client.query(
+            `UPDATE products SET category = $1, sub_category = $2, updated_at = CURRENT_TIMESTAMP
+             WHERE store_id = $3 AND LOWER(TRIM(COALESCE(category, ''))) = LOWER($4)`,
+            [targetCategory, targetSubCategory, storeId, sourceCategory]
+          )
+        : await client.query(
+            `UPDATE products SET category = $1, updated_at = CURRENT_TIMESTAMP
+             WHERE store_id = $2 AND LOWER(TRIM(COALESCE(category, ''))) = LOWER($3)`,
+            [targetCategory, storeId, sourceCategory]
+          );
+      const r2 = await client.query(
+        `UPDATE products SET category_2 = $1, updated_at = CURRENT_TIMESTAMP
+         WHERE store_id = $2 AND LOWER(TRIM(COALESCE(category_2, ''))) = LOWER($3)`,
+        [targetCategory, storeId, sourceCategory]
+      );
+      updatedProductsCount = (r1.rowCount || 0) + (r2.rowCount || 0);
+
+      const srcIdx = operatorCategories.findIndex((c) => c.name.toLocaleLowerCase("tr-TR") === sourceCategory.toLocaleLowerCase("tr-TR"));
+      const srcNode = srcIdx !== -1 ? operatorCategories[srcIdx] : null;
+      if (srcIdx !== -1) operatorCategories.splice(srcIdx, 1);
+
+      let dstNode = operatorCategories.find((c) => c.name.toLocaleLowerCase("tr-TR") === targetCategory.toLocaleLowerCase("tr-TR"));
+      if (!dstNode) {
+        dstNode = { name: targetCategory, sub_categories: [], is_visible: true };
+        operatorCategories.push(dstNode);
+      }
+      if (srcNode && !targetSubCategory) {
+        for (const sub of srcNode.sub_categories) {
+          if (!dstNode.sub_categories.some((s) => s.toLocaleLowerCase("tr-TR") === sub.toLocaleLowerCase("tr-TR"))) {
+            dstNode.sub_categories.push(sub);
+          }
+        }
+        if (srcNode.sub_category_meta) {
+          dstNode.sub_category_meta = { ...(srcNode.sub_category_meta || {}), ...(dstNode.sub_category_meta || {}) };
+        }
+      } else if (targetSubCategory) {
+        if (!dstNode.sub_categories.some((s) => s.toLocaleLowerCase("tr-TR") === targetSubCategory.toLocaleLowerCase("tr-TR"))) {
+          dstNode.sub_categories.push(targetSubCategory);
+        }
+      }
+    }
+
+    const filteredTaxRules = !sourceSubCategory
+      ? (categoryTaxRules || []).filter(
+          (r: any) => String(r?.category || "").trim().toLocaleLowerCase("tr-TR") !== sourceCategory.toLocaleLowerCase("tr-TR")
+        )
+      : categoryTaxRules;
+
+    await saveStoreOperatorCategories(client, storeId, branding, operatorCategories, filteredTaxRules);
+    await client.query("COMMIT");
+
+    await logAction(
+      storeId,
+      req.user.id,
+      "category_merged",
+      "store",
+      storeId,
+      `Kategori birleştirildi: "${sourceCategory}${sourceSubCategory ? ` > ${sourceSubCategory}` : ""}" -> "${targetCategory}${targetSubCategory ? ` > ${targetSubCategory}` : ""}" (${updatedProductsCount} ürün).`,
+      { sourceCategory, sourceSubCategory, targetCategory, targetSubCategory },
+      { updatedProductsCount }
+    );
+
+    res.json({ success: true, updatedProductsCount });
+  } catch (err: any) {
+    await client.query("ROLLBACK").catch(() => {});
+    console.error("Merge category error:", err);
+    res.status(500).json({ error: err.message || "Kategori birleştirme başarısız oldu" });
+  } finally {
+    client.release();
+  }
+});
+
+// POST /products/categories/delete - Güvenli Kategori / Alt Kategori Silme (Taşı / Kategorisiz Bırak / Vitrinden Gizle)
+router.post("/categories/delete", async (req: any, res) => {
+  const client = await pool.connect();
+  try {
+    const requestedId = req.query.storeId || req.body.storeId;
+    const storeId = await getAuthorizedStoreId(req, requestedId);
+    if (storeId === null) {
+      client.release();
+      return res.status(403).json({ error: "Store ID unauthorized" });
+    }
+
+    const category = String(req.body.category || "").trim();
+    const subCategory = req.body.subCategory !== undefined ? String(req.body.subCategory || "").trim() : undefined;
+    const mode: "clear" | "migrate" | "hide_products" = req.body.mode || "clear";
+    const targetCategory = String(req.body.targetCategory || "").trim();
+    const targetSubCategory = String(req.body.targetSubCategory || "").trim();
+
+    if (!category) {
+      client.release();
+      return res.status(400).json({ error: "Silinecek kategori belirtilmelidir." });
+    }
+    if (mode === "migrate" && !targetCategory) {
+      client.release();
+      return res.status(400).json({ error: "Ürünlerin taşınacağı hedef kategori seçilmelidir." });
+    }
+
+    await client.query("BEGIN");
+    const { branding, operatorCategories, categoryTaxRules } = await loadStoreBrandingAndCategories(client, storeId);
+    let affectedProducts = 0;
+
+    if (subCategory) {
+      if (mode === "migrate") {
+        const r = await client.query(
+          `UPDATE products SET category = $1, sub_category = $2, updated_at = CURRENT_TIMESTAMP
+           WHERE store_id = $3 AND LOWER(TRIM(COALESCE(category, ''))) = LOWER($4) AND LOWER(TRIM(COALESCE(sub_category, ''))) = LOWER($5)`,
+          [targetCategory, targetSubCategory, storeId, category, subCategory]
+        );
+        affectedProducts = r.rowCount || 0;
+      } else if (mode === "hide_products") {
+        const r = await client.query(
+          `UPDATE products SET sub_category = '', is_web_sale = FALSE, updated_at = CURRENT_TIMESTAMP
+           WHERE store_id = $1 AND LOWER(TRIM(COALESCE(category, ''))) = LOWER($2) AND LOWER(TRIM(COALESCE(sub_category, ''))) = LOWER($3)`,
+          [storeId, category, subCategory]
+        );
+        affectedProducts = r.rowCount || 0;
+      } else {
+        const r = await client.query(
+          `UPDATE products SET sub_category = '', updated_at = CURRENT_TIMESTAMP
+           WHERE store_id = $1 AND LOWER(TRIM(COALESCE(category, ''))) = LOWER($2) AND LOWER(TRIM(COALESCE(sub_category, ''))) = LOWER($3)`,
+          [storeId, category, subCategory]
+        );
+        affectedProducts = r.rowCount || 0;
+      }
+
+      const catNode = operatorCategories.find((c) => c.name.toLocaleLowerCase("tr-TR") === category.toLocaleLowerCase("tr-TR"));
+      if (catNode) {
+        catNode.sub_categories = catNode.sub_categories.filter((s) => s.toLocaleLowerCase("tr-TR") !== subCategory.toLocaleLowerCase("tr-TR"));
+        if (catNode.sub_category_meta) delete catNode.sub_category_meta[subCategory];
+      }
+      await saveStoreOperatorCategories(client, storeId, branding, operatorCategories, categoryTaxRules);
+    } else {
+      if (mode === "migrate") {
+        const r = await client.query(
+          `UPDATE products SET category = $1, sub_category = CASE WHEN $2 <> '' THEN $2 ELSE sub_category END, updated_at = CURRENT_TIMESTAMP
+           WHERE store_id = $3 AND LOWER(TRIM(COALESCE(category, ''))) = LOWER($4)`,
+          [targetCategory, targetSubCategory, storeId, category]
+        );
+        affectedProducts = r.rowCount || 0;
+      } else if (mode === "hide_products") {
+        const r = await client.query(
+          `UPDATE products SET category = '', sub_category = '', is_web_sale = FALSE, updated_at = CURRENT_TIMESTAMP
+           WHERE store_id = $1 AND LOWER(TRIM(COALESCE(category, ''))) = LOWER($2)`,
+          [storeId, category]
+        );
+        affectedProducts = r.rowCount || 0;
+      } else {
+        const r = await client.query(
+          `UPDATE products SET category = '', sub_category = '', updated_at = CURRENT_TIMESTAMP
+           WHERE store_id = $1 AND LOWER(TRIM(COALESCE(category, ''))) = LOWER($2)`,
+          [storeId, category]
+        );
+        affectedProducts = r.rowCount || 0;
+      }
+
+      const nextCats = operatorCategories.filter(
+        (c) => c.name.toLocaleLowerCase("tr-TR") !== category.toLocaleLowerCase("tr-TR")
+      );
+      const nextTaxRules = (categoryTaxRules || []).filter(
+        (r: any) => String(r?.category || "").trim().toLocaleLowerCase("tr-TR") !== category.toLocaleLowerCase("tr-TR")
+      );
+      await saveStoreOperatorCategories(client, storeId, branding, nextCats, nextTaxRules);
+    }
+
+    await client.query("COMMIT");
+
+    await logAction(
+      storeId,
+      req.user.id,
+      "category_deleted",
+      "store",
+      storeId,
+      `Kategori silindi: "${category}${subCategory ? ` > ${subCategory}` : ""}" (Mod: ${mode}, ${affectedProducts} ürün güncellendi).`,
+      { category, subCategory, mode, targetCategory },
+      { affectedProducts }
+    );
+
+    res.json({ success: true, affectedProducts });
+  } catch (err: any) {
+    await client.query("ROLLBACK").catch(() => {});
+    console.error("Delete category error:", err);
+    res.status(500).json({ error: err.message || "Kategori silinemedi" });
+  } finally {
+    client.release();
+  }
+});
+
+// POST /products/categories/bulk-web-sale - Kategori/Alt Kategori içindeki tüm ürünleri toplu vitrine aç/kapat
+router.post("/categories/bulk-web-sale", async (req: any, res) => {
+  try {
+    const requestedId = req.query.storeId || req.body.storeId;
+    const storeId = await getAuthorizedStoreId(req, requestedId);
+    if (storeId === null) return res.status(403).json({ error: "Store ID unauthorized" });
+
+    const { category, subCategory, is_web_sale, includeUncategorized } = req.body;
+    const targetWebSale = is_web_sale === true || is_web_sale === "true" || is_web_sale === "on";
+
+    let result;
+    if (includeUncategorized) {
+      result = await pool.query(
+        `UPDATE products SET is_web_sale = $1, updated_at = CURRENT_TIMESTAMP
+         WHERE store_id = $2 AND TRIM(COALESCE(category, '')) = ''`,
+        [targetWebSale, storeId]
+      );
+    } else if (subCategory) {
+      result = await pool.query(
+        `UPDATE products SET is_web_sale = $1, updated_at = CURRENT_TIMESTAMP
+         WHERE store_id = $2 AND LOWER(TRIM(COALESCE(category, ''))) = LOWER($3) AND LOWER(TRIM(COALESCE(sub_category, ''))) = LOWER($4)`,
+        [targetWebSale, storeId, String(category || "").trim(), String(subCategory || "").trim()]
+      );
+    } else {
+      result = await pool.query(
+        `UPDATE products SET is_web_sale = $1, updated_at = CURRENT_TIMESTAMP
+         WHERE store_id = $2 AND LOWER(TRIM(COALESCE(category, ''))) = LOWER($3)`,
+        [targetWebSale, storeId, String(category || "").trim()]
+      );
+    }
+
+    invalidateStoreProductsCache(storeId);
+    await clearPublicStoreCache();
+
+    await logAction(
+      storeId,
+      req.user.id,
+      "category_bulk_web_sale",
+      "product",
+      null,
+      `Kategori vitrin durumu güncellendi: "${includeUncategorized ? "Kategorisiz" : `${category}${subCategory ? ` > ${subCategory}` : ""}`}" -> ${targetWebSale ? "Aktif" : "Pasif"} (${result.rowCount || 0} ürün).`,
+      { category, subCategory, includeUncategorized, is_web_sale: targetWebSale },
+      { updatedCount: result.rowCount || 0 }
+    );
+
+    res.json({ success: true, updatedCount: result.rowCount || 0, is_web_sale: targetWebSale });
+  } catch (err: any) {
+    console.error("Category bulk web sale error:", err);
+    res.status(500).json({ error: err.message || "Kategori vitrin güncellemesi başarısız" });
+  }
+});
+
 // GET /products
 router.get("/", async (req: any, res) => {
   const currentStoreId = req.user.store_id;
@@ -1427,7 +2548,7 @@ router.put("/:id", async (req: any, res) => {
     }
 
     const finalIsSellable = is_sellable !== undefined ? is_sellable : existingIsSellable;
-    const finalIsWebSale = is_web_sale !== undefined ? (is_web_sale === true || is_web_sale === 'true' || is_web_sale === 'on') : true;
+    const finalIsWebSale = is_web_sale !== undefined ? (is_web_sale === true || is_web_sale === 'true' || is_web_sale === 'on') : (existing.is_web_sale !== false);
     const finalIsBestseller = is_bestseller !== undefined ? (is_bestseller === true || is_bestseller === 'true' || is_bestseller === 'on') : existingIsBestseller;
     let parsedVariants: any[] = [];
     const hasExplicitFalseVariantFlag = has_variants === false || has_variants === 'false' || has_variants === 'off';
@@ -2016,6 +3137,7 @@ router.put("/:id", async (req: any, res) => {
       [id]
     );
     invalidateStoreProductsCache(storeId);
+    await clearPublicStoreCache();
     res.json({ success: true, product: updatedProdRes.rows[0] });
   } catch (e: any) {
     res.status(400).json({ error: e.message });

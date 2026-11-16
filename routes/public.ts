@@ -1037,6 +1037,7 @@ router.get("/digital-menu/:storeIdentifier/products", async (req, res) => {
       LEFT JOIN stores s ON p.store_id = s.id
       WHERE (p.store_id = $1 OR s.parent_id = $1)
         AND (p.is_sellable IS TRUE OR p.is_sellable IS NULL)
+        AND (p.is_web_sale = true OR p.is_web_sale IS NULL)
       ORDER BY COALESCE(p.is_bestseller, false) DESC, p.category ASC, p.name ASC
     `, [store.id]);
 

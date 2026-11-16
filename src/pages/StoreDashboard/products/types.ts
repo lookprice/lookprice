@@ -4,6 +4,8 @@ export interface ProductsTabProps {
   isViewer: boolean;
   onDeleteAll: () => void;
   onBulkDelete?: (ids: number[]) => void;
+  onBulkWebSale?: (ids: number[], isWebSale: boolean) => Promise<any> | void;
+  onBulkCategoryAssign?: (ids: number[], category: string, subCategory?: string, updateSubCategory?: boolean) => Promise<any> | void;
   onEdit: (product: any) => void;
   onAddNew: () => void;
   onImport: () => void;
@@ -17,6 +19,7 @@ export interface ProductsTabProps {
   onReformatNames?: () => void;
   onShowQr: () => void;
   branding?: any;
+  setBranding?: (branding: any) => void;
   showStoreName?: boolean;
   currentStoreId?: number;
   includeBranches?: boolean;
@@ -28,6 +31,7 @@ export interface ProductsTabProps {
   onRefresh?: () => void;
 }
 
+export type ShowcaseFilterType = 'all' | 'web_active' | 'web_passive';
 export type MarketplaceFilterType = 'all' | 'listed' | 'hepsiburada' | 'trendyol' | 'n11' | 'amazon' | 'pazarama' | 'errors' | 'not_listed';
 export type MarketplaceModalTab = 'all' | 'hepsiburada' | 'trendyol' | 'n11' | 'amazon' | 'pazarama';
 export type MarketplaceModalStatus = 'all' | 'active' | 'pending' | 'error' | 'inactive';

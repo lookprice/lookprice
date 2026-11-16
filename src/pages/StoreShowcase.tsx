@@ -890,15 +890,99 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   const isCafeRestaurant = storeType === "cafe_restaurant" || sector === "cafe_restaurant";
   const isCorporateWebsite = storeType === "corporate_website" || sector === "corporate_website";
 
+  const operatorCatMeta = React.useMemo(() => {
+    const raw = store?.branding?.operator_categories || store?.operator_categories;
+    const orderedCats: string[] = [];
+    const hiddenCats = new Set<string>();
+    const subOrderByCat = new Map<string, string[]>();
+    const hiddenSubsByCat = new Map<string, Set<string>>();
+
+    if (Array.isArray(raw)) {
+      raw.forEach((item: any) => {
+        if (typeof item === "string") {
+          const clean = item.trim();
+          if (clean) orderedCats.push(clean);
+        } else if (item && typeof item === "object" && item.name) {
+          const catName = String(item.name).trim();
+          if (!catName) return;
+          const catKey = catName.toLocaleLowerCase("tr-TR");
+          if (item.is_visible === false) {
+            hiddenCats.add(catKey);
+          } else {
+            orderedCats.push(catName);
+          }
+          const subMeta = item.sub_category_meta && typeof item.sub_category_meta === "object" ? item.sub_category_meta : {};
+          const hiddenSubSet = new Set<string>();
+          Object.entries(subMeta).forEach(([subName, meta]: [string, any]) => {
+            if (meta && meta.is_visible === false) {
+              hiddenSubSet.add(subName.trim().toLocaleLowerCase("tr-TR"));
+            }
+          });
+          if (hiddenSubSet.size > 0) hiddenSubsByCat.set(catKey, hiddenSubSet);
+          if (Array.isArray(item.sub_categories)) {
+            subOrderByCat.set(
+              catKey,
+              item.sub_categories
+                .map((s: any) => String(s || "").trim())
+                .filter((s: string) => s && !hiddenSubSet.has(s.toLocaleLowerCase("tr-TR")))
+            );
+          }
+        }
+      });
+    }
+    return { orderedCats, hiddenCats, subOrderByCat, hiddenSubsByCat };
+  }, [store]);
+
   const categories = React.useMemo(() => {
-    const cats = new Map<string, Set<string>>();
+    const rawCats = new Map<string, Set<string>>();
     products.forEach((p) => {
-      const cat = p.category || t.dashboard.uncategorized;
-      if (!cats.has(cat)) cats.set(cat, new Set());
-      if (p.sub_category) cats.get(cat)!.add(p.sub_category);
+      if (p.is_web_sale === false) return;
+      const cat = (p.category || "").trim() || t.dashboard.uncategorized;
+      const catKey = cat.toLocaleLowerCase("tr-TR");
+      if (p.category && operatorCatMeta.hiddenCats.has(catKey)) return;
+      if (p.sub_category) {
+        const subKey = String(p.sub_category).trim().toLocaleLowerCase("tr-TR");
+        if (operatorCatMeta.hiddenSubsByCat.get(catKey)?.has(subKey)) return;
+      }
+      if (!rawCats.has(cat)) rawCats.set(cat, new Set());
+      if (p.sub_category) rawCats.get(cat)!.add(p.sub_category);
     });
-    return cats;
-  }, [products, t]);
+
+    const ordered = new Map<string, Set<string>>();
+    const byLower = new Map<string, string>();
+    rawCats.forEach((_, k) => byLower.set(k.toLocaleLowerCase("tr-TR"), k));
+
+    const appendCat = (catName: string) => {
+      const rawSubs = Array.from(rawCats.get(catName) || []);
+      const opSubs = operatorCatMeta.subOrderByCat.get(catName.toLocaleLowerCase("tr-TR")) || [];
+      const orderedSubs = new Set<string>();
+      const subByLower = new Map<string, string>();
+      rawSubs.forEach((s) => subByLower.set(s.toLocaleLowerCase("tr-TR"), s));
+      opSubs.forEach((os) => {
+        const matched = subByLower.get(os.toLocaleLowerCase("tr-TR"));
+        if (matched) orderedSubs.add(matched);
+      });
+      rawSubs.forEach((s) => orderedSubs.add(s));
+      ordered.set(catName, orderedSubs);
+    };
+
+    const used = new Set<string>();
+    operatorCatMeta.orderedCats.forEach((opCat) => {
+      const matched = byLower.get(opCat.toLocaleLowerCase("tr-TR"));
+      if (matched && !used.has(matched)) {
+        used.add(matched);
+        appendCat(matched);
+      }
+    });
+    rawCats.forEach((_, k) => {
+      if (!used.has(k)) {
+        used.add(k);
+        appendCat(k);
+      }
+    });
+
+    return ordered;
+  }, [products, t, operatorCatMeta]);
 
   const brands = React.useMemo(() => {
     const b = new Set<string>();
@@ -908,9 +992,19 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
   const sortedAndFilteredProducts = React.useMemo(() => {
     let result = products.filter((p) => {
+      if (p.is_web_sale === false) return false;
       if (p.status && (p.status === 'inactive' || p.status === 'draft' || p.status === 'passive')) return false;
       if (p.is_active === false) return false;
       if (p.barcode === '5704174182528') return false;
+
+      if (p.category) {
+        const catKey = String(p.category).trim().toLocaleLowerCase("tr-TR");
+        if (operatorCatMeta.hiddenCats.has(catKey)) return false;
+        if (p.sub_category) {
+          const subKey = String(p.sub_category).trim().toLocaleLowerCase("tr-TR");
+          if (operatorCatMeta.hiddenSubsByCat.get(catKey)?.has(subKey)) return false;
+        }
+      }
 
       const searchTerms = searchQuery.toLowerCase().split(" ").filter(Boolean);
       const matchesSearch = searchTerms.length === 0 || searchTerms.every(term => 
@@ -947,7 +1041,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
     if (sortBy === "priceAsc") result.sort((a, b) => a.price - b.price);
     else if (sortBy === "priceDesc") result.sort((a, b) => b.price - a.price);
     return result;
-  }, [products, searchQuery, selectedCategory, selectedSubCategory, selectedBrand, sortBy, portfolioType, portfolioMinPrice, portfolioMaxPrice, portfolioRooms, portfolioMinM2, t]);
+  }, [products, searchQuery, selectedCategory, selectedSubCategory, selectedBrand, sortBy, portfolioType, portfolioMinPrice, portfolioMaxPrice, portfolioRooms, portfolioMinM2, t, operatorCatMeta]);
 
   const totalPages = Math.ceil(sortedAndFilteredProducts.length / ITEMS_PER_PAGE);
   const paginatedProducts = React.useMemo(() => {
