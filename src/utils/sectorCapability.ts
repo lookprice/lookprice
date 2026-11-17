@@ -373,6 +373,12 @@ export const resolveDomainId = (store: StoreInfo | any | null): DomainId => {
     s.branding?.bookstore_license_enabled === true ||
     s.store_concept === "bookstore" ||
     s.branding?.store_concept === "bookstore" ||
+    s.page_layout_settings?.store_concept === "bookstore" ||
+    s.branding?.page_layout_settings?.store_concept === "bookstore" ||
+    s.active_preset === "bookstore_netflix" ||
+    s.branding?.active_preset === "bookstore_netflix" ||
+    s.page_layout_settings?.active_preset === "bookstore_netflix" ||
+    s.branding?.page_layout_settings?.active_preset === "bookstore_netflix" ||
     s.page_layout_settings?.bookstore_mode === true ||
     s.branding?.page_layout_settings?.bookstore_mode === true ||
     s.theme_config?.bookstore_mode === true ||

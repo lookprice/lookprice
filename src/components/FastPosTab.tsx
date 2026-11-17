@@ -45,6 +45,7 @@ import {
 } from './TableGrid';
 import { api } from "../services/api";
 import { matchesSearch, normalizeSearch } from "../lib/searchUtils";
+import { resolveDomainId } from "../utils/sectorCapability";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
 import { printThermalReceipt, printThermalZReport } from "../utils/thermalPrinter";
@@ -172,7 +173,8 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
 
   const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.store_type === 'horeca' || branding?.store_type === 'horecalp' || branding?.page_layout_settings?.sector === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'horeca' || Boolean(branding?.hotel_module_enabled);
   const isHotelActive = isCafeRestaurant && Boolean(branding?.hotel_module_enabled);
-  const isBookstore = branding?.store_concept === 'bookstore' || branding?.bookstore_module_enabled === true || branding?.page_layout_settings?.sector === 'bookstore' || branding?.store_type === 'bookstore';
+  const isBookstore = resolveDomainId(branding) === 'BOOKSTORE' || branding?.store_concept === 'bookstore' || branding?.bookstore_module_enabled === true || branding?.page_layout_settings?.sector === 'bookstore' || branding?.page_layout_settings?.store_concept === 'bookstore' || branding?.active_preset === 'bookstore_netflix' || branding?.page_layout_settings?.active_preset === 'bookstore_netflix' || branding?.store_type === 'bookstore';
+  const includeBranchCatalog = Boolean(branding?.parent_id);
   const [showRoomTransferModal, setShowRoomTransferModal] = useState(false);
 
   // Happy Hours state and configuration
@@ -1211,6 +1213,8 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
   
   const searchInputRef = useRef<HTMLInputElement>(null);
   const printRef = useRef<HTMLDivElement>(null);
+  const searchSeqRef = useRef(0);
+  const [isSearchingProducts, setIsSearchingProducts] = useState(false);
 
   useEffect(() => {
     if (searchInputRef.current) {
@@ -1222,7 +1226,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
     const fetchAllProducts = async () => {
       setLoading(true);
       try {
-        const res = await api.getProducts("", storeId, false, true, 150);
+        const res = await api.getProducts("", storeId, includeBranchCatalog, true, 150);
         const products = Array.isArray(res) ? res : [];
         setSearchResults(products);
         setAllProducts(products);
@@ -1233,11 +1237,36 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
       }
     };
     fetchAllProducts();
-  }, [storeId]);
+  }, [storeId, includeBranchCatalog]);
+
+  const executeImmediateSearch = async (rawTerm: string): Promise<any[]> => {
+    const trimmed = rawTerm.trim();
+    if (!trimmed) return filteredProducts;
+
+    const seq = ++searchSeqRef.current;
+    setIsSearchingProducts(true);
+    try {
+      const res = await api.getProducts(trimmed, storeId, includeBranchCatalog, true, 150);
+      const products = Array.isArray(res) ? res : [];
+      if (seq === searchSeqRef.current) {
+        setSearchResults(products);
+      }
+      return products;
+    } catch (error) {
+      console.error("Immediate search error:", error);
+      return [];
+    } finally {
+      if (seq === searchSeqRef.current) {
+        setIsSearchingProducts(false);
+      }
+    }
+  };
 
   useEffect(() => {
+    const trimmed = searchTerm.trim();
+    const seq = ++searchSeqRef.current;
+
     const fetchProducts = async () => {
-      const trimmed = searchTerm.trim();
       if (trimmed.length > 0) {
         // Check if scanned value is a table QR code
         const tableUrlMatch = trimmed.match(/\/digital-menu\/\d+\/(.+)/);
@@ -1248,13 +1277,17 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
           return;
         }
 
+        setIsSearchingProducts(true);
         try {
-          const res = await api.getProducts(trimmed, storeId, false, true, 150);
+          const res = await api.getProducts(trimmed, storeId, includeBranchCatalog, true, 150);
+          if (seq !== searchSeqRef.current) return;
           const products = Array.isArray(res) ? res : [];
           setSearchResults(products);
-          
+
           // If exact barcode match, add to cart immediately
           const exactMatch = (allProducts.length > 0 ? allProducts : products).find(
+            (p: any) => p.barcode && p.barcode.toString().trim() === trimmed
+          ) || products.find(
             (p: any) => p.barcode && p.barcode.toString().trim() === trimmed
           );
           if (exactMatch) {
@@ -1263,14 +1296,20 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
           }
         } catch (error) {
           console.error("Search error:", error);
+        } finally {
+          if (seq === searchSeqRef.current) {
+            setIsSearchingProducts(false);
+          }
         }
       } else {
+        setIsSearchingProducts(false);
         if (selectedCategory === "all" && selectedSubCategory === "all") {
           if (allProducts.length > 0) {
             setSearchResults(allProducts);
           } else {
             try {
-              const res = await api.getProducts("", storeId, false, true, 150);
+              const res = await api.getProducts("", storeId, includeBranchCatalog, true, 150);
+              if (seq !== searchSeqRef.current) return;
               const products = Array.isArray(res) ? res : [];
               setSearchResults(products);
               setAllProducts(products);
@@ -1284,7 +1323,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
 
     const delayDebounceFn = setTimeout(fetchProducts, 300);
     return () => clearTimeout(delayDebounceFn);
-  }, [searchTerm, storeId, allProducts, selectedCategory, selectedSubCategory]);
+  }, [searchTerm, storeId, includeBranchCatalog, selectedCategory, selectedSubCategory]);
 
   useEffect(() => {
     const fetchCategoryProducts = async () => {
@@ -1294,7 +1333,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
       try {
         const catFilter = selectedCategory === "all" ? undefined : selectedCategory;
         const subCatFilter = selectedSubCategory === "all" ? undefined : selectedSubCategory;
-        const res = await api.getProducts("", storeId, false, true, 150, catFilter, subCatFilter);
+        const res = await api.getProducts("", storeId, includeBranchCatalog, true, 150, catFilter, subCatFilter);
         const products = Array.isArray(res) ? res : [];
         setSearchResults(products);
       } catch (error) {
@@ -1304,7 +1343,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
       }
     };
     fetchCategoryProducts();
-  }, [selectedCategory, selectedSubCategory, storeId, searchTerm]);
+  }, [selectedCategory, selectedSubCategory, storeId, includeBranchCatalog, searchTerm]);
 
   const getExchangeRate = (currency: string) => {
     if (!currency || currency === (branding?.default_currency || 'TRY')) return 1;
@@ -2306,6 +2345,8 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
               setSelectedSubCategory={setSelectedSubCategory}
               isHappyHourActive={isHappyHourActive}
               isBookstore={isBookstore}
+              isSearching={isSearchingProducts}
+              onSearchSubmit={executeImmediateSearch}
             />
           )}
       </div>

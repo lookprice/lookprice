@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { api } from "../services/api";
 import { toast } from "sonner";
+import { matchProductSearch, normalizeSearch } from "../lib/searchUtils";
 
 interface ProductItem {
   id: number;
@@ -179,14 +180,7 @@ export const DuplicateMergeModal: React.FC<DuplicateMergeModalProps> = ({
       setTargetResults([]);
       return;
     }
-    const q = targetSearchQuery.trim().toLowerCase();
-    const matches = cachedProducts.filter(p => 
-      (p.name && p.name.toLowerCase().includes(q)) ||
-      (p.barcode && p.barcode.toLowerCase().includes(q)) ||
-      (p.product_code && p.product_code.toLowerCase().includes(q)) ||
-      (p.sku && p.sku.toLowerCase().includes(q)) ||
-      (p.brand && p.brand.toLowerCase().includes(q))
-    ).slice(0, 8);
+    const matches = cachedProducts.filter(p => matchProductSearch(p, targetSearchQuery)).slice(0, 8);
     setTargetResults(matches);
   }, [targetSearchQuery, cachedProducts]);
 
@@ -196,37 +190,18 @@ export const DuplicateMergeModal: React.FC<DuplicateMergeModalProps> = ({
       setSourceResults([]);
       return;
     }
-    const q = sourceSearchQuery.trim().toLowerCase();
-    const matches = cachedProducts.filter(p => 
-      (p.name && p.name.toLowerCase().includes(q)) ||
-      (p.barcode && p.barcode.toLowerCase().includes(q)) ||
-      (p.product_code && p.product_code.toLowerCase().includes(q)) ||
-      (p.sku && p.sku.toLowerCase().includes(q)) ||
-      (p.brand && p.brand.toLowerCase().includes(q))
-    ).slice(0, 8);
+    const matches = cachedProducts.filter(p => matchProductSearch(p, sourceSearchQuery)).slice(0, 8);
     setSourceResults(matches);
   }, [sourceSearchQuery, cachedProducts]);
 
   // Filtered candidate list based on instant search bar
   const filteredCandidates = useMemo(() => {
     if (!searchTerm.trim()) return candidates;
-    const q = searchTerm.trim().toLowerCase();
+    const normQ = normalizeSearch(searchTerm.trim());
     return candidates.filter(item => {
-      const matchTarget = (item.target.name && item.target.name.toLowerCase().includes(q)) ||
-                          (item.target.barcode && item.target.barcode.toLowerCase().includes(q)) ||
-                          (item.target.product_code && item.target.product_code.toLowerCase().includes(q)) ||
-                          (item.target.sku && item.target.sku.toLowerCase().includes(q)) ||
-                          (item.target.brand && item.target.brand.toLowerCase().includes(q)) ||
-                          (item.target.category && item.target.category.toLowerCase().includes(q));
-      
-      const matchSource = (item.source.name && item.source.name.toLowerCase().includes(q)) ||
-                          (item.source.barcode && item.source.barcode.toLowerCase().includes(q)) ||
-                          (item.source.product_code && item.source.product_code.toLowerCase().includes(q)) ||
-                          (item.source.sku && item.source.sku.toLowerCase().includes(q)) ||
-                          (item.source.brand && item.source.brand.toLowerCase().includes(q)) ||
-                          (item.source.category && item.source.category.toLowerCase().includes(q));
-
-      const matchReason = item.reason && item.reason.toLowerCase().includes(q);
+      const matchTarget = matchProductSearch(item.target, searchTerm);
+      const matchSource = matchProductSearch(item.source, searchTerm);
+      const matchReason = item.reason && normalizeSearch(item.reason).includes(normQ);
 
       return matchTarget || matchSource || matchReason;
     });

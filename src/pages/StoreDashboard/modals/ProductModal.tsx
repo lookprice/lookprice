@@ -12,6 +12,7 @@ import { BookstoreSectorSpecs } from "../../../components/bookstore/BookstoreSec
 import { getConnectedMarketplaces } from "../../../utils/marketplaceEStores";
 import { resolveDomainId } from "../../../utils/sectorCapability";
 import { getSectorBadges, extractProductLabels } from "../../../data/bookstoreBadges";
+import { matchProductSearch } from "../../../lib/searchUtils";
 
 interface ProductModalProps {
   showProductModal: boolean;
@@ -1137,7 +1138,7 @@ export const ProductModal = ({
                           </div>
                           <div className="max-h-36 overflow-y-auto space-y-1 divide-y divide-slate-100">
                             {products
-                              .filter(p => p.id !== editingProduct?.id && (p.name.toLowerCase().includes(ingredientSearch.toLowerCase()) || p.barcode?.toLowerCase().includes(ingredientSearch.toLowerCase())))
+                              .filter(p => p.id !== editingProduct?.id && matchProductSearch(p, ingredientSearch))
                               .slice(0, 10)
                               .map(p => (
                                 <button

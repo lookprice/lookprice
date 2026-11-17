@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { api } from "../services/api";
 import { toast } from "sonner";
+import { normalizeSearch } from "../lib/searchUtils";
 
 export interface EanEnrichmentCandidate {
   id: number;
@@ -78,19 +79,36 @@ export const EanEnrichmentModal: React.FC<EanEnrichmentModalProps> = ({
   }, [isOpen, storeId]);
 
   const filteredCandidates = useMemo(() => {
-    if (!searchTerm.trim()) return candidates;
-    const q = searchTerm.trim().toLowerCase();
-    return candidates.filter(item => 
-      (item.name && item.name.toLowerCase().includes(q)) ||
-      (item.currentBarcode && item.currentBarcode.toLowerCase().includes(q)) ||
-      (item.suggestedEan && item.suggestedEan.toLowerCase().includes(q)) ||
-      (item.matchedModel && item.matchedModel.toLowerCase().includes(q)) ||
-      (item.product_code && item.product_code.toLowerCase().includes(q)) ||
-      (item.sku && item.sku.toLowerCase().includes(q)) ||
-      (item.brand && item.brand.toLowerCase().includes(q)) ||
-      (item.category && item.category.toLowerCase().includes(q)) ||
-      (item.reason && item.reason.toLowerCase().includes(q))
-    );
+    const raw = searchTerm.trim();
+    if (!raw) return candidates;
+    const tokens = raw.split(/\s+/).filter(Boolean).map(normalizeSearch).filter(Boolean);
+    if (tokens.length === 0) return candidates;
+    return candidates.filter(item => {
+      const anyItem = item as any;
+      let sec = anyItem.sector_data;
+      if (typeof sec === "string") {
+        try { sec = JSON.parse(sec); } catch { sec = {}; }
+      }
+      sec = sec && typeof sec === "object" ? sec : {};
+      const combined = normalizeSearch([
+        item.name,
+        item.currentBarcode,
+        item.suggestedEan,
+        item.matchedModel,
+        item.product_code,
+        item.sku,
+        item.brand,
+        anyItem.author,
+        sec.author,
+        sec.writer,
+        sec.translator,
+        sec.publisher,
+        sec.isbn,
+        item.category,
+        item.reason
+      ].filter(Boolean).join(" "));
+      return tokens.every(t => combined.includes(t));
+    });
   }, [candidates, searchTerm]);
 
   if (!isOpen) return null;

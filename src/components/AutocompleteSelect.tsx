@@ -99,13 +99,32 @@ export const AutocompleteSelect: React.FC<AutocompleteSelectProps> = ({
           rawObj.name ||
           ''
       );
+      let sec = rawObj.sector_data;
+      if (typeof sec === 'string') {
+        try { sec = JSON.parse(sec); } catch { sec = {}; }
+      }
+      sec = sec && typeof sec === 'object' ? sec : {};
+
       const taxTarget = normalizeSearch(String(rawObj.tax_number || rawObj.tc_id || rawObj.vkn || ''));
       const phoneTarget = normalizeSearch(String(rawObj.phone || rawObj.tel || rawObj.gsm || ''));
       const emailTarget = normalizeSearch(String(rawObj.email || ''));
-      const codeTarget = normalizeSearch(String(rawObj.code || rawObj.barcode || rawObj.customer_code || rawObj.company_code || ''));
+      const codeTarget = normalizeSearch(String(rawObj.code || rawObj.barcode || rawObj.sku || rawObj.product_code || sec.isbn || rawObj.customer_code || rawObj.company_code || ''));
       const cityTarget = normalizeSearch(String(rawObj.city || rawObj.district || rawObj.tax_office || ''));
+      const authorTarget = normalizeSearch([rawObj.author, sec.author, sec.writer, sec.translator].filter(Boolean).join(' '));
+      const publisherTarget = normalizeSearch([rawObj.brand, sec.publisher].filter(Boolean).join(' '));
+      const categoryTarget = normalizeSearch([rawObj.category, rawObj.sub_category, rawObj.category_2, rawObj.sub_category_2].filter(Boolean).join(' '));
 
-      const searchableFields = [titleTarget, taxTarget, phoneTarget, emailTarget, codeTarget, cityTarget].filter(Boolean);
+      const searchableFields = [
+        titleTarget,
+        taxTarget,
+        phoneTarget,
+        emailTarget,
+        codeTarget,
+        cityTarget,
+        authorTarget,
+        publisherTarget,
+        categoryTarget
+      ].filter(Boolean);
       const combinedCleanText = searchableFields.join(' ');
 
       // Every search term must be found in the clean actual data fields
@@ -134,10 +153,13 @@ export const AutocompleteSelect: React.FC<AutocompleteSelectProps> = ({
         score += 2000;
       }
 
+      if (authorTarget && authorTarget.includes(rawSearch)) score += 2500;
+      if (publisherTarget && publisherTarget.includes(rawSearch)) score += 1800;
       if (codeTarget.startsWith(rawSearch)) score += 3000;
       if (phoneTarget.includes(rawSearch)) score += 1000;
       if (emailTarget.includes(rawSearch)) score += 800;
       if (cityTarget.includes(rawSearch)) score += 400;
+      if (categoryTarget && categoryTarget.includes(rawSearch)) score += 300;
 
       scoredItems.push({ item, score });
     }

@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { getMarketplaceListingUrl } from "@/utils/marketplaceUrls";
 import { formatFileDateTR } from "@/utils/formatUtils";
+import { matchProductSearch } from "@/lib/searchUtils";
 
 interface ProductXRayReportModalProps {
   isOpen: boolean;
@@ -273,12 +274,8 @@ export const ProductXRayReportModal: React.FC<ProductXRayReportModalProps> = ({
 
   const filteredProducts = useMemo(() => {
     return physicalProducts.filter(p => {
-      const query = searchTerm.toLowerCase().trim();
-      if (query) {
-        const matchesName = (p.name || '').toLowerCase().includes(query);
-        const matchesBarcode = (p.barcode || '').toString().toLowerCase().includes(query);
-        const matchesSku = (p.sku || '').toLowerCase().includes(query);
-        if (!matchesName && !matchesBarcode && !matchesSku) return false;
+      if (searchTerm.trim() && !matchProductSearch(p, searchTerm)) {
+        return false;
       }
 
       const sc = getProductChannelScenario(p);

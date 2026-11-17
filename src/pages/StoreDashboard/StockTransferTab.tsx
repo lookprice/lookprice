@@ -555,19 +555,11 @@ export default function StockTransferTab({ storeId, products, isViewer, includeB
                   <div className="flex justify-center py-4">
                     <Loader2 className="h-5 w-5 text-indigo-600 animate-spin" />
                   </div>
-                ) : inspectedBranchStock.filter(s => {
-                  if (!inspectedSearch.trim()) return true;
-                  const q = inspectedSearch.toLowerCase();
-                  return s.name?.toLowerCase().includes(q) || s.barcode?.toLowerCase().includes(q);
-                }).length === 0 ? (
+                ) : inspectedBranchStock.filter(s => matchProductSearch(s, inspectedSearch)).length === 0 ? (
                   <p className="text-[11px] text-slate-400 text-center py-4 italic">{lang === 'tr' ? 'Ürün bulunamadı.' : 'No products found.'}</p>
                 ) : (
                   inspectedBranchStock
-                    .filter(s => {
-                      if (!inspectedSearch.trim()) return true;
-                      const q = inspectedSearch.toLowerCase();
-                      return s.name?.toLowerCase().includes(q) || s.barcode?.toLowerCase().includes(q);
-                    })
+                    .filter(s => matchProductSearch(s, inspectedSearch))
                     .slice(0, 30)
                     .map(item => (
                       <div key={item.id} className="flex items-center justify-between p-1.5 hover:bg-slate-50 rounded-lg text-xs group">

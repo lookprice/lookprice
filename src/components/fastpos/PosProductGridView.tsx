@@ -20,6 +20,8 @@ export interface PosProductGridViewProps {
   setSelectedSubCategory: (subCat: string) => void;
   isHappyHourActive: boolean;
   isBookstore?: boolean;
+  isSearching?: boolean;
+  onSearchSubmit?: (term: string) => Promise<any[]>;
 }
 
 export const PosProductGridView: React.FC<PosProductGridViewProps> = ({
@@ -40,7 +42,9 @@ export const PosProductGridView: React.FC<PosProductGridViewProps> = ({
   selectedSubCategory,
   setSelectedSubCategory,
   isHappyHourActive,
-  isBookstore = false
+  isBookstore = false,
+  isSearching = false,
+  onSearchSubmit
 }) => {
   return (
     <>
@@ -58,32 +62,36 @@ export const PosProductGridView: React.FC<PosProductGridViewProps> = ({
             className="w-full pl-10 pr-9 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none transition-all"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            onKeyDown={(e) => {
+            onKeyDown={async (e) => {
               if (e.key === 'Enter' && searchTerm.trim()) {
-                const term = searchTerm.trim().toLowerCase();
+                e.preventDefault();
+                const rawTerm = searchTerm.trim();
+                const term = rawTerm.toLowerCase();
                 let matchedProduct: any = null;
                 let matchedVariant: any = null;
 
-                for (const p of allProducts) {
-                  if ((p.barcode && p.barcode.toLowerCase() === term) || (p.sku && p.sku.toLowerCase() === term)) {
-                    matchedProduct = p;
-                    break;
-                  }
-                  if (p.has_variants && Array.isArray(p.variants)) {
-                    const vMatch = p.variants.find((v: any) => 
-                      (v.barcode && v.barcode.toLowerCase() === term) || 
-                      (v.sku && v.sku.toLowerCase() === term)
-                    );
-                    if (vMatch) {
-                      matchedProduct = p;
-                      matchedVariant = vMatch;
-                      break;
+                const findExactCodeMatch = (list: any[]) => {
+                  for (const p of list) {
+                    if ((p.barcode && String(p.barcode).trim().toLowerCase() === term) || (p.sku && String(p.sku).trim().toLowerCase() === term)) {
+                      return { product: p, variant: null };
+                    }
+                    if (p.has_variants && Array.isArray(p.variants)) {
+                      const vMatch = p.variants.find((v: any) =>
+                        (v.barcode && String(v.barcode).trim().toLowerCase() === term) ||
+                        (v.sku && String(v.sku).trim().toLowerCase() === term)
+                      );
+                      if (vMatch) {
+                        return { product: p, variant: vMatch };
+                      }
                     }
                   }
-                }
+                  return null;
+                };
 
-                if (!matchedProduct && filteredProducts.length > 0) {
-                  matchedProduct = filteredProducts[0];
+                const localExact = findExactCodeMatch(allProducts) || findExactCodeMatch(filteredProducts);
+                if (localExact) {
+                  matchedProduct = localExact.product;
+                  matchedVariant = localExact.variant;
                 }
 
                 if (matchedProduct) {
@@ -93,8 +101,41 @@ export const PosProductGridView: React.FC<PosProductGridViewProps> = ({
                     handleProductClick(matchedProduct);
                   }
                   setSearchTerm("");
-                } else if (setShowQuickProductModal && setQuickProductForm) {
-                  setQuickProductForm({ name: term, price: '', tax_rate: '20', category: '', sub_category: '', type: 'product' });
+                  return;
+                }
+
+                if (onSearchSubmit) {
+                  const serverMatches = await onSearchSubmit(rawTerm);
+                  const serverExact = findExactCodeMatch(serverMatches);
+                  if (serverExact) {
+                    if (serverExact.variant) {
+                      addToCart(serverExact.product, serverExact.variant);
+                    } else {
+                      handleProductClick(serverExact.product);
+                    }
+                    setSearchTerm("");
+                    return;
+                  }
+                  if (serverMatches.length === 1) {
+                    handleProductClick(serverMatches[0]);
+                    setSearchTerm("");
+                    return;
+                  }
+                  if (serverMatches.length > 1 || filteredProducts.length > 0) {
+                    return;
+                  }
+                  if (setShowQuickProductModal && setQuickProductForm) {
+                    setQuickProductForm({ name: rawTerm, price: '', tax_rate: '20', category: '', sub_category: '', type: 'product' });
+                    setShowQuickProductModal(true);
+                  }
+                  return;
+                }
+
+                if (filteredProducts.length === 1) {
+                  handleProductClick(filteredProducts[0]);
+                  setSearchTerm("");
+                } else if (filteredProducts.length === 0 && !isSearching && setShowQuickProductModal && setQuickProductForm) {
+                  setQuickProductForm({ name: rawTerm, price: '', tax_rate: '20', category: '', sub_category: '', type: 'product' });
                   setShowQuickProductModal(true);
                 }
               }
@@ -191,7 +232,7 @@ export const PosProductGridView: React.FC<PosProductGridViewProps> = ({
 
                 {/* Bottom Half: Name & Price */}
                 <div className="w-full flex-1 p-2 flex flex-col justify-between items-center bg-slate-50 group-hover:bg-indigo-50/40 rounded-b-xl relative">
-                  <div className="w-full flex-1 flex items-center justify-center overflow-hidden">
+                  <div className="w-full flex-1 flex flex-col items-center justify-center overflow-hidden">
                     <span className="text-xs font-bold text-slate-800 line-clamp-2 px-0.5 text-center leading-tight">
                       {product.name}
                     </span>
