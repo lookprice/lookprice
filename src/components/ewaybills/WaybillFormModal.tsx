@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { AutocompleteSelect } from "../AutocompleteSelect";
-import { normalizeSearch } from "../../lib/searchUtils";
+import { normalizeSearch, matchProductSearch } from "../../lib/searchUtils";
 
 interface WaybillFormModalProps {
   isOpen: boolean;
@@ -466,18 +466,7 @@ export const WaybillFormModal: React.FC<WaybillFormModalProps> = ({
                               <div className="absolute left-0 right-0 top-full mt-1.5 z-[120] bg-white border border-indigo-200 rounded-xl shadow-2xl max-h-64 overflow-y-auto p-1.5 ring-1 ring-slate-900/5">
                                 {(() => {
                                   const query = (item.product_name || "").trim();
-                                  const searchTerms = normalizeSearch(query).split(/\s+/).filter(Boolean);
-                                  const filtered = products.filter(p => {
-                                    if (searchTerms.length === 0) return true;
-                                    const pNameNormalized = normalizeSearch(p.name || "");
-                                    const pBarcodeNormalized = normalizeSearch(p.barcode || "");
-                                    const pCodeNormalized = normalizeSearch(p.code || p.sku || "");
-                                    return searchTerms.every(term =>
-                                      pNameNormalized.includes(term) ||
-                                      pBarcodeNormalized.includes(term) ||
-                                      pCodeNormalized.includes(term)
-                                    );
-                                  });
+                                  const filtered = products.filter(p => matchProductSearch(p, query));
                                   if (filtered.length === 0) {
                                     return (
                                       <div className="p-3 text-center text-xs text-slate-500 flex flex-col items-center gap-2">

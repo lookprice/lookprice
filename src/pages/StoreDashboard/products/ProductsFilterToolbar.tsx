@@ -143,7 +143,13 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-indigo-600 transition-colors pointer-events-none" />
           <input 
             type="text" 
-            placeholder={isCafe ? (lang === 'tr' ? "Ürün / menü ara..." : (t.searchProduct || "Search menu product...")) : (lang === 'tr' ? "Ürün adı veya barkod ile ara..." : (t.searchProduct || "Search product name or barcode..."))}
+            placeholder={
+              isCafe
+                ? (lang === 'tr' ? "Ürün / menü ara..." : (t.searchProduct || "Search menu product..."))
+                : isBookstore
+                  ? (lang === 'tr' ? "Kitap adı, yazar, yayınevi veya ISBN ile ara..." : "Search title, author, publisher or ISBN...")
+                  : (lang === 'tr' ? "Ürün adı veya barkod ile ara..." : (t.searchProduct || "Search product name or barcode..."))
+            }
             className="os-input w-full pr-8 py-1.5 text-xs font-medium text-slate-800 placeholder:text-slate-400 focus:border-indigo-500 shadow-xs"
             style={{ paddingLeft: '2.25rem' }}
             value={search}

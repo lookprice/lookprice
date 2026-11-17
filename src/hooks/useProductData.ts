@@ -34,8 +34,9 @@ export const useProductData = (user: any, slug: string | undefined, includeBranc
         const storeInfo = await api.getBranding(undefined, slug);
         if (fetchSeqRef.current !== seq) return;
 
-        if (storeInfo && storeInfo.id) {
-          targetStoreId = storeInfo.id;
+        const resolvedStoreId = storeInfo?.id || storeInfo?.branding?.id;
+        if (resolvedStoreId) {
+          targetStoreId = Number(resolvedStoreId);
         } else if (storeInfo && storeInfo.error) {
           console.error("Store branding error:", storeInfo.error);
           setCurrentStoreId(undefined);

@@ -33,6 +33,7 @@ export const normalizeTurkishParam = (term: string) => {
   if (!term) return '%%';
   const norm = term
     .toLocaleLowerCase('tr-TR')
+    .replace(/\u0307/g, '')
     .replace(/ı/g, 'i')
     .replace(/ç/g, 'c')
     .replace(/ğ/g, 'g')

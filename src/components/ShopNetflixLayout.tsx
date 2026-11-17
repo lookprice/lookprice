@@ -35,6 +35,7 @@ import {
 import { Product, Store as StoreInfo } from "../types";
 import { StoreFooter } from "./showcase/StoreFooter";
 import { getLabels } from "../utils/showcase";
+import { matchProductSearch } from "../lib/searchUtils";
 
 export const getProductImageUrl = (p: Product): string => {
   let url = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80";
@@ -521,14 +522,8 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
         
         if (!tagMatch && !isBestsellerMatch && !isFeaturedMatch && !isDiscountMatch && !isNewMatch) return false;
       }
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const matchName = (p.name || "").toLowerCase().includes(q);
-        const matchCat = (p.category || "").toLowerCase().includes(q) || (p.category_2 || "").toLowerCase().includes(q);
-        const matchBrand = (p.brand || "").toLowerCase().includes(q);
-        const matchBarcode = (p.barcode || "").toLowerCase().includes(q);
-        const matchLabels = getLabels(p.labels || (p as any).tags || (p as any).badges || []).some(l => l.toLowerCase().includes(q));
-        if (!matchName && !matchCat && !matchBrand && !matchBarcode && !matchLabels) return false;
+      if (searchQuery.trim() && !matchProductSearch(p, searchQuery)) {
+        return false;
       }
       return true;
     });

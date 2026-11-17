@@ -13,6 +13,7 @@ import { MarketplaceMetricsBar } from './MarketplaceMetricsBar';
 import { MarketplaceBanners } from './MarketplaceBanners';
 import { MarketplaceSearchBar } from './MarketplaceSearchBar';
 import { MarketplaceListingsTable } from './MarketplaceListingsTable';
+import { matchProductSearch } from '../../lib/searchUtils';
 
 export type { MarketplaceKey, ListingStatus };
 
@@ -739,12 +740,8 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
   // Filtered Products
   const filteredProducts = useMemo(() => {
     return cleanedLocalProducts.filter(p => {
-      if (searchTerm.trim()) {
-        const query = searchTerm.toLowerCase().trim();
-        const matchesName = (p.name || '').toLowerCase().includes(query);
-        const matchesBarcode = (p.barcode || '').toString().toLowerCase().includes(query);
-        const matchesBrand = (p.brand || '').toLowerCase().includes(query);
-        if (!matchesName && !matchesBarcode && !matchesBrand) return false;
+      if (searchTerm.trim() && !matchProductSearch(p, searchTerm)) {
+        return false;
       }
 
       if (selectedCategory !== 'all' && p.category !== selectedCategory) {

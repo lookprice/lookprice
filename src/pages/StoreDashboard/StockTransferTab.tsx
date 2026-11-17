@@ -30,6 +30,7 @@ import { Product } from '../../types';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { formatDateTR } from '../../utils/formatUtils';
 import { translations } from '../../translations';
+import { matchProductSearch } from '../../lib/searchUtils';
 
 interface StockTransferTabProps {
   storeId: number;
@@ -969,16 +970,10 @@ export default function StockTransferTab({ storeId, products, isViewer, includeB
                     {/* Live Search Autocomplete Dropdown */}
                     {productSearch.trim() && (
                       <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-20 max-h-48 overflow-y-auto divide-y divide-slate-100">
-                        {sourceProducts.filter(p => {
-                          const q = productSearch.toLowerCase();
-                          return p.name?.toLowerCase().includes(q) || p.barcode?.toLowerCase().includes(q);
-                        }).length === 0 ? (
+                        {sourceProducts.filter(p => matchProductSearch(p, productSearch)).length === 0 ? (
                           <div className="p-3 text-xs text-slate-400 text-center italic">{lang === 'tr' ? 'Ürün bulunamadı.' : 'No products found.'}</div>
                         ) : (
-                          sourceProducts.filter(p => {
-                            const q = productSearch.toLowerCase();
-                            return p.name?.toLowerCase().includes(q) || p.barcode?.toLowerCase().includes(q);
-                          }).slice(0, 15).map(p => (
+                          sourceProducts.filter(p => matchProductSearch(p, productSearch)).slice(0, 15).map(p => (
                             <button
                               key={p.id}
                               type="button"

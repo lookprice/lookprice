@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { motion } from "motion/react";
 import { X, Search, Plus, Trash2, FileText, ChevronRight, CheckCircle2, ShieldCheck, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { matchProductSearch } from "../../../lib/searchUtils";
 
 interface QuotationModalProps {
   showQuotationModal: boolean;
@@ -442,11 +443,7 @@ export const QuotationModal = ({
                         </div>
                       )}
                       {products
-                        ?.filter(
-                          (p) =>
-                            p.name.toLowerCase().includes(prodSearch.toLowerCase()) ||
-                            p.barcode?.toLowerCase().includes(prodSearch.toLowerCase())
-                        )
+                        ?.filter((p) => matchProductSearch(p, prodSearch))
                         .slice(0, 8)
                         .map((p) => (
                           <button
@@ -486,11 +483,7 @@ export const QuotationModal = ({
                             </span>
                           </button>
                         ))}
-                      {products?.filter(
-                        (p) =>
-                          p.name.toLowerCase().includes(prodSearch.toLowerCase()) ||
-                          p.barcode?.toLowerCase().includes(prodSearch.toLowerCase())
-                      ).length === 0 && (
+                      {products?.filter((p) => matchProductSearch(p, prodSearch)).length === 0 && (
                         <div className="p-3 text-center">
                           <p className="text-xs text-slate-400">{isTr ? "Uyuşan ürün bulunamadı." : "No matching products."}</p>
                         </div>

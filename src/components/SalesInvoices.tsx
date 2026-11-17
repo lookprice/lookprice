@@ -38,7 +38,7 @@ import {
   Layers,
   ShoppingBag
 } from "lucide-react";
-import { normalizeSearch, matchesInvoiceSearch } from "../lib/searchUtils";
+import { normalizeSearch, matchesInvoiceSearch, matchProductSearch } from "../lib/searchUtils";
 import { formatDateTR, formatFileDateTR } from "../utils/formatUtils";
 import { getConnectedMarketplaces } from "../utils/marketplaceEStores";
 import { motion, AnimatePresence } from "motion/react";
@@ -1273,17 +1273,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
   const totalSalesAmount = activeValidInvoices.reduce((sum: number, inv: any) => sum + (Number(inv.total_amount || 0) * (Number(inv.exchange_rate) || 1)), 0);
   const totalGrandTotal = activeValidInvoices.reduce((sum: number, inv: any) => sum + (Number(inv.grand_total || 0) * (Number(inv.exchange_rate) || 1)), 0);
 
-  const filteredProducts = products.filter((p: any) => {
-    const searchTerms = normalizeSearch(deferredProductSearch).split(/\s+/).filter(Boolean);
-    if (searchTerms.length === 0) return true;
-    
-    return searchTerms.every(term => 
-      normalizeSearch(p.name).includes(term) || 
-      (p.barcode || "").toLowerCase().includes(term) ||
-      (p.brand || "").toLowerCase().includes(term) ||
-      (p.description || "").toLowerCase().includes(term)
-    );
-  });
+  const filteredProducts = products.filter((p: any) => matchProductSearch(p, deferredProductSearch));
 
   return (
     <div className="w-full px-4 sm:px-6">

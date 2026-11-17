@@ -1915,7 +1915,7 @@ router.get("/", async (req: any, res) => {
           params.push('%type%c%', '%usb%c%');
         } else {
           const pIdx = params.length + 1;
-          query += ` AND (${getTurkishSearchSnippet('p.name', pIdx)} OR ${getTurkishSearchSnippet('p.barcode', pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.product_code, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.sku, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.category, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.sub_category, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.description, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.brand, '')", pIdx)})`;
+          query += ` AND (${getTurkishSearchSnippet('p.name', pIdx)} OR ${getTurkishSearchSnippet('p.barcode', pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.product_code, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.sku, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.category, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.sub_category, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.description, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.brand, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.author, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.sector_data->>'author', '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.sector_data->>'writer', '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.sector_data->>'translator', '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.sector_data->>'publisher', '')", pIdx)})`;
           params.push(normalizeTurkishParam(term));
         }
       });

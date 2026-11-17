@@ -34,6 +34,15 @@ import { BOOKSTORE_CATEGORIES, getBookstoreSubcategories } from "../data/booksto
 import { bookstoreInteraction } from "../services/bookstoreInteractionService";
 import { BOOKSTORE_BADGES, hasBookstoreBadge } from "../data/bookstoreBadges";
 import { getBookstoreThemeConfig, BookstoreThemeConfig } from "../data/bookstoreThemePresets";
+import { matchProductSearch, normalizeSearch } from "../lib/searchUtils";
+
+const getBookSectorData = (p: any): Record<string, any> => {
+  const raw = p?.sector_data;
+  if (typeof raw === "string") {
+    try { return JSON.parse(raw); } catch { return {}; }
+  }
+  return raw && typeof raw === "object" ? raw : {};
+};
 
 interface BookstoreNetflixLayoutProps {
   store: StoreInfo | null;
@@ -239,8 +248,9 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
     // Also add any subcategory from existing products matching this scope
     products.forEach((p) => {
       if ((p as any).is_web_sale === false) return;
+      const sec = getBookSectorData(p);
       if (selectedCategory === "all" || p.category === selectedCategory) {
-        const sub = p.sub_category || (p as any).sub_category_2 || (p as any).sector_data?.genre || (p as any).genre;
+        const sub = p.sub_category || (p as any).sub_category_2 || sec.genre || (p as any).genre;
         if (sub && typeof sub === "string" && sub.trim()) {
           const cleanSub = sub.trim();
           if (!hiddenSubs.has(cleanSub)) set.add(cleanSub);
@@ -253,19 +263,21 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
   const authors = useMemo(() => {
     const set = new Set<string>();
     products.forEach((p) => {
-      const a = p.author || (p as any).sector_data?.author;
-      if (a && a.trim()) set.add(a.trim());
+      const sec = getBookSectorData(p);
+      const a = p.author || sec.author || sec.writer;
+      if (a && String(a).trim()) set.add(String(a).trim());
     });
-    return Array.from(set).sort();
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'tr'));
   }, [products]);
 
   const publishers = useMemo(() => {
     const set = new Set<string>();
     products.forEach((p) => {
-      const pub = p.brand || (p as any).sector_data?.publisher;
-      if (pub && pub.trim()) set.add(pub.trim());
+      const sec = getBookSectorData(p);
+      const pub = p.brand || sec.publisher;
+      if (pub && String(pub).trim()) set.add(String(pub).trim());
     });
-    return Array.from(set).sort();
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'tr'));
   }, [products]);
 
   // Weekly Picks (Haftanın Eserleri) for Hero Banner
@@ -363,18 +375,16 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
   // Catalog filtered products
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
-      const query = searchQuery.toLowerCase().trim();
-      const pAuthor = (p.author || (p as any).sector_data?.author || "").toLowerCase();
-      const pPublisher = (p.brand || (p as any).sector_data?.publisher || "").toLowerCase();
-      const pName = (p.name || "").toLowerCase();
-      const pBarcode = (p.barcode || "").toLowerCase();
-      const pSub = (p.sub_category || (p as any).sub_category_2 || (p as any).sector_data?.genre || (p as any).genre || "").trim();
+      const sec = getBookSectorData(p);
+      const pAuthorRaw = String(p.author || sec.author || sec.writer || "").trim();
+      const pPublisherRaw = String(p.brand || sec.publisher || "").trim();
+      const pSub = String(p.sub_category || (p as any).sub_category_2 || sec.genre || (p as any).genre || "").trim();
 
-      const matchesSearch = !query || pName.includes(query) || pAuthor.includes(query) || pPublisher.includes(query) || pBarcode.includes(query);
+      const matchesSearch = matchProductSearch({ ...p, sector_data: sec }, searchQuery);
       const matchesCategory = selectedCategory === "all" || p.category === selectedCategory;
       const matchesSubCategory = selectedSubCategory === "all" || pSub === selectedSubCategory || p.sub_category === selectedSubCategory;
-      const matchesAuthor = selectedAuthor === "all" || (p.author === selectedAuthor || (p as any).sector_data?.author === selectedAuthor);
-      const matchesPublisher = selectedPublisher === "all" || (p.brand === selectedPublisher || (p as any).sector_data?.publisher === selectedPublisher);
+      const matchesAuthor = selectedAuthor === "all" || normalizeSearch(pAuthorRaw) === normalizeSearch(selectedAuthor);
+      const matchesPublisher = selectedPublisher === "all" || normalizeSearch(pPublisherRaw) === normalizeSearch(selectedPublisher);
       const matchesBadge = selectedBadge === "all" || hasBookstoreBadge(p, selectedBadge);
 
       return matchesSearch && matchesCategory && matchesSubCategory && matchesAuthor && matchesPublisher && matchesBadge;
@@ -476,9 +486,13 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
                 placeholder={isTr ? "Kitap, yazar, yayınevi veya ISBN ara..." : "Search books, authors..."}
                 value={searchQuery}
                 onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  if (e.target.value && activeTab !== "catalog") {
+                  const val = e.target.value;
+                  setSearchQuery(val);
+                  if (val && activeTab !== "catalog") {
                     setActiveTab("catalog");
+                    if (typeof window !== "undefined" && window.scrollY > 120) {
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }
                   }
                 }}
                 className="w-44 sm:w-64 md:w-72 pl-9 pr-8 py-1.5 bg-slate-900/90 border border-slate-800 rounded-full text-xs text-white placeholder-slate-500 focus:outline-none transition-all"

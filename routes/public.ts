@@ -808,6 +808,13 @@ router.get("/store/:slug", async (req, res) => {
       });
 
       if (store.branding && typeof store.branding === 'object') {
+        const dbPublicId = Number(store.id);
+        const dbPublicSlug = store.slug;
+        const dbPublicName = store.name;
+        const dbPublicParentId = store.parent_id ? Number(store.parent_id) : null;
+        if ('branding' in store.branding) {
+          delete store.branding.branding;
+        }
         const msFromCol = store.meta_settings || {};
         const msFromBr = store.branding.meta_settings || {};
         const whFromCol = store.working_hours || {};
@@ -815,8 +822,18 @@ router.get("/store/:slug", async (req, res) => {
         const plsFromCol = store.page_layout_settings || {};
         const plsFromBr = store.branding.page_layout_settings || {};
         
-        const brandingCopy = { ...store.branding };
-        Object.assign(store, store.branding);
+        const brandingCopy = {
+          ...store.branding,
+          id: dbPublicId,
+          slug: dbPublicSlug,
+          parent_id: dbPublicParentId
+        };
+        delete brandingCopy.branding;
+        Object.assign(store, brandingCopy);
+        store.id = dbPublicId;
+        store.slug = dbPublicSlug;
+        store.name = dbPublicName;
+        store.parent_id = dbPublicParentId;
         store.branding = brandingCopy;
         store.meta_settings = { ...msFromCol, ...msFromBr };
         store.working_hours = { ...whFromCol, ...whFromBr };

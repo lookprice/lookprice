@@ -97,15 +97,23 @@ router.get("/", async (req: any, res) => {
     });
 
     // Merge branding onto store top-level and sync marketplace settings
-    if (!store.branding || typeof store.branding !== 'object') {
+    if (!store.branding || typeof store.branding !== 'object' || Array.isArray(store.branding)) {
       store.branding = {};
     }
+    if ('branding' in store.branding) {
+      delete store.branding.branding;
+    }
+
+    const dbStoreId = Number(store.id);
+    const dbStoreSlug = store.slug;
+    const dbStoreName = store.name;
+    const dbParentId = store.parent_id ? Number(store.parent_id) : null;
 
     // Sync database column values into branding object
-    store.branding.id = store.id;
-    store.branding.store_name = store.name || store.branding.store_name || store.branding.name;
-    store.branding.name = store.name || store.branding.name || store.branding.store_name;
-    store.branding.slug = store.slug;
+    store.branding.id = dbStoreId;
+    store.branding.store_name = dbStoreName || store.branding.store_name || store.branding.name;
+    store.branding.name = dbStoreName || store.branding.name || store.branding.store_name;
+    store.branding.slug = dbStoreSlug;
     store.branding.address = store.address || store.branding.address;
     store.branding.contact_person = store.contact_person || store.branding.contact_person;
     store.branding.phone = store.phone || store.branding.phone;
@@ -170,13 +178,21 @@ router.get("/", async (req: any, res) => {
     const n11FromCol = store.n11_settings || {};
     const n11FromBr = store.branding.n11_settings || {};
 
-    const dbParentId = store.parent_id ? Number(store.parent_id) : null;
     store.parent_id = dbParentId;
     store.branding.parent_id = dbParentId;
 
-    Object.assign(store, store.branding);
+    const cleanBranding = { ...store.branding };
+    delete cleanBranding.branding;
+
+    Object.assign(store, cleanBranding);
+    store.branding = cleanBranding;
+
     // Re-enforce authoritative DB identity & branch hierarchy after Object.assign
-    store.id = store.branding.id;
+    store.id = dbStoreId;
+    store.branding.id = dbStoreId;
+    store.slug = dbStoreSlug;
+    store.branding.slug = dbStoreSlug;
+    store.name = dbStoreName;
     store.parent_id = dbParentId;
     store.branding.parent_id = dbParentId;
 

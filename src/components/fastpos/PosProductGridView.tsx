@@ -19,6 +19,7 @@ export interface PosProductGridViewProps {
   selectedSubCategory: string;
   setSelectedSubCategory: (subCat: string) => void;
   isHappyHourActive: boolean;
+  isBookstore?: boolean;
 }
 
 export const PosProductGridView: React.FC<PosProductGridViewProps> = ({
@@ -38,7 +39,8 @@ export const PosProductGridView: React.FC<PosProductGridViewProps> = ({
   subCategories,
   selectedSubCategory,
   setSelectedSubCategory,
-  isHappyHourActive
+  isHappyHourActive,
+  isBookstore = false
 }) => {
   return (
     <>
@@ -48,7 +50,11 @@ export const PosProductGridView: React.FC<PosProductGridViewProps> = ({
           <input 
             ref={searchInputRef}
             type="text" 
-            placeholder={lang === 'tr' ? "Barkod okutun veya ürün adı yazın..." : "Scan barcode or type product name..."}
+            placeholder={
+              isBookstore
+                ? (lang === 'tr' ? "ISBN okutun, kitap veya yazar adı yazın..." : "Scan ISBN, type book or author name...")
+                : (lang === 'tr' ? "Barkod okutun veya ürün adı yazın..." : "Scan barcode or type product name...")
+            }
             className="w-full pl-10 pr-9 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none transition-all"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -189,6 +195,19 @@ export const PosProductGridView: React.FC<PosProductGridViewProps> = ({
                     <span className="text-xs font-bold text-slate-800 line-clamp-2 px-0.5 text-center leading-tight">
                       {product.name}
                     </span>
+                    {isBookstore && (() => {
+                      let sec = product.sector_data;
+                      if (typeof sec === "string") {
+                        try { sec = JSON.parse(sec); } catch { sec = {}; }
+                      }
+                      const bookAuthor = String(product.author || sec?.author || sec?.writer || "").trim();
+                      if (!bookAuthor) return null;
+                      return (
+                        <span className="text-[10px] font-medium text-indigo-600 line-clamp-1 leading-tight mt-0.5 block">
+                          {bookAuthor}
+                        </span>
+                      );
+                    })()}
                   </div>
                   {isHappyHourActive && product.price_2 && parseFloat(product.price_2.toString()) > 0 ? (
                     <div className="flex flex-col items-center">

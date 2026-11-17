@@ -6,7 +6,7 @@ export const normalizeSearch = (text: string): string => {
   if (!text) return "";
   
   // First convert to Turkish lowercase to handle İ -> i and I -> ı
-  let normalized = text.toLocaleLowerCase('tr-TR');
+  let normalized = String(text).toLocaleLowerCase('tr-TR').replace(/\u0307/g, '');
   
   // Replace Turkish special characters with normalized equivalents for ultra-tolerant matching
   normalized = normalized
@@ -20,6 +20,26 @@ export const normalizeSearch = (text: string): string => {
   return normalized;
 };
 
+const parseSectorData = (item: any): Record<string, any> => {
+  let sec = item?.sector_data;
+  if (typeof sec === "string") {
+    try { sec = JSON.parse(sec); } catch { sec = {}; }
+  }
+  return sec && typeof sec === "object" ? sec : {};
+};
+
+const getNestedFieldValue = (item: any, field: string): any => {
+  if (!item || !field) return undefined;
+  if (!field.includes(".")) return item[field];
+  const [root, ...rest] = field.split(".");
+  let current: any = root === "sector_data" ? parseSectorData(item) : item[root];
+  for (const part of rest) {
+    if (current === undefined || current === null) return undefined;
+    current = current[part];
+  }
+  return current;
+};
+
 /**
  * Checks if a search term matches any of the fields in an object (progressive AND across tokens)
  */
@@ -30,9 +50,9 @@ export const matchesSearch = (item: any, search: string, fields: string[]): bool
   const tokens = trimmed.split(/\s+/).filter(Boolean);
   if (tokens.length === 0) return true;
   
-  // Build searchable text from all requested fields
+  // Build searchable text from all requested fields (supports dot paths like "sector_data.author")
   const fieldValues = fields.map(field => {
-    const v = item[field];
+    const v = getNestedFieldValue(item, field);
     return v !== undefined && v !== null ? String(v) : "";
   }).filter(Boolean);
 
@@ -71,7 +91,7 @@ export const matchesSearch = (item: any, search: string, fields: string[]): bool
 };
 
 /**
- * Product-specific search that matches across all identity, barcode, marketplace and detail fields.
+ * Product-specific search that matches across all identity, barcode, author/publisher, marketplace and detail fields.
  * Enforces progressive AND filtering:
  * - typing "dell" matches dell products (37 results)
  * - adding "65w" narrows down exclusively to dell products with 65w (2 results)
@@ -85,13 +105,8 @@ export const matchProductSearch = (p: any, search: string): boolean => {
   const tokens = trimmed.split(/\s+/).filter(Boolean);
   if (tokens.length === 0) return true;
 
-  const altBarcodes = (() => {
-    let sec = p.sector_data;
-    if (typeof sec === "string") {
-      try { sec = JSON.parse(sec); } catch { sec = {}; }
-    }
-    return Array.isArray(sec?.alternate_barcodes) ? sec.alternate_barcodes : [];
-  })();
+  const sec = parseSectorData(p);
+  const altBarcodes = Array.isArray(sec?.alternate_barcodes) ? sec.alternate_barcodes : [];
 
   const variantText = Array.isArray(p.variants) 
     ? p.variants.map((v: any) => `${v.name || ''} ${v.barcode || ''} ${v.sku || ''}`).join(" ")
@@ -100,10 +115,17 @@ export const matchProductSearch = (p: any, search: string): boolean => {
   const searchableFields = [
     p.name,
     p.barcode,
+    sec.isbn,
     ...altBarcodes,
     p.sku,
     p.product_code,
+    p.code,
     p.brand,
+    p.author,
+    sec.author,
+    sec.writer,
+    sec.translator,
+    sec.publisher,
     p.category,
     p.sub_category,
     p.category_2,

@@ -56,6 +56,7 @@ import { ProductCard } from "../components/ProductCard";
 
 // Utilities
 import { getStoreType, isBookstoreStore } from "../utils/storeType";
+import { matchProductSearch } from "../lib/searchUtils";
 
 const StoreMapSection = React.lazy(() => import("../components/StoreMapSection").then(m => ({ default: m.StoreMapSection })));
 const ProductDetailModal = React.lazy(() => import("../components/ProductDetailModal").then(m => ({ default: m.ProductDetailModal })));
@@ -1006,11 +1007,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         }
       }
 
-      const searchTerms = searchQuery.toLowerCase().split(" ").filter(Boolean);
-      const matchesSearch = searchTerms.length === 0 || searchTerms.every(term => 
-        p.name.toLowerCase().includes(term) || (p.barcode && p.barcode.toLowerCase().includes(term)) ||
-        (p.category && p.category.toLowerCase().includes(term)) || (p.brand && p.brand.toLowerCase().includes(term))
-      );
+      const matchesSearch = matchProductSearch(p, searchQuery);
 
       const productCategory = p.category || t.dashboard.uncategorized;
       const matchesCategory = !selectedCategory || productCategory === selectedCategory;

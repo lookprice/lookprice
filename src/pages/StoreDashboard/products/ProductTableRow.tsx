@@ -523,6 +523,22 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                       {p.sub_category || p.category}
                     </span>
                   )}
+                  {isBookstore && (() => {
+                    let sec = p.sector_data;
+                    if (typeof sec === 'string') {
+                      try { sec = JSON.parse(sec); } catch { sec = {}; }
+                    }
+                    const bookAuthor = String(p.author || sec?.author || sec?.writer || '').trim();
+                    if (!bookAuthor) return null;
+                    return (
+                      <span
+                        className="text-[9px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-1.5 py-0.2 rounded truncate max-w-[140px]"
+                        title={`${lang === 'tr' ? 'Yazar' : 'Author'}: ${bookAuthor}`}
+                      >
+                        {bookAuthor}
+                      </span>
+                    );
+                  })()}
                   {p.brand && (
                     <span className="text-[9px] font-medium text-slate-400 bg-white border border-slate-200 px-1 py-0.2 rounded">
                       {p.brand}

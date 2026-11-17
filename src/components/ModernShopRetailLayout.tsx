@@ -34,6 +34,7 @@ import { ShopRetailProductCard } from "./showcase/ShopRetailProductCard";
 import { ShopDrawerCart } from "./showcase/ShopDrawerCart";
 import { ShopFilterSidebar, ShopFilterState } from "./showcase/ShopFilterSidebar";
 import { ShopStoryViewerModal } from "./showcase/ShopStoryViewerModal";
+import { matchProductSearch } from "../lib/searchUtils";
 
 interface ModernShopRetailLayoutProps {
   store: StoreInfo;
@@ -297,14 +298,8 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
       if (p.is_web_sale === false) return false;
 
       // Search Query
-      if (filters.search) {
-        const query = filters.search.toLowerCase().trim();
-        const matchesName = (p.name || "").toLowerCase().includes(query);
-        const matchesBrand = (p.brand || "").toLowerCase().includes(query);
-        const matchesCategory = (p.category || "").toLowerCase().includes(query);
-        const matchesSubCategory = (p.sub_category || "").toLowerCase().includes(query);
-        const matchesBarcode = (p.barcode || "").toString().includes(query);
-        if (!matchesName && !matchesBrand && !matchesCategory && !matchesSubCategory && !matchesBarcode) return false;
+      if (filters.search && !matchProductSearch(p, filters.search)) {
+        return false;
       }
 
       // Category

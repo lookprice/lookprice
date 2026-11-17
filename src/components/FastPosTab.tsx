@@ -172,6 +172,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
 
   const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.store_type === 'horeca' || branding?.store_type === 'horecalp' || branding?.page_layout_settings?.sector === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'horeca' || Boolean(branding?.hotel_module_enabled);
   const isHotelActive = isCafeRestaurant && Boolean(branding?.hotel_module_enabled);
+  const isBookstore = branding?.store_concept === 'bookstore' || branding?.bookstore_module_enabled === true || branding?.page_layout_settings?.sector === 'bookstore' || branding?.store_type === 'bookstore';
   const [showRoomTransferModal, setShowRoomTransferModal] = useState(false);
 
   // Happy Hours state and configuration
@@ -379,17 +380,31 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
     const trimmed = searchTerm.trim();
 
     if (trimmed.length > 0) {
-      const sourceList = allProducts.length > 0 ? allProducts : searchResults;
+      const mergedMap = new Map<any, any>();
+      allProducts.forEach((p: any) => {
+        if (p?.id !== undefined) mergedMap.set(p.id, p);
+      });
+      searchResults.forEach((p: any) => {
+        if (p?.id !== undefined) mergedMap.set(p.id, p);
+      });
+      const sourceList = mergedMap.size > 0 ? Array.from(mergedMap.values()) : (allProducts.length > 0 ? allProducts : searchResults);
       let list = sourceList.filter((p) => {
         const basicMatch = matchesSearch(p, trimmed, [
           "name",
           "barcode",
+          "sku",
+          "product_code",
           "category",
           "sub_category",
           "category_2",
           "sub_category_2",
           "description",
-          "brand"
+          "brand",
+          "author",
+          "sector_data.author",
+          "sector_data.writer",
+          "sector_data.translator",
+          "sector_data.publisher"
         ]);
         if (basicMatch) return true;
 
@@ -2290,6 +2305,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
               selectedSubCategory={selectedSubCategory}
               setSelectedSubCategory={setSelectedSubCategory}
               isHappyHourActive={isHappyHourActive}
+              isBookstore={isBookstore}
             />
           )}
       </div>
