@@ -311,36 +311,36 @@ export const PosCartPanel: React.FC<PosCartPanelProps> = ({
       {/* Checkout Footer Pinned at Bottom */}
       <div className="p-3 bg-slate-50 border-t border-slate-200 space-y-2 shrink-0">
         {/* Total Amount & Payment Method Selection Row */}
-        <div className="flex items-center justify-between gap-2 pb-1 border-b border-slate-200/60">
-          <div>
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">{lang === 'tr' ? 'TOPLAM TUTAR' : 'TOTAL AMOUNT'}</span>
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-1.5 border-b border-slate-200/60">
+          <div className="shrink-0">
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">{lang === 'tr' ? 'TOPLAM TUTAR' : 'TOTAL AMOUNT'}</span>
             <span className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-none">{total.toFixed(2)} ₺</span>
           </div>
 
           {activeStaffRole !== 'waiter' && (
-            <div className="flex items-center p-0.5 bg-slate-200/70 rounded-xl">
+            <div className="flex items-center gap-1.5 p-1 bg-slate-900 rounded-xl shadow-inner shrink-0">
               <button 
                 type="button"
                 onClick={() => setPaymentMethod('cash')}
-                className={`flex items-center gap-1 py-1.5 px-2.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
+                className={`flex items-center justify-center gap-2 py-2.5 px-4 sm:px-5 rounded-lg text-sm font-black transition-all cursor-pointer active:scale-95 min-h-[44px] ${
                   paymentMethod === 'cash' 
-                    ? 'bg-white text-emerald-700 shadow-xs' 
-                    : 'text-slate-500 hover:text-slate-800'
+                    ? 'bg-emerald-700 hover:bg-emerald-600 text-white border-2 border-emerald-300 shadow-md shadow-emerald-950/50' 
+                    : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
                 }`}
               >
-                <Banknote className="h-3.5 w-3.5 text-emerald-600" />
+                <Banknote className={`h-4 w-4 ${paymentMethod === 'cash' ? 'text-emerald-100' : 'text-emerald-400'}`} />
                 <span>{lang === 'tr' ? 'Nakit' : 'Cash'}</span>
               </button>
               <button 
                 type="button"
                 onClick={() => setPaymentMethod('credit_card')}
-                className={`flex items-center gap-1 py-1.5 px-2.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
+                className={`flex items-center justify-center gap-2 py-2.5 px-4 sm:px-5 rounded-lg text-sm font-black transition-all cursor-pointer active:scale-95 min-h-[44px] ${
                   paymentMethod === 'credit_card' 
-                    ? 'bg-white text-blue-700 shadow-xs' 
-                    : 'text-slate-500 hover:text-slate-800'
+                    ? 'bg-blue-800 hover:bg-blue-700 text-white border-2 border-sky-300 shadow-md shadow-blue-950/50' 
+                    : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
                 }`}
               >
-                <CreditCard className="h-3.5 w-3.5 text-blue-600" />
+                <CreditCard className={`h-4 w-4 ${paymentMethod === 'credit_card' ? 'text-sky-100' : 'text-sky-400'}`} />
                 <span>{lang === 'tr' ? 'Kart' : 'Card'}</span>
               </button>
               {isHotelActive && (
@@ -350,14 +350,14 @@ export const PosCartPanel: React.FC<PosCartPanelProps> = ({
                     setPaymentMethod('room');
                     setShowRoomTransferModal(true);
                   }}
-                  className={`flex items-center gap-1 py-1.5 px-2.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
+                  className={`flex items-center justify-center gap-1.5 py-2.5 px-3.5 rounded-lg text-sm font-black transition-all cursor-pointer active:scale-95 min-h-[44px] ${
                     paymentMethod === 'room' 
-                      ? 'bg-amber-400 text-slate-950 shadow-xs' 
-                      : 'text-slate-500 hover:text-slate-800'
+                      ? 'bg-amber-700 hover:bg-amber-600 text-white border-2 border-amber-300 shadow-md' 
+                      : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
                   }`}
                   title={lang === 'tr' ? "Masa adisyonunu otele / odaya aktar" : "Transfer to hotel room"}
                 >
-                  <Building2 className="h-3.5 w-3.5 text-amber-700" />
+                  <Building2 className={`h-4 w-4 ${paymentMethod === 'room' ? 'text-amber-100' : 'text-amber-400'}`} />
                   <span>{lang === 'tr' ? 'Odaya Yaz' : 'Room'}</span>
                 </button>
               )}
