@@ -612,7 +612,9 @@ const SettingsTab = ({
         <SettingsPosTab 
           branding={branding} 
           onBrandingChange={onBrandingChange} 
-          lang={lang} 
+          lang={lang}
+          currentStoreId={currentStoreId}
+          products={products}
         />
       )}
 

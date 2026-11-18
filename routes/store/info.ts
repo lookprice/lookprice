@@ -54,7 +54,8 @@ router.get("/", async (req: any, res) => {
       SELECT 
         id, name, slug, address, contact_person, phone, country, email, api_key, subscription_end,
         logo_url, favicon_url, primary_color, default_currency, language, plan, background_image_url,
-        fiscal_brand, fiscal_terminal_id, fiscal_active, default_tax_rate, currency_rates, branding, payment_settings, meta_settings,
+        fiscal_brand, fiscal_terminal_id, fiscal_active, fiscal_ip, fiscal_port, fiscal_departments, pos_bridge_token, pos_bridge_settings,
+        default_tax_rate, currency_rates, branding, payment_settings, meta_settings,
         custom_domain, custom_domain_status, page_layout, menu_links, shipping_profiles, emails, phones,
         description, einvoice_settings, footer_links, parent_id, store_type, sub_sector, store_code, hotel_module_enabled,
         hero_title, hero_subtitle, hero_image_url, instagram_url, facebook_url, twitter_url, whatsapp_number, about_text,
@@ -82,7 +83,7 @@ router.get("/", async (req: any, res) => {
       'emails', 'phones', 'footer_links', 'shipping_profiles', 'branding', 
       'payment_settings', 'meta_settings', 'page_layout', 'menu_links', 'currency_rates', 'einvoice_settings',
       'hepsiburada_settings', 'trendyol_settings', 'amazon_settings', 'pazarama_settings', 'n11_settings',
-      'google_merchant_settings', 'instagram_settings'
+      'google_merchant_settings', 'instagram_settings', 'fiscal_departments', 'pos_bridge_settings'
     ];
     jsonFields.forEach(field => {
       if (typeof store[field] === 'string') {
@@ -224,6 +225,43 @@ router.get("/", async (req: any, res) => {
     store.branding.amazon_settings = store.amazon_settings;
     store.branding.pazarama_settings = store.pazarama_settings;
     store.branding.n11_settings = store.n11_settings;
+
+    // Auto-provision pos_bridge_token on first authenticated access so new stores & branches are onboarding-ready
+    if (!store.pos_bridge_token) {
+      const cryptoMod = await import("crypto");
+      const generatedToken = `lpb_${dbStoreId}_${cryptoMod.randomBytes(16).toString('hex')}`;
+      store.pos_bridge_token = generatedToken;
+      pool.query("UPDATE stores SET pos_bridge_token = $1 WHERE id = $2", [generatedToken, dbStoreId]).catch(() => {});
+    }
+    const bridgeCfg = (store.pos_bridge_settings && typeof store.pos_bridge_settings === 'object' && !Array.isArray(store.pos_bridge_settings))
+      ? store.pos_bridge_settings
+      : {};
+    store.fiscal_brand = store.fiscal_brand || store.branding.fiscal_brand || 'hugin_t300_spectra';
+    store.fiscal_terminal_id = store.fiscal_terminal_id || store.branding.fiscal_terminal_id || '';
+    store.fiscal_active = Boolean(store.fiscal_active ?? store.branding.fiscal_active ?? false);
+    store.fiscal_ip = store.fiscal_ip || store.branding.fiscal_ip || '';
+    store.fiscal_port = Number(store.fiscal_port || store.branding.fiscal_port || 4444);
+    store.fiscal_departments = Array.isArray(store.fiscal_departments) && store.fiscal_departments.length > 0
+      ? store.fiscal_departments
+      : (Array.isArray(store.branding.fiscal_departments) ? store.branding.fiscal_departments : []);
+    store.pos_bridge_settings = bridgeCfg;
+    store.branding.fiscal_brand = store.fiscal_brand;
+    store.branding.fiscal_terminal_id = store.fiscal_terminal_id;
+    store.branding.fiscal_active = store.fiscal_active;
+    store.branding.fiscal_ip = store.fiscal_ip;
+    store.branding.fiscal_port = store.fiscal_port;
+    store.branding.fiscal_departments = store.fiscal_departments;
+    store.branding.pos_bridge_token = store.pos_bridge_token;
+    store.branding.pos_bridge_settings = bridgeCfg;
+    if (bridgeCfg.enabled !== undefined) {
+      store.branding.pos_bridge_enabled = Boolean(bridgeCfg.enabled);
+    }
+    if (bridgeCfg.bridge_ip) {
+      store.branding.pos_bridge_ip = bridgeCfg.bridge_ip;
+    }
+    if (bridgeCfg.bridge_port) {
+      store.branding.pos_bridge_port = bridgeCfg.bridge_port;
+    }
 
     // Fetch branches if this is a main store (HQ), or inherit HQ corporate identity if this is a branch
     if (!store.parent_id) {

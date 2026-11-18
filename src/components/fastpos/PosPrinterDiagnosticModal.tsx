@@ -1,12 +1,15 @@
 import React, { useState } from "react";
 import { motion } from "motion/react";
-import { Printer, X, RefreshCw } from "lucide-react";
+import { Printer, X, RefreshCw, Activity, ExternalLink, CheckCircle2, AlertTriangle } from "lucide-react";
 import { printThermalReceipt } from "../../utils/thermalPrinter";
+import { api } from "../../services/api";
+import { getPosDeviceById } from "../../data/posDevices";
 
 export interface PosPrinterDiagnosticModalProps {
   isOpen: boolean;
   onClose: () => void;
   lang: string;
+  storeId?: number;
   branding?: any;
   autoPrintOnOrder: boolean;
   autoPrintOnPay: boolean;
@@ -18,6 +21,7 @@ export const PosPrinterDiagnosticModal: React.FC<PosPrinterDiagnosticModalProps>
   isOpen,
   onClose,
   lang,
+  storeId,
   branding,
   autoPrintOnOrder,
   autoPrintOnPay,
@@ -26,6 +30,28 @@ export const PosPrinterDiagnosticModal: React.FC<PosPrinterDiagnosticModalProps>
 }) => {
   const [printerDiagScenario, setPrinterDiagScenario] = useState<'success' | 'ip_conflict' | 'offline' | 'paper_jam'>('success');
   const [printerDiagStep, setPrinterDiagStep] = useState<'idle' | 'testing' | 'result'>('idle');
+  const [okcTesting, setOkcTesting] = useState(false);
+  const [okcResult, setOkcResult] = useState<any>(null);
+
+  const deviceSpec = getPosDeviceById(branding?.fiscal_brand);
+  const runOkcDiagnostic = async (cmd: 'PING_STATUS' | 'LAST_TX') => {
+    if (!storeId) return;
+    try {
+      setOkcTesting(true);
+      const res = await api.sendPosBridgeCommand({
+        command: cmd,
+        deviceIp: branding?.fiscal_ip || '127.0.0.1',
+        devicePort: Number(branding?.fiscal_port || deviceSpec.defaultPort || 4444),
+        simulate: Boolean(branding?.pos_bridge_settings?.allow_simulation),
+        timeoutMs: 10000
+      }, storeId);
+      setOkcResult(res);
+    } catch (err: any) {
+      setOkcResult({ success: false, command: cmd, message: err?.message || 'ÖKC erişilemedi' });
+    } finally {
+      setOkcTesting(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -67,6 +93,70 @@ export const PosPrinterDiagnosticModal: React.FC<PosPrinterDiagnosticModalProps>
 
         {printerDiagStep === 'idle' && (
           <div className="space-y-4 overflow-y-auto pr-1">
+            {/* Live OKC Hardware Bridge Card */}
+            {(branding?.fiscal_active || branding?.pos_bridge_enabled) && storeId && (
+              <div className="bg-slate-900 text-white p-4 rounded-2xl border border-indigo-700/60 space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <h4 className="text-xs font-black uppercase tracking-wide flex items-center gap-1.5 text-indigo-300">
+                      <Activity className="w-4 h-4" />
+                      <span>Canlı YN ÖKC Tanı ({deviceSpec.model})</span>
+                    </h4>
+                    <p className="text-[11px] text-slate-300">
+                      Hedef: {branding?.fiscal_ip || '127.0.0.1'}:{branding?.fiscal_port || deviceSpec.defaultPort} ({deviceSpec.protocol})
+                    </p>
+                    <p className="text-[10px] font-bold text-sky-300 mt-0.5">
+                      Kart Modu: {
+                        (branding?.pos_bridge_settings?.card_okc_mode || (branding?.pos_bridge_settings?.fiscal_on_card === false ? 'no_fiscal_on_card' : 'integrated_eft_pos')) === 'fiscal_only_external_card'
+                          ? 'Sadece Yazarkasa (Harici Banka POS — Kart Beklemez)'
+                          : (branding?.pos_bridge_settings?.card_okc_mode || (branding?.pos_bridge_settings?.fiscal_on_card === false ? 'no_fiscal_on_card' : 'integrated_eft_pos')) === 'no_fiscal_on_card'
+                          ? 'Kartlı Satışta ÖKC Kapalı'
+                          : "2'si 1 Arada (EFT-POS + Mali Fiş)"
+                      }
+                    </p>
+                  </div>
+                  <a
+                    href={deviceSpec.driverUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-2.5 py-1 bg-white/10 hover:bg-white/20 text-white rounded-lg text-[10px] font-bold flex items-center gap-1"
+                  >
+                    <span>Sürücü</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={okcTesting}
+                    onClick={() => runOkcDiagnostic('PING_STATUS')}
+                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black rounded-xl cursor-pointer disabled:opacity-50"
+                  >
+                    {okcTesting ? 'Sorgulanıyor...' : 'PING / STATUS (PC Modu & Kağıt)'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={okcTesting}
+                    onClick={() => runOkcDiagnostic('LAST_TX')}
+                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 text-xs font-bold rounded-xl cursor-pointer disabled:opacity-50"
+                  >
+                    Son İşlem Sorgula (LAST_TX)
+                  </button>
+                </div>
+                {okcResult && (
+                  <div className={`p-2.5 rounded-xl text-[11px] border ${okcResult.success ? 'bg-emerald-950/70 border-emerald-700 text-emerald-100' : 'bg-rose-950/70 border-rose-700 text-rose-100'}`}>
+                    <div className="flex items-center gap-1.5 font-black">
+                      {okcResult.success ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />}
+                      <span>{okcResult.success ? `Hazır • ${okcResult.fiscal?.receiptNo || 'ACK OK'}` : (okcResult.message || 'Bağlantı Hatası')}</span>
+                    </div>
+                    {okcResult.gmp3Hex && (
+                      <p className="mt-1 font-mono text-[9px] text-slate-300 break-all">GMP3: {okcResult.gmp3Hex}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Real Thermal Printer Test Card */}
             <div className="bg-gradient-to-br from-amber-50 to-orange-50 p-4 rounded-2xl border border-amber-200/80 space-y-3 shadow-2xs">
               <div className="flex items-center justify-between">

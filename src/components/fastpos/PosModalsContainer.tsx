@@ -12,6 +12,10 @@ import { PosVariantModal } from "./PosVariantModal";
 import { PosIkramNoteModal } from "./PosIkramNoteModal";
 import { PosTableNicknameModal } from "./PosTableNicknameModal";
 import { RoomTransferModal } from "../horeca/RoomTransferModal";
+import { PosQuickKeysManagerModal } from "./PosQuickKeysManagerModal";
+import { PosQuickKey, QuickKeysPlacement } from "./PosQuickKeysBar";
+import { PosParkedCartsModal, ParkedCartEntry } from "./PosParkedCartsModal";
+import { PosTouchNumpadModal, TouchNumpadConfig } from "./PosTouchNumpadModal";
 
 export interface PosModalsContainerProps {
   lang: string;
@@ -22,6 +26,10 @@ export interface PosModalsContainerProps {
   // Status Modal
   posStatus: string;
   posMessage: string;
+  posErrorCode?: string | null;
+  canQueryLastTx?: boolean;
+  onRetryPosTx?: () => void;
+  onQueryLastPosTx?: () => void;
   setPosStatus: (status: any) => void;
   // Success Modal
   showSuccess: boolean;
@@ -128,6 +136,22 @@ export interface PosModalsContainerProps {
   tableNicknames: Record<string, string>;
   saveTableNickname: (table: string, nick: string) => void;
   clearStoredTableNickname: (table: string) => void;
+  // Quick Keys, Parked Carts, Touch Numpad
+  showQuickKeysManager: boolean;
+  setShowQuickKeysManager: (show: boolean) => void;
+  quickKeys: PosQuickKey[];
+  quickKeysPlacement: QuickKeysPlacement;
+  onSaveQuickKeysConfig: (keys: PosQuickKey[], placement: QuickKeysPlacement) => void;
+  showParkedModal: boolean;
+  setShowParkedModal: (show: boolean) => void;
+  parkedCarts: ParkedCartEntry[];
+  onRestoreParkedCart: (entry: ParkedCartEntry, swapCurrent: boolean) => void;
+  onMergeParkedCart: (entry: ParkedCartEntry) => void;
+  onDeleteParkedCart: (id: string) => void;
+  onRenameParkedCart: (id: string, label: string) => void;
+  numpadConfig: TouchNumpadConfig | null;
+  setNumpadConfig: (cfg: TouchNumpadConfig | null) => void;
+  touchNumpadEnabled: boolean;
 }
 
 export const PosModalsContainer: React.FC<PosModalsContainerProps> = ({
@@ -138,6 +162,10 @@ export const PosModalsContainer: React.FC<PosModalsContainerProps> = ({
   isHotelActive,
   posStatus,
   posMessage,
+  posErrorCode,
+  canQueryLastTx,
+  onRetryPosTx,
+  onQueryLastPosTx,
   setPosStatus,
   showSuccess,
   setShowSuccess,
@@ -232,7 +260,22 @@ export const PosModalsContainer: React.FC<PosModalsContainerProps> = ({
   setActiveNicknameInput,
   tableNicknames,
   saveTableNickname,
-  clearStoredTableNickname
+  clearStoredTableNickname,
+  showQuickKeysManager,
+  setShowQuickKeysManager,
+  quickKeys,
+  quickKeysPlacement,
+  onSaveQuickKeysConfig,
+  showParkedModal,
+  setShowParkedModal,
+  parkedCarts,
+  onRestoreParkedCart,
+  onMergeParkedCart,
+  onDeleteParkedCart,
+  onRenameParkedCart,
+  numpadConfig,
+  setNumpadConfig,
+  touchNumpadEnabled
 }) => {
   return (
     <AnimatePresence>
@@ -241,6 +284,10 @@ export const PosModalsContainer: React.FC<PosModalsContainerProps> = ({
         isOpen={posStatus !== 'idle'}
         posStatus={posStatus as any}
         posMessage={posMessage}
+        posErrorCode={posErrorCode}
+        canQueryLastTx={canQueryLastTx}
+        onRetry={onRetryPosTx}
+        onQueryLastTx={onQueryLastPosTx}
         lang={lang}
         onClose={() => setPosStatus('idle')}
       />
@@ -300,6 +347,8 @@ export const PosModalsContainer: React.FC<PosModalsContainerProps> = ({
         handleEqualSplit={handleEqualSplit}
         handleFinalizeSplitSale={handleFinalizeSplitSale}
         handlePartialAmountPayment={(amt) => handlePartialAmountPayment(amt, partialPayMethod)}
+        touchNumpadEnabled={touchNumpadEnabled}
+        onOpenNumpad={(cfg) => setNumpadConfig(cfg)}
       />
 
       {/* Printer Diagnostic Tool Modal */}
@@ -308,6 +357,7 @@ export const PosModalsContainer: React.FC<PosModalsContainerProps> = ({
         isOpen={showPrinterDiagnosticModal}
         onClose={() => setShowPrinterDiagnosticModal(false)}
         lang={lang}
+        storeId={storeId}
         branding={branding}
         autoPrintOnOrder={autoPrintOnOrder}
         autoPrintOnPay={autoPrintOnPay}
@@ -321,6 +371,7 @@ export const PosModalsContainer: React.FC<PosModalsContainerProps> = ({
         isOpen={showReportModal}
         onClose={() => setShowReportModal(false)}
         lang={lang}
+        storeId={storeId}
         branding={branding}
         isHotelActive={isHotelActive}
         reportStartDate={reportStartDate}
@@ -425,6 +476,41 @@ export const PosModalsContainer: React.FC<PosModalsContainerProps> = ({
         tableNicknames={tableNicknames}
         saveTableNickname={saveTableNickname}
         clearStoredTableNickname={clearStoredTableNickname}
+      />
+
+      {/* Quick Keys Manager Modal */}
+      <PosQuickKeysManagerModal
+        key="pos-quick-keys-manager"
+        isOpen={showQuickKeysManager}
+        onClose={() => setShowQuickKeysManager(false)}
+        lang={lang}
+        quickKeys={quickKeys}
+        placement={quickKeysPlacement}
+        allProducts={allProducts}
+        onSaveConfig={onSaveQuickKeysConfig}
+        onOpenNumpad={(cfg) => setNumpadConfig(cfg)}
+      />
+
+      {/* Parked Customer Carts Modal */}
+      <PosParkedCartsModal
+        key="pos-parked-carts-modal"
+        isOpen={showParkedModal}
+        onClose={() => setShowParkedModal(false)}
+        lang={lang}
+        parkedCarts={parkedCarts}
+        currentCartCount={cart.length}
+        onRestoreReplaceOrSwap={onRestoreParkedCart}
+        onMergeIntoCurrent={onMergeParkedCart}
+        onDeleteParked={onDeleteParkedCart}
+        onRenameParked={onRenameParkedCart}
+      />
+
+      {/* Built-in POS Touch Numpad */}
+      <PosTouchNumpadModal
+        key="pos-touch-numpad-modal"
+        config={numpadConfig}
+        lang={lang}
+        onClose={() => setNumpadConfig(null)}
       />
     </AnimatePresence>
   );

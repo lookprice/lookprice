@@ -24,6 +24,7 @@ import { initTasksNotesSchema } from "./routes/store/tasksNotes";
 import aiJobsRoutes from "./routes/ai_jobs.js";
 import aiSocialRoutes from "./routes/ai_social.js";
 import googleDriveRoutes from "./routes/googleDrive.js";
+import posBridgeRoutes, { attachPosBridgeWebSocket } from "./routes/posBridge";
 import { authenticate } from "./middleware/auth";
 import { domainMiddleware, extractDomainFromRequest, resolveStoreSlugForDomain, MAIN_DOMAINS } from "./middleware/domain";
 import { pool } from "./models/db";
@@ -1120,6 +1121,7 @@ function sanitizeFilename(originalName: string): string {
   app.use("/api/hepsiburada", integrationRoutes);
   app.use("/api/instagram", instagramRoutes);
   app.use("/api/ai-social", aiSocialRoutes);
+  app.use("/api/pos-bridge", posBridgeRoutes);
   app.use("/api", einvoiceRoutes);
 
   // Special case: Single Blog Post getter for dashboard
@@ -1752,7 +1754,9 @@ function sanitizeFilename(originalName: string): string {
   });
 
   console.log("Starting server listener...");
-  app.listen(PORT, "0.0.0.0", () => {
+  const httpServer = http.createServer(app);
+  attachPosBridgeWebSocket(httpServer);
+  httpServer.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://0.0.0.0:${PORT}`);
 
     const startBackgroundServices = async () => {

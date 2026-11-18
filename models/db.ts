@@ -1053,6 +1053,11 @@ export async function initDb() {
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS fiscal_brand TEXT;
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS fiscal_terminal_id TEXT;
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS fiscal_active BOOLEAN DEFAULT FALSE;
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS fiscal_ip TEXT;
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS fiscal_port INTEGER DEFAULT 4444;
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS fiscal_departments JSONB DEFAULT '[]';
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS pos_bridge_token TEXT;
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS pos_bridge_settings JSONB DEFAULT '{}';
       ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS sale_id INTEGER;
       ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS gi_invoice_type TEXT DEFAULT 'SATIS';
       ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS customer_email TEXT;
@@ -1833,7 +1838,95 @@ export async function initDb() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='sale_items' AND column_name='branch_name') THEN
           ALTER TABLE sale_items ADD COLUMN branch_name TEXT;
         END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='sales' AND column_name='client_tx_id') THEN
+          ALTER TABLE sales ADD COLUMN client_tx_id TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='sales' AND column_name='fiscal_receipt_no') THEN
+          ALTER TABLE sales ADD COLUMN fiscal_receipt_no TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='sales' AND column_name='fiscal_z_no') THEN
+          ALTER TABLE sales ADD COLUMN fiscal_z_no TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='sales' AND column_name='fiscal_eku_no') THEN
+          ALTER TABLE sales ADD COLUMN fiscal_eku_no TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='sales' AND column_name='fiscal_status') THEN
+          ALTER TABLE sales ADD COLUMN fiscal_status TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='stores' AND column_name='fiscal_brand') THEN
+          ALTER TABLE stores ADD COLUMN fiscal_brand TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='stores' AND column_name='fiscal_terminal_id') THEN
+          ALTER TABLE stores ADD COLUMN fiscal_terminal_id TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='stores' AND column_name='fiscal_active') THEN
+          ALTER TABLE stores ADD COLUMN fiscal_active BOOLEAN DEFAULT FALSE;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='stores' AND column_name='fiscal_ip') THEN
+          ALTER TABLE stores ADD COLUMN fiscal_ip TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='stores' AND column_name='fiscal_port') THEN
+          ALTER TABLE stores ADD COLUMN fiscal_port INTEGER DEFAULT 4444;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='stores' AND column_name='fiscal_departments') THEN
+          ALTER TABLE stores ADD COLUMN fiscal_departments JSONB DEFAULT '[]';
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='stores' AND column_name='pos_bridge_token') THEN
+          ALTER TABLE stores ADD COLUMN pos_bridge_token TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='stores' AND column_name='pos_bridge_settings') THEN
+          ALTER TABLE stores ADD COLUMN pos_bridge_settings JSONB DEFAULT '{}';
+        END IF;
       END $$;
+
+      CREATE TABLE IF NOT EXISTS pos_bridge_agents (
+        id SERIAL PRIMARY KEY,
+        store_id INTEGER NOT NULL UNIQUE REFERENCES stores(id) ON DELETE CASCADE,
+        agent_version TEXT,
+        transport TEXT DEFAULT 'long_poll',
+        hostname TEXT,
+        os_platform TEXT,
+        device_brand TEXT,
+        device_ip TEXT,
+        device_port INTEGER DEFAULT 4444,
+        online BOOLEAN DEFAULT FALSE,
+        pc_mode BOOLEAN DEFAULT FALSE,
+        paper_ok BOOLEAN DEFAULT TRUE,
+        fiscal_ready BOOLEAN DEFAULT FALSE,
+        last_error_code TEXT,
+        last_error_message TEXT,
+        telemetry JSONB DEFAULT '{}'::jsonb,
+        last_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS pos_bridge_commands (
+        id SERIAL PRIMARY KEY,
+        store_id INTEGER NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+        client_tx_id TEXT,
+        command TEXT NOT NULL,
+        device_brand TEXT,
+        device_ip TEXT,
+        device_port INTEGER DEFAULT 4444,
+        protocol TEXT DEFAULT 'GMP3_TCP',
+        payload JSONB DEFAULT '{}'::jsonb,
+        gmp3_hex TEXT,
+        status TEXT DEFAULT 'pending',
+        result JSONB,
+        receipt_no TEXT,
+        z_no TEXT,
+        eku_no TEXT,
+        auth_code TEXT,
+        error_code TEXT,
+        error_message TEXT,
+        sale_id INTEGER,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        completed_at TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_pos_bridge_cmd_store_status ON pos_bridge_commands (store_id, status, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_pos_bridge_cmd_client_tx ON pos_bridge_commands (store_id, client_tx_id);
+      CREATE INDEX IF NOT EXISTS idx_sales_store_client_tx ON sales (store_id, client_tx_id);
     `);
     console.log("Additional updates completed.");
 

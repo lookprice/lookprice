@@ -21,6 +21,7 @@ router.post("/", async (req: any, res) => {
         name, parent_id, logo_url, favicon_url, primary_color, background_image_url, about_text, description,
         phone, address, email, page_layout, menu_links, footer_links, store_type, sub_sector,
         hero_title, hero_subtitle, hero_image_url, instagram_url, facebook_url, twitter_url, whatsapp_number,
+        fiscal_brand, fiscal_terminal_id, fiscal_active, fiscal_ip, fiscal_port, fiscal_departments, pos_bridge_token, pos_bridge_settings,
         branding, payment_settings, meta_settings, einvoice_settings,
         hepsiburada_settings, trendyol_settings, amazon_settings, pazarama_settings, n11_settings,
         google_merchant_settings, instagram_settings
@@ -273,6 +274,67 @@ router.post("/", async (req: any, res) => {
         : updatedBranding.page_layout_settings || {};
     updatedBranding.page_layout_settings = resolvedPageLayoutSettings;
 
+    // Fiscal & Universal POS Bridge settings resolution
+    const fiscal_brand = cleanedBody.fiscal_brand !== undefined
+      ? cleanedBody.fiscal_brand
+      : (existingStore.fiscal_brand || updatedBranding.fiscal_brand || 'hugin_t300_spectra');
+    const fiscal_terminal_id = cleanedBody.fiscal_terminal_id !== undefined
+      ? cleanedBody.fiscal_terminal_id
+      : (existingStore.fiscal_terminal_id || updatedBranding.fiscal_terminal_id || '');
+    const fiscal_active = cleanedBody.fiscal_active !== undefined
+      ? Boolean(cleanedBody.fiscal_active)
+      : Boolean(existingStore.fiscal_active ?? updatedBranding.fiscal_active ?? false);
+    const fiscal_ip = cleanedBody.fiscal_ip !== undefined
+      ? cleanedBody.fiscal_ip
+      : (existingStore.fiscal_ip || updatedBranding.fiscal_ip || '');
+    const parsedFiscalPort = parseInt(String(cleanedBody.fiscal_port !== undefined ? cleanedBody.fiscal_port : (existingStore.fiscal_port || updatedBranding.fiscal_port || 4444)), 10);
+    const fiscal_port = !isNaN(parsedFiscalPort) && parsedFiscalPort > 0 ? parsedFiscalPort : 4444;
+
+    let existingFiscalDepts = existingStore.fiscal_departments || existingBranding.fiscal_departments || [];
+    if (typeof existingFiscalDepts === 'string') {
+      try { existingFiscalDepts = JSON.parse(existingFiscalDepts); } catch { existingFiscalDepts = []; }
+    }
+    const fiscal_departments = Array.isArray(cleanedBody.fiscal_departments)
+      ? cleanedBody.fiscal_departments
+      : (Array.isArray(existingFiscalDepts) ? existingFiscalDepts : []);
+
+    let existingBridgeSettings = existingStore.pos_bridge_settings || existingBranding.pos_bridge_settings || {};
+    if (typeof existingBridgeSettings === 'string') {
+      try { existingBridgeSettings = JSON.parse(existingBridgeSettings); } catch { existingBridgeSettings = {}; }
+    }
+    const incomingBridgeSettings = (cleanedBody.pos_bridge_settings && typeof cleanedBody.pos_bridge_settings === 'object')
+      ? cleanedBody.pos_bridge_settings
+      : {};
+    const mergedBridge = {
+      ...existingBridgeSettings,
+      ...incomingBridgeSettings,
+      enabled: cleanedBody.pos_bridge_enabled !== undefined ? Boolean(cleanedBody.pos_bridge_enabled) : (incomingBridgeSettings.enabled ?? existingBridgeSettings.enabled ?? Boolean(updatedBranding.pos_bridge_enabled)),
+      bridge_ip: cleanedBody.pos_bridge_ip !== undefined ? cleanedBody.pos_bridge_ip : (incomingBridgeSettings.bridge_ip ?? existingBridgeSettings.bridge_ip ?? updatedBranding.pos_bridge_ip ?? '127.0.0.1'),
+      bridge_port: cleanedBody.pos_bridge_port !== undefined ? cleanedBody.pos_bridge_port : (incomingBridgeSettings.bridge_port ?? existingBridgeSettings.bridge_port ?? updatedBranding.pos_bridge_port ?? '1616')
+    };
+    if (!mergedBridge.card_okc_mode) {
+      mergedBridge.card_okc_mode = mergedBridge.fiscal_on_card === false ? 'no_fiscal_on_card' : 'integrated_eft_pos';
+    } else if (mergedBridge.card_okc_mode === 'no_fiscal_on_card') {
+      mergedBridge.fiscal_on_card = false;
+    } else {
+      mergedBridge.fiscal_on_card = true;
+    }
+    const pos_bridge_settings = mergedBridge;
+
+    updatedBranding.fiscal_brand = fiscal_brand;
+    updatedBranding.fiscal_terminal_id = fiscal_terminal_id;
+    updatedBranding.fiscal_active = fiscal_active;
+    updatedBranding.fiscal_ip = fiscal_ip;
+    updatedBranding.fiscal_port = fiscal_port;
+    updatedBranding.fiscal_departments = fiscal_departments;
+    updatedBranding.pos_bridge_settings = pos_bridge_settings;
+    updatedBranding.pos_bridge_enabled = pos_bridge_settings.enabled;
+    updatedBranding.pos_bridge_ip = pos_bridge_settings.bridge_ip;
+    updatedBranding.pos_bridge_port = pos_bridge_settings.bridge_port;
+    if (existingStore.pos_bridge_token) {
+      updatedBranding.pos_bridge_token = existingStore.pos_bridge_token;
+    }
+
     await pool.query(`
       UPDATE stores 
       SET 
@@ -314,7 +376,14 @@ router.post("/", async (req: any, res) => {
         country = $37,
         google_merchant_settings = $38,
         instagram_settings = $39,
-        page_layout_settings = $40
+        page_layout_settings = $40,
+        fiscal_brand = $41,
+        fiscal_terminal_id = $42,
+        fiscal_active = $43,
+        fiscal_ip = $44,
+        fiscal_port = $45,
+        fiscal_departments = $46,
+        pos_bridge_settings = $47
       WHERE id = $24
     `, [
       name,
@@ -356,7 +425,14 @@ router.post("/", async (req: any, res) => {
       country,
       JSON.stringify(mergedGoogleMerchantSettings),
       JSON.stringify(mergedInstagramSettings),
-      JSON.stringify(resolvedPageLayoutSettings)
+      JSON.stringify(resolvedPageLayoutSettings),
+      fiscal_brand,
+      fiscal_terminal_id,
+      fiscal_active,
+      fiscal_ip,
+      fiscal_port,
+      JSON.stringify(fiscal_departments),
+      JSON.stringify(pos_bridge_settings)
     ]);
 
     // Audit Log: Record that a user updated store settings/API keys

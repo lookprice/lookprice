@@ -829,6 +829,39 @@ export const api = {
     }),
   deleteOperatorNote: (id: number, storeId?: number) =>
     api.delete(`/api/store/tasks-notes/notes/${id}${storeId ? `?storeId=${storeId}` : ""}`),
+
+  // Universal YN ÖKC / Hugin T300 Spectra & Edge Hardware Bridge
+  getPosBridgeCatalog: () => api.get("/api/pos-bridge/catalog"),
+  getPosBridgeStatus: (storeId?: number) =>
+    api.get(`/api/pos-bridge/status${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  regeneratePosBridgeToken: (storeId?: number) =>
+    api.post(`/api/pos-bridge/pairing-token/regenerate${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { storeId }),
+  auditPosKdvDepartments: (departments: any[], storeId?: number) =>
+    api.post(`/api/pos-bridge/kdv-audit${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { departments, storeId }),
+  sendPosBridgeCommand: (data: {
+    command: 'PING_STATUS' | 'SALE' | 'PARTIAL_PAYMENT' | 'LAST_TX' | 'X_REPORT' | 'Z_REPORT' | 'VOID';
+    clientTxId?: string;
+    items?: any[];
+    payments?: any[];
+    totalAmount?: number;
+    currency?: string;
+    tableNumber?: string | null;
+    saleId?: number | null;
+    cardMode?: 'integrated_eft_pos' | 'fiscal_only_external_card' | 'no_fiscal_on_card' | string;
+    simulate?: boolean;
+    simulateScenario?: string | null;
+    timeoutMs?: number;
+    deviceIp?: string;
+    devicePort?: number;
+  }, storeId?: number) =>
+    api.post(`/api/pos-bridge/command${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { ...data, storeId }),
+  getPosBridgeDownloadUrl: (storeId?: number) => {
+    const token = localStorage.getItem("token") || sessionStorage.getItem("token") || "";
+    const params = new URLSearchParams();
+    if (storeId !== undefined && storeId !== null) params.set("storeId", String(storeId));
+    if (token) params.set("jwt", token);
+    return `/api/pos-bridge/download-agent?${params.toString()}`;
+  },
 };
 
 

@@ -7,7 +7,10 @@ import {
   QrCode, 
   Calendar, 
   Printer, 
-  Flame 
+  Flame,
+  Calculator,
+  PauseCircle,
+  Zap
 } from "lucide-react";
 
 export interface PosHeaderToolbarProps {
@@ -31,7 +34,19 @@ export interface PosHeaderToolbarProps {
   setShowPrinterDiagnosticModal: (show: boolean) => void;
   setShowHappyHourModal: (show: boolean) => void;
   isHappyHourActive: boolean;
-  bridgeDetected: boolean;
+  bridgeDetected: boolean | null;
+  bridgeHealth?: {
+    online?: boolean;
+    pcMode?: boolean;
+    paperOk?: boolean;
+    transport?: string;
+    simulated?: boolean;
+  } | null;
+  parkedCount?: number;
+  onOpenParkedCarts?: () => void;
+  onOpenQuickKeysManager?: () => void;
+  touchNumpadEnabled?: boolean;
+  onToggleTouchNumpad?: () => void;
 }
 
 export const PosHeaderToolbar: React.FC<PosHeaderToolbarProps> = ({
@@ -55,7 +70,13 @@ export const PosHeaderToolbar: React.FC<PosHeaderToolbarProps> = ({
   setShowPrinterDiagnosticModal,
   setShowHappyHourModal,
   isHappyHourActive,
-  bridgeDetected
+  bridgeDetected,
+  bridgeHealth,
+  parkedCount = 0,
+  onOpenParkedCarts,
+  onOpenQuickKeysManager,
+  touchNumpadEnabled = true,
+  onToggleTouchNumpad
 }) => {
   return (
     <div className="bg-white px-3.5 py-1.5 rounded-xl border border-slate-200 shadow-2xs flex flex-wrap items-center justify-between gap-2 shrink-0">
@@ -123,7 +144,63 @@ export const PosHeaderToolbar: React.FC<PosHeaderToolbarProps> = ({
         </div>
       </div>
       
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
+        {/* Parked / Held Customer Carts Badge */}
+        {onOpenParkedCarts && (
+          <button
+            type="button"
+            onClick={onOpenParkedCarts}
+            className={`p-1.5 rounded-lg border text-xs font-black transition-all shadow-2xs active:scale-95 cursor-pointer flex items-center gap-1 ${
+              parkedCount > 0
+                ? 'bg-amber-100 hover:bg-amber-200 text-amber-950 border-amber-300'
+                : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+            }`}
+            title={lang === 'tr' ? "Askıya alınan müşteri sepetlerini aç" : "Open parked carts"}
+          >
+            <PauseCircle className={`h-3.5 w-3.5 ${parkedCount > 0 ? 'text-amber-700' : 'text-slate-500'}`} />
+            <span>{lang === 'tr' ? 'Askıda' : 'Parked'}</span>
+            {parkedCount > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full bg-amber-600 text-white text-[10px] font-black leading-tight">
+                {parkedCount}
+              </span>
+            )}
+          </button>
+        )}
+
+        {/* Quick Keys Manager Button */}
+        {onOpenQuickKeysManager && (
+          <button
+            type="button"
+            onClick={onOpenQuickKeysManager}
+            className="p-1.5 bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200 rounded-lg text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer flex items-center gap-1"
+            title={lang === 'tr' ? "Barkodsuz Hızlı Tuşlar & Yerleşim" : "Quick Keys & Layout"}
+          >
+            <Zap className="h-3.5 w-3.5 text-amber-600" />
+            <span className="hidden sm:inline">{lang === 'tr' ? 'Hızlı Tuşlar' : 'Quick Keys'}</span>
+          </button>
+        )}
+
+        {/* Touch Numpad Toggle */}
+        {onToggleTouchNumpad && (
+          <button
+            type="button"
+            onClick={onToggleTouchNumpad}
+            className={`p-1.5 rounded-lg border text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer flex items-center gap-1 ${
+              touchNumpadEnabled
+                ? 'bg-sky-50 hover:bg-sky-100 text-sky-900 border-sky-300'
+                : 'bg-slate-50 hover:bg-slate-100 text-slate-500 border-slate-200'
+            }`}
+            title={
+              lang === 'tr'
+                ? "Dokunmatik Numpad (Fiyat/Adet/Tutar alanlarına tıklandığında Windows klavye yerine ekran içi Numpad açar)"
+                : "Toggle Touch Numpad"
+            }
+          >
+            <Calculator className={`h-3.5 w-3.5 ${touchNumpadEnabled ? 'text-sky-700' : 'text-slate-400'}`} />
+            <span className="hidden md:inline">Numpad</span>
+          </button>
+        )}
+
         {/* Actions Menu for both Cafe and Retail */}
         <div className="flex items-center gap-2">
           {/* Always visible "Günlük Kasa Raporu" button */}
@@ -175,7 +252,7 @@ export const PosHeaderToolbar: React.FC<PosHeaderToolbarProps> = ({
                   setShowPrinterDiagnosticModal(true);
                 }}
                 className="p-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg transition-all flex items-center justify-center shadow-2xs active:scale-95 cursor-pointer"
-                title={lang === 'tr' ? "Yazıcı Tanısı" : "Printer Diagnosis"}
+                title={lang === 'tr' ? "Yazıcı & ÖKC Tanısı" : "Printer & OKC Diagnosis"}
               >
                 <Printer className="h-4 w-4" />
               </button>
@@ -197,17 +274,54 @@ export const PosHeaderToolbar: React.FC<PosHeaderToolbarProps> = ({
           )}
         </div>
 
-        {/* Bridge Status Indicator */}
-        {branding?.pos_bridge_enabled && (
-          <div className={`px-2 py-0.5 rounded-lg border text-[10px] font-bold flex items-center gap-1.5 ${
-            bridgeDetected 
-              ? 'bg-emerald-50 border-emerald-100 text-emerald-700' 
-              : 'bg-rose-50 border-rose-100 text-rose-700'
-          }`}>
-            <span className={`h-1.5 w-1.5 rounded-full ${bridgeDetected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></span>
-            {bridgeDetected ? (lang === 'tr' ? 'POS Köprüsü' : 'POS Bridge') : (lang === 'tr' ? 'Köprü Yok' : 'Disconnected')}
-          </div>
-        )}
+        {/* Bridge / OKC Status Indicator */}
+        {(branding?.pos_bridge_enabled || branding?.fiscal_active) && (() => {
+          const isPaperOut = bridgeHealth?.paperOk === false;
+          const isSim = Boolean(branding?.pos_bridge_settings?.allow_simulation && !bridgeDetected && !bridgeHealth?.online);
+          const isReady = Boolean(bridgeDetected || bridgeHealth?.online) && !isPaperOut;
+          const cardMode = branding?.pos_bridge_settings?.card_okc_mode ||
+            (branding?.pos_bridge_settings?.fiscal_on_card === false ? 'no_fiscal_on_card' : 'integrated_eft_pos');
+          return (
+            <button
+              type="button"
+              onClick={() => {
+                setPrinterDiagStep('idle');
+                setShowPrinterDiagnosticModal(true);
+              }}
+              className={`px-2 py-0.5 rounded-lg border text-[10px] font-bold flex items-center gap-1.5 cursor-pointer transition-all ${
+                isPaperOut
+                  ? 'bg-amber-50 border-amber-200 text-amber-800'
+                  : isReady
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                  : isSim
+                  ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                  : 'bg-rose-50 border-rose-200 text-rose-700'
+              }`}
+              title={lang === 'tr' ? "ÖKC & Köprü Tanı Ekranını Aç" : "Open OKC & Bridge Diagnostics"}
+            >
+              <span className={`h-1.5 w-1.5 rounded-full ${
+                isPaperOut ? 'bg-amber-500 animate-ping' : isReady ? 'bg-emerald-500 animate-pulse' : isSim ? 'bg-indigo-500' : 'bg-rose-500'
+              }`}></span>
+              {isPaperOut
+                ? (lang === 'tr' ? 'ÖKC Kağıt Bitti' : 'Paper Out')
+                : isReady
+                ? (lang === 'tr' ? 'ÖKC Köprüsü Hazır' : 'OKC Ready')
+                : isSim
+                ? (lang === 'tr' ? 'ÖKC Simülasyon' : 'OKC Sim')
+                : (lang === 'tr' ? 'Köprü Yok' : 'Disconnected')}
+              {cardMode === 'fiscal_only_external_card' && (
+                <span className="px-1 py-0.2 bg-sky-100 text-sky-900 border border-sky-300 rounded text-[9px] font-black">
+                  Sadece Yazarkasa
+                </span>
+              )}
+              {cardMode === 'no_fiscal_on_card' && (
+                <span className="px-1 py-0.2 bg-slate-200 text-slate-900 border border-slate-300 rounded text-[9px] font-black">
+                  Kartta ÖKC Yok
+                </span>
+              )}
+            </button>
+          );
+        })()}
       </div>
     </div>
   );

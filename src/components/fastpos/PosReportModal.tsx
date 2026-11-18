@@ -18,10 +18,14 @@ import {
 } from "lucide-react";
 import { getStoreWaiters } from "../../utils/staffHelpers";
 
+import { api } from "../../services/api";
+import { toast } from "sonner";
+
 export interface PosReportModalProps {
   isOpen: boolean;
   onClose: () => void;
   lang: string;
+  storeId?: number;
   branding?: any;
   isHotelActive?: boolean;
   reportStartDate: string;
@@ -46,6 +50,7 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({
   isOpen,
   onClose,
   lang,
+  storeId,
   branding,
   isHotelActive,
   reportStartDate,
@@ -74,7 +79,30 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({
   const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.store_type === 'horeca' || branding?.store_type === 'horecalp' || branding?.page_layout_settings?.sector === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'horeca' || effectiveHotelActive;
 
   const [activeReportTab, setActiveReportTab] = useState<'combined' | 'hotel' | 'restaurant'>('combined');
+  const [sendingOkcReport, setSendingOkcReport] = useState<'X_REPORT' | 'Z_REPORT' | null>(null);
   const currentTab = effectiveHotelActive ? activeReportTab : 'restaurant';
+  const hasOkcBridge = Boolean(branding?.fiscal_active || branding?.pos_bridge_enabled);
+
+  const handleSendOkcReport = async (cmd: 'X_REPORT' | 'Z_REPORT') => {
+    if (!storeId) return;
+    try {
+      setSendingOkcReport(cmd);
+      const res = await api.sendPosBridgeCommand({
+        command: cmd,
+        deviceIp: branding?.fiscal_ip || '127.0.0.1',
+        devicePort: Number(branding?.fiscal_port || 4444),
+        simulate: Boolean(branding?.pos_bridge_settings?.allow_simulation),
+        timeoutMs: 15000
+      }, storeId);
+      toast.success(
+        `${cmd === 'Z_REPORT' ? 'ÖKC Z Raporu' : 'ÖKC X Raporu'} alındı: ${res?.fiscal?.receiptNo || res?.fiscal?.zNo || 'OK'}`
+      );
+    } catch (err: any) {
+      toast.error(err?.message || "ÖKC rapor komutu başarısız.");
+    } finally {
+      setSendingOkcReport(null);
+    }
+  };
 
   const getPaymentSummary = (paymentsList: any[], methods: string[]) => {
     const currencyMap: { [key: string]: number } = {};
@@ -707,6 +735,29 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({
             <FileText className="h-4 w-4" />
             <span>{lang === 'tr' ? 'A4 Detaylı Rapor Yazdır' : 'Print A4 PDF Report'}</span>
           </button>
+
+          {hasOkcBridge && storeId && (
+            <>
+              <button
+                type="button"
+                disabled={!!sendingOkcReport}
+                onClick={() => handleSendOkcReport('X_REPORT')}
+                className="py-2.5 px-3.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
+              >
+                <FileText className="h-4 w-4" />
+                <span>{sendingOkcReport === 'X_REPORT' ? '...' : 'ÖKC X Raporu'}</span>
+              </button>
+              <button
+                type="button"
+                disabled={!!sendingOkcReport}
+                onClick={() => handleSendOkcReport('Z_REPORT')}
+                className="py-2.5 px-4 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
+              >
+                <Printer className="h-4 w-4" />
+                <span>{sendingOkcReport === 'Z_REPORT' ? 'Gönderiliyor...' : 'ÖKC Z Raporu (Gün Sonu)'}</span>
+              </button>
+            </>
+          )}
 
           <button 
             onClick={onClose}

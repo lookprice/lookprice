@@ -167,11 +167,36 @@ router.get("/export", async (req: any, res) => {
 // Fast POS Sale
 router.post("/pos", async (req: any, res) => {
   const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
-  const { items, total, paymentMethod, customerName, notes, currency, exchangeRate, status, tableNumber } = req.body;
+  const { items, total, paymentMethod, customerName, notes, currency, exchangeRate, status, tableNumber, clientTxId, fiscal } = req.body;
   const saleStatus = status || 'completed';
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+
+    // Idempotency guard: prevent double stock deduction when client retries with same clientTxId
+    if (clientTxId && saleStatus !== 'pending') {
+      const dupRes = await client.query(
+        "SELECT id, fiscal_receipt_no, fiscal_z_no, fiscal_eku_no, fiscal_status FROM sales WHERE store_id = $1 AND client_tx_id = $2 LIMIT 1",
+        [storeId, String(clientTxId)]
+      );
+      if (dupRes.rows.length > 0) {
+        const existingSale = dupRes.rows[0];
+        await client.query("ROLLBACK");
+        return res.json({
+          success: true,
+          idempotent: true,
+          saleId: existingSale.id,
+          fiscal: existingSale.fiscal_receipt_no ? {
+            success: true,
+            receiptNo: existingSale.fiscal_receipt_no,
+            zNo: existingSale.fiscal_z_no,
+            ekuNo: existingSale.fiscal_eku_no,
+            status: existingSale.fiscal_status || 'verified',
+            clientTxId
+          } : null
+        });
+      }
+    }
     
     let resolvedTableId = null;
     if (customerName) {
@@ -186,8 +211,8 @@ router.post("/pos", async (req: any, res) => {
     }
 
     const saleRes = await client.query(
-      "INSERT INTO sales (store_id, total_amount, currency, exchange_rate, status, customer_name, payment_method, notes, restaurant_table_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id",
-      [storeId, total || 0, currency || 'TRY', exchangeRate || 1, saleStatus, customerName || 'Hızlı Satış', paymentMethod || 'cash', notes || 'Hızlı POS Satışı', resolvedTableId]
+      "INSERT INTO sales (store_id, total_amount, currency, exchange_rate, status, customer_name, payment_method, notes, restaurant_table_id, client_tx_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id",
+      [storeId, total || 0, currency || 'TRY', exchangeRate || 1, saleStatus, customerName || 'Hızlı Satış', paymentMethod || 'cash', notes || 'Hızlı POS Satışı', resolvedTableId, clientTxId || null]
     );
     const saleId = saleRes.rows[0].id;
 
@@ -357,23 +382,58 @@ router.post("/pos", async (req: any, res) => {
       }
     }
 
-    let fiscalResult = null;
+    let fiscalResult: any = null;
     if (saleStatus !== 'pending') {
       const storeBrandingRes = await client.query("SELECT fiscal_active, fiscal_brand, fiscal_terminal_id FROM stores WHERE id = $1", [storeId]);
       const branding = storeBrandingRes.rows[0];
-      
-      if (branding && branding.fiscal_active) {
+
+      let resolvedFiscal = (fiscal && typeof fiscal === 'object' && fiscal.receiptNo) ? fiscal : null;
+      if (!resolvedFiscal && clientTxId) {
+        const cmdRes = await client.query(
+          `SELECT receipt_no, z_no, eku_no, auth_code, completed_at
+           FROM pos_bridge_commands
+           WHERE store_id = $1 AND client_tx_id = $2 AND status = 'completed'
+           ORDER BY completed_at DESC LIMIT 1`,
+          [storeId, String(clientTxId)]
+        );
+        if (cmdRes.rows.length > 0) {
+          const r = cmdRes.rows[0];
+          resolvedFiscal = {
+            success: true,
+            receiptNo: r.receipt_no,
+            zNo: r.z_no,
+            ekuNo: r.eku_no,
+            authCode: r.auth_code,
+            brand: branding?.fiscal_brand,
+            terminal: branding?.fiscal_terminal_id,
+            clientTxId,
+            timestamp: r.completed_at || new Date().toISOString()
+          };
+        }
+      }
+
+      if (resolvedFiscal && resolvedFiscal.receiptNo) {
+        const fiscalStatusLabel = resolvedFiscal.simulated ? 'simulated' : 'verified';
         fiscalResult = {
           success: true,
-          receiptNo: `F-${Math.floor(Math.random() * 1000000)}`,
-          zNo: `Z-${Math.floor(Math.random() * 10000)}`,
-          brand: branding.fiscal_brand,
-          terminal: branding.fiscal_terminal_id,
-          timestamp: new Date().toISOString()
+          receiptNo: resolvedFiscal.receiptNo,
+          zNo: resolvedFiscal.zNo || null,
+          ekuNo: resolvedFiscal.ekuNo || null,
+          authCode: resolvedFiscal.authCode || null,
+          brand: resolvedFiscal.brand || branding?.fiscal_brand,
+          terminal: resolvedFiscal.terminal || branding?.fiscal_terminal_id,
+          simulated: Boolean(resolvedFiscal.simulated),
+          status: fiscalStatusLabel,
+          clientTxId: clientTxId || resolvedFiscal.clientTxId || null,
+          timestamp: resolvedFiscal.timestamp || new Date().toISOString()
         };
-        
-        const fiscalNote = `\n[FISCAL] Receipt: ${fiscalResult.receiptNo}, Z-No: ${fiscalResult.zNo}, Brand: ${branding.fiscal_brand}`;
-        await client.query("UPDATE sales SET notes = COALESCE(notes, '') || $1 WHERE id = $2", [fiscalNote, saleId]);
+        const fiscalNote = `\n[FISCAL:${fiscalStatusLabel.toUpperCase()}] Receipt: ${fiscalResult.receiptNo}${fiscalResult.zNo ? `, Z-No: ${fiscalResult.zNo}` : ''}, Brand: ${fiscalResult.brand || 'OKC'}`;
+        await client.query(
+          "UPDATE sales SET notes = COALESCE(notes, '') || $1, fiscal_receipt_no = $2, fiscal_z_no = $3, fiscal_eku_no = $4, fiscal_status = $5 WHERE id = $6",
+          [fiscalNote, fiscalResult.receiptNo, fiscalResult.zNo, fiscalResult.ekuNo, fiscalStatusLabel, saleId]
+        );
+      } else if (branding && branding.fiscal_active) {
+        await client.query("UPDATE sales SET fiscal_status = 'unverified_no_bridge' WHERE id = $1", [saleId]);
       }
 
       await client.query(
@@ -544,8 +604,8 @@ router.post("/:id/update-pending", async (req: any, res) => {
 // Complete Sale
 router.post("/:id/complete", async (req: any, res) => {
   const { id } = req.params;
-  const { paymentMethod, payments, companyId, dueDate } = req.body;
-  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { paymentMethod, payments, companyId, dueDate, clientTxId, fiscal } = req.body;
+  const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -555,6 +615,21 @@ router.post("/:id/complete", async (req: any, res) => {
       throw new Error("Sale not found");
     }
     const sale = saleRes.rows[0];
+    if (sale.status === 'completed' && clientTxId && sale.client_tx_id === String(clientTxId)) {
+      await client.query("ROLLBACK");
+      return res.json({
+        success: true,
+        idempotent: true,
+        fiscal: sale.fiscal_receipt_no ? {
+          success: true,
+          receiptNo: sale.fiscal_receipt_no,
+          zNo: sale.fiscal_z_no,
+          ekuNo: sale.fiscal_eku_no,
+          status: sale.fiscal_status || 'verified',
+          clientTxId
+        } : null
+      });
+    }
     if (!['pending', 'processing', 'shipped', 'delivered'].includes(sale.status)) {
       throw new Error("Sale is not in a completable status");
     }
@@ -751,20 +826,58 @@ router.post("/:id/complete", async (req: any, res) => {
 
     const storeBrandingRes = await client.query("SELECT fiscal_active, fiscal_brand, fiscal_terminal_id FROM stores WHERE id = $1", [storeId]);
     const branding = storeBrandingRes.rows[0];
-    let fiscalResult = null;
-    
-    if (branding && branding.fiscal_active) {
+    let fiscalResult: any = null;
+
+    let resolvedFiscal = (fiscal && typeof fiscal === 'object' && fiscal.receiptNo) ? fiscal : null;
+    if (!resolvedFiscal && clientTxId) {
+      const cmdRes = await client.query(
+        `SELECT receipt_no, z_no, eku_no, auth_code, completed_at
+         FROM pos_bridge_commands
+         WHERE store_id = $1 AND client_tx_id = $2 AND status = 'completed'
+         ORDER BY completed_at DESC LIMIT 1`,
+        [storeId, String(clientTxId)]
+      );
+      if (cmdRes.rows.length > 0) {
+        const r = cmdRes.rows[0];
+        resolvedFiscal = {
+          success: true,
+          receiptNo: r.receipt_no,
+          zNo: r.z_no,
+          ekuNo: r.eku_no,
+          authCode: r.auth_code,
+          brand: branding?.fiscal_brand,
+          terminal: branding?.fiscal_terminal_id,
+          clientTxId,
+          timestamp: r.completed_at || new Date().toISOString()
+        };
+      }
+    }
+
+    if (resolvedFiscal && resolvedFiscal.receiptNo) {
+      const fiscalStatusLabel = resolvedFiscal.simulated ? 'simulated' : 'verified';
       fiscalResult = {
         success: true,
-        receiptNo: `F-${Math.floor(Math.random() * 1000000)}`,
-        zNo: `Z-${Math.floor(Math.random() * 10000)}`,
-        brand: branding.fiscal_brand,
-        terminal: branding.fiscal_terminal_id,
-        timestamp: new Date().toISOString()
+        receiptNo: resolvedFiscal.receiptNo,
+        zNo: resolvedFiscal.zNo || null,
+        ekuNo: resolvedFiscal.ekuNo || null,
+        authCode: resolvedFiscal.authCode || null,
+        brand: resolvedFiscal.brand || branding?.fiscal_brand,
+        terminal: resolvedFiscal.terminal || branding?.fiscal_terminal_id,
+        simulated: Boolean(resolvedFiscal.simulated),
+        status: fiscalStatusLabel,
+        clientTxId: clientTxId || resolvedFiscal.clientTxId || null,
+        timestamp: resolvedFiscal.timestamp || new Date().toISOString()
       };
-      
-      const fiscalNote = `\n[FISCAL] Receipt: ${fiscalResult.receiptNo}, Z-No: ${fiscalResult.zNo}, Brand: ${fiscalResult.brand}`;
-      await client.query("UPDATE sales SET notes = COALESCE(notes, '') || $1 WHERE id = $2", [fiscalNote, id]);
+      const fiscalNote = `\n[FISCAL:${fiscalStatusLabel.toUpperCase()}] Receipt: ${fiscalResult.receiptNo}${fiscalResult.zNo ? `, Z-No: ${fiscalResult.zNo}` : ''}, Brand: ${fiscalResult.brand || 'OKC'}`;
+      await client.query(
+        "UPDATE sales SET notes = COALESCE(notes, '') || $1, client_tx_id = COALESCE($2, client_tx_id), fiscal_receipt_no = $3, fiscal_z_no = $4, fiscal_eku_no = $5, fiscal_status = $6 WHERE id = $7",
+        [fiscalNote, clientTxId || null, fiscalResult.receiptNo, fiscalResult.zNo, fiscalResult.ekuNo, fiscalStatusLabel, id]
+      );
+    } else if (branding && branding.fiscal_active) {
+      await client.query(
+        "UPDATE sales SET client_tx_id = COALESCE($1, client_tx_id), fiscal_status = 'unverified_no_bridge' WHERE id = $2",
+        [clientTxId || null, id]
+      );
     }
 
     if (sale.restaurant_table_id) {

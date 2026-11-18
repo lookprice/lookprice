@@ -59,6 +59,10 @@ import { PosProductGridView } from "./fastpos/PosProductGridView";
 import { PosOpenBillsPanel } from "./fastpos/PosOpenBillsPanel";
 import { PosCartPanel } from "./fastpos/PosCartPanel";
 import { PosModalsContainer } from "./fastpos/PosModalsContainer";
+import { normalizeDepartments, resolveDepartmentForTaxRate } from "../data/posDevices";
+import { PosQuickKeysBar, PosQuickKey, QuickKeysPlacement } from "./fastpos/PosQuickKeysBar";
+import { ParkedCartEntry } from "./fastpos/PosParkedCartsModal";
+import { TouchNumpadConfig } from "./fastpos/PosTouchNumpadModal";
 
 interface FastPosTabProps {
   storeId?: number;
@@ -111,7 +115,86 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
   const [lastCart, setLastCart] = useState<any[]>([]);
   const [posStatus, setPosStatus] = useState<'idle' | 'waiting' | 'approved' | 'failed'>('idle');
   const [posMessage, setPosMessage] = useState("");
+  const [posErrorCode, setPosErrorCode] = useState<string | null>(null);
   const [bridgeDetected, setBridgeDetected] = useState<boolean | null>(null);
+  const [bridgeHealth, setBridgeHealth] = useState<any>(null);
+  const [pendingPosRecovery, setPendingPosRecovery] = useState<{
+    clientTxId: string;
+    commandPayload: {
+      command: 'SALE' | 'PARTIAL_PAYMENT';
+      items: any[];
+      payments: Array<{ method: string; amount: number }>;
+      totalAmount: number;
+      tableNumber?: string | null;
+      saleId?: number | null;
+    };
+    onFiscalApproved: (fiscal: any, clientTxId: string) => Promise<void>;
+  } | null>(null);
+
+  // Barcode-free Quick Keys, Parked Carts, & Built-in Touch Numpad states
+  const [quickKeys, setQuickKeys] = useState<PosQuickKey[]>(() => {
+    if (Array.isArray(branding?.pos_quick_keys)) return branding.pos_quick_keys;
+    try {
+      const saved = localStorage.getItem(`pos_quick_keys_${storeId || 'default'}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [quickKeysPlacement, setQuickKeysPlacement] = useState<QuickKeysPlacement>(() => {
+    if (branding?.pos_quick_keys_position) return branding.pos_quick_keys_position;
+    try {
+      const saved = localStorage.getItem(`pos_quick_keys_pos_${storeId || 'default'}`) as QuickKeysPlacement | null;
+      return saved || 'grid_top';
+    } catch {
+      return 'grid_top';
+    }
+  });
+
+  const [parkedCarts, setParkedCarts] = useState<ParkedCartEntry[]>(() => {
+    if (Array.isArray(branding?.pos_parked_carts)) return branding.pos_parked_carts;
+    try {
+      const saved = localStorage.getItem(`pos_parked_carts_${storeId || 'default'}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [touchNumpadEnabled, setTouchNumpadEnabled] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem(`pos_touch_numpad_${storeId || 'default'}`);
+      return saved !== null ? JSON.parse(saved) : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const [showQuickKeysManager, setShowQuickKeysManager] = useState(false);
+  const [showParkedModal, setShowParkedModal] = useState(false);
+  const [numpadConfig, setNumpadConfig] = useState<TouchNumpadConfig | null>(null);
+
+  useEffect(() => {
+    if (Array.isArray(branding?.pos_quick_keys)) {
+      setQuickKeys(branding.pos_quick_keys);
+      try {
+        localStorage.setItem(`pos_quick_keys_${storeId || 'default'}`, JSON.stringify(branding.pos_quick_keys));
+      } catch {}
+    }
+    if (branding?.pos_quick_keys_position) {
+      setQuickKeysPlacement(branding.pos_quick_keys_position);
+      try {
+        localStorage.setItem(`pos_quick_keys_pos_${storeId || 'default'}`, branding.pos_quick_keys_position);
+      } catch {}
+    }
+    if (Array.isArray(branding?.pos_parked_carts)) {
+      setParkedCarts(branding.pos_parked_carts);
+      try {
+        localStorage.setItem(`pos_parked_carts_${storeId || 'default'}`, JSON.stringify(branding.pos_parked_carts));
+      } catch {}
+    }
+  }, [storeId, branding?.pos_quick_keys, branding?.pos_quick_keys_position, branding?.pos_parked_carts]);
 
   // Z-Report and End-of-Day / Period Report states
   const [showReportModal, setShowReportModal] = useState(false);
@@ -1192,24 +1275,41 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
       try {
         const bridgeIp = branding?.pos_bridge_ip || '127.0.0.1';
         const bridgePort = branding?.pos_bridge_port || '1616';
-        const res = await fetch(`http://${bridgeIp}:${bridgePort}/pos/sale`, { 
-          method: 'OPTIONS',
-          signal: AbortSignal.timeout(1000)
-        }).catch(() => null);
-        setBridgeDetected(!!res || res === null); // If it responds or at least doesn't throw immediately
+        const [cloudStatus, localHealthRes] = await Promise.all([
+          storeId ? api.getPosBridgeStatus(storeId).catch(() => null) : Promise.resolve(null),
+          fetch(`http://${bridgeIp}:${bridgePort}/health`, {
+            method: 'GET',
+            signal: AbortSignal.timeout(1200)
+          }).then(async (r) => (r.ok ? await r.json().catch(() => ({ ok: true })) : null)).catch(() => null)
+        ]);
+
+        const agentOnline = Boolean(cloudStatus?.agent?.online || localHealthRes?.ok);
+        setBridgeHealth(cloudStatus?.agent ? {
+          ...cloudStatus.agent,
+          online: agentOnline,
+          simulated: Boolean(branding?.pos_bridge_settings?.allow_simulation && !agentOnline)
+        } : (localHealthRes?.ok ? {
+          online: true,
+          pcMode: true,
+          paperOk: true,
+          transport: 'local_http'
+        } : null));
+        setBridgeDetected(agentOnline);
       } catch (e) {
         setBridgeDetected(false);
+        setBridgeHealth(null);
       }
     };
-    
-    if (branding?.pos_bridge_enabled) {
+
+    if (branding?.pos_bridge_enabled || branding?.fiscal_active) {
       checkBridge();
       const interval = setInterval(checkBridge, 10000);
       return () => clearInterval(interval);
     } else {
       setBridgeDetected(null);
+      setBridgeHealth(null);
     }
-  }, [branding?.pos_bridge_enabled, branding?.pos_bridge_ip, branding?.pos_bridge_port]);
+  }, [storeId, branding?.pos_bridge_enabled, branding?.fiscal_active, branding?.pos_bridge_ip, branding?.pos_bridge_port, branding?.pos_bridge_settings?.allow_simulation]);
   
   const searchInputRef = useRef<HTMLInputElement>(null);
   const printRef = useRef<HTMLDivElement>(null);
@@ -1418,11 +1518,179 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
   const updateQuantity = (index: number, delta: number) => {
     setCart(prev => prev.map((item, idx) => {
       if (idx === index) {
-        const newQty = Math.max(1, Math.floor(item.quantity + delta));
+        const newQty = Math.max(1, Math.round((Number(item.quantity || 1) + delta) * 1000) / 1000);
         return { ...item, quantity: newQty };
       }
       return item;
     }));
+  };
+
+  const setQuantity = (index: number, newQty: number) => {
+    setCart(prev => prev.map((item, idx) => {
+      if (idx === index) {
+        const clamped = Math.max(0.01, Math.round((Number(newQty) || 1) * 1000) / 1000);
+        return { ...item, quantity: clamped };
+      }
+      return item;
+    }));
+  };
+
+  const saveQuickKeysConfig = (nextKeys: PosQuickKey[], nextPlacement: QuickKeysPlacement) => {
+    setQuickKeys(nextKeys);
+    setQuickKeysPlacement(nextPlacement);
+    try {
+      localStorage.setItem(`pos_quick_keys_${storeId || 'default'}`, JSON.stringify(nextKeys));
+      localStorage.setItem(`pos_quick_keys_pos_${storeId || 'default'}`, nextPlacement);
+    } catch {}
+    if (storeId) {
+      api.updateBranding({
+        pos_quick_keys: nextKeys,
+        pos_quick_keys_position: nextPlacement
+      }, storeId).catch(() => {});
+    }
+  };
+
+  const addQuickKeyItemWithPrice = (key: PosQuickKey, resolvedPrice: number) => {
+    const linkedProduct = key.productId
+      ? allProducts.find((p) => Number(p.id) === Number(key.productId))
+      : null;
+
+    if (linkedProduct && !key.askPrice && Math.abs(resolvedPrice - Number(linkedProduct.price || 0)) < 0.001) {
+      addToCart(linkedProduct);
+      return;
+    }
+
+    const formattedPrice = (Number(resolvedPrice) || 0).toFixed(2);
+    setCart(prev => {
+      if (!key.askPrice) {
+        const existingIdx = prev.findIndex(item => item.quick_key_id === key.id && String(item.price) === formattedPrice);
+        if (existingIdx > -1) {
+          return prev.map((it, idx) => idx === existingIdx ? { ...it, quantity: Number(it.quantity || 1) + 1 } : it);
+        }
+      }
+      return [
+        ...prev,
+        {
+          id: linkedProduct ? Number(linkedProduct.id) : null,
+          quick_key_id: key.id,
+          cart_item_id: `qk_${key.id}_${key.askPrice ? Date.now() : 'fixed'}`,
+          name: key.label,
+          base_name: key.label,
+          quantity: 1,
+          price: formattedPrice,
+          tax_rate: Number(key.tax_rate ?? branding?.default_tax_rate ?? 20),
+          currency: branding?.default_currency || 'TRY',
+          barcode: linkedProduct?.barcode || '',
+        }
+      ];
+    });
+  };
+
+  const handleTriggerQuickKey = (key: PosQuickKey) => {
+    if (key.askPrice) {
+      setNumpadConfig({
+        title: key.label,
+        subtitle: lang === 'tr' ? `Açık ürün tutarını girin (KDV %${key.tax_rate})` : `Enter amount (VAT %${key.tax_rate})`,
+        initialValue: "0",
+        allowDecimal: true,
+        unitSuffix: "₺",
+        onConfirm: (val) => {
+          const parsed = parseFloat(val);
+          if (!Number.isNaN(parsed) && parsed > 0) {
+            addQuickKeyItemWithPrice(key, parsed);
+          } else {
+            toast.warning(lang === 'tr' ? "Geçerli bir tutar giriniz." : "Please enter a valid amount.");
+          }
+        }
+      });
+      return;
+    }
+    addQuickKeyItemWithPrice(key, Number(key.price || 0));
+  };
+
+  const persistParkedCarts = (nextList: ParkedCartEntry[]) => {
+    setParkedCarts(nextList);
+    try {
+      localStorage.setItem(`pos_parked_carts_${storeId || 'default'}`, JSON.stringify(nextList));
+    } catch {}
+    if (storeId) {
+      api.updateBranding({ pos_parked_carts: nextList }, storeId).catch(() => {});
+    }
+  };
+
+  const handleParkCurrentCart = () => {
+    if (cart.length === 0) return;
+    const idxNum = parkedCarts.length + 1;
+    const nowIso = new Date().toISOString();
+    const labelPrefix = selectedTable ? `${selectedTable}` : (lang === 'tr' ? `Müşteri #${idxNum}` : `Customer #${idxNum}`);
+    const entry: ParkedCartEntry = {
+      id: `park_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      label: labelPrefix,
+      parkedAt: nowIso,
+      items: cart,
+      total: cart.reduce((sum, item) => sum + ((parseFloat(item.price) || 0) * item.quantity), 0),
+      paymentMethod,
+      tableName: selectedTable
+    };
+    const nextList = [entry, ...parkedCarts];
+    persistParkedCarts(nextList);
+    setCart([]);
+    setSelectedTable(null);
+    setActiveSaleId(null);
+    toast.success(lang === 'tr' ? `Sepet "${entry.label}" olarak beklemeye alındı.` : `Cart parked as "${entry.label}".`);
+  };
+
+  const handleRestoreParkedCart = (entry: ParkedCartEntry, swapCurrent: boolean) => {
+    let remaining = parkedCarts.filter((c) => c.id !== entry.id);
+    if (swapCurrent && cart.length > 0) {
+      const swapEntry: ParkedCartEntry = {
+        id: `park_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        label: selectedTable ? `${selectedTable}` : (lang === 'tr' ? `Müşteri #${remaining.length + 1}` : `Customer #${remaining.length + 1}`),
+        parkedAt: new Date().toISOString(),
+        items: cart,
+        total: cart.reduce((sum, item) => sum + ((parseFloat(item.price) || 0) * item.quantity), 0),
+        paymentMethod,
+        tableName: selectedTable
+      };
+      remaining = [swapEntry, ...remaining];
+    }
+    persistParkedCarts(remaining);
+    setCart(entry.items || []);
+    if (entry.paymentMethod) setPaymentMethod(entry.paymentMethod);
+    if (entry.tableName) {
+      setSelectedTable(entry.tableName);
+    } else if (isCafeRestaurant) {
+      setSelectedTable(lang === 'tr' ? 'Tezgah / Hızlı' : 'Counter');
+    }
+    setShowParkedModal(false);
+    toast.success(lang === 'tr' ? `"${entry.label}" sepete geri yüklendi.` : `Restored "${entry.label}".`);
+  };
+
+  const handleMergeParkedCart = (entry: ParkedCartEntry) => {
+    setCart(prev => [...prev, ...(entry.items || [])]);
+    persistParkedCarts(parkedCarts.filter((c) => c.id !== entry.id));
+    setShowParkedModal(false);
+    toast.success(lang === 'tr' ? `"${entry.label}" aktif sepetle birleştirildi.` : `Merged "${entry.label}".`);
+  };
+
+  const handleDeleteParkedCart = (id: string) => {
+    persistParkedCarts(parkedCarts.filter((c) => c.id !== id));
+  };
+
+  const handleRenameParkedCart = (id: string, newLabel: string) => {
+    persistParkedCarts(parkedCarts.map((c) => c.id === id ? { ...c, label: newLabel } : c));
+  };
+
+  const handleToggleTouchNumpad = () => {
+    const next = !touchNumpadEnabled;
+    setTouchNumpadEnabled(next);
+    try {
+      localStorage.setItem(`pos_touch_numpad_${storeId || 'default'}`, JSON.stringify(next));
+    } catch {}
+    toast.info(next
+      ? (lang === 'tr' ? "Dokunmatik POS Numpad aktif edildi." : "Touch POS Numpad enabled.")
+      : (lang === 'tr' ? "Dokunmatik Numpad otomatik açılımı kapatıldı." : "Touch POS Numpad auto-open disabled.")
+    );
   };
 
   const updatePrice = (index: number, newPrice: string) => {
@@ -1466,14 +1734,259 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
 
   const total = cart.reduce((sum, item) => sum + ((parseFloat(item.price) || 0) * item.quantity), 0);
 
+  const getCardOkcMode = (): 'integrated_eft_pos' | 'fiscal_only_external_card' | 'no_fiscal_on_card' => {
+    const settings = branding?.pos_bridge_settings || {};
+    if (settings.card_okc_mode) return settings.card_okc_mode;
+    return settings.fiscal_on_card === false ? 'no_fiscal_on_card' : 'integrated_eft_pos';
+  };
+
+  const shouldExecuteOkcForPayments = (paymentsList: Array<{ method: string; amount: number }>) => {
+    const fiscalOn = Boolean(branding?.fiscal_active || branding?.pos_bridge_enabled);
+    if (!fiscalOn) return false;
+    const settings = branding?.pos_bridge_settings || {};
+    const cardMode = getCardOkcMode();
+    const hasCard = paymentsList.some(p => p.method === 'credit_card' || p.method === 'card');
+    const hasCash = paymentsList.some(p => p.method === 'cash');
+
+    if (hasCard && cardMode !== 'no_fiscal_on_card') return true;
+    if (hasCash && settings.fiscal_on_cash !== false) return true;
+    return false;
+  };
+
+  const runOkcTransaction = async ({
+    clientTxId: existingTxId,
+    command,
+    items,
+    payments,
+    totalAmount,
+    tableNumber = null,
+    saleId = null,
+    onFiscalApproved
+  }: {
+    clientTxId?: string;
+    command: 'SALE' | 'PARTIAL_PAYMENT';
+    items: any[];
+    payments: Array<{ method: string; amount: number }>;
+    totalAmount: number;
+    tableNumber?: string | null;
+    saleId?: number | null;
+    onFiscalApproved: (fiscal: any, txId: string) => Promise<void>;
+  }): Promise<boolean> => {
+    const txId = existingTxId || `lp-${storeId || 0}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+    if (!shouldExecuteOkcForPayments(payments)) {
+      await onFiscalApproved(null, txId);
+      return true;
+    }
+
+    const cardMode = getCardOkcMode();
+    const settings = branding?.pos_bridge_settings || {};
+    const effectivePayments = payments
+      .filter((p) => {
+        const isCard = p.method === 'credit_card' || p.method === 'card';
+        if (isCard && cardMode === 'no_fiscal_on_card') return false;
+        if (!isCard && settings.fiscal_on_cash === false) return false;
+        return true;
+      })
+      .map((p) => {
+        const isCard = p.method === 'credit_card' || p.method === 'card';
+        return {
+          ...p,
+          ...(isCard ? { fiscalOnly: cardMode === 'fiscal_only_external_card' } : {})
+        };
+      });
+
+    if (effectivePayments.length === 0) {
+      await onFiscalApproved(null, txId);
+      return true;
+    }
+
+    const okcTotalAmount = Number(
+      effectivePayments.reduce((s, p) => s + Number(p.amount || 0), 0).toFixed(2)
+    ) || totalAmount;
+
+    const departments = normalizeDepartments(branding?.fiscal_departments);
+    const mappedItems = (items || []).map((item: any) => {
+      const vatRate = item.tax_rate !== undefined && item.tax_rate !== null
+        ? Number(item.tax_rate)
+        : Number(branding?.default_tax_rate ?? 20);
+      const dept = resolveDepartmentForTaxRate(vatRate, departments, item.category || item.name);
+      return {
+        name: item.note ? `${item.name} (${item.note})` : item.name,
+        quantity: Number(item.quantity || 1),
+        price: parseFloat(item.price) || 0,
+        tax_rate: dept.vatRate,
+        deptId: dept.dept,
+        barcode: item.barcode || ''
+      };
+    });
+
+    const hasCardInOkc = effectivePayments.some(p => p.method === 'credit_card' || p.method === 'card');
+    setPosErrorCode(null);
+    setPosStatus('waiting');
+    setPosMessage(
+      hasCardInOkc
+        ? (cardMode === 'fiscal_only_external_card'
+            ? (lang === 'tr'
+                ? `Harici Banka POS tahsilatı — ÖKC cihazı sadece yazarkasa olarak (${okcTotalAmount.toFixed(2)} TL) Kredi Kartlı mali fiş kesiyor (kart beklenmiyor)...`
+                : `External Bank POS mode — Printing fiscal receipt on cash register without card prompt (${okcTotalAmount.toFixed(2)})...`)
+            : (lang === 'tr'
+                ? `ÖKC cihazına ${okcTotalAmount.toFixed(2)} TL tutar gönderildi. Kartı cihaza okutun / şifre bekleniyor...`
+                : `Sent ${okcTotalAmount.toFixed(2)} to POS terminal. Please tap/insert card...`))
+        : (lang === 'tr'
+            ? `ÖKC mali fiş kesiliyor (${okcTotalAmount.toFixed(2)} TL)...`
+            : `Printing fiscal receipt (${okcTotalAmount.toFixed(2)})...`)
+    );
+
+    const payload = {
+      command,
+      clientTxId: txId,
+      items: mappedItems,
+      payments: effectivePayments,
+      totalAmount: okcTotalAmount,
+      cardMode,
+      currency: branding?.default_currency || 'TRY',
+      tableNumber,
+      saleId,
+      simulate: Boolean(branding?.pos_bridge_settings?.allow_simulation),
+      deviceIp: branding?.fiscal_ip || '127.0.0.1',
+      devicePort: Number(branding?.fiscal_port || 4444),
+      timeoutMs: 25000
+    };
+
+    let bridgeRes = await api.sendPosBridgeCommand(payload, storeId);
+
+    // Fallback to direct localhost HTTP Edge Agent if cloud relay unreachable
+    if ((!bridgeRes || bridgeRes.error_code === 'BRIDGE_OFFLINE') && !branding?.pos_bridge_settings?.allow_simulation) {
+      const bridgeIp = branding?.pos_bridge_ip || '127.0.0.1';
+      const bridgePort = branding?.pos_bridge_port || '1616';
+      try {
+        const localRes = await fetch(`http://${bridgeIp}:${bridgePort}/pos/sale`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...payload,
+            amount: okcTotalAmount,
+            ip: branding?.fiscal_ip,
+            port: Number(branding?.fiscal_port || 4444),
+            brand: branding?.fiscal_brand,
+            terminalId: branding?.fiscal_terminal_id
+          }),
+          signal: AbortSignal.timeout(15000)
+        });
+        if (localRes.ok) {
+          const localData = await localRes.json();
+          if (localData?.success || localData?.status === 'approved') {
+            bridgeRes = {
+              success: true,
+              fiscal: localData.fiscal || {
+                success: true,
+                receiptNo: localData.receiptNo,
+                zNo: localData.zNo,
+                ekuNo: localData.ekuNo,
+                authCode: localData.authCode,
+                brand: branding?.fiscal_brand || 'Hugin T300',
+                terminal: branding?.fiscal_terminal_id || 'LOCAL',
+                clientTxId: txId
+              }
+            };
+          } else {
+            bridgeRes = localData;
+          }
+        }
+      } catch {
+        // Keep original bridgeRes error
+      }
+    }
+
+    if (!bridgeRes || bridgeRes.success !== true) {
+      const errCode = bridgeRes?.error_code || 'OKC_CONNECTION_ERROR';
+      const errMsg = bridgeRes?.message || bridgeRes?.error || (lang === 'tr' ? 'ÖKC cihazından onay alınamadı. Adisyon açık bırakıldı.' : 'POS terminal did not approve. Order kept open.');
+      setPendingPosRecovery({
+        clientTxId: txId,
+        commandPayload: { command, items, payments, totalAmount, tableNumber, saleId },
+        onFiscalApproved
+      });
+      setPosErrorCode(errCode);
+      setPosStatus('failed');
+      setPosMessage(errMsg);
+      return false;
+    }
+
+    setPendingPosRecovery(null);
+    setPosErrorCode(null);
+    setPosStatus('approved');
+    setPosMessage(
+      lang === 'tr'
+        ? `Mali Onay Alındı! Fiş No: ${bridgeRes?.fiscal?.receiptNo || 'OK'}`
+        : `Fiscal Approved! Receipt: ${bridgeRes?.fiscal?.receiptNo || 'OK'}`
+    );
+    await new Promise(resolve => setTimeout(resolve, 450));
+
+    await onFiscalApproved(bridgeRes.fiscal, txId);
+    setPosStatus('idle');
+    return true;
+  };
+
+  const handleRetryPosTx = async () => {
+    if (!pendingPosRecovery) return;
+    setCompleting(true);
+    try {
+      await runOkcTransaction({
+        clientTxId: pendingPosRecovery.clientTxId,
+        ...pendingPosRecovery.commandPayload,
+        onFiscalApproved: pendingPosRecovery.onFiscalApproved
+      });
+    } catch (err: any) {
+      toast.error(err?.message || "Tekrar deneme başarısız.");
+    } finally {
+      setCompleting(false);
+    }
+  };
+
+  const handleQueryLastPosTx = async () => {
+    if (!pendingPosRecovery) return;
+    setCompleting(true);
+    setPosStatus('waiting');
+    setPosMessage(lang === 'tr' ? "Son işlem ÖKC cihazından sorgulanıyor (LAST_TX)..." : "Querying last transaction from POS (LAST_TX)...");
+    try {
+      const res = await api.sendPosBridgeCommand({
+        command: 'LAST_TX',
+        clientTxId: pendingPosRecovery.clientTxId,
+        deviceIp: branding?.fiscal_ip || '127.0.0.1',
+        devicePort: Number(branding?.fiscal_port || 4444),
+        timeoutMs: 15000
+      }, storeId);
+
+      if (res?.success && res?.fiscal) {
+        setPosStatus('approved');
+        setPosMessage(lang === 'tr' ? `Son İşlem Kurtarıldı! Fiş No: ${res.fiscal.receiptNo}` : `Transaction Recovered! Receipt: ${res.fiscal.receiptNo}`);
+        const recovery = pendingPosRecovery;
+        setPendingPosRecovery(null);
+        await new Promise(resolve => setTimeout(resolve, 450));
+        await recovery.onFiscalApproved(res.fiscal, recovery.clientTxId);
+        setPosStatus('idle');
+      } else {
+        setPosErrorCode(res?.error_code || 'LAST_TX_NOT_FOUND');
+        setPosStatus('failed');
+        setPosMessage(res?.message || (lang === 'tr' ? "ÖKC cihazında tamamlanmış bir fiş bulunamadı. Güvenle tekrar deneyebilirsiniz." : "No completed fiscal receipt found on POS."));
+      }
+    } catch (err: any) {
+      setPosStatus('failed');
+      setPosMessage(err?.message || "Son işlem sorgulaması başarısız.");
+    } finally {
+      setCompleting(false);
+    }
+  };
+
   const processFinalizeSale = async () => {
     if (cart.length === 0) return;
-    
+
     if (paymentMethod === 'room') {
       setShowRoomTransferModal(true);
       return;
     }
-    
+
     if (!isOnline) {
       const pendingSale = {
         id: Date.now(),
@@ -1484,8 +1997,8 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
         notes: getFinalNote(selectedTable ? `${selectedTable} Satışı` : 'Hızlı POS Modu'),
         timestamp: new Date().toISOString()
       };
-      const pendingSales = JSON.parse(localStorage.getItem(`pendingSales_${storeId}`) || '[]');
-      localStorage.setItem(`pendingSales_${storeId}`, JSON.stringify([...pendingSales, pendingSale]));
+      const pendingSalesList = JSON.parse(localStorage.getItem(`pendingSales_${storeId}`) || '[]');
+      localStorage.setItem(`pendingSales_${storeId}`, JSON.stringify([...pendingSalesList, pendingSale]));
       toast.info(lang === 'tr' ? "İnternet bağlantısı yok, satış yerel olarak kaydedildi." : "No internet connection, sale saved locally.");
       setCart([]);
       setSelectedTable(null);
@@ -1496,155 +2009,96 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
 
     try {
       setCompleting(true);
+      const snapshotCart = cart.map(item => ({
+        ...item,
+        name: item.note ? `${item.name} (${item.note})` : item.name,
+        price: parseFloat(item.price) || 0
+      }));
 
-      // POS Integration Simulation
-      if (paymentMethod === 'credit_card' && branding?.pos_bridge_enabled) {
-        setPosStatus('waiting');
-        setPosMessage(lang === 'tr' ? `Fiziksel POS Cihazına bağlanılıyor...` : `Connecting to Physical POS...`);
-        
-        // Real-world bridge attempt simulation
-        try {
-          // We attempt to call a local bridge service (e.g. using the configured IP/Port)
-          // This is a common pattern for web-to-local hardware communication
-          const bridgeIp = branding?.pos_bridge_ip || '127.0.0.1';
-          const bridgePort = branding?.pos_bridge_port || '1616';
-          const bridgeUrl = `http://${bridgeIp}:${bridgePort}/pos/sale`;
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 3000);
+      await runOkcTransaction({
+        command: 'SALE',
+        items: snapshotCart,
+        payments: [{ method: paymentMethod, amount: total }],
+        totalAmount: total,
+        tableNumber: selectedTable,
+        saleId: activeSaleId,
+        onFiscalApproved: async (fiscalResult, clientTxId) => {
+          if (activeSaleId !== null) {
+            const res = await api.completeSale(activeSaleId, {
+              paymentMethod,
+              clientTxId,
+              fiscal: fiscalResult,
+              items: snapshotCart.map(item => ({
+                product_id: item.id,
+                product_name: item.name,
+                unit_price: item.price,
+                quantity: item.quantity
+              }))
+            }, storeId);
 
-          const bridgeRes = await fetch(bridgeUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              amount: total,
-              currency: branding.default_currency || 'TRY',
-              ip: branding.fiscal_ip,
-              port: branding.fiscal_port,
-              brand: branding.fiscal_brand,
-              terminalId: branding.fiscal_terminal_id
-            }),
-            signal: controller.signal
-          }).catch(() => null);
-
-          clearTimeout(timeoutId);
-
-          if (!bridgeRes) {
-            // If no bridge is found, we fall back to simulation but warn the user
-            setPosMessage(lang === 'tr' ? "Yerel bağlantı köprüsü bulunamadı. Simülasyon modunda devam ediliyor..." : "Local bridge not found. Continuing in simulation mode...");
-            await new Promise(resolve => setTimeout(resolve, 3000));
+            if (!res?.success) {
+              throw new Error(res?.error || "Adisyon kapatılamadı.");
+            }
+            if (autoPrintOnPay) {
+              handlePrintReceipt();
+            }
+            if (selectedTable && storeId) {
+              clearStoredTableNickname(storeId, selectedTable);
+            }
+            setLastSaleId(activeSaleId);
+            setLastFiscal(res.fiscal || fiscalResult);
+            setLastCart(snapshotCart);
+            setShowSuccess(true);
+            setCart([]);
+            setActiveSaleId(null);
+            setSelectedTable(null);
+            fetchPendingSales();
+            if (onSaleComplete) onSaleComplete();
+            if (!res.fiscal && !fiscalResult) {
+              setTimeout(() => setShowSuccess(false), 3000);
+            }
           } else {
-            const data = await bridgeRes.json();
-            if (data.status === 'approved') {
-              setPosStatus('approved');
-              setPosMessage(lang === 'tr' ? "İşlem Onaylandı!" : "Transaction Approved!");
-              await new Promise(resolve => setTimeout(resolve, 1000));
-            } else {
-              throw new Error(data.message || "POS Error");
+            const res = await api.createPosSale({
+              items: snapshotCart,
+              total,
+              paymentMethod,
+              clientTxId,
+              fiscal: fiscalResult,
+              customerName: selectedTable || 'Hızlı Satış',
+              notes: getFinalNote(selectedTable ? `${selectedTable} Satışı` : 'Hızlı POS Modu'),
+              currency: branding?.default_currency || 'TRY',
+              exchangeRate: 1
+            }, storeId);
+
+            if (!res?.success) {
+              throw new Error(res?.error || "Satış kaydedilemedi.");
+            }
+            if (autoPrintOnPay) {
+              handlePrintReceipt();
+            }
+            if (selectedTable && storeId) {
+              clearStoredTableNickname(storeId, selectedTable);
+            }
+            setLastSaleId(res.saleId);
+            setLastFiscal(res.fiscal || fiscalResult);
+            setLastCart(snapshotCart);
+            setShowSuccess(true);
+            setCart([]);
+            setSelectedTable(null);
+            if (onSaleComplete) onSaleComplete();
+            if (!res.fiscal && !fiscalResult) {
+              setTimeout(() => {
+                setShowSuccess(false);
+                if (searchInputRef.current) searchInputRef.current.focus();
+              }, 3000);
             }
           }
-        } catch (e) {
-          console.log("Bridge connection failed, using simulation.");
         }
-
-        if (posStatus === 'waiting') {
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          setPosMessage(lang === 'tr' ? "Lütfen kartı takın veya yaklaştırın..." : "Please insert or tap card...");
-          await new Promise(resolve => setTimeout(resolve, 3000));
-          
-          setPosMessage(lang === 'tr' ? "Şifre bekleniyor..." : "Waiting for PIN...");
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          
-          setPosMessage(lang === 'tr' ? "İşlem onaylanıyor..." : "Authorizing transaction...");
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          
-          setPosStatus('approved');
-          setPosMessage(lang === 'tr' ? "İşlem Onaylandı!" : "Transaction Approved!");
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-      }
-
-      if (activeSaleId !== null) {
-        // Complete an existing active pending adisyon/sale
-        const res = await api.completeSale(activeSaleId, {
-          paymentMethod,
-          items: cart.map(item => ({
-            product_id: item.id,
-            product_name: item.note ? `${item.name} (${item.note})` : item.name,
-            unit_price: parseFloat(item.price) || 0,
-            quantity: item.quantity
-          }))
-        }, storeId);
-
-        if (res.success) {
-          if (autoPrintOnPay) {
-            handlePrintReceipt();
-          }
-          if (selectedTable && storeId) {
-            clearStoredTableNickname(storeId, selectedTable);
-          }
-          setLastSaleId(activeSaleId);
-          setLastFiscal(res.fiscal);
-          setLastCart(cart.map(item => ({ ...item, price: parseFloat(item.price) || 0, name: item.note ? `${item.name} (${item.note})` : item.name })));
-          setShowSuccess(true);
-          setCart([]);
-          setActiveSaleId(null);
-          setSelectedTable(null);
-          fetchPendingSales(); // Refresh the active table grid!
-          if (onSaleComplete) onSaleComplete();
-          
-          if (!res.fiscal) {
-            setTimeout(() => {
-              setShowSuccess(false);
-            }, 3000);
-          }
-        }
-      } else {
-        // Direct cash register sale (can be standard or first-time immediately completed table)
-        const currentCart = cart.map(item => ({
-          ...item,
-          name: item.note ? `${item.name} (${item.note})` : item.name,
-          price: parseFloat(item.price) || 0
-        }));
-        const res = await api.createPosSale({
-          items: currentCart,
-          total,
-          paymentMethod,
-          customerName: selectedTable || 'Hızlı Satış',
-          notes: getFinalNote(selectedTable ? `${selectedTable} Satışı` : 'Hızlı POS Modu'),
-          currency: branding?.default_currency || 'TRY',
-          exchangeRate: 1
-        }, storeId);
-
-        if (res.success) {
-          if (autoPrintOnPay) {
-            handlePrintReceipt();
-          }
-          if (selectedTable && storeId) {
-            clearStoredTableNickname(storeId, selectedTable);
-          }
-          setLastSaleId(res.saleId);
-          setLastFiscal(res.fiscal);
-          setLastCart(currentCart);
-          setShowSuccess(true);
-          setCart([]);
-          setSelectedTable(null);
-          if (onSaleComplete) onSaleComplete();
-          
-          if (!res.fiscal) {
-            setTimeout(() => {
-              setShowSuccess(false);
-              if (searchInputRef.current) {
-                searchInputRef.current.focus();
-              }
-            }, 3000);
-          }
-        }
-      }
+      });
     } catch (error: any) {
-      alert(error.message || "Satış tamamlanırken bir hata oluştu.");
+      toast.error(error.message || "Satış tamamlanırken bir hata oluştu.");
     } finally {
       setCompleting(false);
-      setPosStatus('idle');
     }
   };
 
@@ -1832,107 +2286,111 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
     try {
       setCompleting(true);
 
-      if (partialPayMethod === 'credit_card' && branding?.pos_bridge_enabled) {
-        setPosStatus('waiting');
-        setPosMessage(lang === 'tr' ? `Fiziksel POS Cihazına bağlanılıyor...` : `Connecting to Physical POS...`);
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        setPosStatus('approved');
-        setPosMessage(lang === 'tr' ? "POS Ödemesi Onaylandı!" : "POS Payment Approved!");
-        await new Promise(resolve => setTimeout(resolve, 800));
-      }
-
-      const resCreate = await api.createPosSale({
+      await runOkcTransaction({
+        command: 'PARTIAL_PAYMENT',
         items: paidItems,
-        total: paidTotal,
-        paymentMethod: partialPayMethod,
-        customerName: selectedTable ? `${selectedTable} (Kısmi Ödeme)` : 'Parçalı Satış',
-        notes: selectedTable ? `${selectedTable} Alman Usulü / Parçalı Ödeme` : 'Parçalı POS Satışı',
-        currency: branding?.default_currency || 'TRY',
-        exchangeRate: 1
-      }, storeId);
-
-      if (!resCreate.success) {
-        throw new Error(resCreate.error || "Kısmi ödeme kaydedilemedi.");
-      }
-
-      if (autoPrintOnPay) {
-        printThermalReceipt({
-          title: "PARÇALI ÖDEME FİŞİ",
-          storeName: branding?.store_name || branding?.name || 'TELOCA CAFE',
-          storePhone: branding?.phone || branding?.whatsapp_number,
-          tableNo: selectedTable || "Hızlı Kasa",
-          saleId: resCreate.saleId,
-          items: paidItems.map(i => ({ name: i.name, quantity: i.quantity, price: i.price })),
-          totalAmount: paidTotal,
-          paymentMethod: partialPayMethod === 'cash' ? 'NAKİT' : 'KREDİ KARTI',
-          notes: remainingItems.length > 0 ? `Masada Kalan Adisyon Tutarı: ${remainingTotal.toFixed(2)} ₺` : 'Adisyon Tamamen Kapatıldı'
-        });
-      }
-
-      if (remainingItems.length > 0) {
-        if (activeSaleId !== null) {
-          await api.updatePendingSale(activeSaleId, {
-            items: remainingItems.map(item => ({
-              id: item.id,
-              name: item.name,
-              quantity: item.quantity,
-              price: parseFloat(item.price) || 0,
-              barcode: item.barcode || ''
-            })),
-            total: remainingTotal,
-            customerName: selectedTable
-          }, storeId);
-        } else if (selectedTable !== null) {
-          const resPending = await api.createPosSale({
-            items: remainingItems,
-            total: remainingTotal,
-            paymentMethod: 'cash',
-            customerName: selectedTable,
-            notes: `${selectedTable} Adisyonu (Parçalı Ödeme Sonrası)`,
-            currency: branding?.default_currency || 'TRY',
-            exchangeRate: 1,
-            status: 'pending'
-          }, storeId);
-
-          if (resPending.success && resPending.saleId) {
-            setActiveSaleId(resPending.saleId);
-          }
-        }
-
-        setCart(remainingItems);
-        toast.success(
-          lang === 'tr' 
-            ? `✅ ${paidTotal.toFixed(2)} ₺ kısmi ödeme alındı! Adisyon ${remainingTotal.toFixed(2)} ₺ tutarla AÇIK tutuluyor.`
-            : `✅ ${paidTotal.toFixed(2)} ₺ paid! Table remains open with ${remainingTotal.toFixed(2)} ₺ remaining.`
-        );
-      } else {
-        if (activeSaleId !== null) {
-          await api.completeSale(activeSaleId, {
+        payments: [{ method: partialPayMethod, amount: paidTotal }],
+        totalAmount: paidTotal,
+        tableNumber: selectedTable,
+        saleId: activeSaleId,
+        onFiscalApproved: async (fiscalResult, clientTxId) => {
+          const resCreate = await api.createPosSale({
+            items: paidItems,
+            total: paidTotal,
             paymentMethod: partialPayMethod,
-            items: paidItems
+            clientTxId,
+            fiscal: fiscalResult,
+            customerName: selectedTable ? `${selectedTable} (Kısmi Ödeme)` : 'Parçalı Satış',
+            notes: selectedTable ? `${selectedTable} Alman Usulü / Parçalı Ödeme` : 'Parçalı POS Satışı',
+            currency: branding?.default_currency || 'TRY',
+            exchangeRate: 1
           }, storeId);
-        }
-        if (selectedTable && storeId) {
-          clearStoredTableNickname(storeId, selectedTable);
-        }
-        setCart([]);
-        setActiveSaleId(null);
-        setSelectedTable(null);
-        toast.success(
-          lang === 'tr'
-            ? "🎉 Masanın tüm hesabı ödendi ve adisyon kapatıldı!"
-            : "🎉 All items paid and table adisyon is closed!"
-        );
-      }
 
-      setShowSplitModal(false);
-      fetchPendingSales();
-      if (onSaleComplete) onSaleComplete();
+          if (!resCreate?.success) {
+            throw new Error(resCreate?.error || "Kısmi ödeme kaydedilemedi.");
+          }
+
+          if (autoPrintOnPay) {
+            printThermalReceipt({
+              title: "PARÇALI ÖDEME FİŞİ",
+              storeName: branding?.store_name || branding?.name || 'SEÇKİN RESTORAN',
+              storePhone: branding?.phone || branding?.whatsapp_number,
+              tableNo: selectedTable || "Hızlı Kasa",
+              saleId: resCreate.saleId,
+              items: paidItems.map(i => ({ name: i.name, quantity: i.quantity, price: i.price })),
+              totalAmount: paidTotal,
+              paymentMethod: partialPayMethod === 'cash' ? 'NAKİT' : 'KREDİ KARTI',
+              notes: remainingItems.length > 0 ? `Masada Kalan Adisyon Tutarı: ${remainingTotal.toFixed(2)} ₺` : 'Adisyon Tamamen Kapatıldı'
+            });
+          }
+
+          if (remainingItems.length > 0) {
+            if (activeSaleId !== null) {
+              await api.updatePendingSale(activeSaleId, {
+                items: remainingItems.map(item => ({
+                  id: item.id,
+                  name: item.name,
+                  quantity: item.quantity,
+                  price: parseFloat(item.price) || 0,
+                  barcode: item.barcode || ''
+                })),
+                total: remainingTotal,
+                customerName: selectedTable
+              }, storeId);
+            } else if (selectedTable !== null) {
+              const resPending = await api.createPosSale({
+                items: remainingItems,
+                total: remainingTotal,
+                paymentMethod: 'cash',
+                customerName: selectedTable,
+                notes: `${selectedTable} Adisyonu (Parçalı Ödeme Sonrası)`,
+                currency: branding?.default_currency || 'TRY',
+                exchangeRate: 1,
+                status: 'pending'
+              }, storeId);
+
+              if (resPending.success && resPending.saleId) {
+                setActiveSaleId(resPending.saleId);
+              }
+            }
+
+            setCart(remainingItems);
+            toast.success(
+              lang === 'tr'
+                ? `✅ ${paidTotal.toFixed(2)} ₺ kısmi ödeme alındı! Adisyon ${remainingTotal.toFixed(2)} ₺ tutarla AÇIK tutuluyor.`
+                : `✅ ${paidTotal.toFixed(2)} ₺ paid! Table remains open with ${remainingTotal.toFixed(2)} ₺ remaining.`
+            );
+          } else {
+            if (activeSaleId !== null) {
+              await api.completeSale(activeSaleId, {
+                paymentMethod: partialPayMethod,
+                clientTxId,
+                fiscal: fiscalResult,
+                items: paidItems
+              }, storeId);
+            }
+            if (selectedTable && storeId) {
+              clearStoredTableNickname(storeId, selectedTable);
+            }
+            setCart([]);
+            setActiveSaleId(null);
+            setSelectedTable(null);
+            toast.success(
+              lang === 'tr'
+                ? "🎉 Masanın tüm hesabı ödendi ve adisyon kapatıldı!"
+                : "🎉 All items paid and table adisyon is closed!"
+            );
+          }
+
+          setShowSplitModal(false);
+          fetchPendingSales();
+          if (onSaleComplete) onSaleComplete();
+        }
+      });
     } catch (err: any) {
       toast.error(err.message || "İşlem sırasında bir hata oluştu.");
     } finally {
       setCompleting(false);
-      setPosStatus('idle');
     }
   };
 
@@ -1943,77 +2401,80 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
     try {
       setCompleting(true);
 
-      if (partialPayMethod === 'credit_card' && branding?.pos_bridge_enabled) {
-        setPosStatus('waiting');
-        setPosMessage(lang === 'tr' ? `Fiziksel POS Cihazına bağlanılıyor...` : `Connecting to Physical POS...`);
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        setPosStatus('approved');
-        setPosMessage(lang === 'tr' ? "POS Ödemesi Onaylandı!" : "POS Payment Approved!");
-        await new Promise(resolve => setTimeout(resolve, 800));
-      }
-
       const partialItem = {
         name: `${selectedTable || 'Masa'} Parçalı Tahsilat`,
         quantity: 1,
-        price: amountToPay
+        price: amountToPay,
+        tax_rate: Number(branding?.default_tax_rate ?? 10)
       };
 
-      const resCreate = await api.createPosSale({
+      await runOkcTransaction({
+        command: 'PARTIAL_PAYMENT',
         items: [partialItem],
-        total: amountToPay,
-        paymentMethod: partialPayMethod,
-        customerName: selectedTable ? `${selectedTable} (Kısmi Ödeme)` : 'Parçalı Satış',
-        notes: selectedTable ? `${selectedTable} Parçalı Tutar Tahsilatı` : 'Parçalı Tutar Ödemesi',
-        currency: branding?.default_currency || 'TRY',
-        exchangeRate: 1
-      }, storeId);
+        payments: [{ method: partialPayMethod, amount: amountToPay }],
+        totalAmount: amountToPay,
+        tableNumber: selectedTable,
+        saleId: activeSaleId,
+        onFiscalApproved: async (fiscalResult, clientTxId) => {
+          const resCreate = await api.createPosSale({
+            items: [partialItem],
+            total: amountToPay,
+            paymentMethod: partialPayMethod,
+            clientTxId,
+            fiscal: fiscalResult,
+            customerName: selectedTable ? `${selectedTable} (Kısmi Ödeme)` : 'Parçalı Satış',
+            notes: selectedTable ? `${selectedTable} Parçalı Tutar Tahsilatı` : 'Parçalı Tutar Ödemesi',
+            currency: branding?.default_currency || 'TRY',
+            exchangeRate: 1
+          }, storeId);
 
-      if (!resCreate.success) {
-        throw new Error(resCreate.error || "Kısmi ödeme kaydedilemedi.");
-      }
+          if (!resCreate?.success) {
+            throw new Error(resCreate?.error || "Kısmi ödeme kaydedilemedi.");
+          }
 
-      if (autoPrintOnPay) {
-        printThermalReceipt({
-          title: "PARÇALI ÖDEME FİŞİ",
-          storeName: branding?.store_name || branding?.name || 'TELOCA CAFE',
-          storePhone: branding?.phone || branding?.whatsapp_number,
-          tableNo: selectedTable || "Hızlı Kasa",
-          saleId: resCreate.saleId,
-          items: [{ name: "Adisyondan Kısmi Tahsilat", quantity: 1, price: amountToPay }],
-          totalAmount: amountToPay,
-          paymentMethod: partialPayMethod === 'cash' ? 'NAKİT' : 'KREDİ KARTI',
-          notes: `Masada Kalan Adisyon Tutarı: ${remainingAmount.toFixed(2)} ₺`
-        });
-      }
+          if (autoPrintOnPay) {
+            printThermalReceipt({
+              title: "PARÇALI ÖDEME FİŞİ",
+              storeName: branding?.store_name || branding?.name || 'SEÇKİN RESTORAN',
+              storePhone: branding?.phone || branding?.whatsapp_number,
+              tableNo: selectedTable || "Hızlı Kasa",
+              saleId: resCreate.saleId,
+              items: [{ name: "Adisyondan Kısmi Tahsilat", quantity: 1, price: amountToPay }],
+              totalAmount: amountToPay,
+              paymentMethod: partialPayMethod === 'cash' ? 'NAKİT' : 'KREDİ KARTI',
+              notes: `Masada Kalan Adisyon Tutarı: ${remainingAmount.toFixed(2)} ₺`
+            });
+          }
 
-      if (activeSaleId !== null) {
-        await api.updatePendingSale(activeSaleId, {
-          items: cart.map(item => ({
-            id: item.id,
-            name: item.name,
-            quantity: item.quantity,
-            price: parseFloat(item.price) || 0,
-            barcode: item.barcode || ''
-          })),
-          total: remainingAmount,
-          customerName: selectedTable
-        }, storeId);
-      }
+          if (activeSaleId !== null) {
+            await api.updatePendingSale(activeSaleId, {
+              items: cart.map(item => ({
+                id: item.id,
+                name: item.name,
+                quantity: item.quantity,
+                price: parseFloat(item.price) || 0,
+                barcode: item.barcode || ''
+              })),
+              total: remainingAmount,
+              customerName: selectedTable
+            }, storeId);
+          }
 
-      toast.success(
-        lang === 'tr'
-          ? `✅ ${amountToPay.toFixed(2)} ₺ ödeme alındı! Adisyon kalan ${remainingAmount.toFixed(2)} ₺ tutarla AÇIK tutuluyor.`
-          : `✅ ${amountToPay.toFixed(2)} ₺ paid! Table remains open with ${remainingAmount.toFixed(2)} ₺ remaining.`
-      );
+          toast.success(
+            lang === 'tr'
+              ? `✅ ${amountToPay.toFixed(2)} ₺ ödeme alındı! Adisyon kalan ${remainingAmount.toFixed(2)} ₺ tutarla AÇIK tutuluyor.`
+              : `✅ ${amountToPay.toFixed(2)} ₺ paid! Table remains open with ${remainingAmount.toFixed(2)} ₺ remaining.`
+          );
 
-      setShowSplitModal(false);
-      fetchPendingSales();
-      if (onSaleComplete) onSaleComplete();
+          setShowSplitModal(false);
+          fetchPendingSales();
+          if (onSaleComplete) onSaleComplete();
+        }
+      });
     } catch (err: any) {
       toast.error(err.message || "İşlem sırasında hata oluştu.");
     } finally {
       setCompleting(false);
-      setPosStatus('idle');
     }
   };
 
@@ -2035,97 +2496,101 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
   const handleFinalizeSplitSale = async () => {
     try {
       setCompleting(true);
-      
-      const payloadPayments = splitPayments.map(p => ({
-        method: p.method,
-        amount: parseFloat(p.amount) || 0
+
+      const payloadPayments = splitPayments
+        .map(p => ({
+          method: p.method,
+          amount: parseFloat(p.amount) || 0
+        }))
+        .filter(p => p.amount > 0);
+
+      const splitTotal = payloadPayments.reduce((s, p) => s + p.amount, 0) || total;
+      const currentCart = cart.map(item => ({
+        ...item,
+        name: item.note ? `${item.name} (${item.note})` : item.name,
+        price: parseFloat(item.price) || 0
       }));
 
-      // POS Integration simulation if they have Credit Card payments in the split
-      const hasCc = splitPayments.some(p => p.method === 'credit_card');
-      if (hasCc && branding?.pos_bridge_enabled) {
-        setPosStatus('waiting');
-        setPosMessage(lang === 'tr' ? `Fiziksel POS Cihazına bağlanılıyor...` : `Connecting to Physical POS...`);
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        setPosStatus('approved');
-        setPosMessage(lang === 'tr' ? "POS Ödemesi Onaylandı!" : "POS Payment Approved!");
-        await new Promise(resolve => setTimeout(resolve, 800));
-      }
+      await runOkcTransaction({
+        command: 'SALE',
+        items: currentCart,
+        payments: payloadPayments,
+        totalAmount: splitTotal,
+        tableNumber: selectedTable,
+        saleId: activeSaleId,
+        onFiscalApproved: async (fiscalResult, clientTxId) => {
+          if (activeSaleId !== null) {
+            const res = await api.completeSale(activeSaleId, {
+              paymentMethod: 'multiple',
+              payments: payloadPayments,
+              clientTxId,
+              fiscal: fiscalResult,
+              items: currentCart.map(item => ({
+                product_id: item.id,
+                product_name: item.name,
+                unit_price: item.price,
+                quantity: item.quantity
+              }))
+            }, storeId);
 
-      if (activeSaleId !== null) {
-        // Complete pending adisyon
-        const res = await api.completeSale(activeSaleId, {
-          paymentMethod: 'multiple',
-          payments: payloadPayments,
-          items: cart.map(item => ({
-            product_id: item.id,
-            product_name: item.note ? `${item.name} (${item.note})` : item.name,
-            unit_price: parseFloat(item.price) || 0,
-            quantity: item.quantity
-          }))
-        }, storeId);
-
-        if (res.success) {
-          if (selectedTable && storeId) {
-            clearStoredTableNickname(storeId, selectedTable);
-          }
-          setLastSaleId(activeSaleId);
-          setLastFiscal(res.fiscal);
-          setLastCart(cart.map(item => ({ ...item, price: parseFloat(item.price) || 0, name: item.note ? `${item.name} (${item.note})` : item.name })));
-          setShowSuccess(true);
-          setCart([]);
-          setActiveSaleId(null);
-          setSelectedTable(null);
-          setShowSplitModal(false);
-          fetchPendingSales();
-          if (onSaleComplete) onSaleComplete();
-        }
-      } else {
-        // Direct cash register sale with multiple payments
-        const currentCart = cart.map(item => ({
-          ...item,
-          name: item.note ? `${item.name} (${item.note})` : item.name,
-          price: parseFloat(item.price) || 0
-        }));
-        
-        const resCreate = await api.createPosSale({
-          items: currentCart,
-          total,
-          paymentMethod: 'multiple',
-          customerName: selectedTable || 'Hızlı Satış',
-          notes: selectedTable ? `${selectedTable} Satışı` : 'Hızlı POS Modu (Parçalı)',
-          currency: branding?.default_currency || 'TRY',
-          exchangeRate: 1,
-          status: 'pending' // Create it as pending!
-        }, storeId);
-
-        if (resCreate.success && resCreate.saleId) {
-          // Then immediately complete it with the payments array!
-          const resComplete = await api.completeSale(resCreate.saleId, {
-            paymentMethod: 'multiple',
-            payments: payloadPayments
-          }, storeId);
-
-          if (resComplete.success) {
+            if (!res?.success) {
+              throw new Error(res?.error || "Adisyon kapatılamadı.");
+            }
             if (selectedTable && storeId) {
               clearStoredTableNickname(storeId, selectedTable);
             }
-            setLastSaleId(resCreate.saleId);
-            setLastFiscal(resComplete.fiscal);
+            setLastSaleId(activeSaleId);
+            setLastFiscal(res.fiscal || fiscalResult);
             setLastCart(currentCart);
             setShowSuccess(true);
             setCart([]);
+            setActiveSaleId(null);
             setSelectedTable(null);
             setShowSplitModal(false);
+            fetchPendingSales();
             if (onSaleComplete) onSaleComplete();
+          } else {
+            const resCreate = await api.createPosSale({
+              items: currentCart,
+              total: splitTotal,
+              paymentMethod: 'multiple',
+              customerName: selectedTable || 'Hızlı Satış',
+              notes: selectedTable ? `${selectedTable} Satışı` : 'Hızlı POS Modu (Parçalı)',
+              currency: branding?.default_currency || 'TRY',
+              exchangeRate: 1,
+              status: 'pending'
+            }, storeId);
+
+            if (resCreate.success && resCreate.saleId) {
+              const resComplete = await api.completeSale(resCreate.saleId, {
+                paymentMethod: 'multiple',
+                payments: payloadPayments,
+                clientTxId,
+                fiscal: fiscalResult
+              }, storeId);
+
+              if (!resComplete?.success) {
+                throw new Error(resComplete?.error || "Parçalı ödeme tamamlanamadı.");
+              }
+              if (selectedTable && storeId) {
+                clearStoredTableNickname(storeId, selectedTable);
+              }
+              setLastSaleId(resCreate.saleId);
+              setLastFiscal(resComplete.fiscal || fiscalResult);
+              setLastCart(currentCart);
+              setShowSuccess(true);
+              setCart([]);
+              setSelectedTable(null);
+              setShowSplitModal(false);
+              if (onSaleComplete) onSaleComplete();
+            }
           }
         }
-      }
+      });
     } catch (error: any) {
       toast.error(error.message || (lang === 'tr' ? "Parçalı ödeme tamamlanırken hata oluştu." : "Error completing split payment."));
     } finally {
       setCompleting(false);
-      setPosStatus('idle');
     }
   };
 
@@ -2311,6 +2776,12 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
             setShowHappyHourModal={setShowHappyHourModal}
             isHappyHourActive={isHappyHourActive}
             bridgeDetected={bridgeDetected}
+            bridgeHealth={bridgeHealth}
+            parkedCount={parkedCarts.length}
+            onOpenParkedCarts={() => setShowParkedModal(true)}
+            onOpenQuickKeysManager={() => setShowQuickKeysManager(true)}
+            touchNumpadEnabled={touchNumpadEnabled}
+            onToggleTouchNumpad={handleToggleTouchNumpad}
           />
 
           {isCafeRestaurant && selectedTable === null ? (
@@ -2326,28 +2797,50 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
               setCart={setCart}
             />
           ) : (
-            <PosProductGridView
-              lang={lang}
-              searchInputRef={searchInputRef}
-              searchTerm={searchTerm}
-              setSearchTerm={setSearchTerm}
-              allProducts={allProducts}
-              filteredProducts={filteredProducts}
-              addToCart={addToCart}
-              handleProductClick={handleProductClick}
-              setShowQuickProductModal={setShowQuickProductModal}
-              setQuickProductForm={setQuickProductForm}
-              categories={categories}
-              selectedCategory={selectedCategory}
-              setSelectedCategory={setSelectedCategory}
-              subCategories={subCategories}
-              selectedSubCategory={selectedSubCategory}
-              setSelectedSubCategory={setSelectedSubCategory}
-              isHappyHourActive={isHappyHourActive}
-              isBookstore={isBookstore}
-              isSearching={isSearchingProducts}
-              onSearchSubmit={executeImmediateSearch}
-            />
+            <>
+              {quickKeysPlacement === 'grid_top' && (
+                <PosQuickKeysBar
+                  lang={lang}
+                  quickKeys={quickKeys}
+                  placement={quickKeysPlacement}
+                  onTriggerKey={handleTriggerQuickKey}
+                  onOpenManager={() => setShowQuickKeysManager(true)}
+                  onChangePlacement={(nextP) => saveQuickKeysConfig(quickKeys, nextP)}
+                />
+              )}
+              <PosProductGridView
+                lang={lang}
+                searchInputRef={searchInputRef}
+                searchTerm={searchTerm}
+                setSearchTerm={setSearchTerm}
+                allProducts={allProducts}
+                filteredProducts={filteredProducts}
+                addToCart={addToCart}
+                handleProductClick={handleProductClick}
+                setShowQuickProductModal={setShowQuickProductModal}
+                setQuickProductForm={setQuickProductForm}
+                categories={categories}
+                selectedCategory={selectedCategory}
+                setSelectedCategory={setSelectedCategory}
+                subCategories={subCategories}
+                selectedSubCategory={selectedSubCategory}
+                setSelectedSubCategory={setSelectedSubCategory}
+                isHappyHourActive={isHappyHourActive}
+                isBookstore={isBookstore}
+                isSearching={isSearchingProducts}
+                onSearchSubmit={executeImmediateSearch}
+              />
+              {quickKeysPlacement === 'grid_bottom' && (
+                <PosQuickKeysBar
+                  lang={lang}
+                  quickKeys={quickKeys}
+                  placement={quickKeysPlacement}
+                  onTriggerKey={handleTriggerQuickKey}
+                  onOpenManager={() => setShowQuickKeysManager(true)}
+                  onChangePlacement={(nextP) => saveQuickKeysConfig(quickKeys, nextP)}
+                />
+              )}
+            </>
           )}
       </div>
 
@@ -2389,6 +2882,25 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                 executeWithIkramCheck={executeWithIkramCheck}
                 openSplitPaymentModal={openSplitPaymentModal}
                 handleFinalizeSale={handleFinalizeSale}
+                cardOkcMode={(branding?.fiscal_active || branding?.pos_bridge_enabled) ? getCardOkcMode() : undefined}
+                setQuantity={setQuantity}
+                touchNumpadEnabled={touchNumpadEnabled}
+                onOpenNumpad={(cfg) => setNumpadConfig(cfg)}
+                onParkCart={handleParkCurrentCart}
+                parkedCount={parkedCarts.length}
+                onOpenParkedCarts={() => setShowParkedModal(true)}
+                quickKeysSlot={
+                  quickKeysPlacement === 'cart_top' ? (
+                    <PosQuickKeysBar
+                      lang={lang}
+                      quickKeys={quickKeys}
+                      placement={quickKeysPlacement}
+                      onTriggerKey={handleTriggerQuickKey}
+                      onOpenManager={() => setShowQuickKeysManager(true)}
+                      onChangePlacement={(nextP) => saveQuickKeysConfig(quickKeys, nextP)}
+                    />
+                  ) : undefined
+                }
               />
           )}
         </div>
@@ -2402,6 +2914,10 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
         isHotelActive={isHotelActive}
         posStatus={posStatus}
         posMessage={posMessage}
+        posErrorCode={posErrorCode}
+        canQueryLastTx={Boolean(pendingPosRecovery)}
+        onRetryPosTx={handleRetryPosTx}
+        onQueryLastPosTx={handleQueryLastPosTx}
         setPosStatus={setPosStatus}
         showSuccess={showSuccess}
         setShowSuccess={setShowSuccess}
@@ -2497,6 +3013,21 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
         tableNicknames={tableNicknames}
         saveTableNickname={(table, nick) => saveTableNickname(storeId!, table, nick)}
         clearStoredTableNickname={(table) => clearStoredTableNickname(storeId!, table)}
+        showQuickKeysManager={showQuickKeysManager}
+        setShowQuickKeysManager={setShowQuickKeysManager}
+        quickKeys={quickKeys}
+        quickKeysPlacement={quickKeysPlacement}
+        onSaveQuickKeysConfig={saveQuickKeysConfig}
+        showParkedModal={showParkedModal}
+        setShowParkedModal={setShowParkedModal}
+        parkedCarts={parkedCarts}
+        onRestoreParkedCart={handleRestoreParkedCart}
+        onMergeParkedCart={handleMergeParkedCart}
+        onDeleteParkedCart={handleDeleteParkedCart}
+        onRenameParkedCart={handleRenameParkedCart}
+        numpadConfig={numpadConfig}
+        setNumpadConfig={setNumpadConfig}
+        touchNumpadEnabled={touchNumpadEnabled}
       />
     </div>
   );
