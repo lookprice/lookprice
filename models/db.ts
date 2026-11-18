@@ -21,10 +21,11 @@ class ResilientPool {
     } else {
       try {
         const isSsl = dbUrl.includes("supabase.com") || dbUrl.includes("sslmode=require") || process.env.NODE_ENV === "production";
+        const poolMax = Math.max(10, Number(process.env.DB_POOL_MAX || 25));
         this.pgPool = new Pool({
           connectionString: dbUrl,
           ssl: isSsl ? { rejectUnauthorized: false } : false,
-          max: 10,
+          max: poolMax,
           idleTimeoutMillis: 30000,
           connectionTimeoutMillis: 10000,
           statement_timeout: 30000,
@@ -2216,6 +2217,18 @@ export async function initDb() {
       CREATE INDEX IF NOT EXISTS idx_sales_invoice_items_invoice_id ON sales_invoice_items (sales_invoice_id);
       CREATE INDEX IF NOT EXISTS idx_purchase_invoice_items_invoice_id ON purchase_invoice_items (purchase_invoice_id);
       CREATE INDEX IF NOT EXISTS idx_current_account_transactions_store_comp ON current_account_transactions (store_id, company_id);
+      CREATE INDEX IF NOT EXISTS idx_audit_logs_store_created ON audit_logs (store_id, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON audit_logs (created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_customers_store_created ON customers (store_id, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_customers_store_email_lower ON customers (store_id, LOWER(email));
+      CREATE INDEX IF NOT EXISTS idx_sale_payments_sale_id ON sale_payments (sale_id);
+      CREATE INDEX IF NOT EXISTS idx_sales_invoices_sale_id ON sales_invoices (sale_id);
+      CREATE INDEX IF NOT EXISTS idx_purchase_invoices_store_date ON purchase_invoices (store_id, invoice_date DESC);
+      CREATE INDEX IF NOT EXISTS idx_products_store_updated ON products (store_id, updated_at DESC, id DESC);
+      CREATE INDEX IF NOT EXISTS idx_products_store_category ON products (store_id, category);
+      CREATE INDEX IF NOT EXISTS idx_store_analytics_store_created ON store_analytics_events (store_id, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_ai_jobs_status_updated ON ai_jobs (status, updated_at);
+      CREATE INDEX IF NOT EXISTS idx_users_store_role ON users (store_id, role);
 
       CREATE TABLE IF NOT EXISTS company_reconciliations (
         id BIGINT PRIMARY KEY,

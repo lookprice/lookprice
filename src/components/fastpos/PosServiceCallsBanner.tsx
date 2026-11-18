@@ -1,6 +1,6 @@
 import React from "react";
 import { Bell, Printer } from "lucide-react";
-import { printThermalReceipt } from "../../utils/thermalPrinter";
+import { extractReceiptBrandingOptions, printThermalReceipt } from "../../utils/thermalPrinter";
 
 export interface PosServiceCallsBannerProps {
   storeTableCalls: Array<{ id: string | number; tableId: string | number; type: string }>;
@@ -52,9 +52,8 @@ export const PosServiceCallsBanner: React.FC<PosServiceCallsBannerProps> = ({
                     handlePrintTableBill(saleForCall);
                   } else {
                     printThermalReceipt({
+                      ...extractReceiptBrandingOptions(branding),
                       title: "HESAP TALEBİ FİŞİ",
-                      storeName: branding?.store_name || branding?.name || 'TELOCA CAFE',
-                      storePhone: branding?.phone || branding?.whatsapp_number,
                       tableNo: call.tableId.toString(),
                       items: [],
                       totalAmount: 0,

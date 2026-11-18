@@ -487,6 +487,7 @@ export const PosModalsContainer: React.FC<PosModalsContainerProps> = ({
         quickKeys={quickKeys}
         placement={quickKeysPlacement}
         allProducts={allProducts}
+        fiscalDepartments={branding?.fiscal_departments}
         onSaveConfig={onSaveQuickKeysConfig}
         onOpenNumpad={(cfg) => setNumpadConfig(cfg)}
       />

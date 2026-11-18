@@ -62,6 +62,9 @@ export interface PosCartPanelProps {
   parkedCount?: number;
   onOpenParkedCarts?: () => void;
   quickKeysSlot?: React.ReactNode;
+  showHorecaFiscalToggle?: boolean;
+  sendFiscalOnClose?: boolean;
+  onToggleSendFiscalOnClose?: (next: boolean) => void;
 }
 
 export const PosCartPanel: React.FC<PosCartPanelProps> = ({
@@ -97,7 +100,10 @@ export const PosCartPanel: React.FC<PosCartPanelProps> = ({
   onParkCart,
   parkedCount = 0,
   onOpenParkedCarts,
-  quickKeysSlot
+  quickKeysSlot,
+  showHorecaFiscalToggle = false,
+  sendFiscalOnClose = true,
+  onToggleSendFiscalOnClose
 }) => {
   return (
     <div className="flex-1 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col h-full min-h-0 overflow-hidden">
@@ -311,36 +317,36 @@ export const PosCartPanel: React.FC<PosCartPanelProps> = ({
       {/* Checkout Footer Pinned at Bottom */}
       <div className="p-3 bg-slate-50 border-t border-slate-200 space-y-2 shrink-0">
         {/* Total Amount & Payment Method Selection Row */}
-        <div className="flex items-center justify-between gap-2 pb-1 border-b border-slate-200/60">
-          <div>
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">{lang === 'tr' ? 'TOPLAM TUTAR' : 'TOTAL AMOUNT'}</span>
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-1.5 border-b border-slate-200/60">
+          <div className="shrink-0">
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">{lang === 'tr' ? 'TOPLAM TUTAR' : 'TOTAL AMOUNT'}</span>
             <span className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-none">{total.toFixed(2)} ₺</span>
           </div>
 
           {activeStaffRole !== 'waiter' && (
-            <div className="flex items-center p-0.5 bg-slate-200/70 rounded-xl">
+            <div className="flex items-center gap-1.5 p-1 bg-slate-900 rounded-xl shadow-inner shrink-0">
               <button 
                 type="button"
                 onClick={() => setPaymentMethod('cash')}
-                className={`flex items-center gap-1 py-1.5 px-2.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
+                className={`flex items-center justify-center gap-2 py-2.5 px-4 sm:px-5 rounded-lg text-sm font-black transition-all cursor-pointer active:scale-95 min-h-[44px] ${
                   paymentMethod === 'cash' 
-                    ? 'bg-white text-emerald-700 shadow-xs' 
-                    : 'text-slate-500 hover:text-slate-800'
+                    ? 'bg-emerald-700 hover:bg-emerald-600 text-white border-2 border-emerald-300 shadow-md shadow-emerald-950/50' 
+                    : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
                 }`}
               >
-                <Banknote className="h-3.5 w-3.5 text-emerald-600" />
+                <Banknote className={`h-4 w-4 ${paymentMethod === 'cash' ? 'text-emerald-100' : 'text-emerald-400'}`} />
                 <span>{lang === 'tr' ? 'Nakit' : 'Cash'}</span>
               </button>
               <button 
                 type="button"
                 onClick={() => setPaymentMethod('credit_card')}
-                className={`flex items-center gap-1 py-1.5 px-2.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
+                className={`flex items-center justify-center gap-2 py-2.5 px-4 sm:px-5 rounded-lg text-sm font-black transition-all cursor-pointer active:scale-95 min-h-[44px] ${
                   paymentMethod === 'credit_card' 
-                    ? 'bg-white text-blue-700 shadow-xs' 
-                    : 'text-slate-500 hover:text-slate-800'
+                    ? 'bg-blue-800 hover:bg-blue-700 text-white border-2 border-sky-300 shadow-md shadow-blue-950/50' 
+                    : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
                 }`}
               >
-                <CreditCard className="h-3.5 w-3.5 text-blue-600" />
+                <CreditCard className={`h-4 w-4 ${paymentMethod === 'credit_card' ? 'text-sky-100' : 'text-sky-400'}`} />
                 <span>{lang === 'tr' ? 'Kart' : 'Card'}</span>
               </button>
               {isHotelActive && (
@@ -350,14 +356,14 @@ export const PosCartPanel: React.FC<PosCartPanelProps> = ({
                     setPaymentMethod('room');
                     setShowRoomTransferModal(true);
                   }}
-                  className={`flex items-center gap-1 py-1.5 px-2.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
+                  className={`flex items-center justify-center gap-1.5 py-2.5 px-3.5 rounded-lg text-sm font-black transition-all cursor-pointer active:scale-95 min-h-[44px] ${
                     paymentMethod === 'room' 
-                      ? 'bg-amber-400 text-slate-950 shadow-xs' 
-                      : 'text-slate-500 hover:text-slate-800'
+                      ? 'bg-amber-700 hover:bg-amber-600 text-white border-2 border-amber-300 shadow-md' 
+                      : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
                   }`}
                   title={lang === 'tr' ? "Masa adisyonunu otele / odaya aktar" : "Transfer to hotel room"}
                 >
-                  <Building2 className="h-3.5 w-3.5 text-amber-700" />
+                  <Building2 className={`h-4 w-4 ${paymentMethod === 'room' ? 'text-amber-100' : 'text-amber-400'}`} />
                   <span>{lang === 'tr' ? 'Odaya Yaz' : 'Room'}</span>
                 </button>
               )}
@@ -441,7 +447,7 @@ export const PosCartPanel: React.FC<PosCartPanelProps> = ({
                   disabled={cart.length === 0 || completing}
                   onClick={() => handlePrintReceipt()}
                   className="py-2 px-1 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200/80 rounded-xl font-bold text-[11px] transition-all flex flex-col sm:flex-row items-center justify-center gap-1 disabled:opacity-40 cursor-pointer active:scale-95"
-                  title={lang === 'tr' ? "Masanın güncel adisyon fişini yazdır" : "Print bill slip"}
+                  title={lang === 'tr' ? "Müşteri / garson için termal adisyon (ön hesap) fişi yazdır" : "Print thermal adisyon bill slip"}
                 >
                   <Printer className="h-3.5 w-3.5 text-slate-600 shrink-0" />
                   <span className="truncate">{lang === 'tr' ? 'Fiş Yaz' : 'Print'}</span>
@@ -506,6 +512,34 @@ export const PosCartPanel: React.FC<PosCartPanelProps> = ({
               </div>
             )}
 
+            {isCafeRestaurant && showHorecaFiscalToggle && onToggleSendFiscalOnClose && paymentMethod !== 'room' && (
+              <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white">
+                <div className="min-w-0">
+                  <span className="text-[11px] font-black text-slate-800 block leading-tight">
+                    {lang === 'tr' ? 'Kasa Kapatmada ÖKC Mali Fiş' : 'Issue Fiscal OKC Receipt on Close'}
+                  </span>
+                  <span className="text-[9.5px] font-medium text-slate-500 block truncate">
+                    {sendFiscalOnClose
+                      ? (lang === 'tr' ? 'Açık: Hesap kapatmada ÖKC mali fiş basar' : 'ON: Prints fiscal receipt on OKC')
+                      : (lang === 'tr' ? 'Kapalı: Sadece normal termal / sistem kapanışı' : 'OFF: Normal thermal printer close only')}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onToggleSendFiscalOnClose(!sendFiscalOnClose)}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all shrink-0 cursor-pointer border ${
+                    sendFiscalOnClose
+                      ? 'bg-emerald-700 hover:bg-emerald-600 text-white border-emerald-800'
+                      : 'bg-slate-200 hover:bg-slate-300 text-slate-900 border-slate-300'
+                  }`}
+                >
+                  {sendFiscalOnClose
+                    ? (lang === 'tr' ? 'ÖKC Fişi: AÇIK' : 'OKC: ON')
+                    : (lang === 'tr' ? 'ÖKC Fişi: KAPALI' : 'OKC: OFF')}
+                </button>
+              </div>
+            )}
+
             {/* Primary Big Checkout Button */}
             <button 
               disabled={cart.length === 0 || completing}
@@ -519,7 +553,9 @@ export const PosCartPanel: React.FC<PosCartPanelProps> = ({
                   <CheckCircle2 className="h-4 w-4 text-emerald-400" />
                   <span>
                     {isCafeRestaurant && selectedTable !== null 
-                      ? (lang === 'tr' ? 'Hesabı Kapat / Öde' : 'Close Table & Pay') 
+                      ? (showHorecaFiscalToggle && sendFiscalOnClose
+                          ? (lang === 'tr' ? 'Hesabı Kapat & ÖKC Fişi Kes' : 'Close Table & Fiscalize')
+                          : (lang === 'tr' ? 'Hesabı Kapat / Öde' : 'Close Table & Pay')) 
                       : (lang === 'tr' ? 'Satışı Tamamla' : 'Complete Sale')}
                   </span>
                 </>

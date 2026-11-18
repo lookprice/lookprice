@@ -5,6 +5,8 @@ export interface FiscalDepartmentMapping {
   code?: string;
 }
 
+export type ThermalPaperWidthMm = 56 | 58 | 80;
+
 export interface PosDeviceSpec {
   id: string;
   brand: string;
@@ -12,6 +14,8 @@ export interface PosDeviceSpec {
   category: 'yn_okc' | 'android_pos' | 'thermal_escpos';
   protocol: 'GMP3_TCP' | 'TSM_ECR_TCP' | 'PAX_LAN_JSON' | 'ESC_POS_RAW';
   defaultPort: number;
+  defaultPaperWidthMm: ThermalPaperWidthMm;
+  supportedPaperWidths: ThermalPaperWidthMm[];
   connectionTypes: string[];
   gmp3Supported: boolean;
   supportsLastTxQuery: boolean;
@@ -33,6 +37,8 @@ export const UNIVERSAL_POS_DEVICES: PosDeviceSpec[] = [
     category: 'yn_okc',
     protocol: 'GMP3_TCP',
     defaultPort: 4444,
+    defaultPaperWidthMm: 56,
+    supportedPaperWidths: [56, 58],
     connectionTypes: ['Ethernet LAN (TCP 4444)', 'Wi-Fi (TCP 4444)', 'USB-VCP (COM Port)'],
     gmp3Supported: true,
     supportsLastTxQuery: true,
@@ -58,6 +64,8 @@ export const UNIVERSAL_POS_DEVICES: PosDeviceSpec[] = [
     category: 'yn_okc',
     protocol: 'TSM_ECR_TCP',
     defaultPort: 5555,
+    defaultPaperWidthMm: 56,
+    supportedPaperWidths: [56, 58],
     connectionTypes: ['Ethernet LAN (TCP 5555)', 'USB-VCP (Telium Driver)', 'Wi-Fi'],
     gmp3Supported: true,
     supportsLastTxQuery: true,
@@ -82,6 +90,8 @@ export const UNIVERSAL_POS_DEVICES: PosDeviceSpec[] = [
     category: 'yn_okc',
     protocol: 'GMP3_TCP',
     defaultPort: 4444,
+    defaultPaperWidthMm: 56,
+    supportedPaperWidths: [56, 58],
     connectionTypes: ['Wi-Fi / LAN (TCP 4444)', 'USB-Serial', 'Bluetooth SPP'],
     gmp3Supported: true,
     supportsLastTxQuery: true,
@@ -106,6 +116,8 @@ export const UNIVERSAL_POS_DEVICES: PosDeviceSpec[] = [
     category: 'android_pos',
     protocol: 'GMP3_TCP',
     defaultPort: 3400,
+    defaultPaperWidthMm: 58,
+    supportedPaperWidths: [56, 58],
     connectionTypes: ['Wi-Fi LAN (TCP 3400)', 'USB-C ADB/Serial'],
     gmp3Supported: true,
     supportsLastTxQuery: true,
@@ -129,6 +141,8 @@ export const UNIVERSAL_POS_DEVICES: PosDeviceSpec[] = [
     category: 'yn_okc',
     protocol: 'GMP3_TCP',
     defaultPort: 4444,
+    defaultPaperWidthMm: 58,
+    supportedPaperWidths: [56, 58, 80],
     connectionTypes: ['Ethernet LAN (TCP 4444)', 'RS232 / USB-Serial'],
     gmp3Supported: true,
     supportsLastTxQuery: true,
@@ -152,6 +166,8 @@ export const UNIVERSAL_POS_DEVICES: PosDeviceSpec[] = [
     category: 'yn_okc',
     protocol: 'GMP3_TCP',
     defaultPort: 5000,
+    defaultPaperWidthMm: 58,
+    supportedPaperWidths: [56, 58, 80],
     connectionTypes: ['Ethernet LAN (TCP 5000)', 'USB-VCP'],
     gmp3Supported: true,
     supportsLastTxQuery: true,
@@ -174,6 +190,8 @@ export const UNIVERSAL_POS_DEVICES: PosDeviceSpec[] = [
     category: 'thermal_escpos',
     protocol: 'ESC_POS_RAW',
     defaultPort: 9100,
+    defaultPaperWidthMm: 80,
+    supportedPaperWidths: [58, 80],
     connectionTypes: ['Ethernet Raw (TCP 9100)', 'Windows Yazıcı Paylaşımı'],
     gmp3Supported: false,
     supportsLastTxQuery: false,
@@ -226,6 +244,35 @@ export function getPosDeviceById(deviceId?: string | null): PosDeviceSpec {
     UNIVERSAL_POS_DEVICES.find(d => d.id.toLowerCase() === norm || d.brand.toLowerCase() === norm) ||
     UNIVERSAL_POS_DEVICES[0]
   );
+}
+
+export function resolvePrinterPaperWidth(
+  fiscalBrand?: string | null,
+  bridgeSettings?: any,
+  fiscalActive?: boolean
+): ThermalPaperWidthMm {
+  const hasSeparateThermal = Boolean(bridgeSettings?.has_separate_thermal_printer);
+  const thermalOverride = Number(bridgeSettings?.thermal_paper_width_mm);
+  if (hasSeparateThermal && (thermalOverride === 56 || thermalOverride === 58 || thermalOverride === 80)) {
+    return thermalOverride;
+  }
+
+  const overrideRaw = bridgeSettings?.paper_width_mm ?? bridgeSettings?.receipt_paper_width_mm;
+  const overrideNum = Number(overrideRaw);
+  if (overrideRaw && overrideRaw !== 'auto' && (overrideNum === 56 || overrideNum === 58 || overrideNum === 80)) {
+    return overrideNum;
+  }
+
+  if (hasSeparateThermal) {
+    return 80;
+  }
+
+  const bridgeActive = Boolean(fiscalActive || bridgeSettings?.enabled);
+  if (!bridgeActive || !fiscalBrand) {
+    return 80;
+  }
+  const spec = getPosDeviceById(fiscalBrand);
+  return spec.defaultPaperWidthMm || 80;
 }
 
 export function normalizeDepartments(raw?: any): FiscalDepartmentMapping[] {

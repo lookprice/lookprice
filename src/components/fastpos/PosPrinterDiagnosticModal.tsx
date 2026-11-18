@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { motion } from "motion/react";
 import { Printer, X, RefreshCw, Activity, ExternalLink, CheckCircle2, AlertTriangle } from "lucide-react";
-import { printThermalReceipt } from "../../utils/thermalPrinter";
+import { extractReceiptBrandingOptions, printThermalReceipt } from "../../utils/thermalPrinter";
 import { api } from "../../services/api";
-import { getPosDeviceById } from "../../data/posDevices";
+import { getPosDeviceById, resolvePrinterPaperWidth } from "../../data/posDevices";
 
 export interface PosPrinterDiagnosticModalProps {
   isOpen: boolean;
@@ -34,6 +34,11 @@ export const PosPrinterDiagnosticModal: React.FC<PosPrinterDiagnosticModalProps>
   const [okcResult, setOkcResult] = useState<any>(null);
 
   const deviceSpec = getPosDeviceById(branding?.fiscal_brand);
+  const detectedPaperWidth = resolvePrinterPaperWidth(
+    branding?.fiscal_brand,
+    branding?.pos_bridge_settings,
+    Boolean(branding?.fiscal_active)
+  );
   const runOkcDiagnostic = async (cmd: 'PING_STATUS' | 'LAST_TX') => {
     if (!storeId) return;
     try {
@@ -114,6 +119,9 @@ export const PosPrinterDiagnosticModal: React.FC<PosPrinterDiagnosticModalProps>
                           : "2'si 1 Arada (EFT-POS + Mali Fiş)"
                       }
                     </p>
+                    <p className="text-[10px] font-semibold text-emerald-300 mt-0.5">
+                      Termal Yazıcı: {detectedPaperWidth}mm • {branding?.pos_bridge_settings?.skip_thermal_after_okc !== false ? 'ÖKC fiş kestiyse çift fiş basmaz' : 'ÖKC sonrası da termal basar'}
+                    </p>
                   </div>
                   <a
                     href={deviceSpec.driverUrl}
@@ -163,29 +171,27 @@ export const PosPrinterDiagnosticModal: React.FC<PosPrinterDiagnosticModalProps>
                 <div>
                   <h4 className="text-xs font-black text-amber-900 uppercase tracking-wide flex items-center gap-1.5">
                     <Printer className="w-4 h-4 text-amber-600" />
-                    Teloca Termal Yazıcı Sınama Fişi (80mm)
+                    Termal Yazıcı Sınama Fişi ({detectedPaperWidth}mm • {deviceSpec.brand})
                   </h4>
                   <p className="text-[11px] text-amber-800/80 font-medium">
-                    Windows'a tanımlı termal yazıcıdan büyük ve okunaklı test çıktısı alın.
+                    Tanımlı cihaz ve kağıt genişliğine ({detectedPaperWidth}mm) uygun resmi firma başlıklı sınama çıktısı alın.
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => {
                     printThermalReceipt({
-                      title: "TERMAL YAZICI SINAMA SAYFASI",
-                      storeName: branding?.store_name || branding?.name || "TELOCA CAFE",
-                      storePhone: branding?.phone || branding?.whatsapp_number,
-                      tableNo: "TEST MASA 1",
+                      ...extractReceiptBrandingOptions(branding),
+                      title: "TERMAL YAZICI SINAMA FİŞİ",
+                      tableNo: "KASA TEST 1",
                       saleId: "9999",
                       items: [
-                        { name: "Türk Kahvesi (Orta)", quantity: 1, price: 45 },
-                        { name: "Demli Çay", quantity: 2, price: 30 },
-                        { name: "Şekerli Çay", quantity: 1, price: 15 }
+                        { name: "Örnek Ürün / Hizmet Kalemi", quantity: 1, price: 45 },
+                        { name: "İkinci Ürün Örneği", quantity: 2, price: 30 }
                       ],
-                      totalAmount: 120,
-                      paymentMethod: "WIN32 TEST OK",
-                      notes: "Windows Sınama Sayfası Başarılı!"
+                      totalAmount: 105,
+                      paymentMethod: "TEST OK",
+                      notes: `Yazıcı Sınama (${detectedPaperWidth}mm) Başarılı!`
                     });
                   }}
                   className="px-3 py-2 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white text-xs font-black rounded-xl transition-all shadow-md flex items-center gap-1.5 cursor-pointer shrink-0"

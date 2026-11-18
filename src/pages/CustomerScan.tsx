@@ -24,7 +24,7 @@ import { translations } from "../translations";
 
 export default function CustomerScanPage({ customSlug }: { customSlug?: string }) {
   const { slug: urlSlug } = useParams();
-  const slug = customSlug || urlSlug;
+  const slug = urlSlug || customSlug;
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
   const [product, setProduct] = useState<any>(null);
@@ -39,8 +39,8 @@ export default function CustomerScanPage({ customSlug }: { customSlug?: string }
   const [showAddedToast, setShowAddedToast] = useState(false);
   const [lastAdded, setLastAdded] = useState<any>(null);
   const [basket, setBasket] = useState<any[]>(() => {
-    const saved = localStorage.getItem(`basket_${slug}`);
-    return saved ? JSON.parse(saved) : [];
+    const saved = localStorage.getItem(`basket_${slug || 'default'}`);
+    try { return saved ? JSON.parse(saved) : []; } catch { return []; }
   });
   const [showBasket, setShowBasket] = useState(false);
   const [orderCompleted, setOrderCompleted] = useState(false);
@@ -66,20 +66,26 @@ export default function CustomerScanPage({ customSlug }: { customSlug?: string }
   }, [orderCompleted, saleId]);
 
   useEffect(() => {
-    fetchStore();
+    if (slug) fetchStore();
   }, [slug]);
 
   useEffect(() => {
-    localStorage.setItem(`basket_${slug}`, JSON.stringify(basket));
+    localStorage.setItem(`basket_${slug || 'default'}`, JSON.stringify(basket));
   }, [basket, slug]);
 
   const fetchStore = async () => {
-    const res = await api.getPublicStore(slug!);
-    if (res.redirect) {
-      window.location.href = res.redirect;
-      return;
+    if (!slug) return;
+    try {
+      const res = await api.getPublicStore(slug, 'scan');
+      if (res?.error) {
+        setError(res.message || res.error || "Mağaza bilgisi yüklenemedi.");
+      } else if (res) {
+        setError("");
+        setStore(res);
+      }
+    } catch {
+      setError("Mağaza bilgisi yüklenirken bağlantı hatası oluştu.");
     }
-    if (!res.error) setStore(res);
   };
 
   const handleScan = async (barcode: string) => {
@@ -161,7 +167,8 @@ export default function CustomerScanPage({ customSlug }: { customSlug?: string }
   }, 0);
 
   const formatCurrency = (amount: number, currency: string) => {
-    return amount.toLocaleString('tr-TR', { 
+    const safeAmount = Number.isFinite(Number(amount)) ? Number(amount) : 0;
+    return safeAmount.toLocaleString('tr-TR', { 
       style: 'currency', 
       currency: currency || 'TRY' 
     });
@@ -316,8 +323,20 @@ export default function CustomerScanPage({ customSlug }: { customSlug?: string }
         ) : (
           <Logo size={60} className="mx-auto mb-4 md:mb-6 text-white drop-shadow-lg" />
         )}
-        <h1 className="text-2xl md:text-4xl font-black mb-1 md:mb-2 tracking-tight drop-shadow-md">{store?.name?.toUpperCase() || "PRICE CHECKER"}</h1>
-        <p className="text-sm md:text-lg font-bold opacity-90 drop-shadow-sm">Barkodu tarayın, fiyatı görün!</p>
+        <h1 className="text-2xl md:text-4xl font-black mb-1 md:mb-2 tracking-tight drop-shadow-md">
+          {store?.parent_store_name?.toUpperCase() || store?.name?.toUpperCase() || "FİYAT GÖR"}
+        </h1>
+        {store?.is_branch && store?.branch_name && (
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 border border-white/30 text-white text-xs font-black tracking-wide mb-2 backdrop-blur-md">
+            <span>{store.branch_name} Şubesi</span>
+          </div>
+        )}
+        <p className="text-sm md:text-lg font-bold opacity-90 drop-shadow-sm">Barkodu tarayın, fiyatı ve şube stoklarını görün!</p>
+        {error && !product && scanning && (
+          <div className="mt-3 bg-rose-950/70 border border-rose-300/40 text-white text-xs font-bold px-4 py-2.5 rounded-2xl">
+            {error}
+          </div>
+        )}
       </div>
 
       <div className="w-full max-w-md relative z-10">
@@ -409,14 +428,14 @@ export default function CustomerScanPage({ customSlug }: { customSlug?: string }
                     className="w-full flex flex-col space-y-4 bg-white/10 backdrop-blur-2xl p-6 rounded-[2.5rem] border-2 border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.3)]"
                   >
                     <div className="space-y-2">
-                      <label className="text-white/60 text-[10px] font-black uppercase tracking-[0.3em] ml-2">BARKOD NUMARASI</label>
+                      <label className="text-white/80 text-[10px] font-black uppercase tracking-[0.3em] ml-2">BARKOD / STOK KODU</label>
                       <input 
-                        type="tel" 
-                        inputMode="numeric"
+                        type="text" 
+                        inputMode="text"
                         placeholder="Barkod numarasını yazın..."
-                        className="w-full bg-white border-4 border-white/30 rounded-2xl px-6 py-5 text-gray-900 placeholder:text-gray-400 font-black text-2xl shadow-inner focus:ring-8 focus:ring-white/20 outline-none transition-all text-center tracking-[0.2em]"
+                        className="w-full bg-white border-4 border-white/30 rounded-2xl px-6 py-5 text-gray-900 placeholder:text-gray-400 font-black text-2xl shadow-inner focus:ring-8 focus:ring-white/20 outline-none transition-all text-center tracking-[0.15em]"
                         value={manualBarcode}
-                        onChange={(e) => setManualBarcode(e.target.value.replace(/\D/g, ''))}
+                        onChange={(e) => setManualBarcode(e.target.value.replace(/\s+/g, ''))}
                         autoFocus
                       />
                     </div>
@@ -467,7 +486,7 @@ export default function CustomerScanPage({ customSlug }: { customSlug?: string }
                   )}
                 </div>
 
-                {/* Stock Quantity Display Badge */}
+                {/* Stock Quantity Display Badge (Single Store or Merkez/Şube Multi-Branch Breakdown) */}
                 {(() => {
                   if (product.product_type === 'service') return null;
                   let vars: any[] = [];
@@ -481,6 +500,63 @@ export default function CustomerScanPage({ customSlug }: { customSlug?: string }
                   const stockQty = vars.length > 0
                     ? vars.reduce((acc: number, curr: any) => acc + (Number(curr.stock_quantity) || Number(curr.stock) || 0), 0)
                     : Number(product.stock_quantity ?? 0);
+                  const unitLabel = product.unit || (lang === 'tr' ? 'Adet' : 'Pcs');
+                  const branchStocks: any[] = Array.isArray(product.branch_stocks) ? product.branch_stocks : [];
+
+                  if (branchStocks.length > 1) {
+                    const totalAcrossBranches = branchStocks.reduce((acc, b) => acc + (Number(b.stock_quantity) || 0), 0);
+                    return (
+                      <div className="bg-slate-50 border-2 border-slate-200 rounded-2xl p-4 space-y-2.5 text-left">
+                        <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                          <div className="flex items-center space-x-2">
+                            <Package className="text-indigo-600 h-4 w-4 shrink-0" />
+                            <span className="text-[11px] font-black text-slate-800 uppercase tracking-wider">
+                              {lang === 'tr' ? 'Merkez & Şube Stokları' : 'HQ & Branch Stock'}
+                            </span>
+                          </div>
+                          <span className="px-2 py-0.5 rounded-full bg-slate-900 text-white text-[10px] font-black tabular-nums">
+                            {lang === 'tr' ? 'Toplam' : 'Total'}: {Math.floor(totalAcrossBranches)} {unitLabel}
+                          </span>
+                        </div>
+                        <div className="space-y-1.5">
+                          {branchStocks.map((b: any) => {
+                            const bQty = Number(b.stock_quantity) || 0;
+                            return (
+                              <div
+                                key={b.store_id}
+                                className={`flex items-center justify-between px-3 py-2 rounded-xl border text-xs ${
+                                  b.is_current
+                                    ? 'bg-indigo-50 border-indigo-300 text-slate-900'
+                                    : 'bg-white border-slate-200 text-slate-800'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase shrink-0 ${
+                                    b.is_hq ? 'bg-slate-900 text-white' : 'bg-indigo-100 text-indigo-800'
+                                  }`}>
+                                    {b.is_hq ? 'Merkez' : 'Şube'}
+                                  </span>
+                                  <span className="font-extrabold truncate">{b.branch_name}</span>
+                                  {b.is_current && (
+                                    <span className="text-[9px] font-black text-indigo-700 shrink-0">(Burada)</span>
+                                  )}
+                                </div>
+                                <span className={`font-black tabular-nums shrink-0 ${
+                                  bQty <= 0
+                                    ? 'text-rose-600'
+                                    : bQty <= Number(product.min_stock_level || 5)
+                                      ? 'text-amber-600'
+                                      : 'text-emerald-700'
+                                }`}>
+                                  {bQty <= 0 ? (lang === 'tr' ? 'Stok Yok (0)' : 'Out (0)') : `${Math.floor(bQty)} ${unitLabel}`}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  }
 
                   return (
                     <div className="bg-slate-100 border-2 border-slate-200/90 rounded-2xl p-4 flex items-center justify-between shadow-xs">
@@ -501,7 +577,7 @@ export default function CustomerScanPage({ customSlug }: { customSlug?: string }
                           {Math.floor(stockQty)}
                         </span>
                         <span className="text-xs font-bold text-slate-500 uppercase">
-                          {product.unit || (lang === 'tr' ? 'Adet' : 'Pcs')}
+                          {unitLabel}
                         </span>
                       </div>
                     </div>

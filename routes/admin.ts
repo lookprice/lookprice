@@ -68,14 +68,29 @@ router.post("/profile", async (req: any, res) => {
 // SuperAdmin: Global Audit Logs
 router.get("/audit-logs", async (req: any, res) => {
   try {
+    const rawLimit = Number(req.query.limit);
+    const rawOffset = Number(req.query.offset);
+    const safeLimit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(Math.floor(rawLimit), 1000) : 200;
+    const safeOffset = Number.isFinite(rawOffset) && rawOffset >= 0 ? Math.floor(rawOffset) : 0;
+    const storeIdFilter = req.query.storeId ? Number(req.query.storeId) : null;
+
+    const params: any[] = [];
+    let whereClause = "";
+    if (storeIdFilter && !isNaN(storeIdFilter)) {
+      params.push(storeIdFilter);
+      whereClause = `WHERE l.store_id = $${params.length}`;
+    }
+
+    params.push(safeLimit, safeOffset);
     const logs = await pool.query(`
       SELECT l.*, s.name as store_name, s.slug as store_slug, u.email as user_email
       FROM audit_logs l
       LEFT JOIN stores s ON l.store_id = s.id
       LEFT JOIN users u ON l.user_id = u.id
+      ${whereClause}
       ORDER BY l.created_at DESC
-      LIMIT 1000
-    `);
+      LIMIT $${params.length - 1} OFFSET $${params.length}
+    `, params);
     res.json(logs.rows);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
@@ -205,35 +220,73 @@ router.get("/supabase-status", async (req: any, res) => {
   }
 });
 
-// SuperAdmin: Manage Stores
+// SuperAdmin: Manage Stores (Slim projection avoids multi-MB JSONB blobs & API secrets in list payload)
 router.get("/stores", async (req: any, res) => {
-  const stores = await pool.query(`
-    SELECT s.*, u.email as admin_email 
-    FROM stores s 
-    LEFT JOIN users u ON s.id = u.store_id AND u.role = 'storeadmin'
-    ORDER BY s.id ASC
-  `);
-  
-  const normalized = stores.rows.map(row => {
-    let br = row.branding;
-    if (typeof br === 'string') {
-      try { br = JSON.parse(br); } catch(e) { br = {}; }
-    } else if (!br) {
-      br = {};
-    }
-    const isHotel = Boolean(row.hotel_module_enabled || br.hotel_module_enabled || br.hotel_license_enabled);
-    return {
-      ...row,
-      hotel_module_enabled: isHotel,
-      hotel_license_enabled: isHotel,
-      branding: {
-        ...br,
-        hotel_module_enabled: isHotel,
-        hotel_license_enabled: isHotel
+  try {
+    const rawLimit = Number(req.query.limit);
+    const rawOffset = Number(req.query.offset);
+    const safeLimit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(Math.floor(rawLimit), 2000) : 500;
+    const safeOffset = Number.isFinite(rawOffset) && rawOffset >= 0 ? Math.floor(rawOffset) : 0;
+
+    const stores = await pool.query(`
+      SELECT
+        s.id, s.name, s.slug, s.store_code, s.store_type, s.sub_sector, s.status, s.is_approved,
+        s.plan, s.subscription_end, s.default_currency, s.language, s.parent_id, s.branch_name,
+        s.custom_domain, s.custom_domain_status, s.contact_person, s.phone, s.whatsapp_number, s.email,
+        s.address, s.country, s.logo_url, s.favicon_url,
+        s.max_products, s.max_properties, s.max_vehicles, s.max_users, s.max_customers,
+        s.hotel_module_enabled, s.bookstore_module_enabled,
+        s.is_enrakipsiz_featured, s.enrakipsiz_featured_order, s.enrakipsiz_featured_title,
+        s.created_at, s.branding,
+        (
+          SELECT u.email FROM users u
+          WHERE u.store_id = s.id AND u.role IN ('storeadmin', 'admin')
+          ORDER BY u.id ASC LIMIT 1
+        ) as admin_email
+      FROM stores s
+      ORDER BY s.id ASC
+      LIMIT $1 OFFSET $2
+    `, [safeLimit, safeOffset]);
+
+    const normalized = stores.rows.map(row => {
+      let br = row.branding;
+      if (typeof br === 'string') {
+        try { br = JSON.parse(br); } catch(e) { br = {}; }
+      } else if (!br) {
+        br = {};
       }
-    };
-  });
-  res.json(normalized);
+      const isHotel = Boolean(row.hotel_module_enabled || br.hotel_module_enabled || br.hotel_license_enabled);
+      const isBook = Boolean(row.bookstore_module_enabled || br.bookstore_module_enabled);
+      const slimBranding = {
+        store_name: br.store_name || row.name,
+        name: br.name || row.name,
+        store_type: br.store_type || row.store_type,
+        store_concept: br.store_concept,
+        logo_url: br.logo_url || row.logo_url,
+        is_demo: Boolean(br.is_demo),
+        hotel_module_enabled: isHotel,
+        hotel_license_enabled: isHotel,
+        bookstore_module_enabled: isBook,
+        sector_taxonomy_packages: br.sector_taxonomy_packages,
+        page_layout_settings: br.page_layout_settings ? {
+          sector: br.page_layout_settings.sector,
+          store_concept: br.page_layout_settings.store_concept,
+          is_book_store: br.page_layout_settings.is_book_store
+        } : undefined
+      };
+      return {
+        ...row,
+        hotel_module_enabled: isHotel,
+        hotel_license_enabled: isHotel,
+        bookstore_module_enabled: isBook,
+        branding: slimBranding
+      };
+    });
+    res.json(normalized);
+  } catch (e: any) {
+    console.error("GET /api/admin/stores error:", e?.message || e);
+    res.status(500).json({ error: e?.message || "Failed to load stores" });
+  }
 });
 
 // SuperAdmin: 1-click Toggle Hotel Concept

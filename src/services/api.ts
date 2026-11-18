@@ -482,14 +482,17 @@ export const api = {
   
   // Public Methods
   getMarketplaceListings: () => api.get(`/api/public/marketplace/listings`),
-  getPublicStoreProducts: (slug: string) => api.get(`/api/public/store/${slug}/products?t=${Date.now()}`),
-  getPublicStore: (slug: string) => api.get(`/api/public/store/${slug}?t=${Date.now()}`),
+  getPublicStoreProducts: (slug: string) => api.get(`/api/public/store/${encodeURIComponent(slug)}/products?t=${Date.now()}`),
+  getPublicStore: (slug: string, context?: 'scan' | 'web') =>
+    api.get(`/api/public/store/${encodeURIComponent(slug)}?${context ? `context=${context}&` : ''}t=${Date.now()}`),
   getPublicHotelRooms: (storeId: number) => api.get(`/api/public/hotel-rooms?storeId=${storeId}`),
-  getProductBySlug: (slug: string, barcode: string) => api.get(`/api/public/scan/${slug}/${barcode}`),
+  getProductBySlug: (slug: string, barcode: string) =>
+    api.get(`/api/public/scan/${encodeURIComponent(slug)}/${encodeURIComponent(barcode)}`),
   getSaleStatus: (id: number) => api.get(`/api/public/sales/${id}/status`),
   createPublicSale: (data: any) => api.post("/api/public/sales", data),
   createGuestSale: (data: any) => api.post("/api/public/guest-sales", data),
-  getPublicProductBranchStock: (slug: string, barcode: string) => api.get(`/api/public/store/${slug}/products/${barcode}/stock`),
+  getPublicProductBranchStock: (slug: string, barcode: string) =>
+    api.get(`/api/public/store/${encodeURIComponent(slug)}/products/${encodeURIComponent(barcode)}/stock`),
   requestDemo: (data: any) => api.post("/api/public/demo-request", data),
   requestRegistration: (data: any) => api.post("/api/public/register-request", data),
   

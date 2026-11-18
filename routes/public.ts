@@ -1,6 +1,7 @@
 import express from "express";
 import { pool, processSaleAutomation } from "../models/db";
 import crypto from "crypto";
+import { authenticate, JWT_SECRET } from "../middleware/auth";
 
 const router = express.Router();
 
@@ -8,6 +9,7 @@ const router = express.Router();
 // Prevents redundant Supabase PostgreSQL queries and reduces Database Egress by 90%+
 class MemoryCache {
   private cache = new Map<string, { data: any; expiry: number }>();
+  private readonly maxEntries = 1000;
 
   get(key: string): any | null {
     const item = this.cache.get(key);
@@ -16,15 +18,28 @@ class MemoryCache {
       this.cache.delete(key);
       return null;
     }
+    // Refresh LRU order on read
+    this.cache.delete(key);
+    this.cache.set(key, item);
     return item.data;
   }
 
   set(key: string, data: any, ttlSeconds: number = 60): void {
-    if (this.cache.size > 500) {
-      const oldestKey = this.cache.keys().next().value;
-      if (oldestKey) this.cache.delete(oldestKey);
+    const now = Date.now();
+    if (this.cache.has(key)) {
+      this.cache.delete(key);
     }
-    this.cache.set(key, { data, expiry: Date.now() + ttlSeconds * 1000 });
+    if (this.cache.size >= this.maxEntries) {
+      for (const [k, v] of this.cache.entries()) {
+        if (now > v.expiry) this.cache.delete(k);
+      }
+      while (this.cache.size >= this.maxEntries) {
+        const oldestKey = this.cache.keys().next().value;
+        if (!oldestKey) break;
+        this.cache.delete(oldestKey);
+      }
+    }
+    this.cache.set(key, { data, expiry: now + ttlSeconds * 1000 });
   }
 
   del(key: string): void {
@@ -79,7 +94,10 @@ router.get("/sitemap.xml", async (req, res) => {
   }
 });
 
-router.get("/fix-db", async (req, res) => {
+router.get("/fix-db", authenticate, async (req: any, res) => {
+  if (req.user?.role !== "superadmin") {
+    return res.status(403).json({ error: "Forbidden" });
+  }
 
   const result = await pool.query("SELECT id, branding FROM stores");
   for (const row of result.rows) {
@@ -137,10 +155,6 @@ router.post("/analytics/event", async (req, res) => {
   }
 });
 
-router.get("/debug-stores", async (req, res) => {
-  const result = await pool.query("SELECT * FROM stores WHERE name ILIKE '%GAP%'");
-  res.json(result.rows);
-});
 
 router.get("/stores/:slug/blog-posts", async (req, res) => {
   const { slug } = req.params;
@@ -584,109 +598,254 @@ async function getPayPalAccessToken(clientId: string, secret: string, sandbox: b
   return data.access_token;
 }
 
-// Public: Get Product by Barcode and Store Slug
+const normalizeStoreAlias = (val: string) =>
+  String(val || "")
+    .replace(/ğ/gi, "g").replace(/ü/gi, "u").replace(/ş/gi, "s")
+    .replace(/ı/g, "i").replace(/İ/g, "i").replace(/ö/gi, "o").replace(/ç/gi, "c")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+
+async function findPublicStoreRow(rawIdentifier: string, selectCols: string) {
+  const clean = String(rawIdentifier || "").trim();
+  if (!clean) return null;
+
+  let res = await pool.query(`SELECT ${selectCols} FROM stores WHERE LOWER(slug) = LOWER($1) LIMIT 1`, [clean]);
+  if (res.rows[0]) return res.rows[0];
+
+  res = await pool.query(`SELECT ${selectCols} FROM stores WHERE LOWER(store_code) = LOWER($1) LIMIT 1`, [clean]);
+  if (res.rows[0]) return res.rows[0];
+
+  const normInput = normalizeStoreAlias(clean);
+  if (!normInput) return null;
+
+  const allRes = await pool.query("SELECT id, slug, name, store_code FROM stores");
+  const matched = allRes.rows.find((r: any) =>
+    normalizeStoreAlias(r.slug) === normInput ||
+    normalizeStoreAlias(r.store_code) === normInput ||
+    normalizeStoreAlias(r.name) === normInput
+  );
+  if (!matched) return null;
+
+  const fullRes = await pool.query(`SELECT ${selectCols} FROM stores WHERE id = $1 LIMIT 1`, [matched.id]);
+  return fullRes.rows[0] || null;
+}
+
+const parseJsonSafe = (val: any, fallback: any) => {
+  if (val === null || val === undefined) return fallback;
+  if (typeof val === "object") return val;
+  if (typeof val === "string") {
+    try { return JSON.parse(val); } catch { return fallback; }
+  }
+  return fallback;
+};
+
+const computeProductStockQty = (p: any): number => {
+  if (!p) return 0;
+  const vars = parseJsonSafe(p.variants, []);
+  if (Array.isArray(vars) && vars.length > 0) {
+    return vars.reduce((acc: number, v: any) => acc + (Number(v?.stock_quantity ?? v?.stock) || 0), 0);
+  }
+  return Number(p.stock_quantity ?? 0) || 0;
+};
+
+// Public: Get Product by Barcode and Store Slug (supports HQ + Branch cross-stock lookup)
 router.get("/scan/:slug/:barcode", async (req, res) => {
-  const { slug, barcode } = req.params;
-  const storeRes = await pool.query(`
-    SELECT 
+  try {
+    const { slug, barcode } = req.params;
+    const cleanBarcode = String(barcode || "").trim();
+    const storeColumns = `
       id, name, slug, logo_url, primary_color, default_currency, background_image_url,
       hero_title, hero_subtitle, hero_image_url, about_text,
       instagram_url, facebook_url, twitter_url, whatsapp_number,
-      address, phone, parent_id, currency_rates
-    FROM stores 
-    WHERE LOWER(slug) = LOWER($1)
-  `, [slug]);
-  let store = storeRes.rows[0];
+      address, phone, parent_id, currency_rates, branding, status, is_approved
+    `;
 
-  if (store && store.parent_id) {
-    // If it's a branch, we use the parent's branding for the scan result
-    const parentRes = await pool.query(`
-      SELECT 
-        id, name, logo_url, primary_color, default_currency, background_image_url,
-        hero_title, hero_subtitle, hero_image_url, about_text,
-        instagram_url, facebook_url, twitter_url, whatsapp_number,
-        address, phone, slug, currency_rates
-      FROM stores 
-      WHERE id = $1
-    `, [store.parent_id]);
-    if (parentRes.rows[0]) {
-      const parentStore = parentRes.rows[0];
-      // Keep the branch ID for logging and stock checking if needed, but use parent branding
-      store = { ...parentStore, branch_id: store.id };
+    let originalStore = await findPublicStoreRow(slug, storeColumns);
+
+    if (!originalStore && (slug === 'demo-store' || slug === 'demo')) {
+      const demoStore = {
+        id: -1,
+        name: "Demo Mağaza",
+        slug: "demo",
+        logo_url: "",
+        primary_color: "#4f46e5",
+        default_currency: "TRY",
+        background_image_url: "",
+        hero_title: "Hoş Geldiniz",
+        hero_subtitle: "En iyi ürünler burada",
+        about_text: "Biz bir demo mağazayız.",
+        is_branch: false,
+        branch_stocks: []
+      };
+      const demoProduct = {
+        id: 0,
+        store_id: -1,
+        barcode: cleanBarcode,
+        name: "Demo Ürün (Örnek)",
+        price: 129.90,
+        currency: 'TRY',
+        stock_quantity: 12,
+        description: "Bu bir demo üründür. Sistemde gerçek bir ürün bulunamadığında bu örnek gösterilir.",
+        updated_at: new Date().toISOString(),
+        is_demo: true,
+        branch_stocks: [],
+        total_stock: 12
+      };
+      return res.json({ ...demoProduct, store: demoStore });
     }
-  }
-  
-  if (!store && (slug === 'demo-store' || slug === 'demo')) {
-    store = {
-      id: -1,
-      name: "Demo Mağaza",
-      logo_url: "",
-      primary_color: "#4f46e5",
-      default_currency: "TRY",
-      background_image_url: "",
-      hero_title: "Hoş Geldiniz",
-      hero_subtitle: "En iyi ürünler burada",
-      about_text: "Biz bir demo mağazayız."
+
+    if (!originalStore) return res.status(404).json({ error: "Store not found" });
+    if (originalStore.is_approved === false || originalStore.status === 'suspended') {
+      return res.status(403).json({ error: 'Bu mağaza geçici olarak askıya alınmıştır.' });
+    }
+
+    const rootId = originalStore.parent_id ? Number(originalStore.parent_id) : Number(originalStore.id);
+    const hierarchyRes = await pool.query(`
+      SELECT ${storeColumns}
+      FROM stores
+      WHERE id = $1 OR parent_id = $1
+      ORDER BY (parent_id IS NULL) DESC, id ASC
+    `, [rootId]);
+
+    const hierarchyStores = hierarchyRes.rows.length > 0 ? hierarchyRes.rows : [originalStore];
+    const hqStore = hierarchyStores.find((s: any) => Number(s.id) === rootId) || originalStore;
+
+    const hqBranding = parseJsonSafe(hqStore.branding, {});
+    const origBranding = parseJsonSafe(originalStore.branding, {});
+    const hqRates = parseJsonSafe(hqStore.currency_rates, parseJsonSafe(hqBranding?.currency_rates, { USD: 1, EUR: 1, GBP: 1 }));
+    const origRates = parseJsonSafe(originalStore.currency_rates, parseJsonSafe(origBranding?.currency_rates, {}));
+    const resolvedRates = Object.keys(hqRates || {}).length > 0 ? hqRates : (Object.keys(origRates || {}).length > 0 ? origRates : { USD: 1, EUR: 1, GBP: 1 });
+
+    const { normalizeStorageUrl } = await import("./utils/imageStorage");
+    const rawLogo = originalStore.logo_url || origBranding?.logo_url || hqStore.logo_url || hqBranding?.logo_url || '';
+    const displayBrandName = hqBranding?.store_name || hqStore.name || originalStore.name;
+    const normLogo = rawLogo ? normalizeStorageUrl(rawLogo, hqStore.id, displayBrandName) : '';
+
+    const storePayload = {
+      ...hqStore,
+      id: Number(originalStore.id),
+      slug: originalStore.slug,
+      name: hqStore.name || originalStore.name,
+      logo_url: normLogo || rawLogo,
+      primary_color: originalStore.primary_color || origBranding?.primary_color || hqStore.primary_color || hqBranding?.primary_color || '#4f46e5',
+      default_currency: originalStore.default_currency || hqStore.default_currency || 'TRY',
+      currency_rates: resolvedRates,
+      address: originalStore.address || hqStore.address,
+      phone: originalStore.phone || hqStore.phone,
+      whatsapp_number: originalStore.whatsapp_number || hqStore.whatsapp_number,
+      parent_id: originalStore.parent_id ? Number(originalStore.parent_id) : null,
+      is_branch: Boolean(originalStore.parent_id),
+      branch_id: Number(originalStore.id),
+      branch_name: originalStore.name,
+      branch_slug: originalStore.slug,
+      parent_store_name: hqStore.name,
+      parent_store_slug: hqStore.slug
     };
-  }
 
-  if (!store) return res.status(404).json({ error: "Store not found" });
+    const familyIds = hierarchyStores.map((s: any) => Number(s.id));
+    const directRes = await pool.query(
+      `SELECT * FROM products WHERE store_id = ANY($1::int[]) AND TRIM(barcode) = $2`,
+      [familyIds, cleanBarcode]
+    );
+    let matchedProducts = directRes.rows;
 
-  let product = null;
-  if (store.id !== -1) {
-    const productRes = await pool.query("SELECT * FROM products WHERE store_id = $1 AND barcode = $2", [store.id, barcode]);
-    product = productRes.rows[0];
-    
+    // Fallback: match variant barcodes inside variants JSONB/text if direct barcode missed
+    if (matchedProducts.length === 0 && cleanBarcode) {
+      const varCandRes = await pool.query(
+        `SELECT * FROM products WHERE store_id = ANY($1::int[]) AND variants IS NOT NULL`,
+        [familyIds]
+      );
+      matchedProducts = varCandRes.rows.filter((p: any) => {
+        const vars = parseJsonSafe(p.variants, []);
+        return Array.isArray(vars) && vars.some((v: any) => String(v?.barcode || '').trim() === cleanBarcode);
+      });
+    }
+
+    const defaultCurrency = storePayload.default_currency || 'TRY';
+    const branchStocks = hierarchyStores.map((hs: any) => {
+      const match = matchedProducts.find((mp: any) => Number(mp.store_id) === Number(hs.id));
+      const qty = match ? computeProductStockQty(match) : 0;
+      return {
+        store_id: Number(hs.id),
+        branch_name: hs.name,
+        branch_slug: hs.slug,
+        is_hq: Number(hs.id) === rootId,
+        is_current: Number(hs.id) === Number(originalStore.id),
+        has_product: Boolean(match),
+        product_id: match ? Number(match.id) : null,
+        stock_quantity: qty,
+        price: match ? Number(match.price) : null,
+        currency: match ? (match.currency || defaultCurrency) : null
+      };
+    });
+
+    // Priority: current store -> HQ -> any branch with positive stock -> first matched store
+    let product =
+      matchedProducts.find((p: any) => Number(p.store_id) === Number(originalStore.id)) ||
+      matchedProducts.find((p: any) => Number(p.store_id) === rootId) ||
+      matchedProducts.find((p: any) => computeProductStockQty(p) > 0) ||
+      matchedProducts[0] ||
+      null;
+
     if (product) {
-      const defaultCurrency = store.default_currency || 'TRY';
-      const rates = typeof store.currency_rates === 'string' ? JSON.parse(store.currency_rates) : (store.currency_rates || { "USD": 1, "EUR": 1, "GBP": 1 });
-      let convertedPrice = product.price;
+      let convertedPrice = Number(product.price) || 0;
       const fromCurrency = product.currency || 'TRY';
-      
+
       if (fromCurrency !== defaultCurrency) {
         if (defaultCurrency === 'TRY') {
-          const rate = rates[fromCurrency] || 1;
-          convertedPrice = product.price * rate;
+          const rate = Number(resolvedRates[fromCurrency]) || 1;
+          convertedPrice = convertedPrice * rate;
         } else if (fromCurrency === 'TRY') {
-          const rate = rates[defaultCurrency] || 1;
-          convertedPrice = product.price / rate;
+          const rate = Number(resolvedRates[defaultCurrency]) || 1;
+          convertedPrice = rate > 0 ? convertedPrice / rate : convertedPrice;
         } else {
-          const fromRate = rates[fromCurrency] || 1;
-          const toRate = rates[defaultCurrency] || 1;
-          convertedPrice = (product.price * fromRate) / toRate;
+          const fromRate = Number(resolvedRates[fromCurrency]) || 1;
+          const toRate = Number(resolvedRates[defaultCurrency]) || 1;
+          convertedPrice = toRate > 0 ? (convertedPrice * fromRate) / toRate : convertedPrice;
         }
       }
-      
+
+      const currentBranchStock = branchStocks.find((b: any) => b.is_current)?.stock_quantity ?? computeProductStockQty(product);
+      const totalFamilyStock = branchStocks.reduce((acc: number, b: any) => acc + (Number(b.stock_quantity) || 0), 0);
+
       product = {
         ...product,
         price: convertedPrice,
         original_price: product.price,
         original_currency: product.currency,
-        currency: defaultCurrency
+        currency: defaultCurrency,
+        stock_quantity: currentBranchStock,
+        total_stock: totalFamilyStock,
+        branch_stocks: branchStocks
       };
     }
-  }
-  
-  if (!product) {
-    // Demo product logic: Return a sample product instead of 404 for any store
-    const demoProduct = {
-      id: 0,
-      store_id: store.id,
-      barcode: barcode,
-      name: "Demo Ürün (Örnek)",
-      price: 129.90,
-      currency: store.default_currency || 'TRY',
-      description: "Bu bir demo üründür. Sistemde gerçek bir ürün bulunamadığında bu örnek gösterilir.",
-      updated_at: new Date().toISOString(),
-      is_demo: true
-    };
-    return res.json({ ...demoProduct, store });
-  }
 
-  // Log the scan
-  await pool.query("INSERT INTO scan_logs (store_id, product_id) VALUES ($1, $2)", [store.branch_id || store.id, product.id]);
+    if (!product) {
+      const demoProduct = {
+        id: 0,
+        store_id: storePayload.id,
+        barcode: cleanBarcode,
+        name: "Demo Ürün (Örnek)",
+        price: 129.90,
+        currency: storePayload.default_currency || 'TRY',
+        stock_quantity: 0,
+        total_stock: 0,
+        branch_stocks: branchStocks,
+        description: "Bu bir demo üründür. Sistemde gerçek bir ürün bulunamadığında bu örnek gösterilir.",
+        updated_at: new Date().toISOString(),
+        is_demo: true
+      };
+      return res.json({ ...demoProduct, store: storePayload });
+    }
 
-  res.json({ ...product, store });
+    // Log the scan (non-blocking if FK or log fails)
+    pool.query("INSERT INTO scan_logs (store_id, product_id) VALUES ($1, $2)", [Number(originalStore.id), product.id]).catch(() => {});
+
+    res.json({ ...product, store: storePayload });
+  } catch (err: any) {
+    console.error("Error in GET /api/public/scan/:slug/:barcode:", err);
+    res.status(500).json({ error: err.message || "Ürün sorgulanırken hata oluştu" });
+  }
 });
 
 // Public: Demo Request
@@ -765,26 +924,25 @@ router.get("/stores/by-domain", async (req, res) => {
 
 router.get("/store/:slug", async (req, res) => {
   const { slug } = req.params;
+  const context = String(req.query.context || '').trim().toLowerCase();
+  const isScanContext = context === 'scan';
   try {
-    const cacheKey = `store_${slug.toLowerCase()}`;
+    const cacheKey = `store_${isScanContext ? 'scan' : 'web'}_${slug.toLowerCase()}`;
     const cached = publicApiCache.get(cacheKey);
     if (cached) {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       return res.json(cached);
     }
 
-    const storeRes = await pool.query(`
-      SELECT 
-        id, name, slug, store_type, sub_sector, hotel_module_enabled, working_hours, page_layout_settings,
-        logo_url, favicon_url, primary_color, default_currency, background_image_url,
-        hero_title, hero_subtitle, hero_image_url, about_text, description,
-        instagram_url, facebook_url, twitter_url, whatsapp_number,
-        address, phone, email, emails, phones, footer_links, parent_id, payment_settings, meta_settings, shipping_profiles, custom_domain,
-        branding, page_layout, menu_links, status, is_approved
-      FROM stores 
-      WHERE LOWER(slug) = LOWER($1)
-    `, [slug]);
-    let store = storeRes.rows[0];
+    const storeSelectCols = `
+      id, name, slug, store_type, sub_sector, hotel_module_enabled, working_hours, page_layout_settings,
+      logo_url, favicon_url, primary_color, default_currency, currency_rates, background_image_url,
+      hero_title, hero_subtitle, hero_image_url, about_text, description,
+      instagram_url, facebook_url, twitter_url, whatsapp_number,
+      address, phone, email, emails, phones, footer_links, parent_id, payment_settings, meta_settings, shipping_profiles, custom_domain,
+      branding, page_layout, menu_links, status, is_approved
+    `;
+    let store = await findPublicStoreRow(slug, storeSelectCols);
 
     if (store) {
       if (store.is_approved === false || store.status === 'suspended') {
@@ -794,16 +952,16 @@ router.get("/store/:slug", async (req, res) => {
         return res.status(403).json({ error: 'store_pending', message: 'Bu mağaza onay sürecindedir. Lütfen daha sonra tekrar deneyiniz.' });
       }
 
-      const jsonFields = ['emails', 'phones', 'footer_links', 'shipping_profiles', 'branding', 'meta_settings', 'page_layout', 'menu_links', 'working_hours', 'page_layout_settings'];
+      const jsonFields = ['emails', 'phones', 'footer_links', 'shipping_profiles', 'branding', 'meta_settings', 'page_layout', 'menu_links', 'working_hours', 'page_layout_settings', 'currency_rates'];
       jsonFields.forEach(field => {
         if (typeof store[field] === 'string') {
           try {
             store[field] = JSON.parse(store[field]);
           } catch (e) {
-            store[field] = field === 'branding' || field === 'meta_settings' || field === 'working_hours' || field === 'page_layout_settings' ? {} : [];
+            store[field] = field === 'branding' || field === 'meta_settings' || field === 'working_hours' || field === 'page_layout_settings' || field === 'currency_rates' ? {} : [];
           }
         } else if (!store[field]) {
-          store[field] = field === 'branding' || field === 'meta_settings' || field === 'working_hours' || field === 'page_layout_settings' ? {} : [];
+          store[field] = field === 'branding' || field === 'meta_settings' || field === 'working_hours' || field === 'page_layout_settings' || field === 'currency_rates' ? {} : [];
         }
       });
 
@@ -875,10 +1033,47 @@ router.get("/store/:slug", async (req, res) => {
     }
 
     if (store && store.parent_id) {
-      // This is a branch. Redirect to parent store's website.
-      const parentRes = await pool.query("SELECT slug FROM stores WHERE id = $1", [store.parent_id]);
+      const parentRes = await pool.query(
+        `SELECT id, name, slug, store_type, sub_sector, logo_url, favicon_url, primary_color,
+                default_currency, currency_rates, background_image_url, address, phone, whatsapp_number, branding
+         FROM stores WHERE id = $1`,
+        [store.parent_id]
+      );
       if (parentRes.rows[0]) {
-        return res.json({ redirect: `/store/${parentRes.rows[0].slug}`, isBranch: true });
+        const parentStore = parentRes.rows[0];
+        if (!isScanContext) {
+          // Website visitor: redirect branch web URL to HQ storefront
+          return res.json({ redirect: `/store/${parentStore.slug}`, isBranch: true });
+        }
+        // Barcode Scanner context: keep branch active & merge HQ visual identity + currency rates without redirect
+        const parentBranding = parseJsonSafe(parentStore.branding, {});
+        const parentRates = parseJsonSafe(parentStore.currency_rates, parseJsonSafe(parentBranding?.currency_rates, {}));
+        const branchDisplayName = store.name;
+        store.is_branch = true;
+        store.branch_id = store.id;
+        store.branch_name = branchDisplayName;
+        store.branch_slug = store.slug;
+        store.parent_store_name = parentStore.name;
+        store.parent_store_slug = parentStore.slug;
+        store.parent_slug = parentStore.slug;
+        store.name = parentStore.name || branchDisplayName;
+        store.store_type = parentStore.store_type || parentBranding?.store_type || store.store_type;
+        store.sub_sector = parentStore.sub_sector || parentBranding?.sub_sector || store.sub_sector;
+        if (!store.logo_url && (parentStore.logo_url || parentBranding?.logo_url)) {
+          store.logo_url = parentStore.logo_url || parentBranding.logo_url;
+        }
+        if (!store.favicon_url && (parentStore.favicon_url || parentBranding?.favicon_url)) {
+          store.favicon_url = parentStore.favicon_url || parentBranding.favicon_url;
+        }
+        if (!store.background_image_url && (parentStore.background_image_url || parentBranding?.background_image_url)) {
+          store.background_image_url = parentStore.background_image_url || parentBranding.background_image_url;
+        }
+        if (!store.primary_color && (parentStore.primary_color || parentBranding?.primary_color)) {
+          store.primary_color = parentStore.primary_color || parentBranding.primary_color;
+        }
+        if ((!store.currency_rates || Object.keys(store.currency_rates).length === 0) && parentRates && Object.keys(parentRates).length > 0) {
+          store.currency_rates = parentRates;
+        }
       }
     }
     
@@ -1827,8 +2022,6 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { GoogleGenAI } from "@google/genai";
 
-const JWT_SECRET = process.env.JWT_SECRET || "customer-secret-key";
-
 // Customer: Register
 router.post("/customers/register", async (req, res) => {
   const { storeId, email, password, name, surname, phone, address, country, city, tc_id, is_corporate, marketing_email, marketing_sms } = req.body;
@@ -2158,24 +2351,40 @@ router.get("/store/:slug/collections/:type", async (req, res) => {
 // Public: Get product stock across all branches of a store group (supporting /store and /stores, /stock and /branch-stock)
 const handleBranchStock = async (req: any, res: any) => {
   const { slug, barcode } = req.params;
+  const cleanBarcode = String(barcode || "").trim();
   try {
-    // 1. Find the store by slug to get its parent_id
-    const storeRes = await pool.query("SELECT id, parent_id FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
-    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Mağaza bulunamadı" });
+    // 1. Find the store by slug/alias to get its parent_id
+    const storeRow = await findPublicStoreRow(slug, "id, parent_id");
+    if (!storeRow) return res.status(404).json({ error: "Mağaza bulunamadı" });
     
-    const { id, parent_id } = storeRes.rows[0];
-    const parentId = parent_id || id;
+    const parentId = storeRow.parent_id || storeRow.id;
 
     // 2. Get stock from all stores in the same group (parent + siblings)
     const stockRes = await pool.query(`
-      SELECT s.name as branch_name, s.slug as branch_slug, s.id as store_id, COALESCE(p.stock_quantity, 0) as stock, p.id as product_id
+      SELECT s.name as branch_name, s.slug as branch_slug, s.id as store_id, (s.parent_id IS NULL) as is_hq,
+             COALESCE(p.stock_quantity, 0) as stock, p.variants, p.id as product_id
       FROM stores s
-      LEFT JOIN products p ON p.store_id = s.id AND p.barcode = $1
+      LEFT JOIN products p ON p.store_id = s.id AND TRIM(p.barcode) = $1
       WHERE s.id = $2 OR s.parent_id = $2
       ORDER BY (s.parent_id IS NULL) DESC, s.name ASC
-    `, [barcode, parentId]);
+    `, [cleanBarcode, parentId]);
 
-    res.json(stockRes.rows);
+    const normalizedRows = stockRes.rows.map((r: any) => {
+      const vars = parseJsonSafe(r.variants, []);
+      const computedStock = Array.isArray(vars) && vars.length > 0
+        ? vars.reduce((acc: number, v: any) => acc + (Number(v?.stock_quantity ?? v?.stock) || 0), 0)
+        : Number(r.stock ?? 0) || 0;
+      return {
+        branch_name: r.branch_name,
+        branch_slug: r.branch_slug,
+        store_id: r.store_id,
+        is_hq: Boolean(r.is_hq),
+        stock: computedStock,
+        product_id: r.product_id
+      };
+    });
+
+    res.json(normalizedRows);
   } catch (err: any) {
     console.error(err);
     res.status(500).json({ error: "Stok bilgisi alınamadı" });

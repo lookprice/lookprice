@@ -9,23 +9,38 @@ import { fetchTCMBRatesWithRetry } from '../utils/tcmbFetcher';
 import { syncStoreN11OrdersToDatabase, computeSellableStock } from './marketplaceSync';
 import { runAutomatedSuperAdminDriveBackup, runSuperAdminArchiveAndSlimDB } from '../../routes/googleDrive';
 
+const activeCronJobs = new Set<string>();
+
+async function withCronLock(jobName: string, fn: () => Promise<any>) {
+  if (activeCronJobs.has(jobName)) {
+    console.warn(`[CRON-LOCK] Skipping overlapping run for "${jobName}" (previous cycle still active).`);
+    return;
+  }
+  activeCronJobs.add(jobName);
+  try {
+    return await fn();
+  } finally {
+    activeCronJobs.delete(jobName);
+  }
+}
+
 export function startCronJobs() {
   console.log("Starting cron jobs...");
 
   // Run TCMB sync immediately on startup
-  syncTCMBRates().catch(err => {
+  withCronLock('tcmb_rates', () => syncTCMBRates()).catch(err => {
     console.warn("[CRON] Initial TCMB sync on startup failed:", err.message);
   });
 
-  // Run initial marketplace order syncs on startup (after 15 seconds delay, skip in non-production preview if desired or run lightweight)
+  // Run initial marketplace order syncs on startup (after 15 seconds delay)
   setTimeout(() => {
-    syncHepsiburadaOrdersCron().catch(err => {
+    withCronLock('hb_orders', () => syncHepsiburadaOrdersCron()).catch(err => {
       console.warn("[CRON] Initial Hepsiburada order sync failed:", err.message);
     });
-    syncN11OrdersCron().catch(err => {
+    withCronLock('n11_orders', () => syncN11OrdersCron()).catch(err => {
       console.warn("[CRON] Initial N11 order sync failed:", err.message);
     });
-    syncAmazonOrdersCron().catch(err => {
+    withCronLock('amazon_orders', () => syncAmazonOrdersCron()).catch(err => {
       console.warn("[CRON] Initial Amazon order sync failed:", err.message);
     });
   }, 15000);
@@ -33,55 +48,55 @@ export function startCronJobs() {
   // Hepsiburada & N11 Order Sync (Every 10 minutes - optimized for low DB egress)
   cron.schedule('*/10 * * * *', async () => {
     console.log("[CRON] Running Hepsiburada & N11 order sync (10-minute interval)...");
-    await syncHepsiburadaOrdersCron();
-    await syncN11OrdersCron();
+    await withCronLock('hb_orders', () => syncHepsiburadaOrdersCron());
+    await withCronLock('n11_orders', () => syncN11OrdersCron());
   });
 
   // Hepsiburada Pending Approval & Listings Reconciliation (Every 30 minutes)
   cron.schedule('*/30 * * * *', async () => {
     console.log("[CRON] Running Hepsiburada pending approvals & listings reconciliation...");
-    await syncHepsiburadaPendingAndListingsCron();
+    await withCronLock('hb_listings', () => syncHepsiburadaPendingAndListingsCron());
   });
 
   // Amazon Order Sync (Every 15 minutes)
   cron.schedule('*/15 * * * *', async () => {
     console.log("[CRON] Running Amazon order sync...");
-    await syncAmazonOrdersCron();
+    await withCronLock('amazon_orders', () => syncAmazonOrdersCron());
   });
 
   // Comprehensive Marketplace Inventory & Price Reconciliation (Every 2 hours)
   cron.schedule('0 */2 * * *', async () => {
     console.log("[CRON] Running 2-hour Marketplace Price & Inventory Reconciliation...");
-    await reconcileMarketplaceInventoriesAndPrices();
+    await withCronLock('reconcile_inventories', () => reconcileMarketplaceInventoriesAndPrices());
   });
 
   // TCMB Currency Rate Sync (Multiple daily syncs: 09:30, 12:00, 15:45 TCMB announcement, 18:00 official close)
   cron.schedule('30 9 * * *', async () => {
     console.log("[CRON] Running TCMB currency rate sync (Morning 09:30)...");
-    await syncTCMBRates();
+    await withCronLock('tcmb_rates', () => syncTCMBRates());
   });
 
   cron.schedule('0 12 * * *', async () => {
     console.log("[CRON] Running TCMB currency rate sync (Midday 12:00)...");
-    await syncTCMBRates();
+    await withCronLock('tcmb_rates', () => syncTCMBRates());
   });
 
   cron.schedule('45 15 * * *', async () => {
     console.log("[CRON] Running TCMB currency rate sync (Official TCMB Announcement 15:45)...");
-    await syncTCMBRates();
+    await withCronLock('tcmb_rates', () => syncTCMBRates());
   });
 
   cron.schedule('0 18 * * *', async () => {
     console.log("[CRON] Running TCMB currency rate sync (Evening Close 18:00)...");
-    await syncTCMBRates();
+    await withCronLock('tcmb_rates', () => syncTCMBRates());
   });
 
   // Nightly Full Database Backup to 5 TB Google Drive Vault (03:30 AM)
   cron.schedule('30 3 * * *', async () => {
     console.log("[CRON] Running Nightly Full Database Backup to 5 TB Google Drive Vault (03:30)...");
     try {
-      const res = await runAutomatedSuperAdminDriveBackup();
-      console.log(`[CRON-5TB-BACKUP] Success: ${res.fileName} (${res.sizeKB} KB)`);
+      const res = await withCronLock('drive_backup', () => runAutomatedSuperAdminDriveBackup());
+      if (res) console.log(`[CRON-5TB-BACKUP] Success: ${res.fileName} (${res.sizeKB} KB)`);
     } catch (err: any) {
       console.warn("[CRON-5TB-BACKUP] Skipped or failed:", err?.message || err);
     }
@@ -91,8 +106,8 @@ export function startCronJobs() {
   cron.schedule('45 3 * * *', async () => {
     console.log("[CRON] Running Nightly E-Invoice Archive & DB Slimming to 5 TB Google Drive (03:45)...");
     try {
-      const res = await runSuperAdminArchiveAndSlimDB();
-      console.log(`[CRON-5TB-ARCHIVE] Success: ${res.message}`);
+      const res = await withCronLock('drive_archive', () => runSuperAdminArchiveAndSlimDB());
+      if (res) console.log(`[CRON-5TB-ARCHIVE] Success: ${res.message}`);
     } catch (err: any) {
       console.warn("[CRON-5TB-ARCHIVE] Skipped or failed:", err?.message || err);
     }

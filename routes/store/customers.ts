@@ -17,6 +17,18 @@ router.get("/", async (req: any, res) => {
 
   query += " ORDER BY created_at DESC";
 
+  const rawLimit = Number(req.query.limit);
+  const rawOffset = Number(req.query.offset);
+  const safeLimit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(Math.floor(rawLimit), 2000) : 500;
+  const safeOffset = Number.isFinite(rawOffset) && rawOffset >= 0 ? Math.floor(rawOffset) : 0;
+
+  params.push(safeLimit);
+  query += ` LIMIT $${params.length}`;
+  if (safeOffset > 0) {
+    params.push(safeOffset);
+    query += ` OFFSET $${params.length}`;
+  }
+
   try {
     const result = await pool.query(query, params);
     res.json(result.rows);

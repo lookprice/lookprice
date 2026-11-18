@@ -12,7 +12,29 @@ router.get("/", async (req: any, res) => {
 
     if (req.query.slug) {
       const slug = String(req.query.slug || "").trim();
-      const storeRes = await pool.query("SELECT id, parent_id, slug FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
+      let storeRes = await pool.query("SELECT id, parent_id, slug FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
+      if (storeRes.rows.length === 0) {
+        storeRes = await pool.query("SELECT id, parent_id, slug FROM stores WHERE LOWER(store_code) = LOWER($1)", [slug]);
+      }
+      if (storeRes.rows.length === 0) {
+        const normalizeAlias = (val: string) =>
+          String(val || "")
+            .replace(/ğ/gi, "g").replace(/ü/gi, "u").replace(/ş/gi, "s")
+            .replace(/ı/g, "i").replace(/İ/g, "i").replace(/ö/gi, "o").replace(/ç/gi, "c")
+            .toLowerCase().replace(/[^a-z0-9]/g, "");
+        const normInput = normalizeAlias(slug);
+        if (normInput) {
+          const allStores = await pool.query("SELECT id, parent_id, slug, name, store_code FROM stores");
+          const matched = allStores.rows.find((r: any) =>
+            normalizeAlias(r.slug) === normInput ||
+            normalizeAlias(r.store_code) === normInput ||
+            normalizeAlias(r.name) === normInput
+          );
+          if (matched) {
+            storeRes = { rows: [matched] } as any;
+          }
+        }
+      }
       if (storeRes.rows.length === 0) {
         return res.status(404).json({ error: "Store not found" });
       }
@@ -272,7 +294,9 @@ router.get("/", async (req: any, res) => {
       store.branches = branchesRes.rows;
     } else {
       const parentRes = await pool.query(
-        "SELECT id, name, slug, logo_url, favicon_url, primary_color, store_type, sub_sector, branding FROM stores WHERE id = $1",
+        `SELECT id, name, slug, address, phone, whatsapp_number, email, logo_url, favicon_url,
+                primary_color, store_type, sub_sector, default_currency, currency_rates, einvoice_settings, branding
+         FROM stores WHERE id = $1`,
         [store.parent_id]
       );
       if (parentRes.rows.length > 0) {
@@ -281,10 +305,21 @@ router.get("/", async (req: any, res) => {
         if (typeof parentBranding === 'string') {
           try { parentBranding = JSON.parse(parentBranding); } catch (e) { parentBranding = {}; }
         }
+        let parentEinvoice: any = parentStore.einvoice_settings || parentBranding.einvoice_settings || {};
+        if (typeof parentEinvoice === 'string') {
+          try { parentEinvoice = JSON.parse(parentEinvoice); } catch (e) { parentEinvoice = {}; }
+        }
+        let parentRates: any = parentStore.currency_rates || parentBranding.currency_rates || {};
+        if (typeof parentRates === 'string') {
+          try { parentRates = JSON.parse(parentRates); } catch (e) { parentRates = {}; }
+        }
+
         store.parent_store_name = parentStore.name;
         store.parent_store_slug = parentStore.slug;
+        store.parent_slug = parentStore.slug;
         store.branding.parent_store_name = parentStore.name;
         store.branding.parent_store_slug = parentStore.slug;
+        store.branding.parent_slug = parentStore.slug;
         // Branch inherits sector & corporate visual identity from HQ
         store.store_type = parentStore.store_type || parentBranding.store_type || store.store_type;
         store.sub_sector = parentStore.sub_sector || parentBranding.sub_sector || store.sub_sector;
@@ -297,6 +332,38 @@ router.get("/", async (req: any, res) => {
         if (!store.favicon_url && (parentStore.favicon_url || parentBranding.favicon_url)) {
           store.favicon_url = parentStore.favicon_url || parentBranding.favicon_url;
           store.branding.favicon_url = store.favicon_url;
+        }
+
+        // Branch inherits HQ official legal info when not explicitly overridden on branch
+        const pickLegal = (branchVal: any, ...hqCandidates: any[]) => {
+          if (branchVal !== undefined && branchVal !== null && String(branchVal).trim() !== '') {
+            return branchVal;
+          }
+          for (const candidate of hqCandidates) {
+            if (candidate !== undefined && candidate !== null && String(candidate).trim() !== '') {
+              return candidate;
+            }
+          }
+          return '';
+        };
+
+        const resolvedLegalName = pickLegal(store.legal_name, parentBranding.legal_name, parentStore.name);
+        const resolvedLegalPhone = pickLegal(store.legal_phone, parentBranding.legal_phone, store.phone, parentStore.phone);
+        const resolvedLegalTaxOffice = pickLegal(store.legal_tax_office, store.einvoice_settings?.tax_office, parentBranding.legal_tax_office, parentEinvoice?.tax_office);
+        const resolvedLegalTaxNumber = pickLegal(store.legal_tax_number, store.einvoice_settings?.tax_number, store.einvoice_settings?.vkn, parentBranding.legal_tax_number, parentEinvoice?.tax_number, parentEinvoice?.vkn);
+        const resolvedLegalMersis = pickLegal(store.legal_mersis, parentBranding.legal_mersis);
+        const resolvedLegalAddress = pickLegal(store.legal_address, store.address, parentBranding.legal_address, parentStore.address);
+
+        if (resolvedLegalName) { store.legal_name = resolvedLegalName; store.branding.legal_name = resolvedLegalName; }
+        if (resolvedLegalPhone) { store.legal_phone = resolvedLegalPhone; store.branding.legal_phone = resolvedLegalPhone; }
+        if (resolvedLegalTaxOffice) { store.legal_tax_office = resolvedLegalTaxOffice; store.branding.legal_tax_office = resolvedLegalTaxOffice; }
+        if (resolvedLegalTaxNumber) { store.legal_tax_number = resolvedLegalTaxNumber; store.branding.legal_tax_number = resolvedLegalTaxNumber; }
+        if (resolvedLegalMersis) { store.legal_mersis = resolvedLegalMersis; store.branding.legal_mersis = resolvedLegalMersis; }
+        if (resolvedLegalAddress) { store.legal_address = resolvedLegalAddress; store.branding.legal_address = resolvedLegalAddress; }
+
+        if ((!store.currency_rates || Object.keys(store.currency_rates).length === 0) && parentRates && Object.keys(parentRates).length > 0) {
+          store.currency_rates = parentRates;
+          store.branding.currency_rates = parentRates;
         }
       }
     }

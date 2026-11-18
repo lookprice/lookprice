@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { LiteRichEditor } from "../../components/LiteRichEditor";
+import { sanitizeHtml } from "../../utils/sanitizeHtml";
 import {
   Layout,
   Palette,
@@ -2138,13 +2139,14 @@ export const PortfolioWebsiteGenerator = ({
                             <p
                               className="text-xs text-slate-500 leading-relaxed max-w-sm line-clamp-2"
                               dangerouslySetInnerHTML={{
-                                __html:
+                                __html: sanitizeHtml(
                                   blog.summary ||
-                                  (blog.content
-                                    ? blog.content
-                                        .replace(/<[^>]*>?/gm, "")
-                                        .substring(0, 100) + "..."
-                                    : ""),
+                                    (blog.content
+                                      ? blog.content
+                                          .replace(/<[^>]*>?/gm, "")
+                                          .substring(0, 100) + "..."
+                                      : "")
+                                ),
                               }}
                             ></p>
                             <div className="mt-auto pt-4 flex items-center justify-between border-t border-slate-100 text-[10px] font-bold text-slate-400">

@@ -48,7 +48,7 @@ import { matchesSearch, normalizeSearch } from "../lib/searchUtils";
 import { resolveDomainId } from "../utils/sectorCapability";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
-import { printThermalReceipt, printThermalZReport } from "../utils/thermalPrinter";
+import { extractReceiptBrandingOptions, getCurrencySymbol, printThermalReceipt, printThermalZReport } from "../utils/thermalPrinter";
 import { formatDateTR, formatDateTimeTR } from "../utils/formatUtils";
 import { RoomTransferModal } from "./horeca/RoomTransferModal";
 import { HotelRoom } from "./horeca/HotelRoomManagement";
@@ -174,19 +174,23 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
   const [showQuickKeysManager, setShowQuickKeysManager] = useState(false);
   const [showParkedModal, setShowParkedModal] = useState(false);
   const [numpadConfig, setNumpadConfig] = useState<TouchNumpadConfig | null>(null);
+  const lastQuickKeysLocalSaveRef = useRef<number>(0);
 
   useEffect(() => {
-    if (Array.isArray(branding?.pos_quick_keys)) {
-      setQuickKeys(branding.pos_quick_keys);
-      try {
-        localStorage.setItem(`pos_quick_keys_${storeId || 'default'}`, JSON.stringify(branding.pos_quick_keys));
-      } catch {}
-    }
-    if (branding?.pos_quick_keys_position) {
-      setQuickKeysPlacement(branding.pos_quick_keys_position);
-      try {
-        localStorage.setItem(`pos_quick_keys_pos_${storeId || 'default'}`, branding.pos_quick_keys_position);
-      } catch {}
+    const recentlySavedLocally = Date.now() - lastQuickKeysLocalSaveRef.current < 5000;
+    if (!recentlySavedLocally) {
+      if (Array.isArray(branding?.pos_quick_keys)) {
+        setQuickKeys(branding.pos_quick_keys);
+        try {
+          localStorage.setItem(`pos_quick_keys_${storeId || 'default'}`, JSON.stringify(branding.pos_quick_keys));
+        } catch {}
+      }
+      if (branding?.pos_quick_keys_position) {
+        setQuickKeysPlacement(branding.pos_quick_keys_position);
+        try {
+          localStorage.setItem(`pos_quick_keys_pos_${storeId || 'default'}`, branding.pos_quick_keys_position);
+        } catch {}
+      }
     }
     if (Array.isArray(branding?.pos_parked_carts)) {
       setParkedCarts(branding.pos_parked_carts);
@@ -233,6 +237,29 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
     setAutoPrintOnPay(nextVal);
     localStorage.setItem(`pos_auto_print_pay_${storeId}`, JSON.stringify(nextVal));
     toast.info(nextVal ? "Ödeme alındığında otomatik fiş yazdırılacak." : "Otomatik ödeme fişi yazdırımı kapatıldı.");
+  };
+
+  const hasOkcConfigured = Boolean(branding?.fiscal_active || branding?.pos_bridge_enabled);
+  const horecaCloseMode: 'optional_ask' | 'always_okc' | 'thermal_only' =
+    branding?.pos_bridge_settings?.horeca_close_fiscal_mode || 'optional_ask';
+  const [sendFiscalOnClose, setSendFiscalOnClose] = useState<boolean>(() => {
+    const mode = branding?.pos_bridge_settings?.horeca_close_fiscal_mode || 'optional_ask';
+    return mode !== 'thermal_only';
+  });
+
+  useEffect(() => {
+    if (horecaCloseMode === 'thermal_only') {
+      setSendFiscalOnClose(false);
+    } else if (horecaCloseMode === 'always_okc') {
+      setSendFiscalOnClose(true);
+    }
+  }, [horecaCloseMode]);
+
+  const shouldPrintThermalAfterClose = (fiscalResult: any) => {
+    if (!autoPrintOnPay) return false;
+    const skipAfterOkc = branding?.pos_bridge_settings?.skip_thermal_after_okc !== false;
+    if (fiscalResult && skipAfterOkc) return false;
+    return true;
   };
 
   const [showIkramNoteModal, setShowIkramNoteModal] = useState(false);
@@ -688,12 +715,12 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
     }
   }, [showReportModal, reportStartDate, reportEndDate]);
 
-  // Isolated high-quality 80mm thermal slip printing
+  // Isolated thermal slip printing with official company info & auto-detected paper width
   const handlePrintReceipt = (overrideOptions?: any) => {
+    const baseBrandingOpts = extractReceiptBrandingOptions(branding);
     if (overrideOptions && typeof overrideOptions === 'object' && !('target' in overrideOptions)) {
       printThermalReceipt({
-        storeName: branding?.store_name || branding?.name || 'TELOCA CAFE',
-        storePhone: branding?.phone || branding?.whatsapp_number,
+        ...baseBrandingOpts,
         ...overrideOptions
       });
       return;
@@ -709,10 +736,9 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
     const calculatedTotal = cart.reduce((sum, item) => sum + (parseFloat(item.price) || 0) * item.quantity, 0);
 
     printThermalReceipt({
+      ...baseBrandingOpts,
       title: selectedTable ? "ADİSYON FİŞİ" : "SATIŞ FİŞİ",
-      storeName: branding?.store_name || branding?.name || 'TELOCA CAFE',
-      storePhone: branding?.phone || branding?.whatsapp_number,
-      tableNo: selectedTable || "Hızlı Kasa",
+      tableNo: selectedTable || (baseBrandingOpts.isCafe ? "Masa" : "Hızlı Kasa"),
       saleId: activeSaleId || undefined,
       items: itemsToPrint,
       totalAmount: calculatedTotal,
@@ -722,6 +748,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
 
   const handlePrintTableBill = (sale: any) => {
     if (!sale) return;
+    const baseBrandingOpts = extractReceiptBrandingOptions(branding);
     const itemsToPrint = (sale.items || []).map((it: any) => ({
       name: it.product_name || it.name,
       quantity: Math.floor(Number(it.quantity)) || 1,
@@ -730,9 +757,8 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
     }));
 
     printThermalReceipt({
+      ...baseBrandingOpts,
       title: "ADİSYON FİŞİ",
-      storeName: branding?.store_name || branding?.name || 'TELOCA CAFE',
-      storePhone: branding?.phone || branding?.whatsapp_number,
       tableNo: sale.customer_name || "Masa",
       saleId: sale.id,
       items: itemsToPrint,
@@ -744,6 +770,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
 
   const handlePrintReport = () => {
     if (!reportData) return;
+    const baseBrandingOpts = extractReceiptBrandingOptions(branding);
 
     const paymentsToUse = (!isHotelActive && reportData.restaurant_payments && reportData.restaurant_payments.length > 0)
       ? reportData.restaurant_payments
@@ -760,8 +787,8 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
     const totalItems = reportData.products?.reduce((sum: number, p: any) => sum + (Number(p.total_quantity) || 0), 0) || 0;
 
     printThermalZReport({
+      ...baseBrandingOpts,
       title: isRange ? "SATIŞ & CİRO DÖNEM RAPORU" : "GÜN SONU Z RAPORU",
-      storeName: branding?.store_name || branding?.name || 'LOOKPRICE HORECA',
       reportDate: dateLabel,
       isRange: isRange,
       cashTotal: cashAmount,
@@ -776,9 +803,11 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
 
   const handlePrintA4Report = () => {
     if (!reportData) return;
+    const baseBrandingOpts = extractReceiptBrandingOptions(branding);
+    const currSym = getCurrencySymbol(baseBrandingOpts.currency);
     const isRange = reportStartDate !== reportEndDate;
     const dateLabel = isRange ? `${formatDateTR(reportStartDate)} — ${formatDateTR(reportEndDate)}` : formatDateTR(reportStartDate);
-    const storeTitle = branding?.store_name || branding?.name || 'LOOKPRICE RESTORAN & POS';
+    const storeTitle = baseBrandingOpts.storeName;
 
     const paymentsToUse = (!isHotelActive && reportData.restaurant_payments && reportData.restaurant_payments.length > 0)
       ? reportData.restaurant_payments
@@ -815,10 +844,23 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
       <tr style="border-bottom: 1px solid #e2e8f0; ${idx % 2 === 1 ? 'background-color: #f8fafc;' : ''}">
         <td style="padding: 8px 12px; font-weight: bold; color: #1e293b; text-align: left;">${idx + 1}. ${p.product_name}</td>
         <td style="padding: 8px 12px; text-align: center; font-weight: 700; color: #4f46e5;">${p.total_quantity} Adet</td>
-        <td style="padding: 8px 12px; text-align: right; color: #64748b;">${(p.total_revenue / p.total_quantity).toFixed(2)} ₺</td>
-        <td style="padding: 8px 12px; text-align: right; font-weight: 800; color: #0f172a;">${(p.total_revenue || 0).toFixed(2)} ₺</td>
+        <td style="padding: 8px 12px; text-align: right; color: #64748b;">${(p.total_revenue / p.total_quantity).toFixed(2)} ${currSym}</td>
+        <td style="padding: 8px 12px; text-align: right; font-weight: 800; color: #0f172a;">${(p.total_revenue || 0).toFixed(2)} ${currSym}</td>
       </tr>
     `).join('');
+
+    const legalMetaParts = [
+      baseBrandingOpts.legalName && baseBrandingOpts.legalName.toLowerCase() !== storeTitle.toLowerCase()
+        ? `Resmi Ünvan: ${baseBrandingOpts.legalName}`
+        : '',
+      baseBrandingOpts.branchName ? `Şube: ${baseBrandingOpts.branchName}` : '',
+      baseBrandingOpts.taxOffice || baseBrandingOpts.taxNumber
+        ? `V.D. ${baseBrandingOpts.taxOffice || '-'} / VKN: ${baseBrandingOpts.taxNumber || '-'}`
+        : '',
+      baseBrandingOpts.mersis ? `Mersis: ${baseBrandingOpts.mersis}` : '',
+      baseBrandingOpts.storeAddress ? `Adres: ${baseBrandingOpts.storeAddress}` : '',
+      baseBrandingOpts.storePhone ? `Tel: ${baseBrandingOpts.storePhone}` : ''
+    ].filter(Boolean);
 
     const html = `
       <!DOCTYPE html>
@@ -840,7 +882,8 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
           <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #6366f1; padding-bottom: 15px; margin-bottom: 20px;">
             <div>
               <h1 style="font-size: 22px; margin: 0; color: #1e1b4b; font-weight: 900; text-transform: uppercase;">${storeTitle}</h1>
-              <p style="margin: 4px 0 0 0; font-size: 14px; font-weight: 700; color: #6366f1;">${isRange ? 'DÖNEMLİK SATIŞ & CİRO RAPORU' : 'GÜN SONU Z RAPORU'}</p>
+              ${legalMetaParts.length > 0 ? `<p style="margin: 4px 0 0 0; font-size: 11px; font-weight: 600; color: #475569; max-width: 480px;">${legalMetaParts.join(' • ')}</p>` : ''}
+              <p style="margin: 6px 0 0 0; font-size: 14px; font-weight: 700; color: #6366f1;">${isRange ? 'DÖNEMLİK SATIŞ & CİRO RAPORU' : 'GÜN SONU Z RAPORU'}</p>
             </div>
             <div style="text-align: right; font-size: 12px; color: #64748b;">
               <p style="margin: 0; font-weight: 800; color: #0f172a; font-size: 13px;">Tarih: ${dateLabel}</p>
@@ -1535,18 +1578,28 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
     }));
   };
 
-  const saveQuickKeysConfig = (nextKeys: PosQuickKey[], nextPlacement: QuickKeysPlacement) => {
+  const saveQuickKeysConfig = async (nextKeys: PosQuickKey[], nextPlacement: QuickKeysPlacement) => {
+    lastQuickKeysLocalSaveRef.current = Date.now();
     setQuickKeys(nextKeys);
     setQuickKeysPlacement(nextPlacement);
+    if (branding && typeof branding === "object") {
+      branding.pos_quick_keys = nextKeys;
+      branding.pos_quick_keys_position = nextPlacement;
+    }
     try {
       localStorage.setItem(`pos_quick_keys_${storeId || 'default'}`, JSON.stringify(nextKeys));
       localStorage.setItem(`pos_quick_keys_pos_${storeId || 'default'}`, nextPlacement);
     } catch {}
     if (storeId) {
-      api.updateBranding({
-        pos_quick_keys: nextKeys,
-        pos_quick_keys_position: nextPlacement
-      }, storeId).catch(() => {});
+      try {
+        await api.updateBranding({
+          pos_quick_keys: nextKeys,
+          pos_quick_keys_position: nextPlacement
+        }, storeId);
+      } catch (err) {
+        console.error("Failed to persist pos_quick_keys:", err);
+        toast.error(lang === 'tr' ? "Hızlı tuş ayarları sunucuya kaydedilemedi." : "Failed to save quick keys to server.");
+      }
     }
   };
 
@@ -1555,15 +1608,13 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
       ? allProducts.find((p) => Number(p.id) === Number(key.productId))
       : null;
 
-    if (linkedProduct && !key.askPrice && Math.abs(resolvedPrice - Number(linkedProduct.price || 0)) < 0.001) {
-      addToCart(linkedProduct);
-      return;
-    }
-
+    const resolvedTax = Number(key.tax_rate ?? linkedProduct?.tax_rate ?? branding?.default_tax_rate ?? 20);
     const formattedPrice = (Number(resolvedPrice) || 0).toFixed(2);
     setCart(prev => {
       if (!key.askPrice) {
-        const existingIdx = prev.findIndex(item => item.quick_key_id === key.id && String(item.price) === formattedPrice);
+        const existingIdx = prev.findIndex(
+          item => item.quick_key_id === key.id && String(item.price) === formattedPrice && Number(item.tax_rate) === resolvedTax
+        );
         if (existingIdx > -1) {
           return prev.map((it, idx) => idx === existingIdx ? { ...it, quantity: Number(it.quantity || 1) + 1 } : it);
         }
@@ -1578,7 +1629,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
           base_name: key.label,
           quantity: 1,
           price: formattedPrice,
-          tax_rate: Number(key.tax_rate ?? branding?.default_tax_rate ?? 20),
+          tax_rate: resolvedTax,
           currency: branding?.default_currency || 'TRY',
           barcode: linkedProduct?.barcode || '',
         }
@@ -1743,6 +1794,12 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
   const shouldExecuteOkcForPayments = (paymentsList: Array<{ method: string; amount: number }>) => {
     const fiscalOn = Boolean(branding?.fiscal_active || branding?.pos_bridge_enabled);
     if (!fiscalOn) return false;
+
+    if (isCafeRestaurant) {
+      if (horecaCloseMode === 'thermal_only') return false;
+      if (horecaCloseMode === 'optional_ask' && !sendFiscalOnClose) return false;
+    }
+
     const settings = branding?.pos_bridge_settings || {};
     const cardMode = getCardOkcMode();
     const hasCard = paymentsList.some(p => p.method === 'credit_card' || p.method === 'card');
@@ -2039,8 +2096,15 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
             if (!res?.success) {
               throw new Error(res?.error || "Adisyon kapatılamadı.");
             }
-            if (autoPrintOnPay) {
-              handlePrintReceipt();
+            if (shouldPrintThermalAfterClose(res.fiscal || fiscalResult)) {
+              handlePrintReceipt({
+                saleId: activeSaleId,
+                items: snapshotCart.map(it => ({ name: it.name, quantity: it.quantity, price: it.price })),
+                totalAmount: total,
+                paymentMethod: paymentMethod === 'cash' ? 'NAKİT' : (paymentMethod === 'credit_card' ? 'KREDİ KARTI' : 'SİPARİŞ'),
+                tableNo: selectedTable || "Hızlı Kasa",
+                fiscalInfo: res.fiscal || fiscalResult
+              });
             }
             if (selectedTable && storeId) {
               clearStoredTableNickname(storeId, selectedTable);
@@ -2073,8 +2137,15 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
             if (!res?.success) {
               throw new Error(res?.error || "Satış kaydedilemedi.");
             }
-            if (autoPrintOnPay) {
-              handlePrintReceipt();
+            if (shouldPrintThermalAfterClose(res.fiscal || fiscalResult)) {
+              handlePrintReceipt({
+                saleId: res.saleId,
+                items: snapshotCart.map(it => ({ name: it.name, quantity: it.quantity, price: it.price })),
+                totalAmount: total,
+                paymentMethod: paymentMethod === 'cash' ? 'NAKİT' : (paymentMethod === 'credit_card' ? 'KREDİ KARTI' : 'SİPARİŞ'),
+                tableNo: selectedTable || "Hızlı Kasa",
+                fiscalInfo: res.fiscal || fiscalResult
+              });
             }
             if (selectedTable && storeId) {
               clearStoredTableNickname(storeId, selectedTable);
@@ -2113,9 +2184,8 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
     }));
 
     printThermalReceipt({
+      ...extractReceiptBrandingOptions(branding),
       title: "ODA HARCAMA & ADİSYON AKTARIM FİŞİ",
-      storeName: branding?.store_name || branding?.name || 'LOOKPRICE HORECA',
-      storePhone: branding?.phone || branding?.whatsapp_number,
       tableNo: `${selectedTable || 'Restoran'} ➔ Oda ${room.room_number}${guestName ? ` (${guestName})` : ''}`,
       saleId: activeSaleId || undefined,
       items: itemsToPrint,
@@ -2310,16 +2380,16 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
             throw new Error(resCreate?.error || "Kısmi ödeme kaydedilemedi.");
           }
 
-          if (autoPrintOnPay) {
+          if (shouldPrintThermalAfterClose(resCreate.fiscal || fiscalResult)) {
             printThermalReceipt({
+              ...extractReceiptBrandingOptions(branding),
               title: "PARÇALI ÖDEME FİŞİ",
-              storeName: branding?.store_name || branding?.name || 'SEÇKİN RESTORAN',
-              storePhone: branding?.phone || branding?.whatsapp_number,
               tableNo: selectedTable || "Hızlı Kasa",
               saleId: resCreate.saleId,
               items: paidItems.map(i => ({ name: i.name, quantity: i.quantity, price: i.price })),
               totalAmount: paidTotal,
               paymentMethod: partialPayMethod === 'cash' ? 'NAKİT' : 'KREDİ KARTI',
+              fiscalInfo: resCreate.fiscal || fiscalResult,
               notes: remainingItems.length > 0 ? `Masada Kalan Adisyon Tutarı: ${remainingTotal.toFixed(2)} ₺` : 'Adisyon Tamamen Kapatıldı'
             });
           }
@@ -2432,16 +2502,16 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
             throw new Error(resCreate?.error || "Kısmi ödeme kaydedilemedi.");
           }
 
-          if (autoPrintOnPay) {
+          if (shouldPrintThermalAfterClose(resCreate.fiscal || fiscalResult)) {
             printThermalReceipt({
+              ...extractReceiptBrandingOptions(branding),
               title: "PARÇALI ÖDEME FİŞİ",
-              storeName: branding?.store_name || branding?.name || 'SEÇKİN RESTORAN',
-              storePhone: branding?.phone || branding?.whatsapp_number,
               tableNo: selectedTable || "Hızlı Kasa",
               saleId: resCreate.saleId,
               items: [{ name: "Adisyondan Kısmi Tahsilat", quantity: 1, price: amountToPay }],
               totalAmount: amountToPay,
               paymentMethod: partialPayMethod === 'cash' ? 'NAKİT' : 'KREDİ KARTI',
+              fiscalInfo: resCreate.fiscal || fiscalResult,
               notes: `Masada Kalan Adisyon Tutarı: ${remainingAmount.toFixed(2)} ₺`
             });
           }
@@ -2805,7 +2875,6 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                   placement={quickKeysPlacement}
                   onTriggerKey={handleTriggerQuickKey}
                   onOpenManager={() => setShowQuickKeysManager(true)}
-                  onChangePlacement={(nextP) => saveQuickKeysConfig(quickKeys, nextP)}
                 />
               )}
               <PosProductGridView
@@ -2837,7 +2906,6 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                   placement={quickKeysPlacement}
                   onTriggerKey={handleTriggerQuickKey}
                   onOpenManager={() => setShowQuickKeysManager(true)}
-                  onChangePlacement={(nextP) => saveQuickKeysConfig(quickKeys, nextP)}
                 />
               )}
             </>
@@ -2889,6 +2957,9 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                 onParkCart={handleParkCurrentCart}
                 parkedCount={parkedCarts.length}
                 onOpenParkedCarts={() => setShowParkedModal(true)}
+                showHorecaFiscalToggle={isCafeRestaurant && hasOkcConfigured && horecaCloseMode === 'optional_ask'}
+                sendFiscalOnClose={sendFiscalOnClose}
+                onToggleSendFiscalOnClose={setSendFiscalOnClose}
                 quickKeysSlot={
                   quickKeysPlacement === 'cart_top' ? (
                     <PosQuickKeysBar
@@ -2897,7 +2968,6 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                       placement={quickKeysPlacement}
                       onTriggerKey={handleTriggerQuickKey}
                       onOpenManager={() => setShowQuickKeysManager(true)}
-                      onChangePlacement={(nextP) => saveQuickKeysConfig(quickKeys, nextP)}
                     />
                   ) : undefined
                 }

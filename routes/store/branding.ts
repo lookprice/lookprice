@@ -495,31 +495,48 @@ router.post("/", async (req: any, res) => {
     }
 
     try {
-      const storeInfoRes = await pool.query("SELECT slug, custom_domain FROM stores WHERE id = $1", [targetStoreId]);
+      const storeInfoRes = await pool.query("SELECT slug, store_code, name, custom_domain FROM stores WHERE id = $1", [targetStoreId]);
+      const clearStoreCacheKeys = (slugVal?: string | null) => {
+        if (!slugVal) return;
+        const lower = String(slugVal).trim().toLowerCase();
+        if (!lower) return;
+        publicApiCache.del(`store_${lower}`);
+        publicApiCache.del(`store_web_${lower}`);
+        publicApiCache.del(`store_scan_${lower}`);
+        publicApiCache.del(`products_${lower}`);
+        publicApiCache.del(`digital_menu_${lower}`);
+        publicApiCache.del(`dm_info_${lower}`);
+      };
+
       if (storeInfoRes.rows.length > 0) {
         const sSlug = storeInfoRes.rows[0].slug;
+        const sCode = storeInfoRes.rows[0].store_code;
         const sCustomDomain = storeInfoRes.rows[0].custom_domain;
         publicApiCache.del(`store_${targetStoreId}`);
         publicApiCache.del(`digital_menu_${targetStoreId}`);
         publicApiCache.del(`dm_info_${targetStoreId}`);
-        if (sSlug) {
-          publicApiCache.del(`store_${sSlug.toLowerCase()}`);
-          publicApiCache.del(`products_${sSlug.toLowerCase()}`);
-          publicApiCache.del(`digital_menu_${sSlug.toLowerCase()}`);
-          publicApiCache.del(`dm_info_${sSlug.toLowerCase()}`);
-        }
+        clearStoreCacheKeys(sSlug);
+        clearStoreCacheKeys(sCode);
         if (sCustomDomain) {
           publicApiCache.del(`domain_${sCustomDomain.toLowerCase()}`);
         }
       }
       if (existingStore.parent_id) {
         publicApiCache.del(`store_${existingStore.parent_id}`);
-        const parentSlugRes = await pool.query("SELECT slug, custom_domain FROM stores WHERE id = $1", [existingStore.parent_id]);
+        const parentSlugRes = await pool.query("SELECT slug, store_code, custom_domain FROM stores WHERE id = $1", [existingStore.parent_id]);
         if (parentSlugRes.rows.length > 0) {
-          const pSlug = parentSlugRes.rows[0].slug;
+          clearStoreCacheKeys(parentSlugRes.rows[0].slug);
+          clearStoreCacheKeys(parentSlugRes.rows[0].store_code);
           const pDomain = parentSlugRes.rows[0].custom_domain;
-          if (pSlug) publicApiCache.del(`store_${pSlug.toLowerCase()}`);
           if (pDomain) publicApiCache.del(`domain_${pDomain.toLowerCase()}`);
+        }
+      } else {
+        const childRes = await pool.query("SELECT id, slug, store_code, custom_domain FROM stores WHERE parent_id = $1", [targetStoreId]);
+        for (const ch of childRes.rows) {
+          publicApiCache.del(`store_${ch.id}`);
+          clearStoreCacheKeys(ch.slug);
+          clearStoreCacheKeys(ch.store_code);
+          if (ch.custom_domain) publicApiCache.del(`domain_${ch.custom_domain.toLowerCase()}`);
         }
       }
       publicApiCache.del("enrakipsiz_portal");

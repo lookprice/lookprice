@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
+import { sanitizeContractHtml } from "../utils/sanitizeHtml";
 import { 
   Check, 
   PenTool, 
@@ -1092,7 +1093,7 @@ export default function ContractSignPage() {
             )}
 
             <div className="bg-white border-2 border-slate-300 rounded-xl p-4 overflow-y-auto max-h-[72vh]">
-              <div dangerouslySetInnerHTML={{ __html: renderedContractHtml }} />
+              <div dangerouslySetInnerHTML={{ __html: sanitizeContractHtml(renderedContractHtml) }} />
             </div>
           </motion.div>
         ) : !success ? (
@@ -1220,7 +1221,7 @@ export default function ContractSignPage() {
                 {/* Contract Full HTML Preview */}
                 {renderedContractHtml ? (
                   <div className="bg-white border-2 border-slate-300 rounded-xl p-3 max-h-[380px] overflow-y-auto text-slate-950 leading-relaxed font-sans">
-                    <div dangerouslySetInnerHTML={{ __html: renderedContractHtml }} />
+                    <div dangerouslySetInnerHTML={{ __html: sanitizeContractHtml(renderedContractHtml) }} />
                   </div>
                 ) : null}
               </div>

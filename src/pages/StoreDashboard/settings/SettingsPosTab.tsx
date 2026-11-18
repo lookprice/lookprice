@@ -32,6 +32,7 @@ import {
   USB_VCP_DRIVERS,
   DEFAULT_FISCAL_DEPARTMENTS,
   getPosDeviceById,
+  resolvePrinterPaperWidth,
   normalizeDepartments,
   auditProductVatMappings,
   FiscalDepartmentMapping
@@ -100,6 +101,17 @@ export const SettingsPosTab = ({
   const effectiveVatAudit = serverKdvAudit || localVatAudit;
   const bridgeSettings = branding?.pos_bridge_settings || {};
   const pairingToken = bridgeStatus?.pairingToken || branding?.pos_bridge_token || '';
+  const resolvedPaperWidth = resolvePrinterPaperWidth(
+    branding?.fiscal_brand,
+    bridgeSettings,
+    Boolean(branding?.fiscal_active)
+  );
+  const hasSeparateThermal = Boolean(bridgeSettings?.has_separate_thermal_printer);
+  const paperWidthSetting = hasSeparateThermal
+    ? String(bridgeSettings?.thermal_paper_width_mm || (bridgeSettings?.paper_width_mm && bridgeSettings.paper_width_mm !== 'auto' ? bridgeSettings.paper_width_mm : '80'))
+    : (bridgeSettings?.paper_width_mm ? String(bridgeSettings.paper_width_mm) : 'auto');
+  const horecaCloseMode: 'optional_ask' | 'always_okc' | 'thermal_only' =
+    bridgeSettings?.horeca_close_fiscal_mode || 'optional_ask';
 
   const fetchBridgeStatus = async () => {
     if (!currentStoreId) return;
@@ -134,6 +146,14 @@ export const SettingsPosTab = ({
     const next = {
       ...(branding?.pos_bridge_settings || {}),
       [key]: val
+    };
+    onBrandingChange('pos_bridge_settings', next);
+  };
+
+  const updateBridgeSettingsBatch = (patch: Record<string, any>) => {
+    const next = {
+      ...(branding?.pos_bridge_settings || {}),
+      ...patch
     };
     onBrandingChange('pos_bridge_settings', next);
   };
@@ -693,8 +713,8 @@ export const SettingsPosTab = ({
                 </span>
               </div>
               <div className="bg-slate-950/70 border border-slate-800 rounded-xl px-3 py-2">
-                <span className="text-[9px] uppercase font-bold text-slate-400 block">Seçili Protokol</span>
-                <span className="font-mono font-bold text-indigo-300">{selectedDevice.protocol} :{branding?.fiscal_port || selectedDevice.defaultPort}</span>
+                <span className="text-[9px] uppercase font-bold text-slate-400 block">Seçili Protokol & Rulo</span>
+                <span className="font-mono font-bold text-indigo-300">{selectedDevice.protocol} :{branding?.fiscal_port || selectedDevice.defaultPort} • {resolvedPaperWidth}mm</span>
               </div>
               <div className="bg-slate-950/70 border border-slate-800 rounded-xl px-3 py-2">
                 <span className="text-[9px] uppercase font-bold text-slate-400 block">KDV Departman Uyumu</span>
@@ -800,9 +820,14 @@ export const SettingsPosTab = ({
                   >
                     <div className="flex items-center justify-between gap-1">
                       <span className="text-[10px] font-black uppercase text-indigo-700">{dev.brand}</span>
-                      <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-700">
-                        :{dev.defaultPort}
-                      </span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-800">
+                          {dev.defaultPaperWidthMm}mm
+                        </span>
+                        <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-700">
+                          :{dev.defaultPort}
+                        </span>
+                      </div>
                     </div>
                     <div className="text-xs font-black text-slate-900 mt-1 leading-snug">{dev.model}</div>
                     <div className="text-[10px] text-slate-500 font-semibold mt-1">{dev.protocol}</div>
@@ -950,6 +975,37 @@ export const SettingsPosTab = ({
                   onChange={(e) => onBrandingChange('pos_bridge_port', e.target.value)}
                 />
               </div>
+
+              <div className="w-56 space-y-1">
+                <label className="text-[10px] font-black text-slate-600 uppercase">
+                  Termal Fiş Kağıt Genişliği ({resolvedPaperWidth}mm)
+                </label>
+                <select
+                  className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold text-slate-900 outline-none focus:border-indigo-500 cursor-pointer"
+                  value={paperWidthSetting}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    const parsed = raw === 'auto' ? 'auto' : Number(raw);
+                    if (hasSeparateThermal) {
+                      updateBridgeSettingsBatch({
+                        thermal_paper_width_mm: parsed === 'auto' ? 80 : parsed,
+                        paper_width_mm: parsed
+                      });
+                    } else {
+                      updateBridgeSetting('paper_width_mm', parsed);
+                    }
+                  }}
+                >
+                  {!hasSeparateThermal && (
+                    <option value="auto">
+                      Otomatik ({Boolean(branding?.fiscal_active || bridgeSettings?.enabled) ? `Cihaz: ${selectedDevice.defaultPaperWidthMm}mm` : 'Standart: 80mm'})
+                    </option>
+                  )}
+                  <option value="56">56 mm (Dar YN ÖKC Rulosu)</option>
+                  <option value="58">58 mm (Standart Mobil/ÖKC Rulosu)</option>
+                  <option value="80">80 mm (Geniş Masaüstü Termal)</option>
+                </select>
+              </div>
             </div>
 
             {/* Pairing Token Strip */}
@@ -1081,6 +1137,125 @@ export const SettingsPosTab = ({
                   </p>
                 </button>
               </div>
+            </div>
+
+            {/* Dual Device & Sectoral Printing Workflow (HorecaLP vs ShopLP) */}
+            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <span className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                    <Printer className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>
+                      {isCafeRestaurant
+                        ? 'HorecaLP Çift Cihaz Akışı (Termal Adisyon + İsteğe Bağlı ÖKC Kapanışı)'
+                        : 'ShopLP Yazarkasa POS & Normal Termal Yazıcı Politikası'}
+                    </span>
+                  </span>
+                  <span className="text-[10px] text-slate-600 block mt-0.5">
+                    {isCafeRestaurant
+                      ? 'Adisyon/ön hesap çıktıları normal termal yazıcıdan alınır; kasa kapatmada isteğe bağlı olarak ÖKC mali fişi kesilir.'
+                      : 'ShopLP mağazalarında işlemler doğrudan ÖKC ile tamamlanır; harici fiş/normal yazıcı gerektiren durumlarda normal yazıcı çalışır.'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                <label className="flex items-center justify-between p-2.5 bg-white border border-slate-200 rounded-xl cursor-pointer">
+                  <div className="pr-2">
+                    <span className="text-xs font-bold text-slate-900 block">
+                      Ayrı Normal Termal Yazıcı Tanımlı (Çift Cihaz)
+                    </span>
+                    <span className="text-[10px] text-slate-500">
+                      {hasSeparateThermal
+                        ? `Aktif: ÖKC (${selectedDevice.defaultPaperWidthMm}mm) yanında ayrı ${resolvedPaperWidth}mm normal termal yazıcı kullanılır.`
+                        : 'ÖKC yanında masaüstü 80mm/58mm adisyon veya bilgi fişi yazıcısı varsa açın.'}
+                    </span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={hasSeparateThermal}
+                    onChange={(e) => {
+                      const enabled = e.target.checked;
+                      updateBridgeSettingsBatch({
+                        has_separate_thermal_printer: enabled,
+                        thermal_paper_width_mm: enabled ? (bridgeSettings?.thermal_paper_width_mm || 80) : undefined
+                      });
+                    }}
+                    className="w-4 h-4 accent-indigo-600 cursor-pointer shrink-0"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between p-2.5 bg-white border border-slate-200 rounded-xl cursor-pointer">
+                  <div className="pr-2">
+                    <span className="text-xs font-bold text-slate-900 block">
+                      ÖKC Fiş Kestiyse Termalden Çift Fiş Basma
+                    </span>
+                    <span className="text-[10px] text-slate-500">
+                      Kasa kapatmada ÖKC zaten mali fiş kestiyse tarayıcı yazıcısını otomatik açmaz; ÖKC kesilmezse normal yazıcı devreye girer.
+                    </span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={bridgeSettings?.skip_thermal_after_okc !== false}
+                    onChange={(e) => updateBridgeSetting('skip_thermal_after_okc', e.target.checked)}
+                    className="w-4 h-4 accent-indigo-600 cursor-pointer shrink-0"
+                  />
+                </label>
+              </div>
+
+              {isCafeRestaurant && (
+                <div className="pt-2 border-t border-slate-200/80 space-y-2">
+                  <span className="text-[10px] font-black text-slate-700 uppercase tracking-wider block">
+                    HorecaLP Kasa Kapatma ÖKC Resmileştirme Tercihi (Adisyon Çıktısı Her Zaman Normal Termalden Alınır):
+                  </span>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => updateBridgeSetting('horeca_close_fiscal_mode', 'optional_ask')}
+                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                        horecaCloseMode === 'optional_ask'
+                          ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/20 text-slate-900'
+                          : 'bg-white border-slate-200 hover:border-slate-300 text-slate-800'
+                      }`}
+                    >
+                      <div className="text-xs font-black text-slate-900">İsteğe Bağlı (Kasadan Seç)</div>
+                      <p className="text-[10px] text-slate-600 mt-0.5 leading-snug">
+                        Kasa kapatırken operatör ister ÖKC ile mali fiş kesip resmileştirir, ister normal termal fişle kapatır.
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => updateBridgeSetting('horeca_close_fiscal_mode', 'always_okc')}
+                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                        horecaCloseMode === 'always_okc'
+                          ? 'bg-indigo-50 border-indigo-500 ring-2 ring-indigo-500/20 text-slate-900'
+                          : 'bg-white border-slate-200 hover:border-slate-300 text-slate-800'
+                      }`}
+                    >
+                      <div className="text-xs font-black text-slate-900">Kasa Kapatmada Her Zaman ÖKC</div>
+                      <p className="text-[10px] text-slate-600 mt-0.5 leading-snug">
+                        Adisyon/garson fişleri termalden çıkar; hesap kapatıldığında doğrudan ÖKC fişi basılır.
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => updateBridgeSetting('horeca_close_fiscal_mode', 'thermal_only')}
+                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                        horecaCloseMode === 'thermal_only'
+                          ? 'bg-amber-50 border-amber-500 ring-2 ring-amber-500/20 text-slate-900'
+                          : 'bg-white border-slate-200 hover:border-slate-300 text-slate-800'
+                      }`}
+                    >
+                      <div className="text-xs font-black text-slate-900">Sadece Normal Termal Yazıcı</div>
+                      <p className="text-[10px] text-slate-600 mt-0.5 leading-snug">
+                        ÖKC tetiklenmez; hem adisyon hem kasa kapanış fişleri normal yazıcı mantığıyla alınır.
+                      </p>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Fiscal Behavior Checkboxes */}

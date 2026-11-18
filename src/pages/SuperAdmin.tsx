@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { 
   Plus, 
   LogOut,
@@ -14,26 +14,15 @@ import {
   Handshake,
   Globe
 } from "lucide-react";
-import * as XLSX from 'xlsx';
 import { translations } from "@/translations";
 import { formatDateTR, formatFileDateTR } from "../utils/formatUtils";
 import { useLanguage } from "../contexts/LanguageContext";
 import { api } from "../services/api";
 import ErrorBoundary from "../components/ErrorBoundary";
 
-// Modular Components
+// Core Dashboard Components
 import { SuperAdminStats } from "../components/superadmin/SuperAdminStats";
-import { SuperAdminLeads } from "../components/superadmin/SuperAdminLeads";
-import { SuperAdminRegistrations } from "../components/superadmin/SuperAdminRegistrations";
 import { SuperAdminStoresTable, StoreSegmentType } from "../components/superadmin/SuperAdminStoresTable";
-import { EnrakipsizPortalManager } from "../components/superadmin/EnrakipsizPortalManager";
-import { IntegratorHub } from "../components/IntegratorHub";
-import { SuperAdminVideosManager } from "../components/superadmin/SuperAdminVideosManager";
-import { SuperAdminAuditLogs } from "../components/superadmin/SuperAdminAuditLogs";
-import { SuperAdminProfile } from "../components/superadmin/SuperAdminProfile";
-import { SuperAdminMarketingHub } from "../components/superadmin/SuperAdminMarketingHub";
-import { SuperAdminReferencesPartners } from "../components/superadmin/SuperAdminReferencesPartners";
-import { SuperAdminGlobalAgencyPool } from "../components/superadmin/SuperAdminGlobalAgencyPool";
 import { 
   SlideModal, 
   AdModal, 
@@ -43,6 +32,18 @@ import {
   DeleteStoreModal,
   AddStoreModal
 } from "../components/superadmin/SuperAdminModals";
+
+// Lazy Secondary SuperAdmin Tabs
+const SuperAdminLeads = React.lazy(() => import("../components/superadmin/SuperAdminLeads").then(m => ({ default: m.SuperAdminLeads })));
+const SuperAdminRegistrations = React.lazy(() => import("../components/superadmin/SuperAdminRegistrations").then(m => ({ default: m.SuperAdminRegistrations })));
+const EnrakipsizPortalManager = React.lazy(() => import("../components/superadmin/EnrakipsizPortalManager").then(m => ({ default: m.EnrakipsizPortalManager })));
+const IntegratorHub = React.lazy(() => import("../components/IntegratorHub").then(m => ({ default: m.IntegratorHub })));
+const SuperAdminVideosManager = React.lazy(() => import("../components/superadmin/SuperAdminVideosManager").then(m => ({ default: m.SuperAdminVideosManager })));
+const SuperAdminAuditLogs = React.lazy(() => import("../components/superadmin/SuperAdminAuditLogs").then(m => ({ default: m.SuperAdminAuditLogs })));
+const SuperAdminProfile = React.lazy(() => import("../components/superadmin/SuperAdminProfile").then(m => ({ default: m.SuperAdminProfile })));
+const SuperAdminMarketingHub = React.lazy(() => import("../components/superadmin/SuperAdminMarketingHub").then(m => ({ default: m.SuperAdminMarketingHub })));
+const SuperAdminReferencesPartners = React.lazy(() => import("../components/superadmin/SuperAdminReferencesPartners").then(m => ({ default: m.SuperAdminReferencesPartners })));
+const SuperAdminGlobalAgencyPool = React.lazy(() => import("../components/superadmin/SuperAdminGlobalAgencyPool").then(m => ({ default: m.SuperAdminGlobalAgencyPool })));
 
 // Types
 import { Store, Lead, EnrakipsizSettings, EnrakipsizSlide, EnrakipsizAd } from "../types/superadmin";
@@ -399,7 +400,8 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
     }
   };
 
-  const exportStoresToExcel = () => {
+  const exportStoresToExcel = async () => {
+    const XLSX = await import("xlsx");
     const exportData = stores.map(s => ({
       'Mağaza Adı': s.name,
       'Slug': s.slug,
@@ -910,6 +912,7 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
         {/* Dedicated Smooth Single Vertical Scroll Area */}
         <main ref={mainScrollRef} className="dashboard-scroll-area flex-1 min-h-0 overflow-y-auto px-3 sm:px-5 py-3">
           <div className="max-w-[1440px] mx-auto space-y-3 pb-36">
+            <Suspense fallback={<div className="py-12 text-center text-sm font-medium text-slate-500">Yükleniyor...</div>}>
             {activeTab === 'requests' ? (
           <div className="space-y-4">
             <SuperAdminRegistrations 
@@ -1011,6 +1014,7 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
             />
           </>
         )}
+            </Suspense>
           </div>
         </main>
 

@@ -20,6 +20,7 @@ import { getStoreWaiters } from "../../utils/staffHelpers";
 
 import { api } from "../../services/api";
 import { toast } from "sonner";
+import { resolvePrinterPaperWidth } from "../../data/posDevices";
 
 export interface PosReportModalProps {
   isOpen: boolean;
@@ -82,6 +83,11 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({
   const [sendingOkcReport, setSendingOkcReport] = useState<'X_REPORT' | 'Z_REPORT' | null>(null);
   const currentTab = effectiveHotelActive ? activeReportTab : 'restaurant';
   const hasOkcBridge = Boolean(branding?.fiscal_active || branding?.pos_bridge_enabled);
+  const paperWidthMm = resolvePrinterPaperWidth(
+    branding?.fiscal_brand,
+    branding?.pos_bridge_settings,
+    Boolean(branding?.fiscal_active)
+  );
 
   const handleSendOkcReport = async (cmd: 'X_REPORT' | 'Z_REPORT') => {
     if (!storeId) return;
@@ -724,7 +730,7 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({
             className="flex-1 py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] shadow-xs cursor-pointer"
           >
             <Printer className="h-4 w-4" />
-            <span>{lang === 'tr' ? '80mm Termal Fiş Yazdır' : 'Print 80mm Receipt'}</span>
+            <span>{lang === 'tr' ? `${paperWidthMm}mm Termal Fiş Yazdır` : `Print ${paperWidthMm}mm Receipt`}</span>
           </button>
 
           <button 

@@ -103,9 +103,13 @@ export const SettingsDeveloperWebTab: React.FC<SettingsDeveloperWebTabProps> = (
     });
 
     if (autoPersist) {
+      const token = localStorage.getItem("token");
       fetch("/api/developer-projects/save-web-config", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({
           store_id: branding?.id || branding?.store_id || 1,
           developer_web_config: nextConfig

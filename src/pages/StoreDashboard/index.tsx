@@ -595,9 +595,10 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const [reportLoading, setReportLoading] = useState(false);
 
   const isViewer = user.role === 'viewer';
-  const effectiveSlug = branding.parent_slug || slug || user.store_slug;
+  const effectiveSlug = branding.parent_store_slug || branding.parent_slug || branding.slug || slug || user.store_slug;
+  const currentScanSlug = branding.slug || slug || user.store_slug || effectiveSlug;
   const publicUrl = `${window.location.origin}/s/${effectiveSlug}`;
-  const scanUrl = `${window.location.origin}/scan/${effectiveSlug}`;
+  const scanUrl = `${window.location.origin}/scan/${currentScanSlug}`;
 
   const hasDashboardInitialLoaded = useRef(false);
   const dashboardFetchSeqRef = useRef(0);

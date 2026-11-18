@@ -1,7 +1,9 @@
 import express from "express";
 import { GoogleGenAI } from "@google/genai";
+import { authenticate } from "../middleware/auth";
 
 const router = express.Router();
+router.use(authenticate);
 
 // Initialize Google GenAI with recommended telemetry header
 const getGenAIClient = () => {

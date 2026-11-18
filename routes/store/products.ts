@@ -1968,18 +1968,29 @@ router.get("/", async (req: any, res) => {
 
     query += ` ORDER BY COALESCE(p.updated_at, p.created_at) DESC, p.id DESC`;
 
-    const limit = req.query.limit ? Number(req.query.limit) : null;
-    if (limit && !isNaN(limit)) {
-      const sqlLimit = search ? Math.max(limit * 4, 500) : limit;
-      query += ` LIMIT ${sqlLimit}`;
+    const rawLimit = req.query.limit ? Number(req.query.limit) : null;
+    const rawOffset = req.query.offset ? Number(req.query.offset) : 0;
+    const requestedLimit = rawLimit && !isNaN(rawLimit) && rawLimit > 0 ? Math.min(Math.floor(rawLimit), 5000) : null;
+    const safeOffset = !isNaN(rawOffset) && rawOffset >= 0 ? Math.floor(rawOffset) : 0;
+    const effectiveLimit = requestedLimit
+      ? (search ? Math.min(Math.max(requestedLimit * 4, 500), 5000) : requestedLimit)
+      : 5000;
+
+    params.push(effectiveLimit);
+    query += ` LIMIT $${params.length}`;
+    if (safeOffset > 0 && !search) {
+      params.push(safeOffset);
+      query += ` OFFSET $${params.length}`;
     }
 
     const productsRes = await pool.query(query, params);
     let rows = productsRes.rows;
     if (search && search.trim()) {
       rows = rows.filter((p: any) => matchProductSearch(p, search));
-      if (limit && !isNaN(limit)) {
-        rows = rows.slice(0, limit);
+      if (requestedLimit) {
+        rows = rows.slice(safeOffset, safeOffset + requestedLimit);
+      } else if (safeOffset > 0) {
+        rows = rows.slice(safeOffset);
       }
     }
     res.json(rows);

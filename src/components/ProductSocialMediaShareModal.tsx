@@ -219,9 +219,13 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
     if (!product) return;
     setIsGeneratingSlides(true);
     try {
+      const token = localStorage.getItem("token");
       const res = await fetch("/api/ai-social/generate-story-slides", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({
           title: product.name,
           description: product.description || "",
@@ -252,9 +256,13 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
     setIsGeneratingCaption(true);
     try {
       const activeSlide = slides[activeSlideIndex] || slides[0];
+      const token = localStorage.getItem("token");
       const res = await fetch("/api/ai-social/generate-caption", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({
           itemType: "product",
           title: product?.name,

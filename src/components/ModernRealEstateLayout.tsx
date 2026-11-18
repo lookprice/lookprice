@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { sanitizeHtml } from "../utils/sanitizeHtml";
 import {
   Map,
   Layout,
@@ -906,7 +907,7 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
                 [&_a]:text-indigo-600 [&_a]:underline
                 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-xl"
               style={{ wordBreak: 'break-word' }}
-              dangerouslySetInnerHTML={{ __html: activeContentMap.content }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(activeContentMap.content) }}
             />
           </div>
         </div>
@@ -1440,7 +1441,7 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
                     [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-4
                     [&_a]:text-indigo-600 [&_a]:underline"
                   style={{ wordBreak: 'break-word' }}
-                  dangerouslySetInnerHTML={{ __html: activeContentMap.content }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(activeContentMap.content) }}
                 />
               </div>
               <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end">

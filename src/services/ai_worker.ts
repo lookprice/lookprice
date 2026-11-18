@@ -3,6 +3,7 @@ import { lumaAiService } from './luma_ai.js';
 import { replicateAiService } from './replicate_ai.js';
 
 let isWorkerRunning = false;
+let isTickRunning = false;
 let pollingInterval: NodeJS.Timeout | null = null;
 
 export const aiWorkerService = {
@@ -23,11 +24,15 @@ export const aiWorkerService = {
     // NOTE: This polling structure is Phase 1. 
     // In Phase 2 (Scale phase), we will use BullMQ + Redis for event-driven job handling.
     pollingInterval = setInterval(async () => {
+      if (isTickRunning) return;
+      isTickRunning = true;
       try {
         await this.processPendingJobs();
         await this.checkProcessingJobs();
       } catch (error) {
         console.error("AI Worker Error:", error);
+      } finally {
+        isTickRunning = false;
       }
     }, 15000); // Check every 15 seconds
   },
@@ -35,6 +40,7 @@ export const aiWorkerService = {
   stopWorker() {
     if (pollingInterval) clearInterval(pollingInterval);
     isWorkerRunning = false;
+    isTickRunning = false;
     console.log("⏹️ AI Worker Stopped");
   },
 

@@ -333,9 +333,13 @@ export const UiverseAndLoraWebStudio: React.FC<UiverseAndLoraWebStudioProps> = (
 
   const persistToBackendSilently = async (nextDevConfig: Record<string, any>) => {
     try {
+      const token = localStorage.getItem("token");
       await fetch("/api/developer-projects/save-web-config", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({
           store_id: branding?.id || branding?.store_id || 1,
           developer_web_config: nextDevConfig
@@ -389,9 +393,13 @@ export const UiverseAndLoraWebStudio: React.FC<UiverseAndLoraWebStudioProps> = (
 
     setIsGenerating(true);
     try {
+      const token = localStorage.getItem("token");
       const response = await fetch("/api/developer-projects/ai-lora-render", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({
           store_id: branding?.id || branding?.store_id || 1,
           lora_id: activeModel.id,

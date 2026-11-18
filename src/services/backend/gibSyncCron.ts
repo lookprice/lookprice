@@ -5,7 +5,14 @@ import { logAudit } from './auditService';
 /**
  * GİB & Entegratör (MySoft) Otomatik Sağlık, Önbellek Tazeleme ve Durum Senkronizasyon Servisi
  */
+let isGibSyncRunning = false;
+
 export async function runGibSyncCron(): Promise<void> {
+  if (isGibSyncRunning) {
+    console.warn('[GİB-CRON] Skipping cycle because previous GİB sync is still active.');
+    return;
+  }
+  isGibSyncRunning = true;
   let storeId = 0;
   const anyStore = await pool.query("SELECT id FROM stores LIMIT 1");
   if (anyStore.rows.length > 0) {
@@ -158,6 +165,8 @@ export async function runGibSyncCron(): Promise<void> {
     await logAudit(storeId, null, 'GIB_SYNC_SUCCESS', 'SYSTEM', null, 'Cron job finished successfully');
   } catch (globalErr: any) {
     await logAudit(storeId, null, 'GIB_SYNC_ERROR', 'SYSTEM', null, `Cron error: ${globalErr.message}`);
+  } finally {
+    isGibSyncRunning = false;
   }
 }
 

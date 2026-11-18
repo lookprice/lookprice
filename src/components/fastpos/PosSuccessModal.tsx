@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { CheckCircle2, Printer } from 'lucide-react';
+import { extractReceiptBrandingOptions, getCurrencySymbol } from '../../utils/thermalPrinter';
 
 interface PosSuccessModalProps {
   isOpen: boolean;
@@ -30,6 +31,9 @@ export const PosSuccessModal: React.FC<PosSuccessModalProps> = ({
   if (!isOpen) return null;
 
   const totalAmount = lastCart.reduce((sum, i) => sum + ((parseFloat(i.price) || 0) * i.quantity), 0);
+  const receiptMeta = extractReceiptBrandingOptions(branding);
+  const currSymbol = getCurrencySymbol(receiptMeta.currency);
+  const showLegalSub = Boolean(receiptMeta.legalName) && receiptMeta.legalName.toLocaleLowerCase('tr-TR') !== receiptMeta.storeName.toLocaleLowerCase('tr-TR');
 
   return (
     <motion.div 
@@ -60,13 +64,30 @@ export const PosSuccessModal: React.FC<PosSuccessModalProps> = ({
         <div className="mb-6 max-h-64 overflow-y-auto bg-amber-50/40 border border-amber-200/40 rounded-2xl p-5 text-left font-mono text-xs leading-relaxed text-slate-800 shadow-inner scrollbar-thin">
           <div className="text-center border-b border-dashed border-slate-300 pb-3 mb-3">
             <h4 className="font-extrabold text-sm uppercase text-slate-900 tracking-tight">
-              {branding?.store_name || branding?.name || (lang === 'tr' ? "Seçkin Mağaza" : "Premium Store")}
+              {receiptMeta.storeName}
             </h4>
-            <p className="text-[10px] text-amber-800 font-bold mt-1 tracking-widest">
-              {lang === 'tr' ? 'SİPARİŞ FİŞİ' : 'ORDER RECEIPT'}
+            {showLegalSub && (
+              <p className="text-[10px] font-bold text-slate-700 uppercase mt-0.5">{receiptMeta.legalName}</p>
+            )}
+            {(receiptMeta.taxOffice || receiptMeta.taxNumber) && (
+              <p className="text-[9.5px] font-semibold text-slate-500 mt-0.5">
+                {[receiptMeta.taxOffice ? `V.D.: ${receiptMeta.taxOffice}` : '', receiptMeta.taxNumber ? `VKN/TCKN: ${receiptMeta.taxNumber}` : ''].filter(Boolean).join(' | ')}
+              </p>
+            )}
+            {receiptMeta.mersis && (
+              <p className="text-[9.5px] font-semibold text-slate-500">Mersis: {receiptMeta.mersis}</p>
+            )}
+            {receiptMeta.storeAddress && (
+              <p className="text-[9.5px] text-slate-500 mt-0.5">{receiptMeta.storeAddress}</p>
+            )}
+            {receiptMeta.storePhone && (
+              <p className="text-[9.5px] text-slate-500">Tel: {receiptMeta.storePhone}</p>
+            )}
+            <p className="text-[10px] text-amber-800 font-bold mt-1.5 tracking-widest">
+              {lang === 'tr' ? `SATIŞ FİŞİ (${receiptMeta.paperWidthMm}mm)` : `ORDER RECEIPT (${receiptMeta.paperWidthMm}mm)`}
             </p>
             <p className="text-[10px] text-slate-400 mt-1">
-              Mağaza ID: {storeId} | Fiş: #{lastSaleId}
+              Fiş: #{lastSaleId}
             </p>
             <p className="text-[10px] text-slate-400">
               {new Date().toLocaleString('tr-TR')}
@@ -77,7 +98,7 @@ export const PosSuccessModal: React.FC<PosSuccessModalProps> = ({
             {lastCart.map((item, idx) => (
               <div key={idx} className="flex justify-between gap-2">
                 <span className="truncate flex-1 font-semibold">{item.quantity}x {item.name}</span>
-                <span className="font-bold text-slate-900">{(parseFloat(item.price) * item.quantity).toFixed(2)} ₺</span>
+                <span className="font-bold text-slate-900">{(parseFloat(item.price) * item.quantity).toFixed(2)} {currSymbol}</span>
               </div>
             ))}
           </div>
@@ -85,7 +106,7 @@ export const PosSuccessModal: React.FC<PosSuccessModalProps> = ({
           <div className="border-t border-dashed border-slate-300 pt-3 font-bold text-xs">
             <div className="flex justify-between text-slate-900 text-sm">
               <span>TOPLAM</span>
-              <span>{totalAmount.toFixed(2)} ₺</span>
+              <span>{totalAmount.toFixed(2)} {currSymbol}</span>
             </div>
             <div className="flex justify-between text-slate-500 text-[10px] mt-1 font-medium">
               <span>Ödeme Tipi</span>
@@ -115,9 +136,16 @@ export const PosSuccessModal: React.FC<PosSuccessModalProps> = ({
         <div id="pos-receipt-printable" className="hidden">
           <div className="text-center border-b">
             <h3 className="font-bold" style={{ fontSize: '13px', margin: '0' }}>
-              {branding?.store_name || branding?.name || 'LOOKPRICE TERMINAL'}
+              {receiptMeta.storeName}
             </h3>
-            <p style={{ margin: '4px 0 0 0', fontWeight: 'bold' }}>SİPARİŞ FİŞİ</p>
+            {showLegalSub && <p style={{ margin: '2px 0 0 0', fontWeight: 'bold' }}>{receiptMeta.legalName}</p>}
+            {(receiptMeta.taxOffice || receiptMeta.taxNumber) && (
+              <p style={{ margin: '2px 0 0 0' }}>
+                {[receiptMeta.taxOffice ? `V.D.: ${receiptMeta.taxOffice}` : '', receiptMeta.taxNumber ? `VKN/TCKN: ${receiptMeta.taxNumber}` : ''].filter(Boolean).join(' | ')}
+              </p>
+            )}
+            {receiptMeta.storePhone && <p style={{ margin: '2px 0 0 0' }}>Tel: {receiptMeta.storePhone}</p>}
+            <p style={{ margin: '4px 0 0 0', fontWeight: 'bold' }}>SATIŞ FİŞİ</p>
             <p style={{ margin: '2px 0 0 0' }}>Mağaza ID: {storeId} | Fiş No: #{lastSaleId}</p>
             <p style={{ margin: '2px 0 0 0' }}>{new Date().toLocaleString('tr-TR')}</p>
           </div>

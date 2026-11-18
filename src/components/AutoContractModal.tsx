@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { formatPhoneForWhatsApp, formatDateTR } from "../utils/formatUtils";
 import { renderSignatureOrStamp, renderCustomClausesHtml } from "../utils/contractTemplates";
+import { sanitizeContractHtml } from "../utils/sanitizeHtml";
 
 
 interface AutoContractModalProps {
@@ -843,7 +844,7 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
 
           <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 md:p-8 bg-slate-100/50">
             <div className="bg-white shadow-lg rounded-3xl border border-slate-200/80 overflow-hidden mx-auto max-w-3xl">
-              <div dangerouslySetInnerHTML={{ __html: htmlContent }} />
+              <div dangerouslySetInnerHTML={{ __html: sanitizeContractHtml(htmlContent) }} />
             </div>
           </div>
 

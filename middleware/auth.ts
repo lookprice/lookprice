@@ -1,10 +1,12 @@
+import dotenv from "dotenv";
+dotenv.config();
 import jwt from "jsonwebtoken";
 
 if (!process.env.JWT_SECRET && process.env.NODE_ENV === "production") {
   throw new Error("KRİTİK HATA: JWT_SECRET çevre değişkeni tanımlanmamış!");
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || "super-secret-key-lookprice-applet-dev-2026";
+export const JWT_SECRET = process.env.JWT_SECRET || "super-secret-key-lookprice-applet-dev-2026";
 
 export const authenticate = (req: any, res: any, next: any) => {
   const token = req.headers.authorization?.split(" ")[1];

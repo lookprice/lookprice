@@ -1,6 +1,7 @@
 import React from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Calendar, Clock, X, Facebook, Twitter, Link2, Sparkles } from "lucide-react";
+import { sanitizeHtml } from "../utils/sanitizeHtml";
 
 interface BlogShowcaseModalProps {
   isOpen: boolean;
@@ -130,7 +131,7 @@ export const BlogShowcaseModal: React.FC<BlogShowcaseModalProps> = ({
               {/* Main Content Pane */}
               <div 
                 className="text-base sm:text-lg text-slate-600 leading-relaxed font-medium space-y-6 prose prose-slate max-w-none"
-                dangerouslySetInnerHTML={{ __html: content }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(content) }}
               />
 
               {/* Bottom Decorative Layout & Social actions */}

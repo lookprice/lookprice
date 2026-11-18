@@ -4,6 +4,8 @@ import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 import { createServer as createViteServer } from "vite";
 import compression from "compression";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import { initDb } from "./models/db";
 import { startCronJobs } from "./src/services/cronJobs";
 import { aiWorkerService } from "./src/services/ai_worker.js";
@@ -166,7 +168,7 @@ async function startServer() {
   const app = express();
   const PORT = process.env.NODE_ENV === "production" && process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
-  app.set("trust proxy", true);
+  app.set("trust proxy", 1);
 
   // Healthcheck endpoint (must respond instantly for container probes)
   app.get("/api/health", (req, res) => {
@@ -184,10 +186,13 @@ async function startServer() {
     }
   });
 
-  app.get("/api/debug/check-user/:email", async (req, res) => {
+  app.get("/api/debug/check-user/:email", authenticate, async (req: any, res) => {
+    if (req.user?.role !== "superadmin") {
+      return res.status(403).json({ error: "Forbidden" });
+    }
     try {
       const { email } = req.params;
-      const userRes = await pool.query("SELECT id, email, role FROM users WHERE email = $1", [email]);
+      const userRes = await pool.query("SELECT id, email, role FROM users WHERE LOWER(email) = LOWER($1)", [email]);
       res.json({ exists: userRes.rows.length > 0, user: userRes.rows[0] });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
@@ -195,7 +200,15 @@ async function startServer() {
   });
 
 
-  // Security & HSTS Header Middleware
+  // Security & HSTS Header Middleware (Helmet + Custom Frame / CSP Policy)
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      crossOriginEmbedderPolicy: false,
+      frameguard: false,
+      crossOriginResourcePolicy: false
+    })
+  );
   app.use((req, res, next) => {
     res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
     res.setHeader("X-Content-Type-Options", "nosniff");
@@ -256,8 +269,14 @@ async function startServer() {
       etag: true
     }));
   }
-  app.use(express.static(path.join(process.cwd(), "public")));
-  app.use("/uploads", express.static(uploadsDir));
+  app.use(express.static(path.join(process.cwd(), "public"), {
+    maxAge: "1d",
+    etag: true
+  }));
+  app.use("/uploads", express.static(uploadsDir, {
+    maxAge: "7d",
+    etag: true
+  }));
 
   // Dynamic Robots.txt Handler (Optimized for Googlebot, Google AI, ChatGPT, Perplexity & Claude)
   app.get("/robots.txt", (req, res) => {
@@ -783,9 +802,93 @@ function sanitizeFilename(originalName: string): string {
     res.status(500).json({ error: "Failed to save uploaded file." });
   });
 
-  // Storage Proxy with Multi-Tier PostgreSQL, Local Disk, RAM Cache & Negative/Monogram Caching
-  const storageRamCache = new Map<string, { buffer: Buffer; contentType: string; contentLength: number; etag: string; timestamp: number }>();
+  // Storage Proxy with Multi-Tier PostgreSQL, Local Disk, Byte-Bounded LRU+TTL RAM Cache & Negative/Monogram Caching
+  interface StorageCacheEntry {
+    buffer: Buffer;
+    contentType: string;
+    contentLength: number;
+    etag: string;
+    timestamp: number;
+  }
+
+  class BoundedStorageCache {
+    private cache = new Map<string, StorageCacheEntry>();
+    private totalBytes = 0;
+    private readonly maxEntries = 250;
+    private readonly maxTotalBytes = 48 * 1024 * 1024; // 48 MB hard cap prevents OOM
+    private readonly maxItemBytes = 2 * 1024 * 1024;   // Skip RAM caching blobs > 2 MB (disk serves them)
+    private readonly ttlMs = 6 * 60 * 60 * 1000;       // 6 hours TTL
+
+    get(key: string): StorageCacheEntry | undefined {
+      const entry = this.cache.get(key);
+      if (!entry) return undefined;
+      if (Date.now() - entry.timestamp > this.ttlMs) {
+        this.totalBytes = Math.max(0, this.totalBytes - entry.buffer.length);
+        this.cache.delete(key);
+        return undefined;
+      }
+      // Refresh LRU position
+      this.cache.delete(key);
+      this.cache.set(key, entry);
+      return entry;
+    }
+
+    set(key: string, entry: StorageCacheEntry): void {
+      const itemSize = entry.buffer.length;
+      if (itemSize > this.maxItemBytes) return;
+
+      const existing = this.cache.get(key);
+      if (existing) {
+        this.totalBytes = Math.max(0, this.totalBytes - existing.buffer.length);
+        this.cache.delete(key);
+      }
+
+      // Lazy sweep expired entries first if approaching limits
+      if (this.cache.size >= this.maxEntries || this.totalBytes + itemSize > this.maxTotalBytes) {
+        const now = Date.now();
+        for (const [k, v] of this.cache.entries()) {
+          if (now - v.timestamp > this.ttlMs) {
+            this.totalBytes = Math.max(0, this.totalBytes - v.buffer.length);
+            this.cache.delete(k);
+          }
+        }
+      }
+
+      while (
+        (this.cache.size >= this.maxEntries || this.totalBytes + itemSize > this.maxTotalBytes) &&
+        this.cache.size > 0
+      ) {
+        const oldestKey = this.cache.keys().next().value;
+        if (!oldestKey) break;
+        const oldest = this.cache.get(oldestKey);
+        if (oldest) {
+          this.totalBytes = Math.max(0, this.totalBytes - oldest.buffer.length);
+        }
+        this.cache.delete(oldestKey);
+      }
+
+      this.cache.set(key, entry);
+      this.totalBytes += itemSize;
+    }
+  }
+
+  const storageRamCache = new BoundedStorageCache();
   const failedSupabaseStorageSet = new Map<string, number>();
+
+  const markStorageNegativeMiss = (key: string) => {
+    const now = Date.now();
+    if (failedSupabaseStorageSet.size > 2000) {
+      for (const [k, expiry] of failedSupabaseStorageSet.entries()) {
+        if (now >= expiry) failedSupabaseStorageSet.delete(k);
+      }
+      while (failedSupabaseStorageSet.size >= 2000) {
+        const firstKey = failedSupabaseStorageSet.keys().next().value;
+        if (!firstKey) break;
+        failedSupabaseStorageSet.delete(firstKey);
+      }
+    }
+    failedSupabaseStorageSet.set(key, now + 60 * 60 * 1000);
+  };
 
   app.get("/api/storage/*", async (req, res) => {
     // Add CORS headers to prevent cross-origin blocks for custom domains
@@ -882,11 +985,7 @@ function sanitizeFilename(originalName: string): string {
           return res.status(304).end();
         }
 
-        // Cache in RAM
-        if (storageRamCache.size > 500) {
-          const firstKey = storageRamCache.keys().next().value;
-          if (firstKey) storageRamCache.delete(firstKey);
-        }
+        // Cache in bounded LRU+TTL RAM
         storageRamCache.set(filePath, {
           buffer: dbFile.buffer,
           contentType: dbFile.mimetype || 'image/jpeg',
@@ -926,11 +1025,7 @@ function sanitizeFilename(originalName: string): string {
             const buffer = Buffer.from(arrayBuffer);
             const etag = `"${buffer.length}-${Date.now()}"`;
 
-            // Save to RAM cache
-            if (storageRamCache.size > 500) {
-              const firstKey = storageRamCache.keys().next().value;
-              if (firstKey) storageRamCache.delete(firstKey);
-            }
+            // Save to bounded RAM cache
             storageRamCache.set(filePath, {
               buffer,
               contentType,
@@ -953,8 +1048,7 @@ function sanitizeFilename(originalName: string): string {
             res.setHeader("Content-Length", buffer.length);
             return res.send(buffer);
           } else {
-            if (failedSupabaseStorageSet.size > 5000) failedSupabaseStorageSet.clear();
-            failedSupabaseStorageSet.set(filePath, Date.now() + 60 * 60 * 1000); // Cache 400/402/404 for 1 hour
+            markStorageNegativeMiss(filePath); // Cache 400/402/404 for 1 hour
           }
         }
       } catch (sbErr: any) {
@@ -1016,10 +1110,6 @@ function sanitizeFilename(originalName: string): string {
 
       const svgBuffer = Buffer.from(svgContent, "utf-8");
       const etag = `"${svgBuffer.length}-svg-fallback"`;
-      if (storageRamCache.size > 500) {
-        const firstKey = storageRamCache.keys().next().value;
-        if (firstKey) storageRamCache.delete(firstKey);
-      }
       storageRamCache.set(fallbackCacheKey, {
         buffer: svgBuffer,
         contentType: "image/svg+xml",
@@ -1083,6 +1173,7 @@ function sanitizeFilename(originalName: string): string {
       }
     }, 30000);
 
+    let isGlobalEInvoiceSyncRunning = false;
     setInterval(async () => {
       try {
         const response = await fetch(`${APP_URL}/api/health`);
@@ -1093,11 +1184,16 @@ function sanitizeFilename(originalName: string): string {
         console.error("Keep-alive ping failed:", e.message);
       }
       
-      // Also trigger invoice background sync silently
-      try {
-        await runGlobalEInvoiceSync();
-      } catch (e: any) {
-        console.error("Global E-Invoice sync failed:", e.message);
+      // Also trigger invoice background sync silently with overlap protection
+      if (!isGlobalEInvoiceSyncRunning) {
+        isGlobalEInvoiceSyncRunning = true;
+        try {
+          await runGlobalEInvoiceSync();
+        } catch (e: any) {
+          console.error("Global E-Invoice sync failed:", e.message);
+        } finally {
+          isGlobalEInvoiceSyncRunning = false;
+        }
       }
     }, 5 * 60 * 1000); // 5 minutes is safer than 14
   } else {
@@ -1105,6 +1201,43 @@ function sanitizeFilename(originalName: string): string {
   }
 
   console.log("Setting up routes...");
+
+  // Rate Limiters (Brute-Force, AI/Proxy Abuse & API Flood Protection)
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Çok fazla kimlik doğrulama denemesi. Lütfen 15 dakika sonra tekrar deneyin." }
+  });
+
+  const aiProxyLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 120,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Çok fazla AI veya medya isteği gönderildi. Lütfen kısa süre sonra tekrar deneyin." }
+  });
+
+  const apiLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 600,
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: (req) => req.path === "/health" || req.path.startsWith("/pos-bridge/agent/"),
+    message: { error: "İstek sınırı aşıldı. Lütfen biraz bekleyin." }
+  });
+
+  app.use("/api", apiLimiter);
+  app.use("/api/auth/login", authLimiter);
+  app.use("/api/auth/register", authLimiter);
+  app.use("/api/auth/forgot-password", authLimiter);
+  app.use("/api/auth/reset-password", authLimiter);
+  app.use("/api/ai-social", aiProxyLimiter);
+  app.use("/api/ai-jobs", aiProxyLimiter);
+  app.use("/api/proxy-image", aiProxyLimiter);
+  app.use("/api/instagram/proxy-image", aiProxyLimiter);
+  app.use("/api/annotate-image", aiProxyLimiter);
 
   // Routes
   app.use("/api/auth", authRoutes);
@@ -1120,7 +1253,7 @@ function sanitizeFilename(originalName: string): string {
   app.use("/api/integrations", integrationRoutes);
   app.use("/api/hepsiburada", integrationRoutes);
   app.use("/api/instagram", instagramRoutes);
-  app.use("/api/ai-social", aiSocialRoutes);
+  app.use("/api/ai-social", authenticate, aiSocialRoutes);
   app.use("/api/pos-bridge", posBridgeRoutes);
   app.use("/api", einvoiceRoutes);
 

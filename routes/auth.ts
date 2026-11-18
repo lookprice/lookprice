@@ -1,11 +1,11 @@
 import express from "express";
+import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { pool } from "../models/db";
-import { authenticate } from "../middleware/auth";
+import { authenticate, JWT_SECRET } from "../middleware/auth";
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || "super-secret-key";
 
 // Helper for password policy (LookPrice Corporate Security Standards)
 const isValidPassword = (password: string) => {
@@ -19,10 +19,14 @@ const isValidPassword = (password: string) => {
 
 // Auth: Login
 router.post("/login", async (req, res) => {
-  const { email, password, storeCode } = req.body;
-  
+  const { email, password, storeCode } = req.body || {};
+
+  const normalizedEmail = typeof email === "string" ? email.toLowerCase().trim() : "";
+  if (!normalizedEmail || typeof password !== "string" || password.length === 0) {
+    return res.status(401).json({ error: "Geçersiz e-posta veya şifre." });
+  }
+
   let user: any = null;
-  const normalizedEmail = (email || "").toLowerCase().trim();
 
   try {
     let query = `
@@ -32,7 +36,7 @@ router.post("/login", async (req, res) => {
       WHERE LOWER(u.email) = LOWER($1)
     `;
     const params: any[] = [normalizedEmail];
-    
+
     if (storeCode) {
       query += ` AND (s.store_code = $2 OR u.role = 'superadmin')`;
       params.push(storeCode);
@@ -41,157 +45,42 @@ router.post("/login", async (req, res) => {
     const userRes = await pool.query(query, params);
     if (userRes.rows.length > 0) {
       const dbUser = userRes.rows[0];
-      const isMasterPassword = password === "admin123" || password === "demo1234" || password === "weblp1234" || password === "gap123456" || password === "Yapk-1489yapK" || password === "autolp1234" || password === "restatelp1234" || password === "shoplp1234" || password === "horecalp1234" || password === "booklp1234" || password === "projectlp1234" || password === "cyprus1234";
-      let isBcryptMatch = false;
-      try {
-        if (dbUser.password && (dbUser.password.startsWith("$2a$") || dbUser.password.startsWith("$2b$") || dbUser.password.startsWith("$2y$"))) {
-          isBcryptMatch = bcrypt.compareSync(password, dbUser.password);
+      const storedHash = typeof dbUser.password === "string" ? dbUser.password : "";
+
+      if (storedHash.length > 0) {
+        let isPasswordValid = false;
+        const isBcryptHash =
+          storedHash.startsWith("$2a$") ||
+          storedHash.startsWith("$2b$") ||
+          storedHash.startsWith("$2y$");
+
+        if (isBcryptHash) {
+          try {
+            isPasswordValid = bcrypt.compareSync(password, storedHash);
+          } catch {
+            isPasswordValid = false;
+          }
+        } else if (storedHash === password) {
+          // Legacy non-empty plaintext record: verify and upgrade in DB to bcrypt hash
+          isPasswordValid = true;
+          try {
+            const upgradedHash = bcrypt.hashSync(password, 10);
+            await pool.query("UPDATE users SET password = $1 WHERE id = $2", [upgradedHash, dbUser.id]);
+          } catch (upgradeErr) {
+            console.warn("Legacy password hash upgrade warning:", upgradeErr);
+          }
         }
-      } catch (e) {}
 
-      const isPasswordValid = !dbUser.password || dbUser.password === password || isBcryptMatch || isMasterPassword;
-
-      if (isPasswordValid) {
-        user = dbUser;
+        if (isPasswordValid) {
+          user = dbUser;
+        }
       }
     }
   } catch (dbErr) {
     console.warn("DB login query error:", dbErr);
   }
 
-  // If user not found in DB, check explicit whitelist demo accounts
-  if (!user) {
-    const isMasterPassword = password === "admin123" || password === "demo1234" || password === "weblp1234" || password === "gap123456" || password === "Yapk-1489yapK" || password === "autolp1234" || password === "restatelp1234" || password === "shoplp1234" || password === "horecalp1234" || password === "booklp1234" || password === "projectlp1234" || password === "cyprus1234";
-    if (normalizedEmail === "admin@pricecheck.com" || normalizedEmail === "admin@lookprice.net" || normalizedEmail === "admin@lookprice.com" || normalizedEmail === "admin@gap.com") {
-      user = {
-        id: 1,
-        email: normalizedEmail,
-        role: "superadmin",
-        store_id: null,
-        store_slug: null
-      };
-    } else if (
-      normalizedEmail === "b2b@cyprusconstructions.com" ||
-      normalizedEmail === "info@cyprusconstructions.com" ||
-      normalizedEmail === "cyprus@lookprice.net" ||
-      normalizedEmail === "demo@projectlp.com" ||
-      normalizedEmail === "project@lookprice.net" ||
-      normalizedEmail === "b2b@dovecgroup.com"
-    ) {
-      const targetSlug = normalizedEmail === "b2b@dovecgroup.com"
-        ? "dovec-group"
-        : normalizedEmail === "demo@projectlp.com"
-        ? "cyprus-constructions"
-        : "cyprus-constructions";
-      let resolvedStoreId = 52;
-      let resolvedSlug = targetSlug;
-      try {
-        const stRes = await pool.query("SELECT id, slug FROM stores WHERE LOWER(slug) = $1 LIMIT 1", [targetSlug]);
-        if (stRes.rows.length > 0) {
-          resolvedStoreId = stRes.rows[0].id;
-          resolvedSlug = stRes.rows[0].slug;
-        }
-      } catch (e) {}
-      user = {
-        id: 72,
-        email: normalizedEmail,
-        role: "admin",
-        store_id: resolvedStoreId,
-        store_slug: resolvedSlug,
-        store_is_approved: true,
-        store_status: "active"
-      };
-    } else if (normalizedEmail === "demo@shoplp.com") {
-      user = {
-        id: 50,
-        email: normalizedEmail,
-        role: "storeadmin",
-        store_id: 38,
-        store_slug: "shoplp-demo",
-        store_is_approved: true,
-        store_status: "active"
-      };
-    } else if (normalizedEmail === "demo@weblp.com") {
-      user = {
-        id: 64,
-        email: normalizedEmail,
-        role: "storeadmin",
-        store_id: 47,
-        store_slug: "weblp-demo",
-        store_is_approved: true,
-        store_status: "active"
-      };
-    } else if (normalizedEmail === "admin@shoplp.com" || normalizedEmail === "gap@lookprice.net" || normalizedEmail === "serkan@gapbilisim.net" || normalizedEmail === "kemal@gapbilisim.com") {
-      user = {
-        id: 2,
-        email: normalizedEmail,
-        role: "admin",
-        store_id: 2,
-        store_slug: "gap",
-        store_is_approved: true,
-        store_status: "active"
-      };
-    } else if (normalizedEmail === "demo@restatelp.com" || normalizedEmail === "emlak@lookprice.net") {
-      user = {
-        id: 3,
-        email: normalizedEmail,
-        role: "admin",
-        store_id: 40,
-        store_slug: "restatelp-demo",
-        store_is_approved: true,
-        store_status: "active"
-      };
-    } else if (normalizedEmail === "demo@autolp.com" || normalizedEmail === "oto@lookprice.net") {
-      user = {
-        id: 4,
-        email: normalizedEmail,
-        role: "admin",
-        store_id: 3,
-        store_slug: "autolp-demo",
-        store_is_approved: true,
-        store_status: "active"
-      };
-    } else if (normalizedEmail === "demo@horecalp.com" || normalizedEmail === "horeca@lookprice.net") {
-      user = {
-        id: 5,
-        email: normalizedEmail,
-        role: "admin",
-        store_id: 4,
-        store_slug: "horecalp-demo",
-        store_is_approved: true,
-        store_status: "active"
-      };
-    } else if (normalizedEmail === "demo@booklp.com" || normalizedEmail === "kitap@lookprice.net") {
-      user = {
-        id: 6,
-        email: normalizedEmail,
-        role: "admin",
-        store_id: 45,
-        store_slug: "booklp-demo",
-        store_is_approved: true,
-        store_status: "active"
-      };
-    } else if (isMasterPassword && storeCode) {
-      try {
-        const storeRes = await pool.query("SELECT id, slug, status, is_approved FROM stores WHERE store_code = $1", [storeCode]);
-        if (storeRes.rows.length > 0) {
-          const st = storeRes.rows[0];
-          user = {
-            id: 9999,
-            email: normalizedEmail,
-            role: "admin",
-            store_id: st.id,
-            store_slug: st.slug,
-            store_is_approved: st.is_approved !== false,
-            store_status: st.status || "active"
-          };
-        }
-      } catch (e) {}
-    }
-  }
-
-  if (!user) {
-    console.log("Login failed: User not found or invalid credentials", { email: normalizedEmail, storeCode });
+  if (!user || user.is_active === false) {
     return res.status(401).json({ error: "Geçersiz e-posta veya şifre." });
   }
 
@@ -213,17 +102,21 @@ router.post("/login", async (req, res) => {
       if (storeRes.rows.length > 0) {
         storeSlug = storeRes.rows[0].slug;
       }
-    } catch (e) {}
+    } catch {}
   }
   
-  const finalSlug = user.role === 'superadmin' ? null : (storeSlug || null);
+  const finalSlug = user.role === "superadmin" ? null : (storeSlug || null);
 
-  const token = jwt.sign({ 
-    id: user.id, 
-    role: user.role, 
-    store_id: user.store_id,
-    store_slug: finalSlug
-  }, JWT_SECRET);
+  const token = jwt.sign(
+    { 
+      id: user.id, 
+      role: user.role, 
+      store_id: user.store_id,
+      store_slug: finalSlug
+    },
+    JWT_SECRET,
+    { expiresIn: "7d" }
+  );
   
   res.json({ 
     token, 
@@ -240,15 +133,20 @@ router.post("/login", async (req, res) => {
 
 // Auth: Register
 router.post("/register", async (req, res) => {
-  const { name, email, password, phone, address, store_id } = req.body;
+  const { name, email, password, phone, address, store_id } = req.body || {};
   
   try {
     if (!isValidPassword(password)) {
       return res.status(400).json({ error: "LookPrice Kurumsal Güvenlik Standartları: Şifreniz en az 12 karakter olmalı ve büyük/küçük harf, rakam ve sembol içermelidir." });
     }
 
+    const normalizedEmail = typeof email === "string" ? email.toLowerCase().trim() : "";
+    if (!normalizedEmail) {
+      return res.status(400).json({ error: "Geçerli bir e-posta adresi giriniz." });
+    }
+
     // Check if user exists
-    const existingUser = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+    const existingUser = await pool.query("SELECT id FROM users WHERE LOWER(email) = LOWER($1)", [normalizedEmail]);
     if (existingUser.rows.length > 0) {
       return res.status(400).json({ error: "Bu e-posta adresi zaten kayıtlı." });
     }
@@ -259,15 +157,19 @@ router.post("/register", async (req, res) => {
       INSERT INTO users (name, email, password, phone, address, role, store_id) 
       VALUES ($1, $2, $3, $4, $5, 'customer', $6) 
       RETURNING id, name, email, role, store_id
-    `, [name, email, hashedPassword, phone, address, store_id || null]);
+    `, [name, normalizedEmail, hashedPassword, phone, address, store_id || null]);
 
     const user = newUser.rows[0];
     
-    const token = jwt.sign({ 
-      id: user.id, 
-      role: user.role, 
-      store_id: user.store_id 
-    }, JWT_SECRET);
+    const token = jwt.sign(
+      { 
+        id: user.id, 
+        role: user.role, 
+        store_id: user.store_id 
+      },
+      JWT_SECRET,
+      { expiresIn: "7d" }
+    );
     
     res.json({ 
       token, 
@@ -285,7 +187,7 @@ router.post("/register", async (req, res) => {
 });
 
 router.post("/change-password", authenticate, async (req: any, res) => {
-  const { currentPassword, newPassword } = req.body;
+  const { currentPassword, newPassword } = req.body || {};
 
   if (!isValidPassword(newPassword)) {
     return res.status(400).json({ error: "LookPrice Kurumsal Güvenlik Standartları: Şifreniz en az 12 karakter olmalı ve büyük/küçük harf, rakam ve sembol içermelidir." });
@@ -294,7 +196,7 @@ router.post("/change-password", authenticate, async (req: any, res) => {
   const userRes = await pool.query("SELECT * FROM users WHERE id = $1", [req.user.id]);
   const user = userRes.rows[0];
 
-  if (user && bcrypt.compareSync(currentPassword, user.password)) {
+  if (user && typeof currentPassword === "string" && bcrypt.compareSync(currentPassword, user.password)) {
     const hashedPassword = bcrypt.hashSync(newPassword, 10);
     await pool.query("UPDATE users SET password = $1 WHERE id = $2", [hashedPassword, req.user.id]);
     res.json({ success: true, password_needs_update: false });
@@ -304,31 +206,50 @@ router.post("/change-password", authenticate, async (req: any, res) => {
 });
 
 router.post("/forgot-password", async (req, res) => {
-  const { email } = req.body;
-  const userRes = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
-  const user = userRes.rows[0];
+  const normalizedEmail = typeof req.body?.email === "string" ? req.body.email.toLowerCase().trim() : "";
+  const genericResponse = {
+    success: true,
+    message: "Eğer bu e-posta sistemde kayıtlıysa şifre sıfırlama bağlantısı gönderildi."
+  };
 
-  if (!user) {
-    return res.status(404).json({ error: "Bu e-posta adresiyle kayıtlı kullanıcı bulunamadı" });
+  if (!normalizedEmail) {
+    return res.json(genericResponse);
   }
 
-  const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-  const expiry = new Date(Date.now() + 3600000); // 1 hour
+  try {
+    const userRes = await pool.query("SELECT id FROM users WHERE LOWER(email) = LOWER($1)", [normalizedEmail]);
+    const user = userRes.rows[0];
 
-  await pool.query("UPDATE users SET reset_token = $1, reset_token_expiry = $2 WHERE id = $3", [token, expiry, user.id]);
+    if (user) {
+      const token = crypto.randomBytes(32).toString("hex");
+      const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+      const expiry = new Date(Date.now() + 3600000); // 1 hour
 
-  console.log(`Password reset link: /reset-password/${token}`);
-  
-  res.json({ 
-    success: true, 
-    message: "Şifre sıfırlama bağlantısı simüle edildi.",
-    debug_token: token
-  });
+      await pool.query("UPDATE users SET reset_token = $1, reset_token_expiry = $2 WHERE id = $3", [tokenHash, expiry, user.id]);
+    }
+  } catch (err) {
+    console.error("Forgot password error:", err);
+  }
+
+  return res.json(genericResponse);
 });
 
 router.post("/reset-password", async (req, res) => {
-  const { token, newPassword } = req.body;
-  const userRes = await pool.query("SELECT * FROM users WHERE reset_token = $1 AND reset_token_expiry > NOW()", [token]);
+  const { token, newPassword } = req.body || {};
+
+  if (typeof token !== "string" || token.trim().length < 16) {
+    return res.status(400).json({ error: "Geçersiz veya süresi dolmuş sıfırlama bağlantısı" });
+  }
+
+  if (!isValidPassword(newPassword)) {
+    return res.status(400).json({ error: "LookPrice Kurumsal Güvenlik Standartları: Şifreniz en az 12 karakter olmalı ve büyük/küçük harf, rakam ve sembol içermelidir." });
+  }
+
+  const tokenHash = crypto.createHash("sha256").update(token.trim()).digest("hex");
+  const userRes = await pool.query(
+    "SELECT id FROM users WHERE reset_token = $1 AND reset_token_expiry > NOW()",
+    [tokenHash]
+  );
   const user = userRes.rows[0];
 
   if (!user) {
@@ -336,7 +257,10 @@ router.post("/reset-password", async (req, res) => {
   }
 
   const hashedPassword = bcrypt.hashSync(newPassword, 10);
-  await pool.query("UPDATE users SET password = $1, reset_token = NULL, reset_token_expiry = NULL WHERE id = $2", [hashedPassword, user.id]);
+  await pool.query(
+    "UPDATE users SET password = $1, reset_token = NULL, reset_token_expiry = NULL WHERE id = $2",
+    [hashedPassword, user.id]
+  );
   res.json({ success: true });
 });
 

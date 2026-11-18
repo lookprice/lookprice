@@ -288,9 +288,13 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
   const handleGenerateAiCaption = async (tone: CaptionTone = selectedTone) => {
     setIsGeneratingAiCaption(true);
     try {
+      const token = localStorage.getItem("token");
       const res = await fetch("/api/ai-social/generate-caption", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({
           itemType: "property",
           title: propertyTitle,

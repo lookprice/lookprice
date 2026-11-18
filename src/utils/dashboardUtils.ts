@@ -1,10 +1,14 @@
-import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
+import type { jsPDF as JsPDFType } from "jspdf";
 import { numberToTurkishWords, formatDateTR } from "./formatUtils";
 
 export const handleDownloadQuotationPDF = async (quotation: any, branding: any, lang: string) => {
   if (!quotation) return;
-  
+
+  const [{ jsPDF }, { default: autoTable }] = await Promise.all([
+    import("jspdf"),
+    import("jspdf-autotable"),
+  ]);
+
   const doc = new jsPDF();
   const isTr = lang === 'tr';
   
@@ -45,7 +49,7 @@ export const handleDownloadQuotationPDF = async (quotation: any, branding: any, 
     }
   }
 
-  const addHeader = (doc: jsPDF) => {
+  const addHeader = (doc: JsPDFType) => {
     if (logoBase64) {
       try {
         doc.addImage(logoBase64, 'PNG', 14, 5, 12, 12);
@@ -84,7 +88,7 @@ export const handleDownloadQuotationPDF = async (quotation: any, branding: any, 
     doc.line(14, 23, 196, 23);
   };
 
-  const addFooter = (doc: jsPDF, pageNumber: number, totalPages: number) => {
+  const addFooter = (doc: JsPDFType, pageNumber: number, totalPages: number) => {
     doc.setFontSize(6);
     doc.setTextColor(150);
     doc.text(fixTr(`${branding.store_name || branding.name || "LookPrice"} - ${isTr ? "Teklif Formu" : "Quotation Form"}`), 14, 292);

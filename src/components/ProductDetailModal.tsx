@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { getExchangeRate } from "../services/currencyService";
+import { sanitizeHtml } from "../utils/sanitizeHtml";
 import {
   Check,
   X,
@@ -1138,7 +1139,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   </h4>
                   <div 
                     className="text-xs text-slate-700 leading-relaxed font-normal [&_p]:mb-1.5 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_strong]:font-semibold [&_*]:!text-inherit [&_a]:!text-indigo-600"
-                    dangerouslySetInnerHTML={{ __html: displayText.replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ') }} 
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(displayText.replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ')) }} 
                   />
                   {isLong && (
                     <button

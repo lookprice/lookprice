@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { contractTemplates, ContractPlaceholderValues } from "../utils/contractTemplates";
 import { formatPhoneForWhatsApp, formatDateTR } from "../utils/formatUtils";
+import { sanitizeContractHtml } from "../utils/sanitizeHtml";
 
 export interface SavedConsultantContract {
   agentId: number | string;
@@ -868,7 +869,7 @@ export const ConsultantPartnershipModal: React.FC<ConsultantPartnershipModalProp
 
           <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-100/70">
             <div className="bg-white shadow-lg rounded-2xl border border-slate-200 overflow-hidden mx-auto max-w-3xl">
-              <div dangerouslySetInnerHTML={{ __html: html }} />
+              <div dangerouslySetInnerHTML={{ __html: sanitizeContractHtml(html) }} />
             </div>
           </div>
         </div>

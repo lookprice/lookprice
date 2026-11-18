@@ -5,7 +5,7 @@ import jwt from "jsonwebtoken";
 import AdmZip from "adm-zip";
 import { WebSocketServer, WebSocket } from "ws";
 import { pool, logAction } from "../models/db";
-import { authenticate } from "../middleware/auth";
+import { authenticate, JWT_SECRET } from "../middleware/auth";
 import { getAuthorizedStoreId } from "./store/utils";
 import {
   UNIVERSAL_POS_DEVICES,
@@ -18,8 +18,6 @@ import {
 import { buildGmp3CommandPacket, Gmp3CommandType } from "../src/lib/gmp3Protocol";
 
 const router = express.Router();
-
-const JWT_SECRET = process.env.JWT_SECRET || "super-secret-key-lookprice-applet-dev-2026";
 
 // Active WebSocket agent connections per storeId
 const activeWsAgents = new Map<number, Set<WebSocket>>();

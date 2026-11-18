@@ -3344,9 +3344,12 @@ async function persistStoreDeveloperWebConfig(storeId: number, patchConfig: Reco
   return nextDevConfig;
 }
 
-router.post('/save-web-config', async (req, res) => {
+router.post('/save-web-config', authenticate, async (req: any, res) => {
   try {
-    const storeId = Number(req.body?.store_id || 1);
+    const storeId = getAuthorizedStoreId(req, req.body?.store_id);
+    if (!storeId) {
+      return res.status(403).json({ error: 'Yetkisiz mağaza işlemi.' });
+    }
     const configPatch = req.body?.developer_web_config || req.body?.config || {};
     const saved = await persistStoreDeveloperWebConfig(storeId, configPatch);
     res.json({ success: true, developer_web_config: saved });
@@ -3400,15 +3403,20 @@ const ARCHITECTURAL_VISUAL_POOL = [
   }
 ];
 
-router.post('/ai-lora-render', async (req, res) => {
+router.post('/ai-lora-render', authenticate, async (req: any, res) => {
   const {
-    store_id = 1,
+    store_id,
     project_id,
     lora_id = 'cyprus_mediterranean_arch',
     custom_title = '',
     prompt = '',
     existing_urls = []
   } = req.body || {};
+
+  const storeId = getAuthorizedStoreId(req, store_id);
+  if (!storeId) {
+    return res.status(403).json({ error: 'Yetkisiz mağaza işlemi.' });
+  }
 
   try {
     const userPrompt = String(prompt || '').trim();
@@ -3462,7 +3470,7 @@ Sadece JSON döndür: {"title": "...", "description": "..."}`,
           if (part.inlineData?.data) {
             const mime = part.inlineData.mimeType || 'image/jpeg';
             const dataUri = `data:${mime};base64,${part.inlineData.data}`;
-            generatedImageUrl = await cleanDeepBase64(dataUri, `arch_render_${store_id}`);
+            generatedImageUrl = await cleanDeepBase64(dataUri, `arch_render_${storeId}`);
             break;
           }
         }
@@ -3510,7 +3518,7 @@ Sadece JSON döndür: {"title": "...", "description": "..."}`,
     try {
       const storeRes = await pool.query(
         `SELECT branding, page_layout_settings FROM stores WHERE id = $1`,
-        [Number(store_id) || 1]
+        [storeId]
       );
       if (storeRes.rows.length > 0) {
         let br: any = storeRes.rows[0].branding || {};
@@ -3522,7 +3530,7 @@ Sadece JSON döndür: {"title": "...", "description": "..."}`,
           ? curDev.lora_generated_gallery.map((g: any, idx: number) => sanitizeArchitecturalGalleryItem(g, idx))
           : [];
         const nextGallery = [newGalleryItem, ...curGallery];
-        await persistStoreDeveloperWebConfig(Number(store_id) || 1, {
+        await persistStoreDeveloperWebConfig(storeId, {
           lora_generated_gallery: nextGallery
         });
       }
@@ -3534,7 +3542,7 @@ Sadece JSON döndür: {"title": "...", "description": "..."}`,
     if (project_id) {
       const projRes = await pool.query(
         'SELECT media_vault FROM developer_projects WHERE id = $1 AND store_id = $2',
-        [Number(project_id), Number(store_id)]
+        [Number(project_id), storeId]
       );
       if (projRes.rowCount && projRes.rowCount > 0) {
         const currentVault = Array.isArray(projRes.rows[0].media_vault) ? projRes.rows[0].media_vault : [];
@@ -3551,7 +3559,7 @@ Sadece JSON döndür: {"title": "...", "description": "..."}`,
         ];
         await pool.query(
           'UPDATE developer_projects SET media_vault = $1::jsonb, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND store_id = $3',
-          [JSON.stringify(nextVault), Number(project_id), Number(store_id)]
+          [JSON.stringify(nextVault), Number(project_id), storeId]
         );
       }
     }
@@ -3568,6 +3576,72 @@ Sadece JSON döndür: {"title": "...", "description": "..."}`,
     res.status(500).json({ error: err.message });
   }
 });
+
+function isPrivateOrInternalHost(hostname: string): boolean {
+  if (!hostname) return true;
+  const host = hostname.toLowerCase().trim().replace(/^\[|\]$/g, '');
+  if (
+    host === 'localhost' ||
+    host === '127.0.0.1' ||
+    host === '0.0.0.0' ||
+    host === '::1' ||
+    host === '::' ||
+    host === '169.254.169.254' ||
+    host.startsWith('fe80:') ||
+    host.startsWith('fc00:') ||
+    host.startsWith('fd') ||
+    host.startsWith('::ffff:127.') ||
+    host.startsWith('::ffff:10.') ||
+    host.startsWith('::ffff:192.168.') ||
+    host.startsWith('::ffff:169.254.') ||
+    host.endsWith('.local') ||
+    host.endsWith('.internal') ||
+    host.endsWith('.lan')
+  ) {
+    return true;
+  }
+
+  const ipMatch = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (ipMatch) {
+    const p1 = parseInt(ipMatch[1], 10);
+    const p2 = parseInt(ipMatch[2], 10);
+    if (p1 === 127 || p1 === 10 || p1 === 0) return true;
+    if (p1 === 172 && p2 >= 16 && p2 <= 31) return true;
+    if (p1 === 192 && p2 === 168) return true;
+    if (p1 === 169 && p2 === 254) return true;
+  }
+  return false;
+}
+
+function parseSafeExternalHttpUrl(raw: string): URL | null {
+  try {
+    const parsed = new URL(raw);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+    if (isPrivateOrInternalHost(parsed.hostname)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+async function safeExternalFetch(rawUrl: string, headers: Record<string, string> = {}) {
+  let currentUrl = rawUrl;
+  for (let hop = 0; hop < 4; hop++) {
+    const safeUrl = parseSafeExternalHttpUrl(currentUrl);
+    if (!safeUrl) {
+      throw new Error('SSRF_BLOCKED');
+    }
+    const resp = await fetch(safeUrl.toString(), { headers, redirect: 'manual' });
+    if (resp.status >= 300 && resp.status < 400) {
+      const loc = resp.headers.get('location');
+      if (!loc) return resp;
+      currentUrl = new URL(loc, safeUrl).toString();
+      continue;
+    }
+    return resp;
+  }
+  throw new Error('TOO_MANY_REDIRECTS');
+}
 
 // GET /api/developer-projects/download-asset (Direct Local File Download Proxy for Images & Media)
 router.get('/download-asset', async (req: any, res) => {
@@ -3601,43 +3675,56 @@ router.get('/download-asset', async (req: any, res) => {
           : fallbackUrl;
     }
 
-    if (targetFetchUrl.startsWith('http://') || targetFetchUrl.startsWith('https://')) {
-      const upstream = await fetch(targetFetchUrl, {
-        headers: {
+    if (targetFetchUrl) {
+      const safePrimary = parseSafeExternalHttpUrl(targetFetchUrl);
+      if (!safePrimary && (targetFetchUrl.startsWith('http://') || targetFetchUrl.startsWith('https://'))) {
+        return res.status(403).json({ error: 'Güvenlik nedeniyle dahili/yerel URL adreslerine erişim engellendi.' });
+      }
+      if (safePrimary) {
+        const upstream = await safeExternalFetch(safePrimary.toString(), {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        });
+        if (upstream.ok) {
+          const contentType = upstream.headers.get('content-type') || 'application/octet-stream';
+          const arrayBuf = await upstream.arrayBuffer();
+          const buf = Buffer.from(arrayBuf);
+          res.setHeader('Content-Type', contentType);
+          res.setHeader(
+            'Content-Disposition',
+            `attachment; filename="${encodeURIComponent(fileName)}"; filename*=UTF-8''${encodeURIComponent(fileName)}`
+          );
+          return res.send(buf);
         }
-      });
-      if (upstream.ok) {
-        const contentType = upstream.headers.get('content-type') || 'application/octet-stream';
-        const arrayBuf = await upstream.arrayBuffer();
-        const buf = Buffer.from(arrayBuf);
-        res.setHeader('Content-Type', contentType);
-        res.setHeader(
-          'Content-Disposition',
-          `attachment; filename="${encodeURIComponent(fileName)}"; filename*=UTF-8''${encodeURIComponent(fileName)}`
-        );
-        return res.send(buf);
       }
     }
 
     // If fallbackUrl is available and primary failed
-    if (fallbackUrl && (fallbackUrl.startsWith('http://') || fallbackUrl.startsWith('https://'))) {
-      const fbUpstream = await fetch(fallbackUrl);
-      if (fbUpstream.ok) {
-        const contentType = fbUpstream.headers.get('content-type') || 'image/jpeg';
-        const arrayBuf = await fbUpstream.arrayBuffer();
-        const buf = Buffer.from(arrayBuf);
-        res.setHeader('Content-Type', contentType);
-        res.setHeader(
-          'Content-Disposition',
-          `attachment; filename="${encodeURIComponent(fileName)}"; filename*=UTF-8''${encodeURIComponent(fileName)}`
-        );
-        return res.send(buf);
+    if (fallbackUrl) {
+      const safeFallback = parseSafeExternalHttpUrl(fallbackUrl);
+      if (!safeFallback && (fallbackUrl.startsWith('http://') || fallbackUrl.startsWith('https://'))) {
+        return res.status(403).json({ error: 'Güvenlik nedeniyle dahili/yerel URL adreslerine erişim engellendi.' });
+      }
+      if (safeFallback) {
+        const fbUpstream = await safeExternalFetch(safeFallback.toString());
+        if (fbUpstream.ok) {
+          const contentType = fbUpstream.headers.get('content-type') || 'image/jpeg';
+          const arrayBuf = await fbUpstream.arrayBuffer();
+          const buf = Buffer.from(arrayBuf);
+          res.setHeader('Content-Type', contentType);
+          res.setHeader(
+            'Content-Disposition',
+            `attachment; filename="${encodeURIComponent(fileName)}"; filename*=UTF-8''${encodeURIComponent(fileName)}`
+          );
+          return res.send(buf);
+        }
       }
     }
 
     return res.status(404).json({ error: 'Dosya indirilemedi.' });
   } catch (err: any) {
+    if (err?.message === 'SSRF_BLOCKED') {
+      return res.status(403).json({ error: 'Güvenlik nedeniyle dahili/yerel URL adreslerine erişim engellendi.' });
+    }
     return res.status(500).json({ error: err.message });
   }
 });

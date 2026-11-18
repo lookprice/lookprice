@@ -1,4 +1,5 @@
 import React, { useState, useRef } from "react";
+import { sanitizeContractHtml } from "../utils/sanitizeHtml";
 import { 
   FileText, 
   Download, 
@@ -4541,7 +4542,7 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
           {/* RENDERED CONTENT */}
           <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 md:p-8 bg-slate-100/50">
             <div className="bg-white shadow-lg rounded-3xl border border-slate-200/80 overflow-hidden mx-auto max-w-3xl">
-              <div dangerouslySetInnerHTML={{ __html: html }} />
+              <div dangerouslySetInnerHTML={{ __html: sanitizeContractHtml(html) }} />
             </div>
           </div>
 

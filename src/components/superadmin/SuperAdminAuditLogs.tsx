@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { ShieldCheck, ShieldAlert, FileText, Search, Clock, Download, ArrowRight } from "lucide-react";
 import { api } from "../../services/api";
 import { IrpModal } from "../IrpModal";
-import * as XLSX from "xlsx";
 import { formatDateTimeTR, formatFileDateTR } from "../../utils/formatUtils";
 
 export function SuperAdminAuditLogs({ lang }: { lang: string }) {
@@ -37,8 +36,9 @@ export function SuperAdminAuditLogs({ lang }: { lang: string }) {
     (log.user_email?.toLowerCase() || '').includes(search.toLowerCase())
   );
 
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
     if (filteredLogs.length === 0) return;
+    const XLSX = await import("xlsx");
     const ws = XLSX.utils.json_to_sheet(filteredLogs.map(log => ({
       'Tarih': formatDateTimeTR(log.created_at),
       'Mağaza': log.store_name || log.store_slug || '-',

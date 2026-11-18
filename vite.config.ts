@@ -4,12 +4,7 @@ import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, '.', '');
-  console.log("Vite config API Keys:", {
-    GEMINI_API_KEY: !!process.env.GEMINI_API_KEY,
-    API_KEY: !!process.env.API_KEY,
-    env_GEMINI_API_KEY: !!env.GEMINI_API_KEY
-  });
+  loadEnv(mode, '.', '');
   return {
     define: {
       'process.env': 'globalThis.process.env',
@@ -23,13 +18,45 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       sourcemap: false,
-      minify: false,
-      cssMinify: false,
+      minify: 'esbuild',
+      cssMinify: true,
       target: 'esnext',
       cssCodeSplit: true,
       reportCompressedSize: false,
       rollupOptions: {
-        maxParallelFileOps: 1,
+        maxParallelFileOps: 2,
+        output: {
+          manualChunks(id) {
+            if (!id.includes('node_modules')) return;
+            if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/') || id.includes('node_modules/react-router')) {
+              return 'vendor-react';
+            }
+            if (id.includes('node_modules/recharts') || id.includes('node_modules/d3-')) {
+              return 'vendor-charts';
+            }
+            if (id.includes('node_modules/jspdf') || id.includes('node_modules/html2canvas')) {
+              return 'vendor-pdf';
+            }
+            if (id.includes('node_modules/xlsx') || id.includes('node_modules/codepage')) {
+              return 'vendor-xlsx';
+            }
+            if (id.includes('node_modules/three')) {
+              return 'vendor-three';
+            }
+            if (id.includes('node_modules/@vis.gl/react-google-maps')) {
+              return 'vendor-maps';
+            }
+            if (id.includes('node_modules/motion') || id.includes('node_modules/framer-motion')) {
+              return 'vendor-motion';
+            }
+            if (id.includes('node_modules/html5-qrcode') || id.includes('node_modules/qrcode.react')) {
+              return 'vendor-qr';
+            }
+            if (id.includes('node_modules/lucide-react')) {
+              return 'vendor-icons';
+            }
+          },
+        },
       },
       chunkSizeWarningLimit: 2000,
     },
