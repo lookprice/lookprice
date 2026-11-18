@@ -174,19 +174,23 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
   const [showQuickKeysManager, setShowQuickKeysManager] = useState(false);
   const [showParkedModal, setShowParkedModal] = useState(false);
   const [numpadConfig, setNumpadConfig] = useState<TouchNumpadConfig | null>(null);
+  const lastQuickKeysLocalSaveRef = useRef<number>(0);
 
   useEffect(() => {
-    if (Array.isArray(branding?.pos_quick_keys)) {
-      setQuickKeys(branding.pos_quick_keys);
-      try {
-        localStorage.setItem(`pos_quick_keys_${storeId || 'default'}`, JSON.stringify(branding.pos_quick_keys));
-      } catch {}
-    }
-    if (branding?.pos_quick_keys_position) {
-      setQuickKeysPlacement(branding.pos_quick_keys_position);
-      try {
-        localStorage.setItem(`pos_quick_keys_pos_${storeId || 'default'}`, branding.pos_quick_keys_position);
-      } catch {}
+    const recentlySavedLocally = Date.now() - lastQuickKeysLocalSaveRef.current < 5000;
+    if (!recentlySavedLocally) {
+      if (Array.isArray(branding?.pos_quick_keys)) {
+        setQuickKeys(branding.pos_quick_keys);
+        try {
+          localStorage.setItem(`pos_quick_keys_${storeId || 'default'}`, JSON.stringify(branding.pos_quick_keys));
+        } catch {}
+      }
+      if (branding?.pos_quick_keys_position) {
+        setQuickKeysPlacement(branding.pos_quick_keys_position);
+        try {
+          localStorage.setItem(`pos_quick_keys_pos_${storeId || 'default'}`, branding.pos_quick_keys_position);
+        } catch {}
+      }
     }
     if (Array.isArray(branding?.pos_parked_carts)) {
       setParkedCarts(branding.pos_parked_carts);
@@ -1535,18 +1539,28 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
     }));
   };
 
-  const saveQuickKeysConfig = (nextKeys: PosQuickKey[], nextPlacement: QuickKeysPlacement) => {
+  const saveQuickKeysConfig = async (nextKeys: PosQuickKey[], nextPlacement: QuickKeysPlacement) => {
+    lastQuickKeysLocalSaveRef.current = Date.now();
     setQuickKeys(nextKeys);
     setQuickKeysPlacement(nextPlacement);
+    if (branding && typeof branding === "object") {
+      branding.pos_quick_keys = nextKeys;
+      branding.pos_quick_keys_position = nextPlacement;
+    }
     try {
       localStorage.setItem(`pos_quick_keys_${storeId || 'default'}`, JSON.stringify(nextKeys));
       localStorage.setItem(`pos_quick_keys_pos_${storeId || 'default'}`, nextPlacement);
     } catch {}
     if (storeId) {
-      api.updateBranding({
-        pos_quick_keys: nextKeys,
-        pos_quick_keys_position: nextPlacement
-      }, storeId).catch(() => {});
+      try {
+        await api.updateBranding({
+          pos_quick_keys: nextKeys,
+          pos_quick_keys_position: nextPlacement
+        }, storeId);
+      } catch (err) {
+        console.error("Failed to persist pos_quick_keys:", err);
+        toast.error(lang === 'tr' ? "Hızlı tuş ayarları sunucuya kaydedilemedi." : "Failed to save quick keys to server.");
+      }
     }
   };
 
@@ -1555,15 +1569,13 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
       ? allProducts.find((p) => Number(p.id) === Number(key.productId))
       : null;
 
-    if (linkedProduct && !key.askPrice && Math.abs(resolvedPrice - Number(linkedProduct.price || 0)) < 0.001) {
-      addToCart(linkedProduct);
-      return;
-    }
-
+    const resolvedTax = Number(key.tax_rate ?? linkedProduct?.tax_rate ?? branding?.default_tax_rate ?? 20);
     const formattedPrice = (Number(resolvedPrice) || 0).toFixed(2);
     setCart(prev => {
       if (!key.askPrice) {
-        const existingIdx = prev.findIndex(item => item.quick_key_id === key.id && String(item.price) === formattedPrice);
+        const existingIdx = prev.findIndex(
+          item => item.quick_key_id === key.id && String(item.price) === formattedPrice && Number(item.tax_rate) === resolvedTax
+        );
         if (existingIdx > -1) {
           return prev.map((it, idx) => idx === existingIdx ? { ...it, quantity: Number(it.quantity || 1) + 1 } : it);
         }
@@ -1578,7 +1590,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
           base_name: key.label,
           quantity: 1,
           price: formattedPrice,
-          tax_rate: Number(key.tax_rate ?? branding?.default_tax_rate ?? 20),
+          tax_rate: resolvedTax,
           currency: branding?.default_currency || 'TRY',
           barcode: linkedProduct?.barcode || '',
         }
@@ -2805,7 +2817,6 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                   placement={quickKeysPlacement}
                   onTriggerKey={handleTriggerQuickKey}
                   onOpenManager={() => setShowQuickKeysManager(true)}
-                  onChangePlacement={(nextP) => saveQuickKeysConfig(quickKeys, nextP)}
                 />
               )}
               <PosProductGridView
@@ -2837,7 +2848,6 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                   placement={quickKeysPlacement}
                   onTriggerKey={handleTriggerQuickKey}
                   onOpenManager={() => setShowQuickKeysManager(true)}
-                  onChangePlacement={(nextP) => saveQuickKeysConfig(quickKeys, nextP)}
                 />
               )}
             </>
@@ -2897,7 +2907,6 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                       placement={quickKeysPlacement}
                       onTriggerKey={handleTriggerQuickKey}
                       onOpenManager={() => setShowQuickKeysManager(true)}
-                      onChangePlacement={(nextP) => saveQuickKeysConfig(quickKeys, nextP)}
                     />
                   ) : undefined
                 }
