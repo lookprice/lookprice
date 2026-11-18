@@ -1,5 +1,5 @@
 import React from "react";
-import { Zap, Plus, Settings2, ArrowUp, ArrowDown, PanelRight } from "lucide-react";
+import { Plus, Settings2 } from "lucide-react";
 
 export type QuickKeysPlacement = "grid_top" | "grid_bottom" | "cart_top" | "hidden";
 export type QuickKeyColor = "indigo" | "emerald" | "amber" | "rose" | "sky" | "slate";
@@ -101,7 +101,6 @@ interface PosQuickKeysBarProps {
   placement: QuickKeysPlacement;
   onTriggerKey: (key: PosQuickKey) => void;
   onOpenManager: () => void;
-  onChangePlacement: (next: QuickKeysPlacement) => void;
 }
 
 export const PosQuickKeysBar: React.FC<PosQuickKeysBarProps> = ({
@@ -110,109 +109,45 @@ export const PosQuickKeysBar: React.FC<PosQuickKeysBarProps> = ({
   placement,
   onTriggerKey,
   onOpenManager,
-  onChangePlacement,
 }) => {
   if (placement === "hidden") return null;
 
   return (
-    <div className="bg-white px-2.5 py-2 rounded-xl border border-slate-200 shadow-2xs shrink-0 space-y-1.5">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5">
-          <span className="p-1 rounded-md bg-amber-100 text-amber-800 border border-amber-200">
-            <Zap className="w-3 h-3" />
-          </span>
-          <span className="text-[11px] font-black text-slate-800 uppercase tracking-tight">
-            {lang === "tr" ? "Hızlı Tuşlar (Barkodsuz)" : "Quick Keys (No Barcode)"}
-          </span>
-          <span className="text-[10px] font-bold text-slate-400">({quickKeys.length})</span>
-        </div>
+    <div className="bg-white px-2.5 py-1.5 rounded-xl border border-slate-200 shadow-2xs shrink-0">
+      <div className="flex flex-wrap items-center gap-1.5 max-h-24 overflow-y-auto pr-0.5">
+        {quickKeys.map((qk) => {
+          const theme = QUICK_KEY_COLOR_MAP[qk.color || "indigo"] || QUICK_KEY_COLOR_MAP.indigo;
+          return (
+            <button
+              key={qk.id}
+              type="button"
+              onClick={() => onTriggerKey(qk)}
+              className={`px-2.5 py-1.5 rounded-xl border ${theme.bg} ${theme.hover} ${theme.border} ${theme.text} flex items-center gap-1.5 text-left transition-all active:scale-95 cursor-pointer shadow-2xs shrink-0`}
+            >
+              <span className="text-xs font-black leading-none">{qk.label}</span>
+              <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-black leading-none ${theme.badge}`}>
+                {qk.askPrice ? (lang === "tr" ? "Tutar Sor" : "Ask ₺") : `${Number(qk.price || 0).toFixed(2)} ₺`}
+              </span>
+            </button>
+          );
+        })}
 
-        <div className="flex items-center gap-1">
-          {/* Quick inline placement cycle buttons */}
-          <button
-            type="button"
-            onClick={() => onChangePlacement("grid_top")}
-            title={lang === "tr" ? "Ürün Listesi Üstüne Yerleştir" : "Place Top"}
-            className={`p-1 rounded-md border text-[10px] font-bold cursor-pointer transition-all ${
-              placement === "grid_top"
-                ? "bg-indigo-600 text-white border-indigo-600"
-                : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
-            }`}
-          >
-            <ArrowUp className="w-3 h-3" />
-          </button>
-          <button
-            type="button"
-            onClick={() => onChangePlacement("grid_bottom")}
-            title={lang === "tr" ? "Ürün Listesi Altına Yerleştir" : "Place Bottom"}
-            className={`p-1 rounded-md border text-[10px] font-bold cursor-pointer transition-all ${
-              placement === "grid_bottom"
-                ? "bg-indigo-600 text-white border-indigo-600"
-                : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
-            }`}
-          >
-            <ArrowDown className="w-3 h-3" />
-          </button>
-          <button
-            type="button"
-            onClick={() => onChangePlacement("cart_top")}
-            title={lang === "tr" ? "Sepet Üstüne Yerleştir" : "Place Above Cart"}
-            className={`p-1 rounded-md border text-[10px] font-bold cursor-pointer transition-all ${
-              placement === "cart_top"
-                ? "bg-indigo-600 text-white border-indigo-600"
-                : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
-            }`}
-          >
-            <PanelRight className="w-3 h-3" />
-          </button>
-
-          <button
-            type="button"
-            onClick={onOpenManager}
-            className="ml-1 px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-black flex items-center gap-1 cursor-pointer transition-all"
-          >
-            <Settings2 className="w-3 h-3" />
-            <span>{lang === "tr" ? "Tuşları Düzenle" : "Manage Keys"}</span>
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={onOpenManager}
+          title={lang === "tr" ? "Hızlı Tuşları Yönet & Konumu Ayarla" : "Manage Quick Keys"}
+          className="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-[11px] font-black flex items-center gap-1 cursor-pointer transition-all shrink-0"
+        >
+          {quickKeys.length === 0 ? (
+            <>
+              <Plus className="w-3.5 h-3.5" />
+              <span>{lang === "tr" ? "Hızlı Tuş Ekle" : "Add Quick Keys"}</span>
+            </>
+          ) : (
+            <Settings2 className="w-3.5 h-3.5" />
+          )}
+        </button>
       </div>
-
-      {quickKeys.length === 0 ? (
-        <div className="flex flex-wrap items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-dashed border-slate-300">
-          <span className="text-[11px] font-semibold text-slate-600">
-            {lang === "tr"
-              ? "Fotokopi, Yiyecek & İçecek, Poşet gibi barkodsuz sık satılan kısayollarınızı ekleyin."
-              : "Add one-tap quick keys for items without barcodes."}
-          </span>
-          <button
-            type="button"
-            onClick={onOpenManager}
-            className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-black flex items-center gap-1 cursor-pointer"
-          >
-            <Plus className="w-3 h-3" />
-            <span>{lang === "tr" ? "Hızlı Tuş Oluştur / Şablon Yükle" : "Create Quick Keys"}</span>
-          </button>
-        </div>
-      ) : (
-        <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-0.5">
-          {quickKeys.map((qk) => {
-            const theme = QUICK_KEY_COLOR_MAP[qk.color || "indigo"] || QUICK_KEY_COLOR_MAP.indigo;
-            return (
-              <button
-                key={qk.id}
-                type="button"
-                onClick={() => onTriggerKey(qk)}
-                className={`px-2.5 py-1.5 rounded-xl border ${theme.bg} ${theme.hover} ${theme.border} ${theme.text} flex items-center gap-1.5 text-left transition-all active:scale-95 cursor-pointer shadow-2xs`}
-              >
-                <span className="text-xs font-black leading-none">{qk.label}</span>
-                <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-black leading-none ${theme.badge}`}>
-                  {qk.askPrice ? (lang === "tr" ? "Tutar Sor" : "Ask ₺") : `${Number(qk.price || 0).toFixed(2)} ₺`}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 };
