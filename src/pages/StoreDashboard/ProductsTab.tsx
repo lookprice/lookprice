@@ -920,6 +920,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
         lang={lang}
         t={t}
         branches={branches}
+        hasParentStore={Boolean(branding?.parent_id)}
         includeBranches={includeBranches}
         onToggleIncludeBranches={setIncludeBranches}
         variantProductsCount={variantProductsCount}

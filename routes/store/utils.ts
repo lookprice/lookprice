@@ -22,10 +22,12 @@ export const getAuthorizedStoreId = async (req: any, requestedStoreId: any) => {
 export const getAuthorizedStoreIdWithBranch = getAuthorizedStoreId;
 
 /**
- * Normalizes a string for Turkish-friendly case-insensitive search in SQL
+ * Normalizes a string for Turkish & diacritic-friendly case-insensitive search in SQL
  */
 export const getTurkishSearchSnippet = (field: string, paramIndex: number) => {
-  const normalizedField = `LOWER(translate(${field}::text, 'İIıÇçĞğÖöŞşÜü', 'iiiccggoossuu'))`;
+  const srcChars = 'İIıÇçĞğÖöŞşÜüÁÀÂÄáàâäÉÈÊËéèêëÍÎÏíîïÓÒÔÕóòôõÚÙÛúùûÑñ’‘ʼ';
+  const dstChars = 'iiiccggoossuuaaaaaaaaeeeeeeeeiiiiioooooooouuuuuunn\'\'\'';
+  const normalizedField = `REPLACE(LOWER(translate(${field}::text, '${srcChars.replace(/'/g, "''")}', '${dstChars.replace(/'/g, "''")}')), chr(775), '')`;
   return `${normalizedField} LIKE $${paramIndex}`;
 };
 
@@ -39,7 +41,10 @@ export const normalizeTurkishParam = (term: string) => {
     .replace(/ğ/g, 'g')
     .replace(/ö/g, 'o')
     .replace(/ş/g, 's')
-    .replace(/ü/g, 'u');
+    .replace(/ü/g, 'u')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[’‘ʼ`´]/g, "'");
   return `%${norm}%`;
 };
 

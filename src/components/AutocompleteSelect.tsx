@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Plus, User, Building2, Package, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { normalizeSearch } from '../lib/searchUtils';
+import { normalizeSearch, matchProductSearch } from '../lib/searchUtils';
 
 interface AutocompleteSelectProps {
   items: any[];
@@ -127,8 +127,11 @@ export const AutocompleteSelect: React.FC<AutocompleteSelectProps> = ({
       ].filter(Boolean);
       const combinedCleanText = searchableFields.join(' ');
 
-      // Every search term must be found in the clean actual data fields
-      const matchesAll = searchTerms.every(term => combinedCleanText.includes(term));
+      // Products use smart product/author matcher; customers & companies use clean token AND
+      const matchesAll =
+        type === 'product' || item.type === 'product'
+          ? matchProductSearch(rawObj, search)
+          : searchTerms.every(term => combinedCleanText.includes(term));
       if (!matchesAll) continue;
 
       let score = 0;
@@ -265,10 +268,19 @@ export const AutocompleteSelect: React.FC<AutocompleteSelectProps> = ({
                     [rawObj.name, rawObj.surname].filter(Boolean).join(' ') ||
                     rawObj.name ||
                     '';
+                  let secObj = rawObj.sector_data;
+                  if (typeof secObj === 'string') {
+                    try { secObj = JSON.parse(secObj); } catch { secObj = {}; }
+                  }
+                  const bookAuthor = (type === 'product' || item.type === 'product')
+                    ? String(rawObj.author || secObj?.author || secObj?.writer || '').trim()
+                    : '';
                   const subInfo =
                     (secondaryField && item[secondaryField]) ||
                     item.secondary_info ||
                     [
+                      bookAuthor ? `${isTr ? 'Yazar' : 'Author'}: ${bookAuthor}` : '',
+                      rawObj.barcode || rawObj.sku ? `${rawObj.barcode || rawObj.sku}` : '',
                       rawObj.tax_number || rawObj.tc_id ? `VKN/TC: ${rawObj.tax_number || rawObj.tc_id}` : '',
                       rawObj.phone ? `Tel: ${rawObj.phone}` : ''
                     ]

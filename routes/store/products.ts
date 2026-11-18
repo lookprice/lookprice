@@ -8,6 +8,7 @@ import XLSX from "xlsx";
 import { masterBookLookup, generateHighResBookCoverSvg } from "./bookLookupService";
 import { getPredefinedSectorPackages, seedStoreSectorTaxonomy, autoBridgeStoreCategories, populateMarketplaceMasterTaxonomies } from "./hepsiburadaTaxonomyService";
 import { computeSellableStock, recalculateProductReservedStock, syncProductStockToMarketplaces } from "../../src/services/marketplaceSync";
+import { matchProductSearch, expandAuthorQueryTerms } from "../../src/lib/searchUtils";
 
 export function cleanMpString(val: any): string | null {
   if (val === undefined || val === null) return null;
@@ -1901,35 +1902,87 @@ router.get("/", async (req: any, res) => {
 
     if (search) {
       const searchTerms = search.split(/\s+/).filter(Boolean);
-      searchTerms.forEach(term => {
+      const buildTermPredicate = (term: string): string => {
         const normTerm = term.toLowerCase().replace(/[-_/.+]/g, '');
         if (normTerm === 'usbc' || normTerm === 'typec') {
           const pIdx1 = params.length + 1;
           const pIdx2 = params.length + 2;
-          query += ` AND (
+          params.push('%type%c%', '%usb%c%');
+          return `(
             ${getTurkishSearchSnippet('p.name', pIdx1)} OR 
             ${getTurkishSearchSnippet('p.name', pIdx2)} OR 
             ${getTurkishSearchSnippet("COALESCE(p.description, '')", pIdx1)} OR
             ${getTurkishSearchSnippet("COALESCE(p.description, '')", pIdx2)}
           )`;
-          params.push('%type%c%', '%usb%c%');
-        } else {
-          const pIdx = params.length + 1;
-          query += ` AND (${getTurkishSearchSnippet('p.name', pIdx)} OR ${getTurkishSearchSnippet('p.barcode', pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.product_code, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.sku, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.category, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.sub_category, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.description, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.brand, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.author, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.sector_data->>'author', '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.sector_data->>'writer', '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.sector_data->>'translator', '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.sector_data->>'publisher', '')", pIdx)})`;
-          params.push(normalizeTurkishParam(term));
         }
-      });
+
+        const termVariants = Array.from(new Set(expandAuthorQueryTerms(term)));
+        const variantClauses: string[] = [];
+
+        for (const tv of termVariants) {
+          const pIdx = params.length + 1;
+          params.push(normalizeTurkishParam(tv));
+          variantClauses.push(
+            `${getTurkishSearchSnippet('p.name', pIdx)} OR ${getTurkishSearchSnippet('p.barcode', pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.product_code, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.sku, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.category, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.sub_category, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.description, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.brand, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.author, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.sector_data->>'author', '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.sector_data->>'writer', '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.sector_data->>'translator', '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.sector_data->>'publisher', '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.sector_data->>'isbn', '')", pIdx)} OR ${getTurkishSearchSnippet("REPLACE(COALESCE(p.author, '') || ' ' || COALESCE(p.sector_data->>'author', ''), '.', '')", pIdx)}`
+          );
+        }
+
+        const strippedDotTerm = term.replace(/[-_/.+']+/g, '');
+        if (strippedDotTerm && strippedDotTerm.toLowerCase() !== term.toLowerCase()) {
+          const dotIdx = params.length + 1;
+          params.push(normalizeTurkishParam(strippedDotTerm));
+          variantClauses.push(
+            `${getTurkishSearchSnippet("REPLACE(REPLACE(COALESCE(p.author, '') || ' ' || COALESCE(p.sector_data->>'author', ''), '.', ''), ' ', '')", dotIdx)}`
+          );
+        }
+
+        return `(${variantClauses.join(' OR ')})`;
+      };
+
+      const andClause = searchTerms.map(t => buildTermPredicate(t)).join(' AND ');
+
+      // For multi-word queries, also allow candidate rows matching any >=4-char alphabetic token in author fields,
+      // then run the exact progressive AND + smart author matcher in JS below.
+      const authorCandidateTerms = searchTerms.length >= 2
+        ? searchTerms
+            .map(t => t.replace(/[,;:!?.]+$/g, ''))
+            .filter(t => t.length >= 4 && /^[a-zA-ZçğıöşüÇĞİÖŞÜ'’]+$/.test(t))
+        : [];
+
+      if (authorCandidateTerms.length > 0) {
+        const authorOrParts: string[] = [];
+        for (const aTerm of authorCandidateTerms) {
+          for (const tv of expandAuthorQueryTerms(aTerm)) {
+            const pIdx = params.length + 1;
+            params.push(normalizeTurkishParam(tv));
+            authorOrParts.push(
+              `${getTurkishSearchSnippet("COALESCE(p.author, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.sector_data->>'author', '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.sector_data->>'writer', '')", pIdx)}`
+            );
+          }
+        }
+        query += ` AND ((${andClause}) OR (${authorOrParts.join(' OR ')}))`;
+      } else {
+        query += ` AND (${andClause})`;
+      }
     }
 
     query += ` ORDER BY COALESCE(p.updated_at, p.created_at) DESC, p.id DESC`;
 
     const limit = req.query.limit ? Number(req.query.limit) : null;
     if (limit && !isNaN(limit)) {
-      query += ` LIMIT ${limit}`;
+      const sqlLimit = search ? Math.max(limit * 4, 500) : limit;
+      query += ` LIMIT ${sqlLimit}`;
     }
 
     const productsRes = await pool.query(query, params);
-    res.json(productsRes.rows);
+    let rows = productsRes.rows;
+    if (search && search.trim()) {
+      rows = rows.filter((p: any) => matchProductSearch(p, search));
+      if (limit && !isNaN(limit)) {
+        rows = rows.slice(0, limit);
+      }
+    }
+    res.json(rows);
   } catch (error) {
     console.error("Fetch products error:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -2018,8 +2071,39 @@ router.post("/", async (req: any, res) => {
       return res.status(400).json({ error: "Ürün limitine ulaşıldı. Lütfen planınızı yükseltin." });
     }
 
-    const storeRes = await pool.query("SELECT default_tax_rate FROM stores WHERE id = $1", [storeId]);
-    const defaultTaxRate = storeRes.rows[0]?.default_tax_rate ?? 20;
+    const storeRes = await pool.query(
+      "SELECT default_tax_rate, store_type, bookstore_module_enabled, page_layout_settings, branding FROM stores WHERE id = $1",
+      [storeId]
+    );
+    const stRow = storeRes.rows[0] || {};
+    const defaultTaxRate = stRow?.default_tax_rate ?? 20;
+    const stBranding = typeof stRow.branding === 'string' ? JSON.parse(stRow.branding || '{}') : (stRow.branding || {});
+    const stPageLayout = typeof stRow.page_layout_settings === 'string' ? JSON.parse(stRow.page_layout_settings || '{}') : (stRow.page_layout_settings || {});
+    const isBookstoreCreate = Boolean(
+      stRow.bookstore_module_enabled === true ||
+      stRow.store_type === 'bookstore' ||
+      stBranding?.bookstore_module_enabled === true ||
+      stBranding?.store_concept === 'bookstore' ||
+      stPageLayout?.store_concept === 'bookstore' ||
+      stPageLayout?.sector === 'bookstore' ||
+      stPageLayout?.active_preset === 'bookstore_netflix' ||
+      stBranding?.page_layout_settings?.store_concept === 'bookstore' ||
+      stBranding?.page_layout_settings?.sector === 'bookstore' ||
+      stBranding?.page_layout_settings?.active_preset === 'bookstore_netflix'
+    );
+
+    const parsedSectorData = typeof sector_data === 'object' && sector_data !== null
+      ? { ...sector_data }
+      : (typeof sector_data === 'string' ? JSON.parse(sector_data || '{}') : {});
+
+    let finalPostAuthor = author ? String(author).trim() : '';
+    if (isBookstoreCreate) {
+      if (!finalPostAuthor && parsedSectorData?.author) {
+        finalPostAuthor = String(parsedSectorData.author).trim();
+      } else if (finalPostAuthor && parsedSectorData && typeof parsedSectorData === 'object') {
+        parsedSectorData.author = finalPostAuthor;
+      }
+    }
 
     const isWebSaleVal = is_web_sale === true || is_web_sale === 'true' || is_web_sale === 'on';
     const isBestsellerVal = is_bestseller === true || is_bestseller === 'true' || is_bestseller === 'on';
@@ -2027,7 +2111,7 @@ router.post("/", async (req: any, res) => {
     const imagesVal = JSON.stringify(parsedImages);
     const allergensVal = JSON.stringify(Array.isArray(allergens) ? allergens : (typeof allergens === 'string' ? JSON.parse(allergens || '[]') : []));
     const marketplaceDataVal = JSON.stringify(typeof marketplace_data === 'object' && marketplace_data !== null ? marketplace_data : (typeof marketplace_data === 'string' ? JSON.parse(marketplace_data || '{}') : {}));
-    const sectorDataVal = JSON.stringify(typeof sector_data === 'object' && sector_data !== null ? sector_data : (typeof sector_data === 'string' ? JSON.parse(sector_data || '{}') : {}));
+    const sectorDataVal = JSON.stringify(parsedSectorData);
     const finalProductCode = (product_code || sku || '').trim() || null;
 
     const result = await pool.query(`
@@ -2045,7 +2129,7 @@ router.post("/", async (req: any, res) => {
       parseFloat(cost_price) || 0, cost_currency || 'TRY', description || '', 
       parseFloat(stock_quantity) || 0, parseFloat(min_stock_level) || 5, unit || 'Adet', 
       category || '', sub_category || '', category_2 || '', sub_category_2 || '',
-      hasVariantsVal, variantsVal, brand || '', author || '', 
+      hasVariantsVal, variantsVal, brand || '', finalPostAuthor, 
       JSON.stringify(labels || []), cleanMainImage, imagesVal,
       isWebSaleVal,
       isBestsellerVal,
@@ -2657,11 +2741,28 @@ router.put("/:id", async (req: any, res) => {
       ? (typeof sector_data === 'object' && sector_data !== null ? sector_data : JSON.parse(sector_data || '{}'))
       : existingSectorData;
 
-    // Sector Isolation: Purge book-exclusive keys if store is not a bookstore
-    const storeRowRes = await pool.query("SELECT store_type, branding FROM stores WHERE id = $1", [storeId]);
-    const storeBranding = storeRowRes.rows[0]?.branding || {};
+    // Sector Isolation: Purge book-exclusive keys only if store is genuinely not a bookstore
+    const storeRowRes = await pool.query(
+      "SELECT store_type, bookstore_module_enabled, page_layout_settings, branding FROM stores WHERE id = $1",
+      [storeId]
+    );
+    const storeRowData = storeRowRes.rows[0] || {};
+    const storeBranding = storeRowData.branding || {};
     const parsedStoreBranding = typeof storeBranding === 'string' ? JSON.parse(storeBranding || '{}') : storeBranding;
-    const isBookstoreStore = parsedStoreBranding?.store_concept === 'bookstore' || parsedStoreBranding?.bookstore_module_enabled === true;
+    const storePageLayout = storeRowData.page_layout_settings || {};
+    const parsedPageLayout = typeof storePageLayout === 'string' ? JSON.parse(storePageLayout || '{}') : storePageLayout;
+    const isBookstoreStore = Boolean(
+      storeRowData.bookstore_module_enabled === true ||
+      storeRowData.store_type === 'bookstore' ||
+      parsedStoreBranding?.store_concept === 'bookstore' ||
+      parsedStoreBranding?.bookstore_module_enabled === true ||
+      parsedPageLayout?.store_concept === 'bookstore' ||
+      parsedPageLayout?.sector === 'bookstore' ||
+      parsedPageLayout?.active_preset === 'bookstore_netflix' ||
+      parsedStoreBranding?.page_layout_settings?.store_concept === 'bookstore' ||
+      parsedStoreBranding?.page_layout_settings?.sector === 'bookstore' ||
+      parsedStoreBranding?.page_layout_settings?.active_preset === 'bookstore_netflix'
+    );
 
     if (!isBookstoreStore && finalSectorData && typeof finalSectorData === 'object') {
       delete finalSectorData.publisher;
@@ -2803,7 +2904,13 @@ router.put("/:id", async (req: any, res) => {
     const finalCategory2 = (category_2 !== undefined && category_2 !== null) ? category_2 : (existing.category_2 || '');
     const finalSubCategory2 = (sub_category_2 !== undefined && sub_category_2 !== null) ? sub_category_2 : (existing.sub_category_2 || '');
     const finalBrand = (brand !== undefined && brand !== null && String(brand).trim() !== '') ? brand : (existing.brand || '');
-    const finalAuthor = (author !== undefined && author !== null && String(author).trim() !== '') ? author : (existing.author || '');
+    const explicitAuthor = (author !== undefined && author !== null && String(author).trim() !== '') ? String(author).trim() : '';
+    const finalAuthor = isBookstoreStore
+      ? (explicitAuthor || (finalSectorData?.author ? String(finalSectorData.author).trim() : '') || existing.author || '')
+      : (explicitAuthor || existing.author || '');
+    if (isBookstoreStore && finalAuthor && finalSectorData && typeof finalSectorData === 'object') {
+      finalSectorData.author = finalAuthor;
+    }
     const finalPrice2 = price_2 !== undefined ? (parseFloat(String(price_2).replace(',', '.')) || 0) : (parseFloat(existing.price_2) || 0);
     const finalPrice2Currency = price_2_currency !== undefined ? price_2_currency : (existing.price_2_currency || 'TRY');
     const finalTaxRate = tax_rate !== undefined ? (parseFloat(tax_rate) || 0) : (parseFloat(existing.tax_rate) || 0);

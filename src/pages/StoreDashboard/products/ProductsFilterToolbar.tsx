@@ -56,6 +56,7 @@ interface ProductsFilterToolbarProps {
   lang: string;
   t: any;
   branches?: any[];
+  hasParentStore?: boolean;
   includeBranches?: boolean;
   onToggleIncludeBranches?: (val: boolean) => void;
   variantProductsCount?: number;
@@ -99,6 +100,7 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
   lang,
   t,
   branches = [],
+  hasParentStore = false,
   includeBranches = false,
   onToggleIncludeBranches,
   variantProductsCount = 0,
@@ -409,7 +411,7 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
             </span>
           </label>
 
-          {branches && branches.length > 0 && onToggleIncludeBranches && (
+          {((branches && branches.length > 0) || hasParentStore) && onToggleIncludeBranches && (
             <label className={`flex items-center cursor-pointer group shrink-0 select-none px-2 py-1 rounded-lg border transition-all ${
               includeBranches ? 'bg-indigo-50 border-indigo-200 text-indigo-700 font-medium' : 'hover:bg-slate-100 border-slate-200 text-slate-600'
             }`}>
@@ -421,10 +423,14 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
               />
               <span className="ml-1.5 text-xs font-semibold whitespace-nowrap flex items-center gap-1">
                 <Store className="w-3 h-3 text-indigo-500" />
-                {lang === 'tr' ? 'Şube Stokları' : 'Branch Stocks'}
-                <span className="px-1 py-0.2 text-[9px] rounded bg-indigo-100 text-indigo-800 font-medium">
-                  +{branches.length}
-                </span>
+                {hasParentStore && (!branches || branches.length === 0)
+                  ? (lang === 'tr' ? 'Merkez Kataloğu' : 'Parent Catalog')
+                  : (lang === 'tr' ? 'Şube Stokları' : 'Branch Stocks')}
+                {branches && branches.length > 0 && (
+                  <span className="px-1 py-0.2 text-[9px] rounded bg-indigo-100 text-indigo-800 font-medium">
+                    +{branches.length}
+                  </span>
+                )}
               </span>
             </label>
           )}

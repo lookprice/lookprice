@@ -54,6 +54,7 @@ interface ProductDetailModalProps {
   setShowAboutModal: (show: boolean) => void;
   allProducts?: Product[];
   onNavigateProduct?: (p: Product) => void;
+  onSelectAuthor?: (authorName: string) => void;
 }
 
 const formatPrice = (price: number, currency: string, sector: string, storeType?: string) => {
@@ -80,6 +81,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   setShowAboutModal,
   allProducts = [],
   onNavigateProduct,
+  onSelectAuthor,
 }) => {
   const { lang } = useLanguage();
   const isStoreBookstore = isBookstoreStore(store);
@@ -1011,11 +1013,27 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
                   {/* Author Badge (ONLY for Bookstore) */}
                   {isStoreBookstore && authorName && (
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-900 border border-indigo-200/80 flex items-center gap-1.5 shadow-2xs">
-                      <Feather className="w-2.5 h-2.5 text-indigo-600 shrink-0" />
-                      <span className="text-indigo-600/90 font-medium">{lang === "tr" ? "Yazar:" : "Author:"}</span>
-                      <span className="font-bold">{authorName}</span>
-                    </span>
+                    onSelectAuthor ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onSelectAuthor(authorName);
+                          onClose();
+                        }}
+                        title={lang === "tr" ? `${authorName} kitaplarını ara` : `Search books by ${authorName}`}
+                        className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200/80 flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
+                      >
+                        <Feather className="w-2.5 h-2.5 text-indigo-600 shrink-0" />
+                        <span className="text-indigo-600/90 font-medium">{lang === "tr" ? "Yazar:" : "Author:"}</span>
+                        <span className="font-bold underline decoration-indigo-300">{authorName}</span>
+                      </button>
+                    ) : (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-900 border border-indigo-200/80 flex items-center gap-1.5 shadow-2xs">
+                        <Feather className="w-2.5 h-2.5 text-indigo-600 shrink-0" />
+                        <span className="text-indigo-600/90 font-medium">{lang === "tr" ? "Yazar:" : "Author:"}</span>
+                        <span className="font-bold">{authorName}</span>
+                      </span>
+                    )
                   )}
 
                   {/* Publisher Badge (ONLY for Bookstore) */}

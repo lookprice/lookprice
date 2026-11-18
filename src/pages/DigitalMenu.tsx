@@ -6,6 +6,7 @@ import { ShoppingBasket, CheckCircle2, Plus, Minus, Trash2, X, MessageSquare, Al
 import { translateText } from "../utils/translator";
 import { StaffWaiter, getStoreWaiters } from "../utils/staffHelpers";
 import { parseAndFormatAllergens } from "../utils/allergenHelpers";
+import { matchProductSearch } from "../lib/searchUtils";
 
 const ALLERGEN_MAP: Record<string, { labelTr: string; labelEn: string; icon: string }> = {
   gluten: { labelTr: "Gluten", labelEn: "Gluten", icon: "🌾" },
@@ -543,15 +544,7 @@ export default function DigitalMenuPage() {
 
     // If there is an active search, perform a global menu-wide search
     if (productSearchQuery.trim()) {
-      const q = productSearchQuery.toLowerCase().trim();
-      return list.filter((p) => 
-        (p.name && p.name.toLowerCase().includes(q)) ||
-        (p.description && p.description.toLowerCase().includes(q)) ||
-        (p.category && p.category.toLowerCase().includes(q)) ||
-        (p.sub_category && p.sub_category.toLowerCase().includes(q)) ||
-        (p.category_2 && p.category_2.toLowerCase().includes(q)) ||
-        (p.sub_category_2 && p.sub_category_2.toLowerCase().includes(q))
-      );
+      return list.filter((p) => matchProductSearch(p, productSearchQuery));
     }
 
     // Otherwise, apply category and subcategory filtering

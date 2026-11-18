@@ -1,14 +1,14 @@
 /**
- * Normalizes a string for search, especially handling Turkish characters
- * and case-insensitivity.
+ * Normalizes a string for search, especially handling Turkish characters,
+ * Unicode diacritics, apostrophes, and case-insensitivity.
  */
 export const normalizeSearch = (text: string): string => {
   if (!text) return "";
-  
-  // First convert to Turkish lowercase to handle İ -> i and I -> ı
+
+  // First convert using Turkish locale so İ -> i and I -> ı consistently, and remove combining dot above
   let normalized = String(text).toLocaleLowerCase('tr-TR').replace(/\u0307/g, '');
-  
-  // Replace Turkish special characters with normalized equivalents for ultra-tolerant matching
+
+  // Replace Turkish special characters before NFD decomposition
   normalized = normalized
     .replace(/ı/g, 'i')
     .replace(/ç/g, 'c')
@@ -16,7 +16,13 @@ export const normalizeSearch = (text: string): string => {
     .replace(/ö/g, 'o')
     .replace(/ş/g, 's')
     .replace(/ü/g, 'u');
-  
+
+  // Fold remaining Unicode accents/diacritics (e.g. é -> e, á -> a, ñ -> n) and normalize apostrophes
+  normalized = normalized
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[’‘ʼ`´]/g, "'");
+
   return normalized;
 };
 
@@ -40,63 +46,277 @@ const getNestedFieldValue = (item: any, field: string): any => {
   return current;
 };
 
+// Bidirectional author surname/name transliteration clusters (normalized lowercase ASCII)
+const AUTHOR_TRANSLITERATION_GROUPS: string[][] = [
+  ['dostoyevski', 'dostoevsky', 'dostoevskii', 'dostojewski', 'dostoievski', 'dostoyevsky'],
+  ['cehov', 'chekhov', 'chehov', 'tchekhov'],
+  ['tolstoy', 'tolstoi', 'tolstoj'],
+  ['puskin', 'pushkin', 'pouchkine'],
+  ['gorki', 'gorky', 'gorkiy'],
+  ['turgenyev', 'turgenev'],
+  ['soljenitsin', 'solzhenitsyn'],
+  ['sekspir', 'shakespeare'],
+  ['mayakovski', 'mayakovsky', 'majakovski'],
+  ['cibran', 'gibran'],
+  ['flober', 'flaubert'],
+  ['mopasan', 'maupassant'],
+  ['zvayg', 'zweig'],
+  ['markez', 'marquez'],
+  ['borhes', 'borges'],
+  ['dikens', 'dickens'],
+  ['hemingvey', 'hemingway'],
+  ['orvel', 'orwell'],
+  ['bukovski', 'bukowski'],
+  ['kristi', 'christie'],
+  ['balzak', 'balzac'],
+  ['vern', 'verne'],
+  ['kamu', 'camus'],
+  ['sartr', 'sartre'],
+  ['nice', 'nietzsche'],
+  ['remark', 'remarque'],
+  ['ahmatova', 'akhmatova'],
+  ['ostrovski', 'ostrovsky'],
+  ['bayron', 'byron'],
+  ['servantes', 'cervantes'],
+  ['molyer', 'moliere'],
+  ['volter', 'voltaire'],
+  ['ruso', 'rousseau'],
+  ['monteny', 'montaigne'],
+  ['platon', 'plato'],
+  ['aristo', 'aristotle', 'aristoteles'],
+  ['sokrates', 'socrates'],
+  ['konfucyus', 'confucius'],
+  ['mevlana', 'rumi'],
+  ['hayyam', 'khayyam'],
+  ['haled', 'khaled'],
+  ['huseyni', 'hosseini'],
+  ['cengiz', 'chingiz', 'chyngyz'],
+  ['aytmatov', 'aitmatov'],
+  ['bulgakov', 'boulgakov']
+];
+
+const AUTHOR_VARIANT_MAP: Map<string, string[]> = (() => {
+  const map = new Map<string, string[]>();
+  for (const group of AUTHOR_TRANSLITERATION_GROUPS) {
+    for (const term of group) {
+      map.set(term, group);
+    }
+  }
+  return map;
+})();
+
+const stripApostropheSuffix = (normToken: string): string => {
+  return normToken.replace(
+    /'(?:nin|nin|nun|nun|in|in|un|un|yi|yi|yu|yu|ye|ya|da|de|dan|den|ta|te|tan|ten|la|le|i|u|e|a)$/,
+    ''
+  );
+};
+
+export const expandAuthorQueryTerms = (rawTerm: string): string[] => {
+  const norm = normalizeSearch(rawTerm).trim();
+  if (!norm) return [];
+  const bare = stripApostropheSuffix(norm).replace(/[.,;:!?]+$/g, '');
+  const variants = new Set<string>([norm, bare]);
+  const mapped = AUTHOR_VARIANT_MAP.get(bare);
+  if (mapped) {
+    mapped.forEach(v => variants.add(v));
+  }
+  // Handle prefix >= 5 chars matching known author transliterations (e.g. "dostoev" -> "dostoyev")
+  if (bare.length >= 5) {
+    for (const group of AUTHOR_TRANSLITERATION_GROUPS) {
+      if (group.some(g => g.startsWith(bare))) {
+        if (bare.startsWith('dostoev')) variants.add('dostoyev');
+        else if (bare.startsWith('dostoyev')) variants.add('dostoev');
+        else if (bare.startsWith('chekh')) variants.add('cehov');
+        else if (bare.startsWith('shakesp')) variants.add('sekspir');
+        else if (bare.startsWith('nietz')) variants.add('nice');
+        group.forEach(g => variants.add(g));
+      }
+    }
+  }
+  return Array.from(variants).filter(Boolean);
+};
+
+const evaluateTokenInCorpus = (
+  rawToken: string,
+  normCombined: string,
+  dePunctCombined: string,
+  collapsedCombined: string,
+  authorCollapsed: string,
+  normAuthorText: string,
+  barcodeValues: string[]
+): boolean => {
+  const token = normalizeSearch(rawToken);
+  if (!token) return true;
+
+  const bareToken = stripApostropheSuffix(token).replace(/[,;:!?]+$/g, '');
+  const cleanCandidates = bareToken && bareToken !== token ? [token, bareToken] : [token];
+
+  for (const cand of cleanCandidates) {
+    // 1. Direct match in combined fields
+    if (normCombined.includes(cand) || dePunctCombined.includes(cand)) return true;
+
+    // 2. Technical / initials punctuation match (e.g. "usb-c" -> "usb c" / "usbc", "j.k." -> "jk")
+    const dePunctToken = cand.replace(/[-_/.+']+/g, ' ').trim();
+    if (dePunctToken && dePunctCombined.includes(dePunctToken)) return true;
+
+    const strippedToken = cand.replace(/[-_/.+']+/g, '');
+    if (strippedToken) {
+      if (normCombined.includes(strippedToken) || dePunctCombined.includes(strippedToken)) return true;
+      // Match punctuation-collapsed corpus (e.g. "J. K. Rowling" <-> "JK Rowling", "USB-C" <-> "USBC")
+      if (
+        (cand !== strippedToken || (authorCollapsed && strippedToken.length >= 2)) &&
+        ((authorCollapsed && authorCollapsed.includes(strippedToken)) ||
+          (cand !== strippedToken && collapsedCombined.includes(strippedToken)))
+      ) {
+        return true;
+      }
+    }
+
+    // 3. Technical synonyms: usb-c <-> type-c
+    if (cand === "usb-c" || cand === "usbc" || cand === "type-c" || cand === "typec") {
+      if (
+        normCombined.includes("type-c") || normCombined.includes("type c") || normCombined.includes("typec") ||
+        normCombined.includes("usb-c") || normCombined.includes("usb c") || normCombined.includes("usbc")
+      ) {
+        return true;
+      }
+    }
+
+    // 4. Barcode / ISBN partial match ONLY if token is digits and at least 3 digits
+    if (/^\d{3,}$/.test(cand)) {
+      if (barcodeValues.some(b => b && b.includes(cand))) return true;
+    }
+
+    // 5. Bidirectional author transliteration check
+    if (normAuthorText) {
+      const authorVariants = expandAuthorQueryTerms(cand);
+      for (const variant of authorVariants) {
+        if (variant !== cand && (normAuthorText.includes(variant) || normCombined.includes(variant))) {
+          return true;
+        }
+      }
+    }
+  }
+
+  return false;
+};
+
+/**
+ * Supports multi-word author queries such as "Fyodor Dostoyevski", "Fyodor M. Dostoyevski",
+ * "F. Dostoevsky", or "Dostoyevski, Fyodor" even when the product stores surname-only author metadata ("Dostoyevski").
+ * Strictly rejects unmatched post-surname words (e.g. "Dostoyevski Budala" against "Suç ve Ceza") and any non-alphabetic spec tokens.
+ */
+const matchesAuthorSmartFallback = (
+  tokens: string[],
+  matchedFlags: boolean[],
+  normAuthorText: string
+): boolean => {
+  if (tokens.length < 2 || !normAuthorText || !normAuthorText.trim()) return false;
+
+  const authorWords = normAuthorText
+    .replace(/[-_/.+,'()]+/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (authorWords.length === 0 || authorWords.length > 2) return false;
+
+  const cleanTokenAt = (idx: number) =>
+    stripApostropheSuffix(normalizeSearch(tokens[idx])).replace(/[,;:!?]+$/g, '');
+
+  // Locate substantial alphabetic token (>= 4 chars) matching a whole word (or >=5 char prefix) in stored author
+  let surnameIdx = -1;
+  for (let i = 0; i < tokens.length; i++) {
+    const clean = cleanTokenAt(i).replace(/\.+$/g, '');
+    if (clean.length < 4 || !/^[a-z]+$/.test(clean)) continue;
+    const variants = expandAuthorQueryTerms(clean);
+    const hitsAuthorWord = authorWords.some((aw) =>
+      variants.some((v) => aw === v || (v.length >= 5 && aw.startsWith(v)))
+    );
+    if (hitsAuthorWord) {
+      surnameIdx = i;
+    }
+  }
+
+  if (surnameIdx === -1) return false;
+
+  const surnameHasComma = normalizeSearch(tokens[surnameIdx]).trim().endsWith(',');
+
+  for (let k = 0; k < tokens.length; k++) {
+    if (matchedFlags[k]) continue;
+
+    const clean = cleanTokenAt(k);
+    // Unmatched token MUST look strictly like a human given name, middle name, or initial (no digits/hyphens)
+    if (!/^[a-z]{1,22}\.?$/.test(clean)) return false;
+
+    const isBeforeSurname = k < surnameIdx;
+    const isAfterCommaSurname = surnameHasComma && k > surnameIdx;
+    const isInitial = /^[a-z]{1,2}\.$/.test(clean);
+
+    if (!isBeforeSurname && !isAfterCommaSurname && !isInitial) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
 /**
  * Checks if a search term matches any of the fields in an object (progressive AND across tokens)
  */
 export const matchesSearch = (item: any, search: string, fields: string[]): boolean => {
   const trimmed = search ? search.trim() : "";
   if (!trimmed) return true;
-  
+
   const tokens = trimmed.split(/\s+/).filter(Boolean);
   if (tokens.length === 0) return true;
-  
-  // Build searchable text from all requested fields (supports dot paths like "sector_data.author")
-  const fieldValues = fields.map(field => {
-    const v = getNestedFieldValue(item, field);
-    return v !== undefined && v !== null ? String(v) : "";
-  }).filter(Boolean);
+
+  const fieldValues = fields
+    .map(field => {
+      const v = getNestedFieldValue(item, field);
+      return v !== undefined && v !== null ? String(v) : "";
+    })
+    .filter(Boolean);
+
+  const authorFieldValues = fields
+    .filter(f => /(^|\.)(author|writer|translator)$/.test(f))
+    .map(f => {
+      const v = getNestedFieldValue(item, f);
+      return v !== undefined && v !== null ? String(v) : "";
+    })
+    .filter(Boolean);
+
+  const normAuthorText = normalizeSearch(authorFieldValues.join(" "));
+  const authorCollapsed = normAuthorText.replace(/[-_/.+'\s]+/g, '');
 
   const rawCombined = fieldValues.join(" ");
   const normCombined = normalizeSearch(rawCombined);
-  const dePunctCombined = normCombined.replace(/[-_/.+]/g, " ");
+  const dePunctCombined = normCombined.replace(/[-_/.+']+/g, " ");
+  const collapsedCombined = normCombined.replace(/[-_/.+'\s]+/g, "");
+  const barcodeValues = item?.barcode ? [String(item.barcode)] : [];
 
-  return tokens.every(rawToken => {
-    const token = normalizeSearch(rawToken);
-    if (!token) return true;
+  const matchedFlags = tokens.map(rawToken =>
+    evaluateTokenInCorpus(
+      rawToken,
+      normCombined,
+      dePunctCombined,
+      collapsedCombined,
+      authorCollapsed,
+      normAuthorText,
+      barcodeValues
+    )
+  );
 
-    // Direct match in fields
-    if (normCombined.includes(token) || dePunctCombined.includes(token)) return true;
+  if (matchedFlags.every(Boolean)) return true;
 
-    // Token with punctuation (e.g. "usb-c")
-    const dePunctToken = token.replace(/[-_/.+]/g, " ");
-    if (dePunctCombined.includes(dePunctToken)) return true;
-    const strippedToken = token.replace(/[-_/.+]/g, "");
-    if (normCombined.includes(strippedToken) || dePunctCombined.includes(strippedToken)) return true;
-
-    // Technical synonym mapping: usb-c <-> type-c
-    if (token === "usb-c" || token === "usbc" || token === "type-c" || token === "typec") {
-      if (normCombined.includes("type-c") || normCombined.includes("type c") || normCombined.includes("typec") ||
-          normCombined.includes("usb-c") || normCombined.includes("usb c") || normCombined.includes("usbc")) {
-        return true;
-      }
-    }
-
-    // Barcode partial match ONLY if token is digits and at least 3 digits
-    if (/^\d{3,}$/.test(token) && item.barcode && String(item.barcode).includes(token)) {
-      return true;
-    }
-
-    return false;
-  });
+  return matchesAuthorSmartFallback(tokens, matchedFlags, normAuthorText);
 };
 
 /**
  * Product-specific search that matches across all identity, barcode, author/publisher, marketplace and detail fields.
- * Enforces progressive AND filtering:
- * - typing "dell" matches dell products (37 results)
- * - adding "65w" narrows down exclusively to dell products with 65w (2 results)
- * - adding "usb-c" retains the Dell 65W USB Type-C chargers without matching unrelated products
- * - eliminates false positive digit matches on barcodes
+ * Enforces progressive AND filtering while also supporting full-name author queries ("Fyodor Dostoyevski")
+ * and author transliterations ("Dostoevsky" <-> "Dostoyevski").
  */
 export const matchProductSearch = (p: any, search: string): boolean => {
   const trimmed = search ? search.trim() : "";
@@ -108,9 +328,13 @@ export const matchProductSearch = (p: any, search: string): boolean => {
   const sec = parseSectorData(p);
   const altBarcodes = Array.isArray(sec?.alternate_barcodes) ? sec.alternate_barcodes : [];
 
-  const variantText = Array.isArray(p.variants) 
+  const variantText = Array.isArray(p.variants)
     ? p.variants.map((v: any) => `${v.name || ''} ${v.barcode || ''} ${v.sku || ''}`).join(" ")
     : "";
+
+  const authorRaw = [p.author, sec.author, sec.writer, sec.translator].filter(Boolean).map(String).join(" ");
+  const normAuthorText = normalizeSearch(authorRaw);
+  const authorCollapsed = normAuthorText.replace(/[-_/.+'\s]+/g, "");
 
   const searchableFields = [
     p.name,
@@ -141,37 +365,30 @@ export const matchProductSearch = (p: any, search: string): boolean => {
 
   const rawCombined = searchableFields.join(" ");
   const normCombined = normalizeSearch(rawCombined);
-  const dePunctCombined = normCombined.replace(/[-_/.+]/g, " ");
+  const dePunctCombined = normCombined.replace(/[-_/.+']+/g, " ");
+  const collapsedCombined = normCombined.replace(/[-_/.+'\s]+/g, "");
 
-  return tokens.every(rawToken => {
-    const token = normalizeSearch(rawToken);
-    if (!token) return true;
+  const barcodeValues = [
+    p.barcode ? String(p.barcode) : "",
+    sec.isbn ? String(sec.isbn) : "",
+    ...altBarcodes.map((b: any) => String(b || ""))
+  ].filter(Boolean);
 
-    // 1. Direct match in combined fields
-    if (normCombined.includes(token) || dePunctCombined.includes(token)) return true;
+  const matchedFlags = tokens.map(rawToken =>
+    evaluateTokenInCorpus(
+      rawToken,
+      normCombined,
+      dePunctCombined,
+      collapsedCombined,
+      authorCollapsed,
+      normAuthorText,
+      barcodeValues
+    )
+  );
 
-    // 2. Technical punctuation match (e.g. "usb-c" -> "usb c" / "usbc")
-    const dePunctToken = token.replace(/[-_/.+]/g, " ");
-    if (dePunctCombined.includes(dePunctToken)) return true;
-    const strippedToken = token.replace(/[-_/.+]/g, "");
-    if (normCombined.includes(strippedToken) || dePunctCombined.includes(strippedToken)) return true;
+  if (matchedFlags.every(Boolean)) return true;
 
-    // 3. Technical synonyms: usb-c <-> type-c
-    if (token === "usb-c" || token === "usbc" || token === "type-c" || token === "typec") {
-      if (normCombined.includes("type-c") || normCombined.includes("type c") || normCombined.includes("typec") ||
-          normCombined.includes("usb-c") || normCombined.includes("usb c") || normCombined.includes("usbc")) {
-        return true;
-      }
-    }
-
-    // 4. Barcode partial match ONLY if token is digits and at least 3 digits (never for random short numbers extracted from letters)
-    if (/^\d{3,}$/.test(token)) {
-      if (p.barcode && String(p.barcode).includes(token)) return true;
-      if (altBarcodes.some((b: any) => String(b).includes(token))) return true;
-    }
-
-    return false;
-  });
+  return matchesAuthorSmartFallback(tokens, matchedFlags, normAuthorText);
 };
 
 /**

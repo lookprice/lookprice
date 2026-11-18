@@ -441,9 +441,10 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                                     </span>
                                   )}
                                 </p>
-                                <p className="text-[10px] font-medium text-slate-400 uppercase">
+                                <p className="text-[10px] font-medium text-slate-400 uppercase truncate">
                                   {p.barcode || '-'}
                                   {p.product_code ? ` • Kod: ${p.product_code}` : ''}
+                                  {(p.author || p.sector_data?.author) ? ` • ${isTr ? 'Yazar' : 'Author'}: ${p.author || p.sector_data?.author}` : ''}
                                 </p>
                               </div>
                             </div>

@@ -401,6 +401,31 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
     setSelectedBadge("all");
   };
 
+  const handleSelectAuthor = (authorName: string) => {
+    const clean = String(authorName || "").trim();
+    if (!clean) return;
+    setActiveTab("catalog");
+    setSelectedCategory("all");
+    setSelectedSubCategory("all");
+    setSelectedAuthor("all");
+    setSelectedPublisher("all");
+    setSelectedBadge("all");
+    setSearchQuery(clean);
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
+  useEffect(() => {
+    const handleExternalAuthorFilter = (e: any) => {
+      if (e?.detail) {
+        handleSelectAuthor(String(e.detail));
+      }
+    };
+    window.addEventListener("bookstore-filter-author", handleExternalAuthorFilter);
+    return () => window.removeEventListener("bookstore-filter-author", handleExternalAuthorFilter);
+  }, []);
+
   const isSearchActive = searchQuery.trim().length > 0 || selectedCategory !== "all" || selectedSubCategory !== "all" || selectedAuthor !== "all" || selectedPublisher !== "all" || selectedBadge !== "all" || activeTab === "catalog";
 
   const basketItemCount = useMemo(() => {
@@ -684,12 +709,24 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
                         </h1>
 
                         <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm font-bold text-slate-300">
-                          <span 
-                            className="font-extrabold"
-                            style={{ color: themeConfig.secondary_color || "#f59e0b" }}
-                          >
-                            {heroBook.author || (heroBook as any).sector_data?.author || (isTr ? "Seçkin Yazar" : "Featured Author")}
-                          </span>
+                          {(heroBook.author || (heroBook as any).sector_data?.author) ? (
+                            <button
+                              type="button"
+                              onClick={() => handleSelectAuthor(String(heroBook.author || (heroBook as any).sector_data?.author))}
+                              className="font-extrabold hover:underline cursor-pointer text-left"
+                              style={{ color: themeConfig.secondary_color || "#f59e0b" }}
+                              title={isTr ? "Bu yazarın tüm kitaplarını listele" : "Filter by this author"}
+                            >
+                              {heroBook.author || (heroBook as any).sector_data?.author}
+                            </button>
+                          ) : (
+                            <span 
+                              className="font-extrabold"
+                              style={{ color: themeConfig.secondary_color || "#f59e0b" }}
+                            >
+                              {isTr ? "Seçkin Yazar" : "Featured Author"}
+                            </span>
+                          )}
                           <span className="text-slate-600">•</span>
                           <span className="text-slate-300">{heroBook.brand || (heroBook as any).sector_data?.publisher || (isTr ? "Seçkin Yayıncılık" : "Publisher")}</span>
                           <span className="text-slate-600">•</span>
@@ -882,6 +919,7 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
                 showCardBadges={themeConfig.show_card_badges}
                 showCardRating={themeConfig.show_card_rating}
                 showCardQuickAdd={themeConfig.show_card_quick_add}
+                onSelectAuthor={handleSelectAuthor}
               />
             )}
 
@@ -903,6 +941,7 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
                 showCardBadges={themeConfig.show_card_badges}
                 showCardRating={themeConfig.show_card_rating}
                 showCardQuickAdd={themeConfig.show_card_quick_add}
+                onSelectAuthor={handleSelectAuthor}
               />
             )}
 
@@ -924,6 +963,7 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
                 showCardBadges={themeConfig.show_card_badges}
                 showCardRating={themeConfig.show_card_rating}
                 showCardQuickAdd={themeConfig.show_card_quick_add}
+                onSelectAuthor={handleSelectAuthor}
               />
             )}
 
@@ -945,6 +985,7 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
                 showCardBadges={themeConfig.show_card_badges}
                 showCardRating={themeConfig.show_card_rating}
                 showCardQuickAdd={themeConfig.show_card_quick_add}
+                onSelectAuthor={handleSelectAuthor}
               />
             )}
 
@@ -966,6 +1007,7 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
                 showCardBadges={themeConfig.show_card_badges}
                 showCardRating={themeConfig.show_card_rating}
                 showCardQuickAdd={themeConfig.show_card_quick_add}
+                onSelectAuthor={handleSelectAuthor}
               />
             )}
 
@@ -987,6 +1029,7 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
                 showCardBadges={themeConfig.show_card_badges}
                 showCardRating={themeConfig.show_card_rating}
                 showCardQuickAdd={themeConfig.show_card_quick_add}
+                onSelectAuthor={handleSelectAuthor}
               />
             )}
 
@@ -1008,6 +1051,7 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
                 showCardBadges={themeConfig.show_card_badges}
                 showCardRating={themeConfig.show_card_rating}
                 showCardQuickAdd={themeConfig.show_card_quick_add}
+                onSelectAuthor={handleSelectAuthor}
               />
             )}
 
@@ -1032,6 +1076,7 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
                   showCardBadges={themeConfig.show_card_badges}
                   showCardRating={themeConfig.show_card_rating}
                   showCardQuickAdd={themeConfig.show_card_quick_add}
+                  onSelectAuthor={handleSelectAuthor}
                 />
               );
             })}
@@ -1235,6 +1280,7 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
                     showCardBadges={themeConfig.show_card_badges}
                     showCardRating={themeConfig.show_card_rating}
                     showCardQuickAdd={themeConfig.show_card_quick_add}
+                    onSelectAuthor={handleSelectAuthor}
                   />
                 ))}
               </div>

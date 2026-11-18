@@ -476,7 +476,10 @@ export const QuotationModal = ({
                           >
                             <div className="min-w-0 pr-2">
                               <p className="font-medium text-slate-800 dark:text-slate-200 truncate">{p.name}</p>
-                              {p.barcode && <p className="text-[10px] text-slate-400 font-mono">#{p.barcode}</p>}
+                              <p className="text-[10px] text-slate-400 font-mono truncate">
+                                {p.barcode ? `#${p.barcode}` : '-'}
+                                {(p.author || p.sector_data?.author) ? ` • ${isTr ? 'Yazar' : 'Author'}: ${p.author || p.sector_data?.author}` : ''}
+                              </p>
                             </div>
                             <span className="text-[11px] font-mono font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 px-2 py-0.5 rounded border border-indigo-200/50 shrink-0">
                               {Number(p.price).toLocaleString("tr-TR")} {p.currency || currencySymbol}

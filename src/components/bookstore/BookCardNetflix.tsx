@@ -45,6 +45,7 @@ interface BookCardNetflixProps {
   showCardBadges?: boolean;
   showCardRating?: boolean;
   showCardQuickAdd?: boolean;
+  onSelectAuthor?: (authorName: string) => void;
 }
 
 export const BookCardNetflix: React.FC<BookCardNetflixProps> = ({
@@ -61,7 +62,8 @@ export const BookCardNetflix: React.FC<BookCardNetflixProps> = ({
   showCardSynopsis = true,
   showCardBadges = true,
   showCardRating = true,
-  showCardQuickAdd = true
+  showCardQuickAdd = true,
+  onSelectAuthor
 }) => {
   const [isFlipped, setIsFlipped] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -286,9 +288,23 @@ export const BookCardNetflix: React.FC<BookCardNetflixProps> = ({
                   {product.name}
                 </a>
               </h3>
-              <p className="text-[11px] font-medium text-slate-400 line-clamp-1 mt-0.5">
-                {authorName}
-              </p>
+              {onSelectAuthor && (product.author || sectorData.author) ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelectAuthor(authorName);
+                  }}
+                  title={isTr ? `${authorName} kitaplarını filtrele` : `Filter by ${authorName}`}
+                  className="text-[11px] font-medium text-slate-400 hover:text-amber-300 hover:underline line-clamp-1 mt-0.5 text-left transition-colors cursor-pointer"
+                >
+                  {authorName}
+                </button>
+              ) : (
+                <p className="text-[11px] font-medium text-slate-400 line-clamp-1 mt-0.5">
+                  {authorName}
+                </p>
+              )}
             </div>
 
             <div className="mt-2.5 pt-2 border-t border-slate-800 flex items-center justify-between">

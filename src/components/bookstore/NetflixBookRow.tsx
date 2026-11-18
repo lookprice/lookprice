@@ -19,6 +19,7 @@ interface NetflixBookRowProps {
   showCardBadges?: boolean;
   showCardRating?: boolean;
   showCardQuickAdd?: boolean;
+  onSelectAuthor?: (authorName: string) => void;
 }
 
 export const NetflixBookRow: React.FC<NetflixBookRowProps> = ({
@@ -36,7 +37,8 @@ export const NetflixBookRow: React.FC<NetflixBookRowProps> = ({
   showCardSynopsis = true,
   showCardBadges = true,
   showCardRating = true,
-  showCardQuickAdd = true
+  showCardQuickAdd = true,
+  onSelectAuthor
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -164,6 +166,7 @@ export const NetflixBookRow: React.FC<NetflixBookRowProps> = ({
             showCardBadges={showCardBadges}
             showCardRating={showCardRating}
             showCardQuickAdd={showCardQuickAdd}
+            onSelectAuthor={onSelectAuthor}
           />
         ))}
       </div>

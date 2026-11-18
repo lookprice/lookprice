@@ -851,7 +851,10 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                               </div>
                               <div className="min-w-0">
                                 <div className="text-xs font-medium text-slate-800 truncate">{p.name}</div>
-                                <div className="text-[9px] text-slate-400 font-mono">{p.barcode || p.sku || '-'}</div>
+                                <div className="text-[9px] text-slate-400 font-mono truncate">
+                                  {p.barcode || p.sku || '-'}
+                                  {(p.author || p.sector_data?.author) ? ` • ${isTr ? 'Yazar' : 'Author'}: ${p.author || p.sector_data?.author}` : ''}
+                                </div>
                               </div>
                             </div>
                             <div className="text-right shrink-0 ml-2">

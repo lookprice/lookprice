@@ -1392,6 +1392,9 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
               primaryColor={primaryColor} isLuxury={isLuxury} sector={sector}
               showAboutModal={showAboutModal} setShowAboutModal={setShowAboutModal}
               allProducts={activeModalProducts.length > 0 ? activeModalProducts : products} onNavigateProduct={setSelectedProduct}
+              onSelectAuthor={isBookstore ? (authorName) => {
+                window.dispatchEvent(new CustomEvent("bookstore-filter-author", { detail: authorName }));
+              } : undefined}
             />
           )}
         </AnimatePresence>

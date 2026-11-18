@@ -974,7 +974,10 @@ export default function StockTransferTab({ storeId, products, isViewer, includeB
                             >
                               <div className="min-w-0 pr-2">
                                 <div className="font-medium text-slate-800 truncate">{p.name}</div>
-                                <div className="text-[10px] text-slate-400 font-mono">{p.barcode || '-'}</div>
+                                <div className="text-[10px] text-slate-400 font-mono truncate">
+                                  {p.barcode || '-'}
+                                  {(p.author || p.sector_data?.author) ? ` • ${lang === 'tr' ? 'Yazar' : 'Author'}: ${p.author || p.sector_data?.author}` : ''}
+                                </div>
                               </div>
                               <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${
                                 Number(p.stock_quantity) > 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
