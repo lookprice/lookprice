@@ -5,6 +5,13 @@ import { pool } from "../models/db";
 import { authenticate } from "../middleware/auth";
 import { seedStoreSectorTaxonomy } from "./store/hepsiburadaTaxonomyService";
 import { syncGlobalPoolToStore } from "./developerProjects";
+import {
+  isR2Configured,
+  testR2Connection,
+  uploadBufferToR2,
+  getR2Config,
+} from "../src/services/backend/r2StorageService";
+import { cleanDeepBase64 } from "./utils/imageStorage";
 
 const router = express.Router();
 
@@ -182,11 +189,82 @@ router.get("/supabase-status", async (req: any, res) => {
     const storageLimitMB = 1000; // Supabase Free Tier Storage Limit (1 GB)
     const storagePercentage = parseFloat(((storageSizeMB / storageLimitMB) * 100).toFixed(1));
 
+    // 3. Cloudflare R2 ($0 Egress) Connection & Status
+    const r2Cfg = getR2Config();
+    let r2Status: {
+      configured: boolean;
+      connected: boolean;
+      bucket: string;
+      publicUrl: string;
+      message: string;
+    } = {
+      configured: r2Cfg.configured,
+      connected: false,
+      bucket: r2Cfg.bucket,
+      publicUrl: r2Cfg.publicUrl,
+      message: r2Cfg.configured ? "Bağlantı test ediliyor..." : "R2 ortam değişkenleri henüz tanımlı değil.",
+    };
+    if (r2Cfg.configured) {
+      try {
+        const testRes = await testR2Connection();
+        r2Status = {
+          configured: true,
+          connected: testRes.ok,
+          bucket: r2Cfg.bucket,
+          publicUrl: r2Cfg.publicUrl,
+          message: testRes.message,
+        };
+      } catch (r2Err: any) {
+        r2Status.message = r2Err?.message || "R2 bağlantı hatası";
+      }
+    }
+
+    // 4. Legacy PostgreSQL app_storage_files weight (zero BYTEA egress — metadata only)
+    let appStorageFiles = { count: 0, sizeMB: 0 };
+    try {
+      const asfRes = await pool.query(`
+        SELECT
+          COUNT(*)::INT AS cnt,
+          COALESCE(SUM(COALESCE(size, OCTET_LENGTH(data))), 0)::BIGINT AS total_bytes
+        FROM app_storage_files
+        WHERE data IS NOT NULL
+      `);
+      const cnt = Number(asfRes.rows[0]?.cnt || 0);
+      const totalBytes = Number(asfRes.rows[0]?.total_bytes || 0);
+      appStorageFiles = {
+        count: cnt,
+        sizeMB: parseFloat((totalBytes / (1024 * 1024)).toFixed(2)),
+      };
+    } catch {
+      // Safe fallback if table not initialized
+    }
+
+    // 5. Top 6 heaviest PostgreSQL tables (metadata query, 0 data egress)
+    let topTables: Array<{ table: string; sizeMB: number; rows: number }> = [];
+    try {
+      const tblRes = await pool.query(`
+        SELECT
+          relname AS table_name,
+          pg_total_relation_size(relid)::BIGINT AS total_bytes,
+          n_live_tup::BIGINT AS row_estimate
+        FROM pg_stat_user_tables
+        ORDER BY total_bytes DESC
+        LIMIT 6
+      `);
+      topTables = tblRes.rows.map((r: any) => ({
+        table: String(r.table_name),
+        sizeMB: parseFloat((Number(r.total_bytes || 0) / (1024 * 1024)).toFixed(2)),
+        rows: Number(r.row_estimate || 0),
+      }));
+    } catch {
+      // Safe fallback on PGlite / restricted stats
+    }
+
     // Overall status determination
     let overallStatus: "healthy" | "warning" | "restricted" = "healthy";
-    if (storageStatus === "restricted" || storageErrorMessage?.includes("restricted")) {
+    if (!r2Status.connected && (storageStatus === "restricted" || storageErrorMessage?.includes("restricted"))) {
       overallStatus = "restricted";
-    } else if (dbPercentage > 80 || storagePercentage > 80) {
+    } else if (dbPercentage > 80 || (!r2Status.connected && storagePercentage > 80)) {
       overallStatus = "warning";
     }
 
@@ -206,9 +284,14 @@ router.get("/supabase-status", async (req: any, res) => {
         percentage: storagePercentage,
         errorMessage: storageErrorMessage
       },
+      r2: r2Status,
+      appStorageFiles,
+      topTables,
       proxyMode: {
         active: true,
-        description: "Görsel istekleri /api/storage/* CDN önbelleği üzerinden sunularak Supabase bant genişliği (egress) kotalarından tasarruf sağlar."
+        description: r2Status.connected
+          ? `Cloudflare R2 aktif (${r2Status.bucket}) — Yeni medyalar $0 egress ile R2 üzerinden sunulur; Supabase bant genişliği korunur.`
+          : "Görsel istekleri /api/storage/* CDN önbelleği üzerinden sunulur. Cloudflare R2 değişkenleri girildiğinde $0 egress depolamaya otomatik geçilir."
       },
       checkedAt: new Date().toISOString()
     };
@@ -217,6 +300,198 @@ router.get("/supabase-status", async (req: any, res) => {
     res.json(cachedSupabaseStatus);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
+  }
+});
+
+// SuperAdmin: Batch-migrate legacy PostgreSQL app_storage_files BYTEA blobs to Cloudflare R2 ($0 Egress)
+router.post("/r2-migrate-batch", async (req: any, res) => {
+  try {
+    if (!isR2Configured()) {
+      return res.status(400).json({
+        success: false,
+        error: "Cloudflare R2 henüz yapılandırılmamış. Sunucu ortam değişkenlerine R2_ACCOUNT_ID (veya CLOUDFLARE_ACCOUNT_ID), R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY ve R2_BUCKET_NAME ekleyin.",
+      });
+    }
+
+    const rawLimit = Number(req.body?.limit);
+    const batchLimit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(Math.floor(rawLimit), 50) : 20;
+    const purgeMigrated = req.body?.purgeMigrated !== false;
+
+    const conn = await testR2Connection();
+    if (!conn.ok) {
+      return res.status(400).json({
+        success: false,
+        error: `Cloudflare R2 bağlantısı doğrulanamadı: ${conn.message}`,
+      });
+    }
+
+    const rowsRes = await pool.query(
+      `SELECT filename, mimetype, data, COALESCE(size, OCTET_LENGTH(data))::BIGINT AS byte_size
+       FROM app_storage_files
+       WHERE data IS NOT NULL
+       ORDER BY COALESCE(size, OCTET_LENGTH(data)) DESC
+       LIMIT $1`,
+      [batchLimit]
+    );
+
+    let migratedCount = 0;
+    let failedCount = 0;
+    let freedBytes = 0;
+    const errors: string[] = [];
+
+    for (const row of rowsRes.rows) {
+      try {
+        const buf = Buffer.isBuffer(row.data) ? row.data : Buffer.from(row.data);
+        const mime = row.mimetype || "application/octet-stream";
+        const putRes = await uploadBufferToR2(row.filename, mime, buf);
+        if (putRes.success) {
+          if (purgeMigrated) {
+            await pool.query("DELETE FROM app_storage_files WHERE filename = $1", [row.filename]);
+          }
+          migratedCount++;
+          freedBytes += Number(row.byte_size || buf.length || 0);
+        } else {
+          failedCount++;
+          errors.push(`${row.filename}: ${putRes.error || "R2 yükleme hatası"}`);
+        }
+      } catch (rowErr: any) {
+        failedCount++;
+        errors.push(`${row.filename}: ${rowErr?.message || "Bilinmeyen hata"}`);
+      }
+    }
+
+    const remRes = await pool.query(`
+      SELECT
+        COUNT(*)::INT AS cnt,
+        COALESCE(SUM(COALESCE(size, OCTET_LENGTH(data))), 0)::BIGINT AS total_bytes
+      FROM app_storage_files
+      WHERE data IS NOT NULL
+    `);
+    const remainingCount = Number(remRes.rows[0]?.cnt || 0);
+    const remainingMB = parseFloat((Number(remRes.rows[0]?.total_bytes || 0) / (1024 * 1024)).toFixed(2));
+    const freedMB = parseFloat((freedBytes / (1024 * 1024)).toFixed(2));
+
+    cachedSupabaseStatusTime = 0;
+
+    res.json({
+      success: true,
+      migratedCount,
+      failedCount,
+      freedMB,
+      purgedFromPostgres: purgeMigrated,
+      remainingCount,
+      remainingMB,
+      bucket: getR2Config().bucket,
+      errors: errors.slice(0, 5),
+    });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e?.message || "R2 taşıma hatası" });
+  }
+});
+
+// SuperAdmin: Extract inline Base64 data:image/* strings from real_estate_properties & enrakipsiz_slides
+router.post("/clean-base64-bloat", async (req: any, res) => {
+  try {
+    const rawLimit = Number(req.body?.limit);
+    const batchLimit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(Math.floor(rawLimit), 25) : 15;
+
+    let cleanedListings = 0;
+    let cleanedSlides = 0;
+    let freedBytes = 0;
+
+    // 1. Clean real_estate_properties (images, sector_data, fixture_photos)
+    try {
+      const reRows = await pool.query(
+        `SELECT id, store_id, images, sector_data, fixture_photos
+         FROM real_estate_properties
+         WHERE COALESCE(images::text, '') LIKE '%data:image/%'
+            OR COALESCE(sector_data::text, '') LIKE '%data:image/%'
+            OR COALESCE(fixture_photos::text, '') LIKE '%data:image/%'
+         LIMIT $1`,
+        [batchLimit]
+      );
+
+      for (const row of reRows.rows) {
+        const origImagesStr = typeof row.images === "string" ? row.images : JSON.stringify(row.images ?? []);
+        const origSecStr = typeof row.sector_data === "string" ? row.sector_data : JSON.stringify(row.sector_data ?? {});
+        const origFixStr = typeof row.fixture_photos === "string" ? row.fixture_photos : JSON.stringify(row.fixture_photos ?? []);
+        const beforeLen = origImagesStr.length + origSecStr.length + origFixStr.length;
+
+        const parsedImages = typeof row.images === "string" ? (() => { try { return JSON.parse(row.images); } catch { return row.images; } })() : row.images;
+        const parsedSec = typeof row.sector_data === "string" ? (() => { try { return JSON.parse(row.sector_data); } catch { return row.sector_data; } })() : row.sector_data;
+        const parsedFix = typeof row.fixture_photos === "string" ? (() => { try { return JSON.parse(row.fixture_photos); } catch { return row.fixture_photos; } })() : row.fixture_photos;
+
+        const cleanImages = await cleanDeepBase64(parsedImages, `re_${row.store_id}_${row.id}_img`);
+        const cleanSec = await cleanDeepBase64(parsedSec, `re_${row.store_id}_${row.id}_sec`);
+        const cleanFix = await cleanDeepBase64(parsedFix, `re_${row.store_id}_${row.id}_fix`);
+
+        const nextImagesStr = JSON.stringify(cleanImages ?? []);
+        const nextSecStr = JSON.stringify(cleanSec ?? {});
+        const nextFixStr = JSON.stringify(cleanFix ?? []);
+        const afterLen = nextImagesStr.length + nextSecStr.length + nextFixStr.length;
+
+        await pool.query(
+          `UPDATE real_estate_properties
+           SET images = $1::jsonb, sector_data = $2::jsonb, fixture_photos = $3::jsonb
+           WHERE id = $4`,
+          [nextImagesStr, nextSecStr, nextFixStr, row.id]
+        );
+        cleanedListings++;
+        freedBytes += Math.max(0, beforeLen - afterLen);
+      }
+    } catch (reErr: any) {
+      console.warn("[clean-base64-bloat] real_estate_properties warning:", reErr?.message);
+    }
+
+    // 2. Clean enrakipsiz_slides inline base64 images
+    try {
+      const slideRows = await pool.query(
+        `SELECT id, image_url FROM enrakipsiz_slides WHERE COALESCE(image_url, '') LIKE 'data:image/%' LIMIT 10`
+      );
+      for (const sRow of slideRows.rows) {
+        const beforeLen = String(sRow.image_url || "").length;
+        const cleanedUrl = await cleanDeepBase64(sRow.image_url, `enrakipsiz_slide_${sRow.id}`);
+        if (cleanedUrl && cleanedUrl !== sRow.image_url) {
+          await pool.query(`UPDATE enrakipsiz_slides SET image_url = $1 WHERE id = $2`, [cleanedUrl, sRow.id]);
+          cleanedSlides++;
+          freedBytes += Math.max(0, beforeLen - String(cleanedUrl).length);
+        }
+      }
+    } catch (slErr: any) {
+      console.warn("[clean-base64-bloat] enrakipsiz_slides warning:", slErr?.message);
+    }
+
+    // Count remaining listings with inline base64
+    let remainingListingsWithBase64 = 0;
+    try {
+      const remRe = await pool.query(`
+        SELECT COUNT(*)::INT AS cnt
+        FROM real_estate_properties
+        WHERE COALESCE(images::text, '') LIKE '%data:image/%'
+           OR COALESCE(sector_data::text, '') LIKE '%data:image/%'
+           OR COALESCE(fixture_photos::text, '') LIKE '%data:image/%'
+      `);
+      remainingListingsWithBase64 = Number(remRe.rows[0]?.cnt || 0);
+    } catch {}
+
+    // Clear public portal caches
+    try {
+      const { publicApiCache } = await import("./public");
+      publicApiCache.del("marketplace_listings");
+      publicApiCache.del("enrakipsiz_portal");
+    } catch {}
+
+    cachedSupabaseStatusTime = 0;
+
+    res.json({
+      success: true,
+      cleanedListings,
+      cleanedSlides,
+      freedKB: parseFloat((freedBytes / 1024).toFixed(1)),
+      remainingListingsWithBase64,
+    });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e?.message || "Base64 temizleme hatası" });
   }
 });
 

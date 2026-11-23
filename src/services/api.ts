@@ -394,6 +394,10 @@ export const api = {
   updateAdminProfile: (data: any) => api.post("/api/admin/profile", data),
   getGlobalAuditLogs: () => api.get("/api/admin/audit-logs"),
   getSupabaseStatus: (force?: boolean) => api.get(`/api/admin/supabase-status${force ? "?force=1" : ""}`),
+  migrateR2Batch: (limit = 20, purgeMigrated = true) =>
+    api.post("/api/admin/r2-migrate-batch", { limit, purgeMigrated }),
+  cleanBase64Bloat: (limit = 15) =>
+    api.post("/api/admin/clean-base64-bloat", { limit }),
   updateLead: (id: number, data: any) => api.put(`/api/admin/leads/${id}`, data),
   getStores: () => api.get("/api/admin/stores"),
   getStoreConfig: (id: number) => api.get(`/api/admin/stores/${id}/config`),
@@ -865,6 +869,71 @@ export const api = {
     if (token) params.set("jwt", token);
     return `/api/pos-bridge/download-agent?${params.toString()}`;
   },
+
+  // ShopLP / BookLP Warehouse Management & Dynamic Bin Locations
+  getWarehouseConfig: (storeId?: number) =>
+    api.get(`/api/store/warehouse/config${storeId ? `?storeId=${storeId}` : ""}`),
+  saveWarehouseConfig: (config: any, storeId?: number) =>
+    api.put(`/api/store/warehouse/config${storeId ? `?storeId=${storeId}` : ""}`, config),
+  getWarehouseStores: (storeId?: number) =>
+    api.get(`/api/store/warehouse/stores${storeId ? `?storeId=${storeId}` : ""}`),
+  createWarehouseStore: (data: any, storeId?: number) =>
+    api.post(`/api/store/warehouse/stores${storeId ? `?storeId=${storeId}` : ""}`, data),
+  updateWarehouseStore: (id: number, data: any, storeId?: number) =>
+    api.put(`/api/store/warehouse/stores/${id}${storeId ? `?storeId=${storeId}` : ""}`, data),
+  getWarehouseLocations: (targetStoreId?: number, storeId?: number) => {
+    const p = new URLSearchParams();
+    if (storeId) p.set("storeId", String(storeId));
+    if (targetStoreId) p.set("targetStoreId", String(targetStoreId));
+    return api.get(`/api/store/warehouse/locations${p.toString() ? `?${p.toString()}` : ""}`);
+  },
+  createWarehouseLocation: (data: any, storeId?: number) =>
+    api.post(`/api/store/warehouse/locations${storeId ? `?storeId=${storeId}` : ""}`, data),
+  updateWarehouseLocation: (id: number, data: any, storeId?: number) =>
+    api.put(`/api/store/warehouse/locations/${id}${storeId ? `?storeId=${storeId}` : ""}`, data),
+  deleteWarehouseLocation: (id: number, storeId?: number) =>
+    api.delete(`/api/store/warehouse/locations/${id}${storeId ? `?storeId=${storeId}` : ""}`),
+  bulkGenerateLocations: (data: any, storeId?: number) =>
+    api.post(`/api/store/warehouse/locations/bulk-generate${storeId ? `?storeId=${storeId}` : ""}`, data),
+  applyLocationTemplate: (data: { target_store_id: number; template: string }, storeId?: number) =>
+    api.post(`/api/store/warehouse/locations/apply-template${storeId ? `?storeId=${storeId}` : ""}`, data),
+  getLocationItems: (locationId: number, includeChildren = true, storeId?: number) => {
+    const p = new URLSearchParams({ includeChildren: String(includeChildren) });
+    if (storeId) p.set("storeId", String(storeId));
+    return api.get(`/api/store/warehouse/locations/${locationId}/items?${p.toString()}`);
+  },
+  getPutAwayQueue: (targetStoreId?: number, storeId?: number) => {
+    const p = new URLSearchParams();
+    if (storeId) p.set("storeId", String(storeId));
+    if (targetStoreId) p.set("targetStoreId", String(targetStoreId));
+    return api.get(`/api/store/warehouse/putaway${p.toString() ? `?${p.toString()}` : ""}`);
+  },
+  submitPutAway: (data: any, storeId?: number) =>
+    api.post(`/api/store/warehouse/putaway${storeId ? `?storeId=${storeId}` : ""}`, data),
+  moveBinStock: (data: any, storeId?: number) =>
+    api.post(`/api/store/warehouse/move${storeId ? `?storeId=${storeId}` : ""}`, data),
+  adjustBinCount: (data: any, storeId?: number) =>
+    api.post(`/api/store/warehouse/count-adjust${storeId ? `?storeId=${storeId}` : ""}`, data),
+  manualWarehouseInbound: (data: any, storeId?: number) =>
+    api.post(`/api/store/warehouse/manual-inbound${storeId ? `?storeId=${storeId}` : ""}`, data),
+  getProductPlacement: (productId: number, storeId?: number) =>
+    api.get(`/api/store/warehouse/product/${productId}/placement${storeId ? `?storeId=${storeId}` : ""}`),
+  saveProductBranchSettings: (productId: number, data: any, storeId?: number) =>
+    api.put(`/api/store/warehouse/product/${productId}/branch-settings${storeId ? `?storeId=${storeId}` : ""}`, data),
+  getWarehousePickList: (transferId: number, storeId?: number) =>
+    api.get(`/api/store/warehouse/picklist/${transferId}${storeId ? `?storeId=${storeId}` : ""}`),
+  getWarehouseReplenishment: (storeId?: number) =>
+    api.get(`/api/store/warehouse/replenishment${storeId ? `?storeId=${storeId}` : ""}`),
+  getWarehouseMovements: (opts?: { targetStoreId?: number; movementType?: string; limit?: number }, storeId?: number) => {
+    const p = new URLSearchParams();
+    if (storeId) p.set("storeId", String(storeId));
+    if (opts?.targetStoreId) p.set("targetStoreId", String(opts.targetStoreId));
+    if (opts?.movementType) p.set("movementType", opts.movementType);
+    if (opts?.limit) p.set("limit", String(opts.limit));
+    return api.get(`/api/store/warehouse/movements${p.toString() ? `?${p.toString()}` : ""}`);
+  },
+  updateTransferStatusRich: (transferId: number, data: any, storeId?: number) =>
+    api.put(`/api/store/stock-transfers/${transferId}/status${storeId ? `?storeId=${storeId}` : ""}`, data),
 };
 
 

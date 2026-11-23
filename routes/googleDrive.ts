@@ -961,18 +961,8 @@ async function executeStoreCronBackup(storeId: number) {
     summaryScope = `${prodCnt.rows[0]?.c || 0} Ürün, ${reCnt.rows[0]?.c || 0} Portföy Kaydı & Medya Havuzu`;
   }
 
-  // Also offload any pending local media files to 5TB Drive cache in background so Supabase egress stays 0
-  try {
-    const pendingDbMedia = await pool.query(
-      "SELECT filename, mimetype, data FROM app_storage_files WHERE data IS NOT NULL LIMIT 5"
-    );
-    for (const row of pendingDbMedia.rows) {
-      if (row.filename && row.data) {
-        const buf = Buffer.isBuffer(row.data) ? row.data : Buffer.from(row.data);
-        await mirrorMediaTo5TBDrive(row.filename, row.mimetype || "application/octet-stream", buf);
-      }
-    }
-  } catch {}
+  // NOTE (Egress Shield): Do NOT pull BYTEA blobs from app_storage_files here;
+  // media offload is handled on-upload via Cloudflare R2 ($0 egress) or manually from SuperAdmin R2 Migration.
 
   const nowIso = new Date().toISOString();
   const nowDisplay = new Date().toLocaleString("tr-TR", {
@@ -1018,21 +1008,9 @@ router.post("/run-cron-now", authenticate, async (req: any, res) => {
   }
 });
 
-// Background Cron Scheduler for All Stores with cron_enabled (Runs every 6 hours safely without blocking)
-let storeDriveCronInitialized = false;
-if (!storeDriveCronInitialized) {
-  storeDriveCronInitialized = true;
-  setInterval(async () => {
-    try {
-      const storesRes = await pool.query(
-        "SELECT id FROM stores WHERE store_type = 'developer_project' OR (google_drive_settings->>'cron_enabled') = 'true' LIMIT 50"
-      );
-      for (const st of storesRes.rows) {
-        await executeStoreCronBackup(Number(st.id)).catch(() => {});
-      }
-    } catch {}
-  }, 6 * 60 * 60 * 1000);
-}
+// Background Cron Scheduler disabled by default to protect Supabase DB egress
+// (Stores can still trigger on-demand backups via POST /api/google-drive/run-cron-now,
+// and SuperAdmin full backups run weekly via cronJobs.ts)
 
 // 4. Disconnect Google Drive
 router.post("/disconnect", authenticate, async (req: any, res) => {

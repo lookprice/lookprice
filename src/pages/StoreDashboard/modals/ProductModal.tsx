@@ -13,6 +13,7 @@ import { getConnectedMarketplaces } from "../../../utils/marketplaceEStores";
 import { resolveDomainId } from "../../../utils/sectorCapability";
 import { getSectorBadges, extractProductLabels } from "../../../data/bookstoreBadges";
 import { matchProductSearch } from "../../../lib/searchUtils";
+import { ProductPlacementSection } from "../warehouse/ProductPlacementSection";
 
 interface ProductModalProps {
   showProductModal: boolean;
@@ -44,7 +45,7 @@ export const ProductModal = ({
   const [productExtraImages, setProductExtraImages] = useState<string[]>([]);
   const [newExtraImageUrl, setNewExtraImageUrl] = useState("");
   const [productType, setProductType] = useState<string>("product");
-  const [activeTab, setActiveTab] = useState<'general' | 'variants' | 'marketplaces'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'variants' | 'placement' | 'marketplaces'>('general');
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedSubCategory, setSelectedSubCategory] = useState("");
   const [selectedCategory2, setSelectedCategory2] = useState("");
@@ -748,6 +749,17 @@ export const ProductModal = ({
               </span>
             )}
           </button>
+          {isShopLp && editingProduct?.id && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('placement')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium uppercase tracking-wider transition-all cursor-pointer shrink-0 ${
+                activeTab === 'placement' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'
+              }`}
+            >
+              {isTr ? "3. Stok & Yerleşim" : "3. Stock & Bins"}
+            </button>
+          )}
         </div>
 
         {/* UNIFIED FORM WITH FIXED STICKY FOOTER */}
@@ -2154,6 +2166,16 @@ export const ProductModal = ({
 
                 </div>
               </div>
+
+        {activeTab === 'placement' && isShopLp && editingProduct?.id && (
+          <div className="p-2">
+            <ProductPlacementSection
+              productId={Number(editingProduct.id)}
+              storeId={Number(branding?.id || branding?.store_id || editingProduct.store_id)}
+              isTr={isTr}
+            />
+          </div>
+        )}
 
         {activeTab === 'variants' && (
           <div className="flex-1 overflow-y-auto p-3 space-y-3">

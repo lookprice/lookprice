@@ -19,9 +19,13 @@ import {
   ChevronDown,
   ChevronUp,
   Inbox,
-  Clock
+  Clock,
+  Cloud,
+  Sparkles,
+  ArrowUpRight
 } from "lucide-react";
 import { Store } from "../../types/superadmin";
+import { api } from "../../services/api";
 
 export const isSystemDemoStore = (store: Partial<Store>): boolean => {
   const slug = (store.slug || "").toLowerCase();
@@ -68,6 +72,22 @@ interface SuperAdminStatsProps {
       percentage: number;
       errorMessage: string | null;
     };
+    r2?: {
+      configured: boolean;
+      connected: boolean;
+      bucket: string;
+      publicUrl: string;
+      message: string;
+    };
+    appStorageFiles?: {
+      count: number;
+      sizeMB: number;
+    };
+    topTables?: Array<{
+      table: string;
+      sizeMB: number;
+      rows: number;
+    }>;
     proxyMode: {
       active: boolean;
       description: string;
@@ -120,6 +140,72 @@ export const SuperAdminStats: React.FC<SuperAdminStatsProps> = ({
 }) => {
   const [copiedUri, setCopiedUri] = useState(false);
   const [showInfraDrawer, setShowInfraDrawer] = useState(false);
+  const [migratingR2, setMigratingR2] = useState(false);
+  const [cleaningBase64, setCleaningBase64] = useState(false);
+  const [infraFeedback, setInfraFeedback] = useState<{
+    type: "success" | "error" | "info";
+    message: string;
+  } | null>(null);
+
+  const handleMigrateR2Batch = async () => {
+    if (migratingR2) return;
+    setMigratingR2(true);
+    setInfraFeedback(null);
+    try {
+      const res = await api.migrateR2Batch(20, true);
+      if (res?.success) {
+        setInfraFeedback({
+          type: "success",
+          message: `${res.migratedCount} dosya R2 (${res.bucket}) depolamasına taşındı (${res.freedMB} MB DB temizlendi). Kalan: ${res.remainingCount} dosya (${res.remainingMB} MB).`,
+        });
+        onRefreshSupabaseStatus?.();
+      } else {
+        setInfraFeedback({
+          type: "error",
+          message: res?.error || "R2 taşıma işlemi tamamlanamadı.",
+        });
+      }
+    } catch (err: any) {
+      setInfraFeedback({
+        type: "error",
+        message: err?.message || "R2 taşıma sırasında hata oluştu.",
+      });
+    } finally {
+      setMigratingR2(false);
+    }
+  };
+
+  const handleCleanBase64Bloat = async () => {
+    if (cleaningBase64) return;
+    setCleaningBase64(true);
+    setInfraFeedback(null);
+    try {
+      const res = await api.cleanBase64Bloat(15);
+      if (res?.success) {
+        const total = (res.cleanedListings || 0) + (res.cleanedSlides || 0);
+        setInfraFeedback({
+          type: total > 0 ? "success" : "info",
+          message:
+            total > 0
+              ? `${res.cleanedListings} ilan ve ${res.cleanedSlides} slayt temizlendi (${res.freedKB} KB hafifletildi). Kalan Base64 ilan: ${res.remainingListingsWithBase64}.`
+              : "Temizlenecek ham Base64 görsel şişkinliği bulunmadı.",
+        });
+        onRefreshSupabaseStatus?.();
+      } else {
+        setInfraFeedback({
+          type: "error",
+          message: res?.error || "Base64 temizleme tamamlanamadı.",
+        });
+      }
+    } catch (err: any) {
+      setInfraFeedback({
+        type: "error",
+        message: err?.message || "Base64 temizleme sırasında hata oluştu.",
+      });
+    } finally {
+      setCleaningBase64(false);
+    }
+  };
 
   const computed = useMemo(() => {
     const now = new Date();
@@ -657,6 +743,134 @@ export const SuperAdminStats: React.FC<SuperAdminStatsProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Cloudflare R2 ($0 Egress) & Heavy Tables Strip */}
+          <div className="mt-3 pt-3 border-t border-slate-200/70 dark:border-slate-800 grid grid-cols-1 lg:grid-cols-12 gap-3">
+            {/* Cloudflare R2 Status & Migration */}
+            <div className="lg:col-span-6 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-lg border border-slate-200/70 dark:border-slate-700/60 flex flex-col justify-between gap-2">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5">
+                  <Cloud className="h-3.5 w-3.5 text-orange-500" />
+                  <span className="text-[11px] font-extrabold text-slate-900 dark:text-white">
+                    Cloudflare R2 ($0 Egress Medya)
+                  </span>
+                </div>
+                <span
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    supabaseStatus.r2?.connected
+                      ? "bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300"
+                      : supabaseStatus.r2?.configured
+                      ? "bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300"
+                      : "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200"
+                  }`}
+                >
+                  {supabaseStatus.r2?.connected
+                    ? `Aktif • ${supabaseStatus.r2.bucket}`
+                    : supabaseStatus.r2?.configured
+                    ? "Bağlantı Bekliyor"
+                    : "Env Tanımlanmadı"}
+                </span>
+              </div>
+
+              <div className="text-[10px] text-slate-600 dark:text-slate-300 leading-snug">
+                {supabaseStatus.r2?.connected ? (
+                  <span>
+                    DB içi eski medya (<code>app_storage_files</code>):{" "}
+                    <b className="text-slate-900 dark:text-white">
+                      {supabaseStatus.appStorageFiles?.count ?? 0} dosya (
+                      {supabaseStatus.appStorageFiles?.sizeMB ?? 0} MB)
+                    </b>
+                  </span>
+                ) : (
+                  <span>
+                    {supabaseStatus.r2?.message ||
+                      "Sunucu ortam değişkenlerine R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY ve R2_BUCKET_NAME eklendiğinde otomatik devreye girer."}{" "}
+                    (Mevcut DB medya:{" "}
+                    <b className="text-slate-900 dark:text-white">
+                      {supabaseStatus.appStorageFiles?.count ?? 0} dosya •{" "}
+                      {supabaseStatus.appStorageFiles?.sizeMB ?? 0} MB
+                    </b>
+                    )
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleMigrateR2Batch}
+                  disabled={
+                    migratingR2 ||
+                    !supabaseStatus.r2?.connected ||
+                    (supabaseStatus.appStorageFiles?.count ?? 0) === 0
+                  }
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-45 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ArrowUpRight className={`h-3 w-3 ${migratingR2 ? "animate-pulse" : ""}`} />
+                  {migratingR2 ? "R2'ye Taşınıyor..." : "R2'ye Taşı (20'li Paket)"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCleanBase64Bloat}
+                  disabled={cleaningBase64}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-slate-900 dark:bg-indigo-600 text-white hover:bg-slate-800 dark:hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                >
+                  <Sparkles className={`h-3 w-3 ${cleaningBase64 ? "animate-spin" : ""}`} />
+                  {cleaningBase64 ? "Temizleniyor..." : "Base64 Şişkinliğini Temizle"}
+                </button>
+              </div>
+            </div>
+
+            {/* Top Heavy Tables Telemetry */}
+            <div className="lg:col-span-6 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-lg border border-slate-200/70 dark:border-slate-700/60">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                  En Ağır Veritabanı Tabloları (Egress Adayları)
+                </span>
+                <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400">
+                  {supabaseStatus.topTables?.length || 0} tablo
+                </span>
+              </div>
+              {supabaseStatus.topTables && supabaseStatus.topTables.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                  {supabaseStatus.topTables.map((tbl) => (
+                    <div
+                      key={tbl.table}
+                      className="px-2 py-1 rounded bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-700 flex items-center justify-between gap-1"
+                    >
+                      <span
+                        className="text-[10px] font-mono text-slate-700 dark:text-slate-200 truncate"
+                        title={`${tbl.table} (${tbl.rows} satır)`}
+                      >
+                        {tbl.table}
+                      </span>
+                      <span className="text-[10px] font-extrabold text-indigo-700 dark:text-indigo-300 shrink-0">
+                        {tbl.sizeMB} MB
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                  Tablo boyut istatistiği yenilendiğinde burada listelenir.
+                </p>
+              )}
+            </div>
+          </div>
+
+          {infraFeedback && (
+            <div
+              className={`mt-2.5 px-3 py-2 rounded-lg text-[11px] font-semibold border ${
+                infraFeedback.type === "success"
+                  ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800"
+                  : infraFeedback.type === "error"
+                  ? "bg-rose-50 dark:bg-rose-950/60 text-rose-800 dark:text-rose-200 border-rose-200 dark:border-rose-800"
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-700"
+              }`}
+            >
+              {infraFeedback.message}
+            </div>
+          )}
         </div>
       )}
     </div>

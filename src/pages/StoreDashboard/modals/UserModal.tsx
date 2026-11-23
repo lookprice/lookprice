@@ -111,6 +111,9 @@ export const UserModal = ({
               <option value="editor">
                 {isTr ? "Editör / Tezgahtar (Editor)" : "Editor / Sales"}
               </option>
+              <option value="warehouse_staff">
+                {isTr ? "Depo Personeli (Mal Kabul / Raf / Toplama)" : "Warehouse Staff"}
+              </option>
               <option value="viewer">
                 {isTr ? "Sadece İzleyici (Viewer)" : "Viewer Only"}
               </option>

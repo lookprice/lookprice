@@ -2450,6 +2450,209 @@ export async function initDb() {
       console.warn("[DB Init] Stock movement trigger setup notice:", trgErr);
     }
 
+    // --- WAREHOUSE MANAGEMENT & DYNAMIC BIN LOCATIONS (ShopLP / BookLP) ---
+    try {
+      await client.query(`
+        ALTER TABLE stores ADD COLUMN IF NOT EXISTS branch_type VARCHAR(20) DEFAULT 'STORE';
+        ALTER TABLE stores ADD COLUMN IF NOT EXISTS has_pos BOOLEAN DEFAULT TRUE;
+        ALTER TABLE stores ADD COLUMN IF NOT EXISTS is_central_warehouse BOOLEAN DEFAULT FALSE;
+        ALTER TABLE stores ADD COLUMN IF NOT EXISTS allow_direct_sales BOOLEAN DEFAULT TRUE;
+        ALTER TABLE stores ADD COLUMN IF NOT EXISTS use_bin_locations BOOLEAN DEFAULT FALSE;
+        ALTER TABLE stores ADD COLUMN IF NOT EXISTS receiving_sla_hours INTEGER DEFAULT 24;
+        ALTER TABLE stores ADD COLUMN IF NOT EXISTS include_in_online_stock BOOLEAN DEFAULT FALSE;
+        ALTER TABLE stores ADD COLUMN IF NOT EXISTS sell_receiving_stock BOOLEAN DEFAULT FALSE;
+        ALTER TABLE stores ADD COLUMN IF NOT EXISTS warehouse_config JSONB DEFAULT '{}'::jsonb;
+
+        CREATE TABLE IF NOT EXISTS storage_locations (
+          id SERIAL PRIMARY KEY,
+          root_store_id INTEGER NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+          store_id INTEGER NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+          parent_id INTEGER NULL REFERENCES storage_locations(id) ON DELETE CASCADE,
+          system_role VARCHAR(20) NOT NULL DEFAULT 'STANDARD',
+          location_type VARCHAR(40) NOT NULL DEFAULT 'SHELF',
+          name TEXT NOT NULL,
+          code VARCHAR(50) NOT NULL,
+          full_code TEXT NOT NULL DEFAULT '',
+          full_path TEXT NOT NULL DEFAULT '',
+          barcode VARCHAR(100),
+          tags JSONB DEFAULT '[]'::jsonb,
+          is_sellable BOOLEAN DEFAULT FALSE,
+          is_pickable BOOLEAN DEFAULT TRUE,
+          sort_order INTEGER DEFAULT 0,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(root_store_id, barcode)
+        );
+
+        CREATE TABLE IF NOT EXISTS product_location_stocks (
+          id SERIAL PRIMARY KEY,
+          root_store_id INTEGER NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+          store_id INTEGER NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+          product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+          variant_key TEXT NOT NULL DEFAULT '',
+          location_id INTEGER NOT NULL REFERENCES storage_locations(id) ON DELETE CASCADE,
+          quantity REAL NOT NULL DEFAULT 0,
+          reserved_quantity REAL NOT NULL DEFAULT 0,
+          is_primary BOOLEAN DEFAULT FALSE,
+          last_moved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(root_store_id, product_id, variant_key, location_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS product_branch_settings (
+          id SERIAL PRIMARY KEY,
+          root_store_id INTEGER NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+          store_id INTEGER NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+          product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+          variant_key TEXT NOT NULL DEFAULT '',
+          min_stock_level REAL NULL,
+          default_location_id INTEGER NULL REFERENCES storage_locations(id) ON DELETE SET NULL,
+          units_per_pack INTEGER DEFAULT 1,
+          pack_unit_label VARCHAR(30) DEFAULT 'Koli',
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(root_store_id, store_id, product_id, variant_key)
+        );
+
+        CREATE TABLE IF NOT EXISTS stock_location_movements (
+          id SERIAL PRIMARY KEY,
+          root_store_id INTEGER NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+          store_id INTEGER NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+          product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+          variant_key TEXT NOT NULL DEFAULT '',
+          from_location_id INTEGER NULL REFERENCES storage_locations(id) ON DELETE SET NULL,
+          to_location_id INTEGER NULL REFERENCES storage_locations(id) ON DELETE SET NULL,
+          quantity REAL NOT NULL,
+          movement_type VARCHAR(40) NOT NULL,
+          reference_type VARCHAR(40),
+          reference_id INTEGER NULL,
+          reason TEXT,
+          note TEXT,
+          performed_by INTEGER NULL REFERENCES users(id) ON DELETE SET NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        ALTER TABLE stock_transfers ADD COLUMN IF NOT EXISTS received_by INTEGER REFERENCES users(id) ON DELETE SET NULL;
+        ALTER TABLE stock_transfers ADD COLUMN IF NOT EXISTS received_at TIMESTAMP NULL;
+        ALTER TABLE stock_transfers ADD COLUMN IF NOT EXISTS has_discrepancy BOOLEAN DEFAULT FALSE;
+        ALTER TABLE stock_transfers ADD COLUMN IF NOT EXISTS discrepancy_note TEXT;
+
+        ALTER TABLE stock_transfer_items ADD COLUMN IF NOT EXISTS requested_qty REAL;
+        ALTER TABLE stock_transfer_items ADD COLUMN IF NOT EXISTS shipped_qty REAL;
+        ALTER TABLE stock_transfer_items ADD COLUMN IF NOT EXISTS received_qty REAL;
+        ALTER TABLE stock_transfer_items ADD COLUMN IF NOT EXISTS damaged_qty REAL DEFAULT 0;
+        ALTER TABLE stock_transfer_items ADD COLUMN IF NOT EXISTS discrepancy_reason TEXT;
+        ALTER TABLE stock_transfer_items ADD COLUMN IF NOT EXISTS picked_from_location_id INTEGER REFERENCES storage_locations(id) ON DELETE SET NULL;
+        ALTER TABLE stock_transfer_items ADD COLUMN IF NOT EXISTS variant_key TEXT NOT NULL DEFAULT '';
+        ALTER TABLE stock_transfer_items ADD COLUMN IF NOT EXISTS product_type TEXT DEFAULT 'product';
+
+        UPDATE stock_transfer_items SET requested_qty = quantity WHERE requested_qty IS NULL;
+
+        CREATE INDEX IF NOT EXISTS idx_storage_locations_store ON storage_locations(root_store_id, store_id);
+        CREATE INDEX IF NOT EXISTS idx_storage_locations_parent ON storage_locations(parent_id);
+        CREATE INDEX IF NOT EXISTS idx_product_loc_stocks_store_prod ON product_location_stocks(store_id, product_id);
+        CREATE INDEX IF NOT EXISTS idx_product_loc_stocks_loc ON product_location_stocks(location_id);
+        CREATE INDEX IF NOT EXISTS idx_product_branch_settings_lookup ON product_branch_settings(root_store_id, product_id, store_id);
+        CREATE INDEX IF NOT EXISTS idx_stock_loc_movements_store_date ON stock_location_movements(root_store_id, store_id, created_at DESC);
+
+        -- Idempotent system DEFAULT location for every store
+        INSERT INTO storage_locations (
+          root_store_id, store_id, parent_id, system_role, location_type,
+          name, code, full_code, full_path, barcode, is_sellable, is_pickable, sort_order
+        )
+        SELECT
+          COALESCE(s.parent_id, s.id),
+          s.id,
+          NULL,
+          'DEFAULT',
+          'ZONE',
+          'Genel Alan',
+          'DEF',
+          'S' || s.id || '-DEF',
+          COALESCE(s.name, 'Mağaza') || ' > Genel Alan',
+          'LOC-S' || s.id || '-DEF',
+          COALESCE(s.allow_direct_sales, TRUE),
+          TRUE,
+          0
+        FROM stores s
+        WHERE NOT EXISTS (
+          SELECT 1 FROM storage_locations sl WHERE sl.store_id = s.id AND sl.system_role = 'DEFAULT'
+        );
+
+        -- Idempotent RECEIVING and DAMAGED system locations for WAREHOUSE stores
+        INSERT INTO storage_locations (
+          root_store_id, store_id, parent_id, system_role, location_type,
+          name, code, full_code, full_path, barcode, is_sellable, is_pickable, sort_order
+        )
+        SELECT
+          COALESCE(s.parent_id, s.id),
+          s.id,
+          NULL,
+          'RECEIVING',
+          'ZONE',
+          'Mal Kabul Alanı',
+          'RCV',
+          'S' || s.id || '-RCV',
+          COALESCE(s.name, 'Depo') || ' > Mal Kabul Alanı',
+          'LOC-S' || s.id || '-RCV',
+          FALSE,
+          TRUE,
+          -10
+        FROM stores s
+        WHERE s.branch_type = 'WAREHOUSE'
+          AND NOT EXISTS (
+            SELECT 1 FROM storage_locations sl WHERE sl.store_id = s.id AND sl.system_role = 'RECEIVING'
+          );
+
+        INSERT INTO storage_locations (
+          root_store_id, store_id, parent_id, system_role, location_type,
+          name, code, full_code, full_path, barcode, is_sellable, is_pickable, sort_order
+        )
+        SELECT
+          COALESCE(s.parent_id, s.id),
+          s.id,
+          NULL,
+          'DAMAGED',
+          'ZONE',
+          'Hasarlı / Karantina',
+          'DMG',
+          'S' || s.id || '-DMG',
+          COALESCE(s.name, 'Depo') || ' > Hasarlı / Karantina',
+          'LOC-S' || s.id || '-DMG',
+          FALSE,
+          FALSE,
+          9999
+        FROM stores s
+        WHERE s.branch_type = 'WAREHOUSE'
+          AND NOT EXISTS (
+            SELECT 1 FROM storage_locations sl WHERE sl.store_id = s.id AND sl.system_role = 'DAMAGED'
+          );
+
+        -- Idempotent backfill: existing products with stock_quantity > 0 that have no location stocks yet
+        INSERT INTO product_location_stocks (
+          root_store_id, store_id, product_id, variant_key, location_id, quantity, reserved_quantity, is_primary
+        )
+        SELECT
+          COALESCE(s.parent_id, s.id),
+          p.store_id,
+          p.id,
+          '',
+          sl.id,
+          COALESCE(p.stock_quantity, 0),
+          0,
+          TRUE
+        FROM products p
+        JOIN stores s ON s.id = p.store_id
+        JOIN storage_locations sl ON sl.store_id = p.store_id AND sl.system_role = 'DEFAULT'
+        WHERE COALESCE(p.stock_quantity, 0) > 0
+          AND COALESCE(p.product_type, 'product') != 'service'
+          AND NOT EXISTS (
+            SELECT 1 FROM product_location_stocks pls WHERE pls.product_id = p.id AND pls.store_id = p.store_id
+          )
+        ON CONFLICT (root_store_id, product_id, variant_key, location_id) DO NOTHING;
+      `);
+    } catch (whErr) {
+      console.warn("[DB Init] Warehouse schema setup notice:", whErr);
+    }
+
     console.log("Super admin, stores, and demo accounts verified/seeded.");
     } finally {
       client.release();

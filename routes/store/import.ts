@@ -428,8 +428,8 @@ router.post("/", upload.single("file"), async (req: any, res) => {
     await client.query("COMMIT");
     
     try {
-      const { publicApiCache } = await import("../public.js");
-      publicApiCache.clear();
+      const { invalidateStorePublicCache } = await import("../public.js");
+      await invalidateStorePublicCache(storeId);
     } catch {}
 
     try {

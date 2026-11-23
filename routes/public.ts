@@ -46,12 +46,95 @@ class MemoryCache {
     this.cache.delete(key);
   }
 
+  delPrefix(prefix: string): void {
+    for (const k of this.cache.keys()) {
+      if (k.startsWith(prefix)) this.cache.delete(k);
+    }
+  }
+
   clear(): void {
     this.cache.clear();
   }
 }
 
 export const publicApiCache = new MemoryCache();
+
+/**
+ * Surgically invalidates only the affected store's cached public keys (plus portal listings)
+ * instead of wiping all 50+ stores from RAM on every single product edit/sale.
+ */
+export async function invalidateStorePublicCache(storeId?: number | null, slug?: string | null): Promise<void> {
+  try {
+    let slugsToClear: string[] = [];
+    if (slug && String(slug).trim()) {
+      slugsToClear.push(String(slug).trim().toLowerCase());
+    }
+    if (storeId && Number.isFinite(Number(storeId))) {
+      const sid = Number(storeId);
+      publicApiCache.del(`store_${sid}`);
+      publicApiCache.del(`digital_menu_${sid}`);
+      publicApiCache.del(`dm_info_${sid}`);
+      const sRes = await pool.query(
+        "SELECT id, slug, custom_domain, parent_id FROM stores WHERE id = $1 OR parent_id = $1",
+        [sid]
+      ).catch(() => ({ rows: [] as any[] }));
+      for (const row of sRes.rows) {
+        if (row.slug) slugsToClear.push(String(row.slug).toLowerCase());
+        if (row.custom_domain) {
+          const dom = String(row.custom_domain).toLowerCase();
+          publicApiCache.del(`domain_${dom}`);
+          publicApiCache.del(`domain_www.${dom}`);
+        }
+        publicApiCache.del(`store_${row.id}`);
+        publicApiCache.del(`digital_menu_${row.id}`);
+        publicApiCache.del(`dm_info_${row.id}`);
+      }
+      const parentId = sRes.rows.find((r: any) => Number(r.id) === sid)?.parent_id;
+      if (parentId) {
+        const pRes = await pool.query("SELECT id, slug, custom_domain FROM stores WHERE id = $1", [parentId]).catch(() => ({ rows: [] as any[] }));
+        for (const pr of pRes.rows) {
+          if (pr.slug) slugsToClear.push(String(pr.slug).toLowerCase());
+          if (pr.custom_domain) {
+            publicApiCache.del(`domain_${String(pr.custom_domain).toLowerCase()}`);
+          }
+          publicApiCache.del(`store_${pr.id}`);
+        }
+      }
+    }
+    for (const s of new Set(slugsToClear)) {
+      publicApiCache.del(`store_${s}`);
+      publicApiCache.del(`store_web_${s}`);
+      publicApiCache.del(`store_scan_${s}`);
+      publicApiCache.del(`products_${s}`);
+      publicApiCache.del(`digital_menu_${s}`);
+      publicApiCache.del(`dm_info_${s}`);
+    }
+    publicApiCache.del("marketplace_listings");
+    publicApiCache.del("enrakipsiz_portal");
+  } catch {
+    // Fallback safe no-op
+  }
+}
+
+/**
+ * Strips heavy inline Base64 data URIs & fixture_photos from listing grid objects
+ * (cuts marketplace/storefront payloads by 85-95% while keeping detail endpoints complete).
+ */
+function slimSectorDataForList(rawSec: any): Record<string, any> {
+  if (!rawSec || typeof rawSec !== "object") return {};
+  const out: Record<string, any> = {};
+  for (const [k, v] of Object.entries(rawSec)) {
+    if (k === "fixture_photos" || k === "shadow_notification_logs") continue;
+    if (typeof v === "string" && v.startsWith("data:image/") && v.length > 512) continue;
+    if (Array.isArray(v)) {
+      const cleanedArr = v.filter((item) => !(typeof item === "string" && item.startsWith("data:image/") && item.length > 512));
+      out[k] = cleanedArr;
+    } else {
+      out[k] = v;
+    }
+  }
+  return out;
+}
 
 router.get("/sitemap.xml", async (req, res) => {
   try {
@@ -302,9 +385,15 @@ router.get("/enrakipsiz/portal", async (req, res) => {
     const slides = await pool.query("SELECT * FROM enrakipsiz_slides WHERE is_active = TRUE ORDER BY id ASC");
     const ads = await pool.query("SELECT * FROM enrakipsiz_ads WHERE is_active = TRUE ORDER BY id ASC");
     
-    // Fetch featured sponsor stores (strictly excluding demo stores)
+    // Fetch featured sponsor stores with lightweight branding projection (zero 44KB full JSONB bloat)
     const featuredStores = await pool.query(`
-      SELECT id, name, slug, logo_url, sub_sector, description, is_enrakipsiz_featured, enrakipsiz_featured_order, enrakipsiz_featured_title, branding
+      SELECT id, name, slug, logo_url, sub_sector, description, is_enrakipsiz_featured, enrakipsiz_featured_order, enrakipsiz_featured_title,
+             jsonb_build_object(
+               'store_name', branding->>'store_name',
+               'logo_url', branding->>'logo_url',
+               'primary_color', branding->>'primary_color',
+               'sector', COALESCE(branding->'page_layout_settings'->>'sector', store_type)
+             ) AS branding
       FROM stores
       WHERE is_enrakipsiz_featured = true
         AND slug NOT ILIKE '%demo%'
@@ -318,8 +407,8 @@ router.get("/enrakipsiz/portal", async (req, res) => {
       ads: ads.rows,
       featured_stores: featuredStores.rows
     };
-    publicApiCache.set(cacheKey, payload, 300);
-    res.setHeader('Cache-Control', 'public, max-age=180');
+    publicApiCache.set(cacheKey, payload, 600);
+    res.setHeader('Cache-Control', 'public, max-age=300');
     res.json(payload);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -493,11 +582,14 @@ router.get("/marketplace/listings", async (req, res) => {
     });
 
     realEstateList.forEach((r: any) => {
-      let secData = r.sector_data;
-      if (typeof secData === 'string') {
-        try { secData = JSON.parse(secData); } catch(e) { secData = {}; }
+      let rawSecData = r.sector_data;
+      if (typeof rawSecData === 'string') {
+        try { rawSecData = JSON.parse(rawSecData); } catch(e) { rawSecData = {}; }
       }
-      if (!secData || typeof secData !== 'object') secData = {};
+      const secData = slimSectorDataForList(rawSecData);
+      const cleanImages = (Array.isArray(r.images) ? r.images : []).filter(
+        (img: any) => !(typeof img === 'string' && img.startsWith('data:image/') && img.length > 2048)
+      );
 
       allListings.push({
         id: `re_${r.id}`,
@@ -512,20 +604,19 @@ router.get("/marketplace/listings", async (req, res) => {
         m2: r.square_meters,
         rooms: r.room_count,
         room_count: r.room_count,
-        image_url: r.images && r.images.length > 0 ? r.images[0] : null,
-        images: r.images || [],
+        image_url: cleanImages.length > 0 ? cleanImages[0] : (r.images && r.images.length > 0 ? r.images[0] : null),
+        images: cleanImages.slice(0, 6),
         store_name: r.store_name,
         store_slug: r.store_slug,
         store_phone: r.store_phone,
         store_whatsapp: r.store_whatsapp,
         category: 'Emlak',
         brand: r.location,
-        description: r.description || '',
+        description: typeof r.description === 'string' ? r.description.slice(0, 500) : '',
         listing_intent: r.listing_intent || (r.title?.toLowerCase().includes("kiralık") ? "rent" : "sale"),
         intent: (r.listing_intent === 'rent' || r.title?.toLowerCase().includes("kiralık")) ? 'kiralik' : 'satilik',
         reference_no: r.reference_no,
         created_at: r.created_at,
-        ...secData,
         sector_data: {
           ...secData,
           square_meters: r.square_meters || secData.square_meters,
@@ -574,8 +665,8 @@ router.get("/marketplace/listings", async (req, res) => {
       return dateB - dateA;
     });
 
-    publicApiCache.set(cacheKey, allListings, 300);
-    res.setHeader('Cache-Control', 'public, max-age=180');
+    publicApiCache.set(cacheKey, allListings, 600);
+    res.setHeader('Cache-Control', 'public, max-age=300');
     res.json(allListings);
   } catch (outerError: any) {
     console.error("Critical error in marketplace listings core:", outerError);
@@ -657,7 +748,8 @@ router.get("/scan/:slug/:barcode", async (req, res) => {
       id, name, slug, logo_url, primary_color, default_currency, background_image_url,
       hero_title, hero_subtitle, hero_image_url, about_text,
       instagram_url, facebook_url, twitter_url, whatsapp_number,
-      address, phone, parent_id, currency_rates, branding, status, is_approved
+      address, phone, parent_id, currency_rates, branding, status, is_approved,
+      COALESCE(branch_type, 'STORE') AS branch_type
     `;
 
     let originalStore = await findPublicStoreRow(slug, storeColumns);
@@ -762,13 +854,68 @@ router.get("/scan/:slug/:barcode", async (req, res) => {
     }
 
     const defaultCurrency = storePayload.default_currency || 'TRY';
+
+    // Staff-only shelf/bin visibility: verify optional Authorization Bearer token
+    let isAuthorizedStaffForFamily = false;
+    try {
+      const authHeader = String(req.headers.authorization || "");
+      if (authHeader.startsWith("Bearer ")) {
+        const token = authHeader.slice(7).trim();
+        if (token) {
+          const jwt = (await import("jsonwebtoken")).default;
+          const secret = process.env.JWT_SECRET || "pricecheck_super_secret_key_2024";
+          const decoded: any = jwt.verify(token, secret);
+          if (decoded) {
+            const role = String(decoded.role || "").toLowerCase();
+            if (role === "superadmin") {
+              isAuthorizedStaffForFamily = true;
+            } else if (decoded.store_id && familyIds.includes(Number(decoded.store_id))) {
+              isAuthorizedStaffForFamily = true;
+            }
+          }
+        }
+      }
+    } catch {
+      isAuthorizedStaffForFamily = false;
+    }
+
+    const locationsByProdId = new Map<number, any[]>();
+    if (isAuthorizedStaffForFamily && matchedProducts.length > 0) {
+      try {
+        const matchedIds = matchedProducts.map((p: any) => Number(p.id));
+        const locRes = await pool.query(
+          `SELECT pls.product_id, pls.quantity, pls.reserved_quantity,
+                  sl.full_path, sl.full_code, sl.system_role
+           FROM product_location_stocks pls
+           JOIN storage_locations sl ON sl.id = pls.location_id
+           WHERE pls.product_id = ANY($1::int[]) AND pls.quantity > 0 AND sl.system_role != 'DAMAGED'
+           ORDER BY (sl.system_role = 'STANDARD') DESC, sl.sort_order ASC`,
+          [matchedIds]
+        );
+        for (const r of locRes.rows) {
+          const pid = Number(r.product_id);
+          if (!locationsByProdId.has(pid)) locationsByProdId.set(pid, []);
+          locationsByProdId.get(pid)!.push({
+            full_path: r.full_path,
+            full_code: r.full_code,
+            system_role: r.system_role,
+            quantity: Number(r.quantity || 0),
+            reserved_quantity: Number(r.reserved_quantity || 0)
+          });
+        }
+      } catch {
+        // Non-blocking fallback
+      }
+    }
+
     const branchStocks = hierarchyStores.map((hs: any) => {
       const match = matchedProducts.find((mp: any) => Number(mp.store_id) === Number(hs.id));
       const qty = match ? computeProductStockQty(match) : 0;
-      return {
+      const entry: any = {
         store_id: Number(hs.id),
         branch_name: hs.name,
         branch_slug: hs.slug,
+        branch_type: hs.branch_type || 'STORE',
         is_hq: Number(hs.id) === rootId,
         is_current: Number(hs.id) === Number(originalStore.id),
         has_product: Boolean(match),
@@ -777,6 +924,10 @@ router.get("/scan/:slug/:barcode", async (req, res) => {
         price: match ? Number(match.price) : null,
         currency: match ? (match.currency || defaultCurrency) : null
       };
+      if (isAuthorizedStaffForFamily && match) {
+        entry.locations = locationsByProdId.get(Number(match.id)) || [];
+      }
+      return entry;
     });
 
     // Priority: current store -> HQ -> any branch with positive stock -> first matched store
@@ -1284,6 +1435,7 @@ router.get("/digital-menu/:storeIdentifier/tables", async (req, res) => {
 
 // Public: Get Store Products by Slug
 router.get("/store/:slug/products", async (req, res) => {
+  try {
   const { slug } = req.params;
   const cacheKey = `products_${slug.toLowerCase()}`;
   const cached = publicApiCache.get(cacheKey);
@@ -1292,7 +1444,7 @@ router.get("/store/:slug/products", async (req, res) => {
     return res.json(cached);
   }
 
-  const storeRes = await pool.query("SELECT id, slug, default_currency, currency_rates, store_type FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
+  const storeRes = await pool.query("SELECT id, name, slug, default_currency, currency_rates, store_type FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
   let store = storeRes.rows[0];
 
   if (!store && (slug === 'demo-store' || slug === 'demo')) {
@@ -1311,7 +1463,16 @@ router.get("/store/:slug/products", async (req, res) => {
   }
 
   const productsRes = await pool.query(`
-    SELECT p.*, s.name as branch_name, s.slug as branch_slug 
+    SELECT p.id, p.store_id, p.barcode, p.sku, p.product_code, p.name, p.description,
+           p.price, p.currency, p.price_2, p.price_2_currency, p.tax_rate,
+           p.stock_quantity, COALESCE(p.reserved_stock, 0) AS reserved_stock, p.min_stock_level,
+           p.unit, p.volume_ml, p.category, p.sub_category, p.category_2, p.sub_category_2,
+           p.brand, p.author, p.labels, p.image_url, p.images,
+           p.has_variants, p.variants, p.sector_data, p.product_type,
+           p.is_web_sale, p.is_sellable, p.is_bestseller,
+           p.allergens, p.calories, p.prep_time_min, p.portion_size,
+           p.created_at, p.updated_at,
+           s.name as branch_name, s.slug as branch_slug 
     FROM products p 
     JOIN stores s ON p.store_id = s.id
     WHERE (p.store_id = $1 OR s.parent_id = $1) 
@@ -1496,7 +1657,7 @@ router.get("/store/:slug/products", async (req, res) => {
       reference_no: r.reference_no,
       status: r.status,
       sector_data: {
-        ...(typeof r.sector_data === 'string' ? (() => { try { return JSON.parse(r.sector_data); } catch(e) { return {}; } })() : (r.sector_data || {})),
+        ...slimSectorDataForList(typeof r.sector_data === 'string' ? (() => { try { return JSON.parse(r.sector_data); } catch(e) { return {}; } })() : (r.sector_data || {})),
         square_meters: r.square_meters,
         rooms: r.room_count,
         room_count: r.room_count,
@@ -1594,6 +1755,10 @@ router.get("/store/:slug/products", async (req, res) => {
   publicApiCache.set(cacheKey, finalProducts, 300);
   res.header('Cache-Control', PUBLIC_CACHE_CONTROL);
   res.json(finalProducts);
+  } catch (err: any) {
+    console.error("Public store products error:", err?.message || err);
+    res.status(500).json({ error: err?.message || "Failed to load store products" });
+  }
 });
 
 // Public: Facebook & Google Product Catalog XML Feed

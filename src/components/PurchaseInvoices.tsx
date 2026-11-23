@@ -1420,6 +1420,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
         onAddExpenseCenter={handleAddExpenseCenter}
         handleViewHtml={handleViewHtml}
         storeId={role === 'superadmin' ? storeId : undefined}
+        warehouses={Array.isArray(branding?.warehouses) ? branding.warehouses : []}
         onApproved={async () => {
           await fetchInvoicesData(activeSearch, startDate, endDate, true);
           if (onSave) await onSave(true);

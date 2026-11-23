@@ -1143,8 +1143,8 @@ router.put('/properties/:id', authenticate, async (req: any, res) => {
     }
     const updatedProperty = result.rows[0];
     try {
-      const { publicApiCache } = await import('./public.js');
-      publicApiCache.clear();
+      const { invalidateStorePublicCache } = await import('./public.js');
+      await invalidateStorePublicCache(storeId);
     } catch(e) {}
     let secData = updatedProperty.sector_data;
     if (typeof secData === 'string') {

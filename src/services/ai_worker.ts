@@ -4,41 +4,64 @@ import { replicateAiService } from './replicate_ai.js';
 
 let isWorkerRunning = false;
 let isTickRunning = false;
-let pollingInterval: NodeJS.Timeout | null = null;
+let pollingTimer: NodeJS.Timeout | null = null;
+let currentDelayMs = 30000;
+const MIN_DELAY_MS = 20000;
+const MAX_IDLE_DELAY_MS = 300000; // 5 minutes when idle (cuts 11,520 idle queries/day down to ~288)
 
 export const aiWorkerService = {
-  /**
-   * Start the AI Worker to process pending jobs in the "ai_jobs" table
-   * Steps:
-   * 1. Finds 'pending' jobs
-   * 2. Calls Luma or Replicate API
-   * 3. Sets job to 'processing' and saves external_job_id
-   * 4. Finds 'processing' jobs and checks their status
-   * 5. When done, updates property and sets to 'completed'
-   */
   startWorker() {
     if (isWorkerRunning) return;
     isWorkerRunning = true;
-    console.log("🚀 AI Worker Started - Processing AI Jobs (3D Virtual Tours & Staging)");
+    currentDelayMs = 30000;
+    console.log("🚀 AI Worker Started (Adaptive Backoff Egress-Safe Mode)");
 
-    // NOTE: This polling structure is Phase 1. 
-    // In Phase 2 (Scale phase), we will use BullMQ + Redis for event-driven job handling.
-    pollingInterval = setInterval(async () => {
-      if (isTickRunning) return;
-      isTickRunning = true;
-      try {
-        await this.processPendingJobs();
-        await this.checkProcessingJobs();
-      } catch (error) {
-        console.error("AI Worker Error:", error);
-      } finally {
-        isTickRunning = false;
-      }
-    }, 15000); // Check every 15 seconds
+    const scheduleNext = (delay: number) => {
+      if (!isWorkerRunning) return;
+      if (pollingTimer) clearTimeout(pollingTimer);
+      pollingTimer = setTimeout(async () => {
+        if (isTickRunning) {
+          scheduleNext(currentDelayMs);
+          return;
+        }
+        isTickRunning = true;
+        try {
+          // Single lightweight 20-byte check before pulling any rows
+          const checkRes = await pool.query(
+            "SELECT EXISTS(SELECT 1 FROM ai_jobs WHERE status IN ('pending', 'processing')) AS has_jobs"
+          );
+          if (checkRes.rows[0]?.has_jobs) {
+            await this.processPendingJobs();
+            await this.checkProcessingJobs();
+            currentDelayMs = MIN_DELAY_MS;
+          } else {
+            currentDelayMs = Math.min(MAX_IDLE_DELAY_MS, Math.round(currentDelayMs * 2));
+          }
+        } catch (error) {
+          currentDelayMs = MAX_IDLE_DELAY_MS;
+        } finally {
+          isTickRunning = false;
+          scheduleNext(currentDelayMs);
+        }
+      }, delay);
+    };
+
+    scheduleNext(30000);
+  },
+
+  wakeWorker() {
+    if (!isWorkerRunning) return;
+    currentDelayMs = MIN_DELAY_MS;
+    if (pollingTimer) {
+      clearTimeout(pollingTimer);
+      pollingTimer = null;
+    }
+    this.startWorker();
   },
 
   stopWorker() {
-    if (pollingInterval) clearInterval(pollingInterval);
+    if (pollingTimer) clearTimeout(pollingTimer);
+    pollingTimer = null;
     isWorkerRunning = false;
     isTickRunning = false;
     console.log("⏹️ AI Worker Stopped");

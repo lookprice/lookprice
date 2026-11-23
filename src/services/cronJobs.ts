@@ -64,9 +64,9 @@ export function startCronJobs() {
     await withCronLock('amazon_orders', () => syncAmazonOrdersCron());
   });
 
-  // Comprehensive Marketplace Inventory & Price Reconciliation (Every 2 hours)
-  cron.schedule('0 */2 * * *', async () => {
-    console.log("[CRON] Running 2-hour Marketplace Price & Inventory Reconciliation...");
+  // Comprehensive Marketplace Inventory & Price Reconciliation (Every 4 hours - optimized for low DB egress)
+  cron.schedule('0 */4 * * *', async () => {
+    console.log("[CRON] Running 4-hour Marketplace Price & Inventory Reconciliation...");
     await withCronLock('reconcile_inventories', () => reconcileMarketplaceInventoriesAndPrices());
   });
 
@@ -91,9 +91,9 @@ export function startCronJobs() {
     await withCronLock('tcmb_rates', () => syncTCMBRates());
   });
 
-  // Nightly Full Database Backup to 5 TB Google Drive Vault (03:30 AM)
-  cron.schedule('30 3 * * *', async () => {
-    console.log("[CRON] Running Nightly Full Database Backup to 5 TB Google Drive Vault (03:30)...");
+  // Weekly Full Database Backup to 5 TB Google Drive Vault (Sundays 03:30 AM — cuts daily full-table dump egress by 85%)
+  cron.schedule('30 3 * * 0', async () => {
+    console.log("[CRON] Running Weekly Full Database Backup to 5 TB Google Drive Vault (Sunday 03:30)...");
     try {
       const res = await withCronLock('drive_backup', () => runAutomatedSuperAdminDriveBackup());
       if (res) console.log(`[CRON-5TB-BACKUP] Success: ${res.fileName} (${res.sizeKB} KB)`);
@@ -102,9 +102,9 @@ export function startCronJobs() {
     }
   });
 
-  // Nightly E-Invoice Ledger Archiving & PostgreSQL DB Slimming to 5 TB Google Drive (03:45 AM)
-  cron.schedule('45 3 * * *', async () => {
-    console.log("[CRON] Running Nightly E-Invoice Archive & DB Slimming to 5 TB Google Drive (03:45)...");
+  // Weekly E-Invoice Ledger Archiving & PostgreSQL DB Slimming to 5 TB Google Drive (Sundays 03:45 AM)
+  cron.schedule('45 3 * * 0', async () => {
+    console.log("[CRON] Running Weekly E-Invoice Archive & DB Slimming to 5 TB Google Drive (Sunday 03:45)...");
     try {
       const res = await withCronLock('drive_archive', () => runSuperAdminArchiveAndSlimDB());
       if (res) console.log(`[CRON-5TB-ARCHIVE] Success: ${res.message}`);

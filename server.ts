@@ -786,17 +786,19 @@ function sanitizeFilename(originalName: string): string {
       console.warn("Failed to write file locally:", localErr);
     }
 
-    // 2. Persist directly in PostgreSQL database (survives container reboots without external Storage bucket egress)
+    // 2. Persist to Cloudflare R2 (Primary, $0 egress) or PostgreSQL fallback
+    let uploadedUrl = `/api/storage/${filename}`;
     try {
-      const { saveBufferToDatabase } = await import("./routes/utils/imageStorage");
+      const { saveBufferToDatabase, resolvePublicMediaUrl } = await import("./routes/utils/imageStorage");
       await saveBufferToDatabase(filename, req.file.mimetype || "image/png", req.file.buffer);
+      uploadedUrl = resolvePublicMediaUrl(filename);
       localSaved = true;
     } catch (dbErr: any) {
-      console.warn("Failed to write file to PostgreSQL database:", dbErr?.message || dbErr);
+      console.warn("Failed to persist uploaded file:", dbErr?.message || dbErr);
     }
 
     if (localSaved) {
-      return res.json({ url: `/api/storage/${filename}` });
+      return res.json({ url: uploadedUrl });
     }
 
     res.status(500).json({ error: "Failed to save uploaded file." });
@@ -974,13 +976,13 @@ function sanitizeFilename(originalName: string): string {
       }
     }
 
-    // 2. Check PostgreSQL database (app_storage_files) & 5 TB Google Drive Vault ('LookPrice_5TB_Media')
+    // 2. Check Cloudflare R2 (Primary $0 egress), legacy PostgreSQL (app_storage_files), & 5 TB Google Drive Vault
     try {
       const { getFileFromDatabase } = await import("./routes/utils/imageStorage");
       const dbFile = await getFileFromDatabase(fileVariants);
       if (dbFile) {
-        const etag = `"${dbFile.buffer.length}-db"`;
-        res.setHeader("X-LookPrice-Storage-Source", "5TB-DRIVE-VAULT");
+        const etag = `"${dbFile.buffer.length}-${dbFile.source || 'db'}"`;
+        res.setHeader("X-LookPrice-Storage-Source", dbFile.source || "CLOUDFLARE-R2");
         if (req.headers["if-none-match"] === etag) {
           return res.status(304).end();
         }
@@ -1174,6 +1176,8 @@ function sanitizeFilename(originalName: string): string {
     }, 30000);
 
     let isGlobalEInvoiceSyncRunning = false;
+    let lastGlobalEInvoiceSyncAt = 0;
+    const EINVOICE_SYNC_INTERVAL_MS = 30 * 60 * 1000; // Every 30 minutes (6x lower Supabase DB egress vs 5-min loop)
     setInterval(async () => {
       try {
         const response = await fetch(`${APP_URL}/api/health`);
@@ -1183,10 +1187,13 @@ function sanitizeFilename(originalName: string): string {
       } catch (e: any) {
         console.error("Keep-alive ping failed:", e.message);
       }
-      
-      // Also trigger invoice background sync silently with overlap protection
-      if (!isGlobalEInvoiceSyncRunning) {
+
+      if (process.env.DISABLE_BACKGROUND_CRONS === "true") return;
+
+      // Trigger invoice background sync every 30 minutes with overlap protection
+      if (!isGlobalEInvoiceSyncRunning && Date.now() - lastGlobalEInvoiceSyncAt >= EINVOICE_SYNC_INTERVAL_MS) {
         isGlobalEInvoiceSyncRunning = true;
+        lastGlobalEInvoiceSyncAt = Date.now();
         try {
           await runGlobalEInvoiceSync();
         } catch (e: any) {
@@ -1195,7 +1202,7 @@ function sanitizeFilename(originalName: string): string {
           isGlobalEInvoiceSyncRunning = false;
         }
       }
-    }, 5 * 60 * 1000); // 5 minutes is safer than 14
+    }, 5 * 60 * 1000); // 5 minutes keep-alive ping
   } else {
     console.warn("KEEP-ALIVE WARNING: APP_URL environment variable is NOT set. The app will go to sleep on Render free tier.");
   }
@@ -1909,31 +1916,35 @@ function sanitizeFilename(originalName: string): string {
         try { await initTasksNotesSchema(); } catch (e) { console.error("Error in initTasksNotesSchema:", e); }
         try { await ensureEnrakipsizTables(); } catch (e) { console.error("Error in ensureEnrakipsizTables:", e); }
         console.log("Self-healing module schemas completed.");
-        startCronJobs();
-        aiWorkerService.startWorker();
+        if (process.env.DISABLE_BACKGROUND_CRONS === "true") {
+          console.log("[EGRESS-SHIELD] Background crons disabled via DISABLE_BACKGROUND_CRONS=true.");
+        } else {
+          startCronJobs();
+          aiWorkerService.startWorker();
 
-        // Initialize Startup Self-Healing & Critical Invariant Guards
-        try {
-          const { runStartupSystemGuards } = await import("./src/services/backend/systemGuardService");
-          runStartupSystemGuards();
-        } catch (err: any) {
-          console.warn("[SYSTEM-GUARD] Failed to run startup guards:", err?.message || err);
-        }
+          // Initialize Startup Self-Healing & Critical Invariant Guards
+          try {
+            const { runStartupSystemGuards } = await import("./src/services/backend/systemGuardService");
+            runStartupSystemGuards();
+          } catch (err: any) {
+            console.warn("[SYSTEM-GUARD] Failed to run startup guards:", err?.message || err);
+          }
 
-        // Initialize GİB / MySoft Background Sync Cron
-        try {
-          const { initGibSyncScheduler } = await import("./src/services/backend/gibSyncCron");
-          initGibSyncScheduler();
-        } catch (err: any) {
-          console.warn("[GİB-CRON] Failed to start scheduler:", err?.message || err);
-        }
+          // Initialize GİB / MySoft Background Sync Cron
+          try {
+            const { initGibSyncScheduler } = await import("./src/services/backend/gibSyncCron");
+            initGibSyncScheduler();
+          } catch (err: any) {
+            console.warn("[GİB-CRON] Failed to start scheduler:", err?.message || err);
+          }
 
-        // Initialize Amazon PII Masking Cron (Data Protection Policy)
-        try {
-          const { initPiiMaskingScheduler } = await import("./src/services/backend/piiMaskingCron");
-          initPiiMaskingScheduler();
-        } catch (err: any) {
-          console.warn("[PII-MASKING-CRON] Failed to start scheduler:", err?.message || err);
+          // Initialize Amazon PII Masking Cron (Data Protection Policy)
+          try {
+            const { initPiiMaskingScheduler } = await import("./src/services/backend/piiMaskingCron");
+            initPiiMaskingScheduler();
+          } catch (err: any) {
+            console.warn("[PII-MASKING-CRON] Failed to start scheduler:", err?.message || err);
+          }
         }
       } catch (err) {
         console.error("Error in background database initialization:", err);

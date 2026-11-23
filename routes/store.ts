@@ -30,6 +30,7 @@ import transactionsRouter from "./store/transactions";
 import hotelReservationsRouter from "./store/hotelReservations";
 import hotelRoomsRouter from "./store/hotelRooms";
 import tasksNotesRouter from "./store/tasksNotes";
+import warehouseRouter from "./store/warehouse";
 
 const router = express.Router();
 
@@ -86,6 +87,7 @@ router.use("/info", infoRouter);
 router.use("/branding", brandingRouter);
 router.use("/supplier-apis", supplierApisRouter);
 router.use("/tasks-notes", tasksNotesRouter);
+router.use("/warehouse", warehouseRouter);
 
 // Rewrite mappings for direct frontend API endpoints
 router.use("/sales-invoices", (req: any, res, next) => {

@@ -705,10 +705,10 @@ router.get("/categories", async (req: any, res) => {
   }
 });
 
-async function clearPublicStoreCache() {
+async function clearPublicStoreCache(storeId?: number | null) {
   try {
-    const { publicApiCache } = await import("../public");
-    publicApiCache.clear();
+    const { invalidateStorePublicCache } = await import("../public");
+    await invalidateStorePublicCache(storeId ?? null);
   } catch {}
 }
 
@@ -811,7 +811,7 @@ async function saveStoreOperatorCategories(
     storeId,
   ]);
   invalidateStoreProductsCache(storeId);
-  await clearPublicStoreCache();
+  await clearPublicStoreCache(storeId);
   return nextBranding;
 }
 
@@ -864,7 +864,7 @@ router.post("/bulk-web-sale", async (req: any, res) => {
     );
 
     invalidateStoreProductsCache(storeId);
-    await clearPublicStoreCache();
+    await clearPublicStoreCache(storeId);
 
     await logAction(
       storeId,
@@ -951,7 +951,7 @@ router.post("/bulk-category", async (req: any, res) => {
       await saveStoreOperatorCategories(client, storeId, branding, operatorCategories);
     } else {
       invalidateStoreProductsCache(storeId);
-      await clearPublicStoreCache();
+      await clearPublicStoreCache(storeId);
     }
 
     await client.query("COMMIT");
@@ -1806,7 +1806,7 @@ router.post("/categories/bulk-web-sale", async (req: any, res) => {
     }
 
     invalidateStoreProductsCache(storeId);
-    await clearPublicStoreCache();
+    await clearPublicStoreCache(storeId);
 
     await logAction(
       storeId,
@@ -2275,8 +2275,8 @@ router.post("/", async (req: any, res) => {
     }
 
     try {
-      const { publicApiCache } = await import("../public.js");
-      publicApiCache.clear();
+      const { invalidateStorePublicCache } = await import("../public.js");
+      await invalidateStorePublicCache(storeId);
     } catch {}
 
     res.json(result.rows[0]);
@@ -3036,8 +3036,8 @@ router.put("/:id", async (req: any, res) => {
     }
     
     try {
-      const { publicApiCache } = await import("../public.js");
-      publicApiCache.clear();
+      const { invalidateStorePublicCache } = await import("../public.js");
+      await invalidateStorePublicCache(storeId);
     } catch {}
     
     await logAction(
@@ -3255,7 +3255,7 @@ router.put("/:id", async (req: any, res) => {
       [id]
     );
     invalidateStoreProductsCache(storeId);
-    await clearPublicStoreCache();
+    await clearPublicStoreCache(storeId);
     res.json({ success: true, product: updatedProdRes.rows[0] });
   } catch (e: any) {
     res.status(400).json({ error: e.message });
@@ -3488,8 +3488,8 @@ router.post("/bulk-clear-variants", async (req: any, res) => {
     }
 
     try {
-      const { publicApiCache } = await import("../public.js");
-      publicApiCache.clear();
+      const { invalidateStorePublicCache } = await import("../public.js");
+      await invalidateStorePublicCache(storeId);
     } catch {}
 
     await logAction(

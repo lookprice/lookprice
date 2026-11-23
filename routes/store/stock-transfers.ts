@@ -1,6 +1,7 @@
 import express from "express";
 import { pool, addStockMovement } from "../../models/db";
 import { getAuthorizedStoreId } from "../../middleware/auth";
+import { processTransferStatusTransition } from "../../src/services/backend/warehouseService";
 
 const router = express.Router();
 
@@ -104,9 +105,9 @@ router.post("/", async (req: any, res) => {
 
     for (const item of items) {
       await client.query(
-        `INSERT INTO stock_transfer_items (transfer_id, product_id, barcode, product_name, quantity, product_type) 
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [transferId, item.product_id || item.id, item.barcode || '', item.product_name || item.name, item.quantity, item.product_type || 'product']
+        `INSERT INTO stock_transfer_items (transfer_id, product_id, barcode, product_name, quantity, requested_qty, product_type, variant_key) 
+         VALUES ($1, $2, $3, $4, $5, $5, $6, $7)`,
+        [transferId, item.product_id || item.id, item.barcode || '', item.product_name || item.name, item.quantity, item.product_type || 'product', item.variant_key || '']
       );
 
       // Deduct stock if direct shipment
@@ -140,117 +141,35 @@ router.post("/", async (req: any, res) => {
 
 router.put("/:id/status", async (req: any, res) => {
   const { id } = req.params;
-  const { status, lang } = req.body;
+  const {
+    status,
+    lang,
+    shippedItems,
+    shipped_items,
+    receivedItems,
+    received_items,
+    items,
+    discrepancyNote,
+    discrepancy_note
+  } = req.body;
   const userId = req.user.id;
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    
-    const transferRes = await client.query("SELECT * FROM stock_transfers WHERE id = $1 FOR UPDATE", [id]);
-    const transfer = transferRes.rows[0];
-    if (!transfer) throw new Error("Transfer not found");
-
-    const itemsRes = await client.query("SELECT * FROM stock_transfer_items WHERE transfer_id = $1", [id]);
-    const items = itemsRes.rows;
-
-    if (status === 'shipped' && transfer.status !== 'shipped' && transfer.status !== 'completed') {
-      for (const item of items) {
-        if (item.product_type === 'service') continue;
-        const productRes = await client.query(
-          "SELECT stock_quantity, name FROM products WHERE id = $1 AND store_id = $2",
-          [item.product_id, transfer.from_store_id]
-        );
-        const product = productRes.rows[0];
-        if (!product || product.stock_quantity < item.quantity) {
-          await client.query("ROLLBACK");
-          return res.status(400).json({ 
-            error: lang === 'tr' 
-              ? `Yetersiz stok: ${product?.name || 'Ürün bulunamadı'} (Mevcut: ${product?.stock_quantity || 0}, Talep: ${item.quantity})` 
-              : `Insufficient stock: ${product?.name || 'Product not found'} (Available: ${product?.stock_quantity || 0}, Requested: ${item.quantity})` 
-          });
-        }
-      }
-
-      for (const item of items) {
-        if (item.product_type === 'service') continue;
-        await client.query(
-          "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2 AND store_id = $3",
-          [item.quantity, item.product_id, transfer.from_store_id]
-        );
-        await addStockMovement(client, transfer.from_store_id, item.product_id, 'out', item.quantity, 'transfer', `Transfer Sevk Edildi (ID: ${id}) - Alıcı Mağaza ID: ${transfer.to_store_id}`);
-      }
-    }
-
-    if (status === 'completed' && transfer.status !== 'completed') {
-      const wasShipped = transfer.status === 'shipped';
-      
-      for (const item of items) {
-        if (item.product_type === 'service') continue;
-        if (!wasShipped) {
-          await client.query(
-            "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2 AND store_id = $3",
-            [item.quantity, item.product_id, transfer.from_store_id]
-          );
-          await addStockMovement(client, transfer.from_store_id, item.product_id, 'out', item.quantity, 'transfer', `Transfer Tamamlandı (ID: ${id}) - Alıcı Mağaza ID: ${transfer.to_store_id}`);
-        }
-
-        const receiverProductRes = await client.query(
-          "SELECT id FROM products WHERE store_id = $1 AND barcode = $2",
-          [transfer.to_store_id, item.barcode]
-        );
-
-        let receiverProductId;
-        if (receiverProductRes.rows.length > 0) {
-          receiverProductId = receiverProductRes.rows[0].id;
-          await client.query(
-            "UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2",
-            [item.quantity, receiverProductId]
-          );
-        } else {
-          const senderProductRes = await client.query("SELECT * FROM products WHERE id = $1", [item.product_id]);
-          const sp = senderProductRes.rows[0];
-          const newProductRes = await client.query(
-            `INSERT INTO products (store_id, barcode, name, price, currency, cost_price, cost_currency, tax_rate, description, stock_quantity, unit, category, is_web_sale, product_type)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
-            [transfer.to_store_id, sp.barcode, sp.name, sp.price, sp.currency, sp.cost_price, sp.cost_currency, sp.tax_rate, sp.description, item.quantity, sp.unit, sp.category, sp.is_web_sale, sp.product_type]
-          );
-          receiverProductId = newProductRes.rows[0].id;
-        }
-
-        await addStockMovement(client, transfer.to_store_id, receiverProductId, 'in', item.quantity, 'transfer', `Transfer Tamamlandı (ID: ${id}) - Gönderen Mağaza ID: ${transfer.from_store_id}`);
-      }
-    }
-
-    if (status === 'cancelled' && transfer.status === 'shipped') {
-      for (const item of items) {
-        if (item.product_type === 'service') continue;
-        await client.query(
-          "UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2 AND store_id = $3",
-          [item.quantity, item.product_id, transfer.from_store_id]
-        );
-        await addStockMovement(client, transfer.from_store_id, item.product_id, 'in', item.quantity, 'transfer', `Transfer İptal Edildi (ID: ${id}) - Stok İade Edildi`);
-      }
-    }
-
-    let updateQuery = "UPDATE stock_transfers SET status = $1, updated_at = CURRENT_TIMESTAMP";
-    const params: any[] = [status, id];
-
-    if (status === 'preparing') {
-      updateQuery += ", prepared_by = $3";
-      params.push(userId);
-    } else if (status === 'shipped') {
-      updateQuery += ", shipped_by = $3";
-      params.push(userId);
-    }
-
-    updateQuery += " WHERE id = $2";
-    await client.query(updateQuery, params);
-
+    const result = await processTransferStatusTransition(client, {
+      transferId: Number(id),
+      newStatus: status,
+      userId,
+      lang: lang || 'tr',
+      shippedItems: shippedItems || shipped_items || (status === 'shipped' ? items : undefined),
+      receivedItems: receivedItems || received_items || (status === 'completed' ? items : undefined),
+      discrepancyNote: discrepancyNote ?? discrepancy_note
+    });
     await client.query("COMMIT");
-    res.json({ success: true });
-  } catch (error) {
+    res.json(result);
+  } catch (error: any) {
     await client.query("ROLLBACK");
-    res.status(500).json({ error: "Failed to update transfer status" });
+    res.status(error.statusCode || 500).json({ error: error.message || "Failed to update transfer status" });
   } finally {
     client.release();
   }

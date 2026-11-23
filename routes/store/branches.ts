@@ -1,5 +1,10 @@
 import express from "express";
-import { pool, addStockMovement, logAction } from "../../models/db";
+import { pool, logAction } from "../../models/db";
+import {
+  ensureSystemLocationsForStore,
+  recomputeLocationPathsRecursive,
+  processTransferStatusTransition
+} from "../../src/services/backend/warehouseService";
 
 const router = express.Router();
 
@@ -14,7 +19,16 @@ router.get("/", async (req: any, res) => {
     const parentId = currentStoreRes.rows[0]?.parent_id || storeId;
 
     const branchesRes = await pool.query(
-      "SELECT id, name, slug, address, phone FROM stores WHERE (id = $1 OR parent_id = $1) AND id != $2",
+      `SELECT id, name, slug, address, phone,
+              COALESCE(branch_type, 'STORE') AS branch_type,
+              COALESCE(has_pos, TRUE) AS has_pos,
+              COALESCE(is_central_warehouse, FALSE) AS is_central_warehouse,
+              COALESCE(allow_direct_sales, TRUE) AS allow_direct_sales,
+              COALESCE(use_bin_locations, FALSE) AS use_bin_locations,
+              COALESCE(receiving_sla_hours, 24) AS receiving_sla_hours,
+              COALESCE(include_in_online_stock, FALSE) AS include_in_online_stock,
+              COALESCE(sell_receiving_stock, FALSE) AS sell_receiving_stock
+       FROM stores WHERE (id = $1 OR parent_id = $1) AND id != $2`,
       [parentId, storeId]
     );
     
@@ -27,21 +41,51 @@ router.get("/", async (req: any, res) => {
 
 router.post("/", async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
-  const { name, slug, address, phone } = req.body;
+  const {
+    name, slug, address, phone,
+    branch_type = 'STORE',
+    has_pos,
+    is_central_warehouse = false,
+    allow_direct_sales,
+    use_bin_locations = false,
+    receiving_sla_hours = 24,
+    include_in_online_stock = false,
+    sell_receiving_stock = false
+  } = req.body;
   if (!name || !slug) return res.status(400).json({ error: "Name and slug are required" });
 
+  const normType = String(branch_type).toUpperCase() === 'WAREHOUSE' ? 'WAREHOUSE' : 'STORE';
+  const resolvedHasPos = has_pos !== undefined ? Boolean(has_pos) : normType !== 'WAREHOUSE';
+  const resolvedDirectSales = allow_direct_sales !== undefined ? Boolean(allow_direct_sales) : normType !== 'WAREHOUSE';
+
   try {
-    const parentStoreRes = await pool.query("SELECT parent_id, branding, theme, store_type, sector FROM stores WHERE id = $1", [storeId]);
+    const parentStoreRes = await pool.query("SELECT parent_id, branding, store_type, sub_sector FROM stores WHERE id = $1", [storeId]);
     const parent = parentStoreRes.rows[0];
     const parentId = parent?.parent_id || storeId;
 
+    if (Boolean(is_central_warehouse)) {
+      await pool.query("UPDATE stores SET is_central_warehouse = FALSE WHERE id = $1 OR parent_id = $1", [parentId]);
+    }
+
     const result = await pool.query(
-      `INSERT INTO stores (name, slug, address, phone, parent_id, branding, theme, store_type, sector) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-      [name, slug, address || '', phone || '', parentId, parent?.branding || {}, parent?.theme || 'modern', parent?.store_type || 'general', parent?.sector || 'general']
+      `INSERT INTO stores (
+        name, slug, address, phone, parent_id, branding, store_type, sub_sector,
+        branch_type, has_pos, is_central_warehouse, allow_direct_sales,
+        use_bin_locations, receiving_sla_hours, include_in_online_stock, sell_receiving_stock
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
+      [
+        name, slug, address || '', phone || '', parentId,
+        parent?.branding || {}, parent?.store_type || 'shop', parent?.sub_sector || null,
+        normType, resolvedHasPos, Boolean(is_central_warehouse), resolvedDirectSales,
+        Boolean(use_bin_locations), Math.max(1, Number(receiving_sla_hours) || 24),
+        Boolean(include_in_online_stock), Boolean(sell_receiving_stock)
+      ]
     );
 
-    await logAction(req.user.id, storeId, 'ADD_BRANCH', `Added branch: \${name} (ID: \${result.rows[0].id})`);
+    await ensureSystemLocationsForStore(pool, Number(result.rows[0].id));
+    await recomputeLocationPathsRecursive(pool, Number(result.rows[0].id));
+
+    await logAction(req.user.id, storeId, 'ADD_BRANCH', `Added ${normType}: ${name} (ID: ${result.rows[0].id})`);
     res.status(201).json(result.rows[0]);
   } catch (error: any) {
     if (error.code === '23505') return res.status(400).json({ error: "Bu slug zaten kullanımda" });
@@ -52,7 +96,11 @@ router.post("/", async (req: any, res) => {
 router.put("/:id", async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
   const { id } = req.params;
-  const { name, slug, address, phone } = req.body;
+  const {
+    name, slug, address, phone,
+    branch_type, has_pos, is_central_warehouse, allow_direct_sales,
+    use_bin_locations, receiving_sla_hours, include_in_online_stock, sell_receiving_stock
+  } = req.body;
 
   try {
     const currentStoreRes = await pool.query("SELECT parent_id FROM stores WHERE id = $1", [storeId]);
@@ -61,11 +109,38 @@ router.put("/:id", async (req: any, res) => {
     const checkRes = await pool.query("SELECT id FROM stores WHERE id = $1 AND parent_id = $2", [id, parentId]);
     if (checkRes.rows.length === 0) return res.status(403).json({ error: "Unauthorized" });
 
+    if (is_central_warehouse === true) {
+      await pool.query("UPDATE stores SET is_central_warehouse = FALSE WHERE (id = $1 OR parent_id = $1) AND id != $2", [parentId, id]);
+    }
+
     const result = await pool.query(
-      "UPDATE stores SET name = $1, slug = $2, address = $3, phone = $4 WHERE id = $5 RETURNING *",
-      [name, slug, address, phone, id]
+      `UPDATE stores SET
+         name = $1, slug = $2, address = $3, phone = $4,
+         branch_type = COALESCE($5, branch_type),
+         has_pos = COALESCE($6, has_pos),
+         is_central_warehouse = COALESCE($7, is_central_warehouse),
+         allow_direct_sales = COALESCE($8, allow_direct_sales),
+         use_bin_locations = COALESCE($9, use_bin_locations),
+         receiving_sla_hours = COALESCE($10, receiving_sla_hours),
+         include_in_online_stock = COALESCE($11, include_in_online_stock),
+         sell_receiving_stock = COALESCE($12, sell_receiving_stock)
+       WHERE id = $13 RETURNING *`,
+      [
+        name, slug, address, phone,
+        branch_type !== undefined ? (String(branch_type).toUpperCase() === 'WAREHOUSE' ? 'WAREHOUSE' : 'STORE') : null,
+        has_pos !== undefined ? Boolean(has_pos) : null,
+        is_central_warehouse !== undefined ? Boolean(is_central_warehouse) : null,
+        allow_direct_sales !== undefined ? Boolean(allow_direct_sales) : null,
+        use_bin_locations !== undefined ? Boolean(use_bin_locations) : null,
+        receiving_sla_hours !== undefined ? Math.max(1, Number(receiving_sla_hours) || 24) : null,
+        include_in_online_stock !== undefined ? Boolean(include_in_online_stock) : null,
+        sell_receiving_stock !== undefined ? Boolean(sell_receiving_stock) : null,
+        id
+      ]
     );
 
+    await ensureSystemLocationsForStore(pool, Number(id));
+    await recomputeLocationPathsRecursive(pool, Number(id));
     res.json(result.rows[0]);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -218,9 +293,9 @@ router.post("/transfers", async (req: any, res) => {
 
     for (const item of items) {
       await client.query(
-        `INSERT INTO stock_transfer_items (transfer_id, product_id, quantity, barcode, product_name)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [transferId, item.product_id, item.quantity, item.barcode, item.product_name || item.name]
+        `INSERT INTO stock_transfer_items (transfer_id, product_id, quantity, requested_qty, barcode, product_name, variant_key)
+         VALUES ($1, $2, $3, $3, $4, $5, $6)`,
+        [transferId, item.product_id, item.quantity, item.barcode, item.product_name || item.name, item.variant_key || '']
       );
     }
 
@@ -237,9 +312,9 @@ router.post("/transfers", async (req: any, res) => {
 router.put("/transfers/:id/status", async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
   const { id } = req.params;
-  const { status } = req.body;
+  const { status, shippedItems, receivedItems, discrepancyNote } = req.body;
   const userId = req.user.id;
-  const lang = req.query.lang || 'tr';
+  const lang = String(req.query.lang || req.body.lang || 'tr');
 
   if (!['pending', 'accepted', 'preparing', 'shipped', 'completed', 'cancelled'].includes(status)) {
     return res.status(400).json({ error: "Invalid status" });
@@ -249,132 +324,40 @@ router.put("/transfers/:id/status", async (req: any, res) => {
   try {
     await client.query("BEGIN");
 
-    const transferRes = await client.query(
-      "SELECT * FROM stock_transfers WHERE id = $1",
-      [id]
-    );
-    const transfer = transferRes.rows[0];
-
-    if (!transfer) {
+    const authCheck = await client.query("SELECT from_store_id, to_store_id FROM stock_transfers WHERE id = $1", [id]);
+    if (authCheck.rows.length === 0) {
       await client.query("ROLLBACK");
       return res.status(404).json({ error: "Transfer not found" });
     }
-
-    if (transfer.status === 'completed' || transfer.status === 'cancelled') {
-      await client.query("ROLLBACK");
-      return res.status(400).json({ error: "Cannot change status of a completed or cancelled transfer" });
-    }
-
-    const itemsRes = await client.query(
-      "SELECT i.*, p.product_type FROM stock_transfer_items i JOIN products p ON i.product_id = p.id WHERE i.transfer_id = $1",
-      [id]
-    );
-    const items = itemsRes.rows;
-
-    if (req.user.role !== 'superadmin' && transfer.from_store_id !== storeId && transfer.to_store_id !== storeId) {
-      await client.query("ROLLBACK");
-      return res.status(403).json({ error: "Unauthorized" });
-    }
-
-    if (status === 'shipped' && transfer.status !== 'shipped') {
-      for (const item of items) {
-        if (item.product_type === 'service') continue;
-        const productRes = await client.query(
-          "SELECT stock_quantity, name FROM products WHERE id = $1 AND store_id = $2",
-          [item.product_id, transfer.from_store_id]
-        );
-        const product = productRes.rows[0];
-        if (!product || product.stock_quantity < item.quantity) {
-          await client.query("ROLLBACK");
-          return res.status(400).json({ 
-            error: lang === 'tr' 
-              ? `Yetersiz stok: \${product?.name || 'Ürün bulunamadı'} (Mevcut: \${product?.stock_quantity || 0}, Talep: \${item.quantity})` 
-              : `Insufficient stock: \${product?.name || 'Product not found'} (Available: \${product?.stock_quantity || 0}, Requested: \${item.quantity})` 
-          });
-        }
-      }
-
-      for (const item of items) {
-        if (item.product_type === 'service') continue;
-        await client.query(
-          "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2 AND store_id = $3",
-          [item.quantity, item.product_id, transfer.from_store_id]
-        );
-        await addStockMovement(client, transfer.from_store_id, item.product_id, 'out', item.quantity, 'transfer', `Transfer Sevk Edildi (ID: \${id}) - Alıcı Mağaza ID: \${transfer.to_store_id}`);
+    const tr = authCheck.rows[0];
+    if (req.user.role !== 'superadmin' && Number(tr.from_store_id) !== Number(storeId) && Number(tr.to_store_id) !== Number(storeId)) {
+      // Also allow parent HQ managing child branch/warehouse transfers
+      const parentCheck = await client.query(
+        "SELECT 1 FROM stores WHERE id IN ($1, $2) AND parent_id = $3 LIMIT 1",
+        [tr.from_store_id, tr.to_store_id, storeId]
+      );
+      if (parentCheck.rows.length === 0) {
+        await client.query("ROLLBACK");
+        return res.status(403).json({ error: "Unauthorized" });
       }
     }
 
-    if (status === 'completed' && transfer.status !== 'completed') {
-      const wasShipped = transfer.status === 'shipped';
-      
-      for (const item of items) {
-        if (item.product_type === 'service') continue;
-        if (!wasShipped) {
-          await client.query(
-            "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2 AND store_id = $3",
-            [item.quantity, item.product_id, transfer.from_store_id]
-          );
-          await addStockMovement(client, transfer.from_store_id, item.product_id, 'out', item.quantity, 'transfer', `Transfer Tamamlandı (ID: \${id}) - Alıcı Mağaza ID: \${transfer.to_store_id}`);
-        }
-
-        const receiverProductRes = await client.query(
-          "SELECT id FROM products WHERE store_id = $1 AND barcode = $2",
-          [transfer.to_store_id, item.barcode]
-        );
-
-        let receiverProductId;
-        if (receiverProductRes.rows.length > 0) {
-          receiverProductId = receiverProductRes.rows[0].id;
-          await client.query(
-            "UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2",
-            [item.quantity, receiverProductId]
-          );
-        } else {
-          const senderProductRes = await client.query("SELECT * FROM products WHERE id = $1", [item.product_id]);
-          const sp = senderProductRes.rows[0];
-          const newProductRes = await client.query(
-            `INSERT INTO products (store_id, barcode, name, price, currency, cost_price, cost_currency, tax_rate, description, stock_quantity, unit, category, is_web_sale, product_type)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
-            [transfer.to_store_id, sp.barcode, sp.name, sp.price, sp.currency, sp.cost_price, sp.cost_currency, sp.tax_rate, sp.description, item.quantity, sp.unit, sp.category, sp.is_web_sale, sp.product_type]
-          );
-          receiverProductId = newProductRes.rows[0].id;
-        }
-
-        await addStockMovement(client, transfer.to_store_id, receiverProductId, 'in', item.quantity, 'transfer', `Transfer Tamamlandı (ID: \${id}) - Gönderen Mağaza ID: \${transfer.from_store_id}`);
-      }
-    }
-
-    if (status === 'cancelled' && transfer.status === 'shipped') {
-      for (const item of items) {
-        if (item.product_type === 'service') continue;
-        await client.query(
-          "UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2 AND store_id = $3",
-          [item.quantity, item.product_id, transfer.from_store_id]
-        );
-        await addStockMovement(client, transfer.from_store_id, item.product_id, 'in', item.quantity, 'transfer', `Transfer İptal Edildi (ID: \${id}) - Stok İade Edildi`);
-      }
-    }
-
-    let updateQuery = "UPDATE stock_transfers SET status = $1, updated_at = CURRENT_TIMESTAMP";
-    const params: any[] = [status, id];
-
-    if (status === 'preparing') {
-      updateQuery += ", prepared_by = $3";
-      params.push(userId);
-    } else if (status === 'shipped') {
-      updateQuery += ", shipped_by = $3";
-      params.push(userId);
-    }
-
-    updateQuery += " WHERE id = $2";
-    await client.query(updateQuery, params);
+    const result = await processTransferStatusTransition(client, {
+      transferId: Number(id),
+      newStatus: status,
+      userId,
+      lang,
+      shippedItems,
+      receivedItems,
+      discrepancyNote
+    });
 
     await client.query("COMMIT");
-    res.json({ success: true });
-  } catch (error) {
+    res.json(result);
+  } catch (error: any) {
     await client.query("ROLLBACK");
     console.error("Update transfer status error:", error);
-    res.status(500).json({ error: "Failed to update transfer status" });
+    res.status(error.statusCode || 500).json({ error: error.message || "Failed to update transfer status" });
   } finally {
     client.release();
   }

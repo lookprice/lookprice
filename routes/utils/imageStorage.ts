@@ -3,13 +3,20 @@ import path from 'path';
 import { supabase } from '../../src/services/supabaseService';
 import { pool } from '../../models/db';
 import { mirrorMediaTo5TBDrive, fetchMediaFrom5TBDrive } from '../googleDrive';
+import {
+  isR2Configured,
+  uploadBufferToR2,
+  getBufferFromR2,
+  getR2PublicUrl,
+  getR2Config,
+} from '../../src/services/backend/r2StorageService';
 
 const uploadsStoresDir = path.join(process.cwd(), 'uploads', 'stores');
 if (!fs.existsSync(uploadsStoresDir)) {
   fs.mkdirSync(uploadsStoresDir, { recursive: true });
 }
 
-// Negative cache to prevent repeated BYTEA queries for non-existent files
+// Negative cache to prevent repeated BYTEA/R2 queries for non-existent files
 const missingDbFilesCache = new Map<string, number>();
 const MISSING_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
@@ -17,8 +24,19 @@ export async function saveBufferToDatabase(filename: string, mimetype: string, b
   // Asynchronously mirror uploaded media into the 5 TB Google Drive Vault ('LookPrice_5TB_Media')
   mirrorMediaTo5TBDrive(filename, mimetype, buffer).catch(() => {});
 
+  missingDbFilesCache.delete(filename);
+
+  // 1. Primary Zero-Egress Backend: Cloudflare R2 ($0 bandwidth, skips Supabase PostgreSQL BYTEA bloat!)
+  if (isR2Configured()) {
+    const r2Res = await uploadBufferToR2(filename, mimetype || 'application/octet-stream', buffer);
+    if (r2Res.success) {
+      return true;
+    }
+    console.warn(`[Storage R2] Upload failed for ${filename}, falling back to DB:`, r2Res.error);
+  }
+
+  // 2. Fallback: Persist in PostgreSQL only when R2 is not yet configured or transiently unavailable
   try {
-    missingDbFilesCache.delete(filename);
     await pool.query(`
       INSERT INTO app_storage_files (filename, mimetype, data, size, created_at)
       VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
@@ -32,7 +50,9 @@ export async function saveBufferToDatabase(filename: string, mimetype: string, b
   }
 }
 
-export async function getFileFromDatabase(filenameOrVariants: string | string[]): Promise<{ buffer: Buffer; mimetype: string; filename?: string } | null> {
+export async function getFileFromDatabase(
+  filenameOrVariants: string | string[]
+): Promise<{ buffer: Buffer; mimetype: string; filename?: string; source?: string } | null> {
   const candidates = (Array.isArray(filenameOrVariants) ? filenameOrVariants : [filenameOrVariants]).filter(Boolean);
   if (candidates.length === 0) return null;
 
@@ -48,7 +68,25 @@ export async function getFileFromDatabase(filenameOrVariants: string | string[])
     return null;
   }
 
+  // 1. Primary Zero-Egress Read: Cloudflare R2 (0 Supabase DB queries, $0 bandwidth)
+  if (isR2Configured()) {
+    try {
+      const r2File = await getBufferFromR2(uncheckedCandidates);
+      if (r2File) {
+        return {
+          filename: r2File.filename,
+          buffer: r2File.buffer,
+          mimetype: r2File.mimetype || 'image/jpeg',
+          source: 'CLOUDFLARE-R2',
+        };
+      }
+    } catch (r2Err: any) {
+      console.warn(`[Storage R2] Read error for ${uncheckedCandidates[0]}:`, r2Err?.message || r2Err);
+    }
+  }
+
   try {
+    // 2. Legacy PostgreSQL fallback (with automatic background migration to R2 when configured)
     const res = await pool.query(`
       SELECT filename, mimetype, data 
       FROM app_storage_files 
@@ -56,27 +94,39 @@ export async function getFileFromDatabase(filenameOrVariants: string | string[])
       LIMIT 1
     `, [uncheckedCandidates]);
     if (res.rows.length > 0 && res.rows[0].data) {
+      const buf = Buffer.isBuffer(res.rows[0].data) ? res.rows[0].data : Buffer.from(res.rows[0].data);
+      const mime = res.rows[0].mimetype || 'image/png';
+      const fn = res.rows[0].filename;
+      if (isR2Configured() && fn) {
+        // Lazy-migrate to Cloudflare R2 so future cold starts never read this BYTEA from Supabase again
+        uploadBufferToR2(fn, mime, buf).catch(() => {});
+      }
       return {
-        filename: res.rows[0].filename,
-        buffer: Buffer.isBuffer(res.rows[0].data) ? res.rows[0].data : Buffer.from(res.rows[0].data),
-        mimetype: res.rows[0].mimetype || 'image/png'
+        filename: fn,
+        buffer: buf,
+        mimetype: mime,
+        source: 'PG-LEGACY',
       };
     }
 
-    // Fallback: Check 5 TB Google Drive Vault ('LookPrice_5TB_Media') before marking missing
+    // 3. Fallback: Check 5 TB Google Drive Vault ('LookPrice_5TB_Media') before marking missing
     const primaryCandidate = uncheckedCandidates[0];
     if (primaryCandidate) {
       const driveFile = await fetchMediaFrom5TBDrive(primaryCandidate);
       if (driveFile) {
+        if (isR2Configured()) {
+          uploadBufferToR2(primaryCandidate, driveFile.mimetype, driveFile.buffer).catch(() => {});
+        }
         return {
           filename: primaryCandidate,
           buffer: driveFile.buffer,
-          mimetype: driveFile.mimetype
+          mimetype: driveFile.mimetype,
+          source: '5TB-DRIVE-VAULT',
         };
       }
     }
 
-    // Mark candidates as missing in RAM to prevent repeated DB queries
+    // Mark candidates as missing in RAM to prevent repeated DB/R2 queries
     if (missingDbFilesCache.size > 5000) {
       missingDbFilesCache.clear();
     }
@@ -88,6 +138,12 @@ export async function getFileFromDatabase(filenameOrVariants: string | string[])
     console.warn(`[Storage DB] Error fetching ${uncheckedCandidates[0]} from PostgreSQL:`, err?.message || err);
     return null;
   }
+}
+
+export function resolvePublicMediaUrl(filename: string): string {
+  const r2Pub = getR2PublicUrl(filename);
+  if (r2Pub) return r2Pub;
+  return `/api/storage/${filename}`;
 }
 
 export async function saveBase64Image(base64Data: string, prefix: string): Promise<string> {
@@ -120,10 +176,10 @@ export async function saveBase64Image(base64Data: string, prefix: string): Promi
     console.warn("Failed to write base64 image locally:", localErr);
   }
 
-  // 2. Persist directly in PostgreSQL database (never lost on container reboot)
+  // 2. Persist to Cloudflare R2 (primary, $0 egress) or PostgreSQL fallback
   await saveBufferToDatabase(filename, mimeType, buffer);
 
-  return `/api/storage/${filename}`;
+  return resolvePublicMediaUrl(filename);
 }
 
 export async function replaceAllBase64InString(str: string, prefix: string): Promise<string> {
@@ -168,10 +224,10 @@ export async function replaceAllBase64InString(str: string, prefix: string): Pro
         console.warn("Failed to write base64 substring locally:", localErr);
       }
 
-      // 2. Persist in PostgreSQL database
+      // 2. Persist to Cloudflare R2 (primary, $0 egress) or PostgreSQL fallback
       await saveBufferToDatabase(filename, mimeType, buffer);
 
-      const url = `/api/storage/${filename}`;
+      const url = resolvePublicMediaUrl(filename);
 
       resultStr = resultStr.replace(item.fullMatch, url);
     } catch (e) {
@@ -206,13 +262,21 @@ export async function cleanDeepBase64(data: any, prefix: string): Promise<any> {
 
 /**
  * Rewrites legacy direct Supabase Storage URLs or /uploads paths to our resilient /api/storage/* endpoint
- * so store & reference logos always load from Local Disk, PostgreSQL app_storage_files, 5TB Drive, or Brand SVG fallback
- * even when Supabase Storage is in restricted status.
+ * (or preserves direct Cloudflare R2 CDN URLs) so media loads with zero Supabase egress.
  */
 export function normalizeStorageUrl(rawUrl: string | null | undefined, storeId?: number | string | null, brandName?: string | null): string {
   if (!rawUrl || typeof rawUrl !== 'string') return '';
   const trimmed = rawUrl.trim();
   if (!trimmed || trimmed.startsWith('data:image/')) return trimmed;
+
+  const r2PublicBase = getR2Config().publicUrl;
+  if (
+    (r2PublicBase && trimmed.startsWith(r2PublicBase)) ||
+    trimmed.includes('.r2.dev/') ||
+    trimmed.includes('.r2.cloudflarestorage.com/')
+  ) {
+    return trimmed;
+  }
 
   let storagePath = '';
 
@@ -250,4 +314,5 @@ export function normalizeStorageUrl(rawUrl: string | null | undefined, storeId?:
   const qs = params.toString();
   return `/api/storage/${cleanPath}${qs ? `?${qs}` : ''}`;
 }
+
 

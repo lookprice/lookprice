@@ -374,7 +374,10 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
 
   useEffect(() => {
     fetchOnlineReservations();
-    const interval = setInterval(fetchOnlineReservations, 15000);
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      fetchOnlineReservations();
+    }, 45000);
 
     const handleUpdate = () => {
       fetchOnlineReservations();

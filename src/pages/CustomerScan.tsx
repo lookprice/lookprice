@@ -521,35 +521,51 @@ export default function CustomerScanPage({ customSlug }: { customSlug?: string }
                         <div className="space-y-1.5">
                           {branchStocks.map((b: any) => {
                             const bQty = Number(b.stock_quantity) || 0;
+                            const staffLocs: any[] = Array.isArray(b.locations) ? b.locations : [];
+                            const isWh = b.branch_type === 'WAREHOUSE';
                             return (
                               <div
                                 key={b.store_id}
-                                className={`flex items-center justify-between px-3 py-2 rounded-xl border text-xs ${
+                                className={`px-3 py-2 rounded-xl border text-xs space-y-1 ${
                                   b.is_current
                                     ? 'bg-indigo-50 border-indigo-300 text-slate-900'
                                     : 'bg-white border-slate-200 text-slate-800'
                                 }`}
                               >
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase shrink-0 ${
-                                    b.is_hq ? 'bg-slate-900 text-white' : 'bg-indigo-100 text-indigo-800'
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase shrink-0 ${
+                                      isWh ? 'bg-amber-100 text-amber-900' : b.is_hq ? 'bg-slate-900 text-white' : 'bg-indigo-100 text-indigo-800'
+                                    }`}>
+                                      {isWh ? 'Depo' : b.is_hq ? 'Merkez' : 'Şube'}
+                                    </span>
+                                    <span className="font-extrabold truncate">{b.branch_name}</span>
+                                    {b.is_current && (
+                                      <span className="text-[9px] font-black text-indigo-700 shrink-0">(Burada)</span>
+                                    )}
+                                  </div>
+                                  <span className={`font-black tabular-nums shrink-0 ${
+                                    bQty <= 0
+                                      ? 'text-rose-600'
+                                      : bQty <= Number(product.min_stock_level || 5)
+                                        ? 'text-amber-600'
+                                        : 'text-emerald-700'
                                   }`}>
-                                    {b.is_hq ? 'Merkez' : 'Şube'}
+                                    {bQty <= 0 ? (lang === 'tr' ? 'Stok Yok (0)' : 'Out (0)') : `${Math.floor(bQty)} ${unitLabel}`}
                                   </span>
-                                  <span className="font-extrabold truncate">{b.branch_name}</span>
-                                  {b.is_current && (
-                                    <span className="text-[9px] font-black text-indigo-700 shrink-0">(Burada)</span>
-                                  )}
                                 </div>
-                                <span className={`font-black tabular-nums shrink-0 ${
-                                  bQty <= 0
-                                    ? 'text-rose-600'
-                                    : bQty <= Number(product.min_stock_level || 5)
-                                      ? 'text-amber-600'
-                                      : 'text-emerald-700'
-                                }`}>
-                                  {bQty <= 0 ? (lang === 'tr' ? 'Stok Yok (0)' : 'Out (0)') : `${Math.floor(bQty)} ${unitLabel}`}
-                                </span>
+                                {staffLocs.length > 0 && (
+                                  <div className="pt-1 border-t border-slate-100 space-y-0.5 text-[10px] text-slate-600">
+                                    {staffLocs.map((loc: any, idx: number) => (
+                                      <div key={idx} className="flex items-center justify-between gap-2">
+                                        <span className="truncate font-medium text-indigo-800">{loc.full_path}</span>
+                                        <span className="font-mono font-semibold text-slate-800 tabular-nums shrink-0">
+                                          {loc.quantity} {unitLabel}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             );
                           })}
@@ -558,28 +574,43 @@ export default function CustomerScanPage({ customSlug }: { customSlug?: string }
                     );
                   }
 
+                  const singleStaffLocs = Array.isArray(branchStocks[0]?.locations) ? branchStocks[0].locations : [];
                   return (
-                    <div className="bg-slate-100 border-2 border-slate-200/90 rounded-2xl p-4 flex items-center justify-between shadow-xs">
-                      <div className="flex items-center space-x-2.5">
-                        <Package className="text-slate-600 h-5 w-5 shrink-0" />
-                        <span className="text-xs font-black text-slate-600 uppercase tracking-widest">
-                          {lang === 'tr' ? 'STOKTAKİ ADET' : 'STOCK IN STORE'}
-                        </span>
+                    <div className="bg-slate-100 border-2 border-slate-200/90 rounded-2xl p-4 space-y-2 shadow-xs">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2.5">
+                          <Package className="text-slate-600 h-5 w-5 shrink-0" />
+                          <span className="text-xs font-black text-slate-600 uppercase tracking-widest">
+                            {lang === 'tr' ? 'STOKTAKİ ADET' : 'STOCK IN STORE'}
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-1.5">
+                          <span className={`text-2xl font-black tabular-nums ${
+                            stockQty <= 0 
+                              ? 'text-rose-600' 
+                              : stockQty <= Number(product.min_stock_level || 5)
+                                ? 'text-amber-600'
+                                : 'text-emerald-700'
+                          }`}>
+                            {Math.floor(stockQty)}
+                          </span>
+                          <span className="text-xs font-bold text-slate-500 uppercase">
+                            {unitLabel}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex items-center space-x-1.5">
-                        <span className={`text-2xl font-black tabular-nums ${
-                          stockQty <= 0 
-                            ? 'text-rose-600' 
-                            : stockQty <= Number(product.min_stock_level || 5)
-                              ? 'text-amber-600'
-                              : 'text-emerald-700'
-                        }`}>
-                          {Math.floor(stockQty)}
-                        </span>
-                        <span className="text-xs font-bold text-slate-500 uppercase">
-                          {unitLabel}
-                        </span>
-                      </div>
+                      {singleStaffLocs.length > 0 && (
+                        <div className="pt-2 border-t border-slate-200 space-y-1 text-[11px]">
+                          {singleStaffLocs.map((loc: any, idx: number) => (
+                            <div key={idx} className="flex items-center justify-between gap-2 bg-white px-2.5 py-1 rounded-lg border border-slate-200/80">
+                              <span className="truncate font-semibold text-indigo-800">{loc.full_path}</span>
+                              <span className="font-mono font-bold text-slate-800 tabular-nums shrink-0">
+                                {loc.quantity} {unitLabel}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 })()}

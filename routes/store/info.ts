@@ -82,7 +82,15 @@ router.get("/", async (req: any, res) => {
         description, einvoice_settings, footer_links, parent_id, store_type, sub_sector, store_code, hotel_module_enabled,
         hero_title, hero_subtitle, hero_image_url, instagram_url, facebook_url, twitter_url, whatsapp_number, about_text,
         hepsiburada_settings, trendyol_settings, amazon_settings, pazarama_settings, n11_settings,
-        google_merchant_settings, instagram_settings, instagram_access_token, instagram_business_account_id
+        google_merchant_settings, instagram_settings, instagram_access_token, instagram_business_account_id,
+        COALESCE(branch_type, 'STORE') AS branch_type,
+        COALESCE(has_pos, TRUE) AS has_pos,
+        COALESCE(is_central_warehouse, FALSE) AS is_central_warehouse,
+        COALESCE(allow_direct_sales, TRUE) AS allow_direct_sales,
+        COALESCE(use_bin_locations, FALSE) AS use_bin_locations,
+        COALESCE(receiving_sla_hours, 24) AS receiving_sla_hours,
+        COALESCE(include_in_online_stock, FALSE) AS include_in_online_stock,
+        COALESCE(sell_receiving_stock, FALSE) AS sell_receiving_stock
       FROM stores 
       WHERE id = $1
     `, [targetStoreId]);
@@ -285,10 +293,31 @@ router.get("/", async (req: any, res) => {
       store.branding.pos_bridge_port = bridgeCfg.bridge_port;
     }
 
+    // Fetch family branches & warehouses metadata
+    const familyRootId = store.parent_id ? Number(store.parent_id) : Number(store.id);
+    const whRes = await pool.query(
+      `SELECT id, name, slug, COALESCE(branch_type, 'STORE') AS branch_type,
+              COALESCE(is_central_warehouse, FALSE) AS is_central_warehouse,
+              COALESCE(use_bin_locations, FALSE) AS use_bin_locations
+       FROM stores
+       WHERE (id = $1 OR parent_id = $1) AND COALESCE(branch_type, 'STORE') = 'WAREHOUSE'
+       ORDER BY is_central_warehouse DESC, id ASC`,
+      [familyRootId]
+    );
+    store.warehouses = whRes.rows;
+    store.has_warehouses = whRes.rows.length > 0;
+    store.branding.warehouses = whRes.rows;
+    store.branding.has_warehouses = whRes.rows.length > 0;
+    store.branding.branch_type = store.branch_type;
+    store.branding.has_pos = store.has_pos;
+    store.branding.is_central_warehouse = store.is_central_warehouse;
+    store.branding.allow_direct_sales = store.allow_direct_sales;
+    store.branding.use_bin_locations = store.use_bin_locations;
+
     // Fetch branches if this is a main store (HQ), or inherit HQ corporate identity if this is a branch
     if (!store.parent_id) {
       const branchesRes = await pool.query(
-        "SELECT id, name, slug, address, phone FROM stores WHERE parent_id = $1",
+        "SELECT id, name, slug, address, phone, COALESCE(branch_type, 'STORE') AS branch_type, COALESCE(has_pos, TRUE) AS has_pos, COALESCE(use_bin_locations, FALSE) AS use_bin_locations FROM stores WHERE parent_id = $1",
         [store.id]
       );
       store.branches = branchesRes.rows;

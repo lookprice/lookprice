@@ -48,7 +48,8 @@ import {
   ChevronRight,
   FolderTree,
   Loader2,
-  LogOut
+  LogOut,
+  Warehouse
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { translations } from "@/translations";
@@ -98,6 +99,7 @@ const BlogTab = React.lazy(() => import("./BlogTab"));
 const ProcurementTab = React.lazy(() => import("./ProcurementTab").then(m => ({ default: m.ProcurementTab })));
 const ServiceTab = React.lazy(() => import("./ServiceTab").then(m => ({ default: m.ServiceTab })));
 const StockTransferTab = React.lazy(() => import("./StockTransferTab"));
+const WarehouseTab = React.lazy(() => import("./warehouse/WarehouseTab"));
 const AuthorityTransferTab = React.lazy(() => import("./AuthorityTransferTab"));
 const FleetTab = React.lazy(() => import("./FleetTab"));
 const MetaIntegrationTab = React.lazy(() => import("./MetaIntegrationTab"));
@@ -1083,6 +1085,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       ...(!isCafeRestaurant ? [{ id: "fleet", label: txt('Filo Yönetimi', 'Fleet Management', 'Διαχείριση Στόλου'), icon: Car, badge: notifications.fleet }] : []),
       { id: "procurements", label: t.procurements, icon: Truck },
       { id: "stock_transfer", label: t.stock_transfer, icon: ArrowLeftRight, badge: notifications.transfers },
+      ...(isShopLp && !isCafeRestaurant && !isPortfolio ? [{ id: "warehouse", label: txt('Depo & Raf Yönetimi', 'Warehouse & Bins', 'Αποθήκη & Ράφια'), icon: Warehouse }] : []),
     ]},
     { type: 'category', key: "sales", title: txt('Finans', 'Finance', 'Οικονομικά'), items: [
       ...(!isCafeRestaurant ? [{ 
@@ -1101,8 +1104,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         badge: Number(notifications?.reconciliations_total || 0) > 0 ? Number(notifications?.reconciliations_total) : undefined,
         badgeType: Number(notifications?.reconciliations_disputed || 0) > 0 ? 'error' : 'normal'
       },
-      { id: "pos", label: t.pos, icon: CreditCard, badge: notifications.sales },
-      { id: "fast-pos", label: t.fastPos, icon: Scan },
+      ...(!(branding?.branch_type === 'WAREHOUSE' && branding?.has_pos === false) ? [{ id: "pos", label: t.pos, icon: CreditCard, badge: notifications.sales }] : []),
+      ...(!(branding?.branch_type === 'WAREHOUSE' && branding?.has_pos === false) ? [{ id: "fast-pos", label: t.fastPos, icon: Scan }] : []),
     ]},
     { type: 'category', key: "integrations", title: txt('Yedekleme & Kanallar', 'Backup & Channels', 'Δημιουργία Αντιγράφων & Κανάλια'), items: [
       { id: "meta", label: "Meta Entegrasyonu", icon: Facebook },
@@ -1143,6 +1146,13 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
           })
           .filter(category => category.type === 'item' || (category.type === 'category' && category.items.length > 0))
       : rawNavItems;
+
+    if (activeStaffRole === 'warehouse_staff' && isShopLp && !isCafeRestaurant && !isPortfolio) {
+      return [
+        { type: 'item', id: "warehouse", label: txt('Depo & Raf Yönetimi', 'Warehouse & Bins', 'Αποθήκη & Ράφια'), icon: Warehouse },
+        { type: 'item', id: "stock_transfer", label: t.stock_transfer, icon: ArrowLeftRight }
+      ];
+    }
 
     if (!isCafeRestaurant) return branchFilteredItems;
     
@@ -1977,6 +1987,13 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   includeBranches={includeBranches}
                   onUpdate={fetchData}
                   branding={branding}
+                />
+              )}
+              {activeTab === "warehouse" && isShopLp && !isCafeRestaurant && !isPortfolio && permittedTabIds.has("warehouse") && (
+                <WarehouseTab
+                  storeId={currentStoreId!}
+                  products={products}
+                  onRefreshDashboard={() => fetchData(true)}
                 />
               )}
               {activeTab === "service" && permittedTabIds.has("service") && (

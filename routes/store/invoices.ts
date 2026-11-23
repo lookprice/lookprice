@@ -6,6 +6,7 @@ import { getTurkishSearchSnippet, normalizeTurkishParam } from "./utils";
 import { findMatchingProduct, findOrCreateProductForInvoiceItem, deduplicateInitialStockOnInvoiceMatch, transferAndCleanupInvoiceGeneratedProduct, saveSupplierMapping, sanitizeInvoiceItemCodes, isValidStandardBarcode, resolveExpenseClassification, revertInvoiceStockAndProducts, detectExpenseCategory, generateTempBarcode, hasProductMatchConflict, invalidateStoreProductsCache, extractModelTokens, isShopLPStore, isNonStockFeeOrServiceItem, DEFAULT_EXPENSE_CENTERS } from "./invoiceMatching";
 import { mergeProducts } from "./products";
 import { recalculateProductReservedStock, syncProductStockToMarketplaces } from "../../src/services/marketplaceSync";
+import { recordInboundToStore, reconcileProductDefaultLocation } from "../../src/services/backend/warehouseService";
 
 const router = express.Router();
 
@@ -4190,6 +4191,7 @@ router.post("/purchase/:id/operator-approve", async (req: any, res) => {
     expense_category,
     expense_center,
     remember_supplier_expense = false,
+    target_warehouse_id = null,
     items: submittedItems = []
   } = req.body || {};
 
@@ -4198,6 +4200,20 @@ router.post("/purchase/:id/operator-approve", async (req: any, res) => {
 
   try {
     await client.query("BEGIN");
+
+    // Resolve optional target warehouse for two-stage receiving (only if belongs to same family)
+    let resolvedReceivingStoreId = Number(storeId);
+    if (target_warehouse_id && Number(target_warehouse_id) !== Number(storeId)) {
+      const rootCheck = await client.query("SELECT COALESCE(parent_id, id) AS root_id FROM stores WHERE id = $1", [storeId]);
+      const rootId = Number(rootCheck.rows[0]?.root_id || storeId);
+      const whCheck = await client.query(
+        "SELECT id FROM stores WHERE id = $1 AND (id = $2 OR parent_id = $2)",
+        [Number(target_warehouse_id), rootId]
+      );
+      if (whCheck.rows.length > 0) {
+        resolvedReceivingStoreId = Number(whCheck.rows[0].id);
+      }
+    }
 
     const invRes = await client.query(
       "SELECT * FROM purchase_invoices WHERE id = $1 AND store_id = $2 FOR UPDATE",
@@ -4422,22 +4438,58 @@ router.post("/purchase/:id/operator-approve", async (req: any, res) => {
               [storeId, targetProdId, inv.id]
             );
             if (movCheck.rows.length === 0) {
+              // If routed to a dedicated warehouse branch, mirror/receive product into that warehouse's RECEIVING bin
+              let stockDestStoreId = Number(storeId);
+              let stockDestProdId = Number(targetProdId);
+
+              if (resolvedReceivingStoreId !== Number(storeId)) {
+                stockDestStoreId = resolvedReceivingStoreId;
+                const whProdRes = await client.query(
+                  "SELECT id FROM products WHERE store_id = $1 AND TRIM(barcode) = TRIM($2) LIMIT 1",
+                  [stockDestStoreId, targetBarcode || '']
+                );
+                if (whProdRes.rows.length > 0) {
+                  stockDestProdId = Number(whProdRes.rows[0].id);
+                } else {
+                  const srcProdRes = await client.query("SELECT * FROM products WHERE id = $1", [targetProdId]);
+                  const sp = srcProdRes.rows[0];
+                  if (sp) {
+                    const newWhProd = await client.query(
+                      `INSERT INTO products (store_id, barcode, name, product_code, sku, price, currency, cost_price, cost_currency, tax_rate, description, stock_quantity, unit, category, is_web_sale, product_type)
+                       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,0,$12,$13,$14,$15) RETURNING id`,
+                      [stockDestStoreId, sp.barcode, sp.name, sp.product_code, sp.sku, sp.price, sp.currency, rawUnitPrice || sp.cost_price, inv.currency || sp.cost_currency, sp.tax_rate, sp.description, sp.unit, sp.category, sp.is_web_sale, sp.product_type]
+                    );
+                    stockDestProdId = Number(newWhProd.rows[0].id);
+                  }
+                }
+              }
+
+              await reconcileProductDefaultLocation(client, stockDestStoreId, stockDestProdId);
               await client.query(
                 `UPDATE products
-                 SET stock_quantity = COALESCE(stock_quantity, 0) + $1::numeric,
-                     cost_price = CASE WHEN COALESCE($2::numeric, 0) > 0 THEN $2::numeric ELSE cost_price END,
-                     cost_currency = COALESCE($3, cost_currency),
+                 SET cost_price = CASE WHEN COALESCE($1::numeric, 0) > 0 THEN $1::numeric ELSE cost_price END,
+                     cost_currency = COALESCE($2, cost_currency),
                      updated_at = CURRENT_TIMESTAMP
-                 WHERE id = $4 AND store_id = $5`,
-                [qtyToStock, rawUnitPrice, inv.currency || 'TRY', targetProdId, storeId]
+                 WHERE id = $3 AND store_id = $4`,
+                [rawUnitPrice, inv.currency || 'TRY', stockDestProdId, stockDestStoreId]
               );
+              await recordInboundToStore(client, {
+                storeId: stockDestStoreId,
+                productId: stockDestProdId,
+                quantity: qtyToStock,
+                movementType: "INBOUND",
+                referenceType: "PURCHASE_INVOICE",
+                referenceId: Number(inv.id),
+                note: `Alış Faturası: ${invNum}`,
+                performedBy: req.user?.id || null
+              });
               await client.query(
                 `INSERT INTO stock_movements
                   (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency, created_at, invoice_id, invoice_type, invoice_number)
                  VALUES ($1, $2, 'in', $3, 'purchase_invoice', $4, $5, $6, $7, $8, $9, 'purchase', $10)`,
                 [
-                  storeId,
-                  targetProdId,
+                  stockDestStoreId,
+                  stockDestProdId,
                   qtyToStock,
                   `Alış Faturası: ${invNum}`,
                   rawUnitPrice,

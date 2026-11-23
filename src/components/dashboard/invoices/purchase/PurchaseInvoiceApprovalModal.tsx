@@ -34,6 +34,7 @@ interface PurchaseInvoiceApprovalModalProps {
   onAddExpenseCenter: (name: string) => Promise<ExpenseCenterOption | null>;
   handleViewHtml?: (id: number, inv?: any) => void;
   storeId?: number;
+  warehouses?: Array<{ id: number; name: string; is_central_warehouse?: boolean }>;
   onApproved: () => Promise<void> | void;
 }
 
@@ -76,9 +77,11 @@ export const PurchaseInvoiceApprovalModal: React.FC<PurchaseInvoiceApprovalModal
   onAddExpenseCenter,
   handleViewHtml,
   storeId,
+  warehouses = [],
   onApproved,
 }) => {
   const [mode, setMode] = useState<"stock" | "expense">("stock");
+  const [targetWarehouseId, setTargetWarehouseId] = useState<string>("");
   const [expenseCategory, setExpenseCategory] = useState<string>("diger");
   const [expenseCenter, setExpenseCenter] = useState<string>("office");
   const [rememberSupplierExpense, setRememberSupplierExpense] = useState<boolean>(false);
@@ -93,6 +96,8 @@ export const PurchaseInvoiceApprovalModal: React.FC<PurchaseInvoiceApprovalModal
 
     const suggestExpense = Boolean(invoice.is_expense || invoice.suggested_is_expense);
     setMode(suggestExpense ? "expense" : "stock");
+    const defaultWh = warehouses.find(w => w.is_central_warehouse) || warehouses[0];
+    setTargetWarehouseId(defaultWh ? String(defaultWh.id) : "");
     setExpenseCategory(invoice.expense_category || "diger");
     setExpenseCenter(
       invoice.expense_center ||
@@ -222,6 +227,7 @@ export const PurchaseInvoiceApprovalModal: React.FC<PurchaseInvoiceApprovalModal
           : {
               mode: "stock",
               remember_supplier_expense: false,
+              target_warehouse_id: warehouses.length > 0 && targetWarehouseId ? Number(targetWarehouseId) : null,
               items: invItems.map((item: any) => {
                 const d = decisions[item.id];
                 const resQty =
@@ -368,6 +374,27 @@ export const PurchaseInvoiceApprovalModal: React.FC<PurchaseInvoiceApprovalModal
               <span>{isTr ? "Gider Olarak Onayla" : "Approve as Expense"}</span>
             </button>
           </div>
+
+          {warehouses.length > 0 && mode === "stock" && (
+            <div className="flex items-center gap-2 bg-white border border-indigo-200 rounded-xl px-2.5 py-1.5">
+              <span className="text-[11px] font-semibold text-indigo-800 whitespace-nowrap">
+                {isTr ? "Mal Kabul Hedefi:" : "Receiving Target:"}
+              </span>
+              <select
+                value={targetWarehouseId}
+                onChange={(e) => setTargetWarehouseId(e.target.value)}
+                className="text-xs font-medium text-slate-900 bg-transparent focus:outline-none max-w-[220px] truncate"
+              >
+                {warehouses.map((w) => (
+                  <option key={w.id} value={String(w.id)}>
+                    {w.name}
+                    {w.is_central_warehouse ? (isTr ? " (Merkez Depo · Mal Kabul)" : " (Central · Receiving)") : (isTr ? " (Depo · Mal Kabul)" : " (Warehouse)")}
+                  </option>
+                ))}
+                <option value="">{isTr ? "Mevcut Mağaza (Direkt Stok)" : "Current Store (Direct Stock)"}</option>
+              </select>
+            </div>
+          )}
 
           {invoice.suggested_is_expense && (
             <div className="text-[11px] font-medium text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg flex items-center gap-1.5">
