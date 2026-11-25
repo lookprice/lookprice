@@ -827,7 +827,9 @@ export const DeleteStoreModal: React.FC<{
   password: string;
   setPassword: (p: string) => void;
   onDelete: (e: React.FormEvent) => void;
-}> = ({ isOpen, onClose, store, password, setPassword, onDelete }) => (
+  isDeleting?: boolean;
+  errorMessage?: string | null;
+}> = ({ isOpen, onClose, store, password, setPassword, onDelete, isDeleting = false, errorMessage = null }) => (
   <AnimatePresence>
     {isOpen && (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
@@ -839,17 +841,24 @@ export const DeleteStoreModal: React.FC<{
           <h2 className="text-lg font-bold mb-3 text-red-600 flex items-center">
             <AlertTriangle className="mr-2 h-5 w-5" /> Mağazayı Sil
           </h2>
-          <p className="text-xs text-gray-600 mb-5 font-medium">
+          <p className="text-xs text-gray-600 mb-4 font-medium">
             <span className="font-bold text-gray-900">{store.name}</span> mağazasını ve tüm verilerini kalıcı olarak silmek istediğinize emin misiniz?
           </p>
+
+          {errorMessage && (
+            <div className="mb-3 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs font-semibold">
+              {errorMessage}
+            </div>
+          )}
           
           <form onSubmit={onDelete} className="space-y-3">
             <div>
-              <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Admin Şifrenizi Girin</label>
+              <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1.5">Admin Şifrenizi Girin</label>
               <input 
                 type="password" 
                 required
-                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:border-red-500 focus:ring-0 transition-all text-sm"
+                disabled={isDeleting}
+                className="w-full p-3 bg-gray-50 text-gray-900 border border-gray-200 rounded-lg focus:border-red-500 focus:ring-0 transition-all text-sm disabled:opacity-60"
                 placeholder="Şifreniz"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
@@ -861,15 +870,17 @@ export const DeleteStoreModal: React.FC<{
               <button 
                 type="button"
                 onClick={onClose}
-                className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg font-bold text-sm hover:bg-gray-200 transition-all"
+                disabled={isDeleting}
+                className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg font-bold text-sm hover:bg-gray-200 transition-all disabled:opacity-50"
               >
                 Vazgeç
               </button>
               <button 
                 type="submit"
-                className="flex-1 bg-red-600 text-white py-2 rounded-lg font-bold text-sm hover:bg-red-700 transition-all shadow-sm"
+                disabled={isDeleting}
+                className="flex-1 bg-red-600 text-white py-2 rounded-lg font-bold text-sm hover:bg-red-700 transition-all shadow-sm disabled:opacity-60"
               >
-                Sil
+                {isDeleting ? "Siliniyor..." : "Sil"}
               </button>
             </div>
           </form>

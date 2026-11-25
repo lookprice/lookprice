@@ -200,7 +200,7 @@ router.get("/supabase-status", async (req: any, res) => {
     } = {
       configured: r2Cfg.configured,
       connected: false,
-      bucket: r2Cfg.bucket,
+      bucket: r2Cfg.bucketName,
       publicUrl: r2Cfg.publicUrl,
       message: r2Cfg.configured ? "Bağlantı test ediliyor..." : "R2 ortam değişkenleri henüz tanımlı değil.",
     };
@@ -209,8 +209,8 @@ router.get("/supabase-status", async (req: any, res) => {
         const testRes = await testR2Connection();
         r2Status = {
           configured: true,
-          connected: testRes.ok,
-          bucket: r2Cfg.bucket,
+          connected: testRes.connected,
+          bucket: r2Cfg.bucketName,
           publicUrl: r2Cfg.publicUrl,
           message: testRes.message,
         };
@@ -318,7 +318,7 @@ router.post("/r2-migrate-batch", async (req: any, res) => {
     const purgeMigrated = req.body?.purgeMigrated !== false;
 
     const conn = await testR2Connection();
-    if (!conn.ok) {
+    if (!conn.connected) {
       return res.status(400).json({
         success: false,
         error: `Cloudflare R2 bağlantısı doğrulanamadı: ${conn.message}`,
@@ -371,6 +371,19 @@ router.post("/r2-migrate-batch", async (req: any, res) => {
     const remainingMB = parseFloat((Number(remRes.rows[0]?.total_bytes || 0) / (1024 * 1024)).toFixed(2));
     const freedMB = parseFloat((freedBytes / (1024 * 1024)).toFixed(2));
 
+    let vacuumed = false;
+    if (purgeMigrated && remainingCount === 0) {
+      try {
+        await pool.query("VACUUM FULL app_storage_files");
+        vacuumed = true;
+      } catch {
+        try {
+          await pool.query("VACUUM app_storage_files");
+          vacuumed = true;
+        } catch {}
+      }
+    }
+
     cachedSupabaseStatusTime = 0;
 
     res.json({
@@ -379,9 +392,10 @@ router.post("/r2-migrate-batch", async (req: any, res) => {
       failedCount,
       freedMB,
       purgedFromPostgres: purgeMigrated,
+      vacuumed,
       remainingCount,
       remainingMB,
-      bucket: getR2Config().bucket,
+      bucket: getR2Config().bucketName,
       errors: errors.slice(0, 5),
     });
   } catch (e: any) {
@@ -1234,39 +1248,137 @@ router.post("/stores/:id/clone-config", async (req: any, res) => {
 });
 
 router.post("/stores/:id/delete", async (req: any, res) => {
-  const { id } = req.params;
-  const { password } = req.body;
+  const storeId = Number(req.params.id);
+  const { password } = req.body || {};
 
-  if (!password) return res.status(400).json({ error: "Password required" });
+  if (!Number.isFinite(storeId) || storeId <= 0) {
+    return res.status(400).json({ error: "Geçersiz mağaza ID." });
+  }
+  if (!password) {
+    return res.status(400).json({ error: "Admin şifresi zorunludur." });
+  }
 
   try {
-    // Verify admin password
+    // 1. Verify admin password
     const admin = await pool.query("SELECT password FROM users WHERE id = $1", [req.user.id]);
-    if (!admin.rows[0] || !bcrypt.compareSync(password, admin.rows[0].password)) {
-      return res.status(401).json({ error: "Invalid admin password" });
+    if (!admin.rows[0] || !bcrypt.compareSync(String(password), admin.rows[0].password)) {
+      return res.status(401).json({ error: "Admin şifresi hatalı." });
     }
 
-    await pool.query("BEGIN");
-    
-    // Dynamically delete from all tables referencing store_id
-    const tablesRes = await pool.query(`
-      SELECT table_name 
-      FROM information_schema.columns 
-      WHERE column_name = 'store_id' AND table_schema = 'public'
-    `);
-    for (const row of tablesRes.rows) {
-      if (row.table_name === "stores") continue;
-      await pool.query(`DELETE FROM ${row.table_name} WHERE store_id = $1`, [id]).catch(() => {});
+    const storeCheck = await pool.query("SELECT id, name, slug FROM stores WHERE id = $1", [storeId]);
+    if (storeCheck.rows.length === 0) {
+      return res.status(404).json({ error: "Silinecek mağaza bulunamadı." });
     }
+    const targetStore = storeCheck.rows[0];
 
-    await pool.query("DELETE FROM stores WHERE id = $1", [id]);
-    await pool.query("COMMIT");
-    
-    res.json({ success: true });
+    // 2. Single round-trip server-side PL/pgSQL cascade delete (executes entirely inside PostgreSQL in <200ms)
+    await pool.query(
+      `
+      DO $body$
+      DECLARE
+        v_store_id INT := $1;
+        r RECORD;
+        fk RECORD;
+        v_pass INT;
+      BEGIN
+        -- Protect superadmin users & detach child branches
+        BEGIN
+          UPDATE public.users SET store_id = NULL WHERE store_id = v_store_id AND role = 'superadmin';
+        EXCEPTION WHEN OTHERS THEN NULL;
+        END;
+
+        BEGIN
+          UPDATE public.stores SET parent_id = NULL WHERE parent_id = v_store_id;
+        EXCEPTION WHEN OTHERS THEN NULL;
+        END;
+
+        -- Pass 1: Delete 2nd-level child tables referencing 1st-level store tables via FK constraints
+        FOR fk IN
+          SELECT
+            child_cls.relname AS child_table,
+            child_att.attname AS child_col,
+            parent_cls.relname AS parent_table,
+            parent_att.attname AS parent_col,
+            sc.column_name AS store_col
+          FROM pg_constraint con
+          JOIN pg_class child_cls ON child_cls.oid = con.conrelid
+          JOIN pg_namespace child_nsp ON child_nsp.oid = child_cls.relnamespace
+          JOIN pg_class parent_cls ON parent_cls.oid = con.confrelid
+          JOIN pg_attribute child_att ON child_att.attrelid = con.conrelid AND child_att.attnum = con.conkey[1]
+          JOIN pg_attribute parent_att ON parent_att.attrelid = con.confrelid AND parent_att.attnum = con.confkey[1]
+          JOIN information_schema.columns sc
+            ON sc.table_schema = 'public'
+           AND sc.table_name = parent_cls.relname
+           AND sc.column_name IN ('store_id', 'branch_id', 'from_store_id', 'to_store_id', 'source_store_id', 'target_store_id', 'tenant_id', 'root_store_id')
+          WHERE con.contype = 'f'
+            AND child_nsp.nspname = 'public'
+            AND child_cls.relname NOT IN ('stores', 'users')
+            AND parent_cls.relname <> 'stores'
+        LOOP
+          BEGIN
+            EXECUTE format(
+              'DELETE FROM public.%I WHERE %I IN (SELECT %I FROM public.%I WHERE %I::text = $1::text)',
+              fk.child_table, fk.child_col, fk.parent_col, fk.parent_table, fk.store_col
+            ) USING v_store_id;
+          EXCEPTION WHEN OTHERS THEN NULL;
+          END;
+        END LOOP;
+
+        -- Pass 2 & 3: Delete from all BASE TABLEs having store/branch/tenant columns
+        FOR v_pass IN 1..2 LOOP
+          FOR r IN
+            SELECT c.table_name, c.column_name, c.data_type
+            FROM information_schema.columns c
+            JOIN information_schema.tables t
+              ON t.table_schema = c.table_schema AND t.table_name = c.table_name
+            WHERE c.table_schema = 'public'
+              AND t.table_type = 'BASE TABLE'
+              AND c.table_name <> 'stores'
+              AND c.column_name IN (
+                'store_id', 'branch_id', 'from_store_id', 'to_store_id',
+                'source_store_id', 'target_store_id', 'tenant_id', 'root_store_id'
+              )
+          LOOP
+            BEGIN
+              IF r.table_name = 'users' THEN
+                EXECUTE format(
+                  'DELETE FROM public.%I WHERE %I::text = $1::text AND COALESCE(role, '''') <> ''superadmin''',
+                  r.table_name, r.column_name
+                ) USING v_store_id;
+              ELSIF r.data_type IN ('integer', 'bigint', 'smallint') THEN
+                EXECUTE format(
+                  'DELETE FROM public.%I WHERE %I = $1',
+                  r.table_name, r.column_name
+                ) USING v_store_id;
+              ELSE
+                EXECUTE format(
+                  'DELETE FROM public.%I WHERE %I::text = $1::text',
+                  r.table_name, r.column_name
+                ) USING v_store_id;
+              END IF;
+            EXCEPTION WHEN OTHERS THEN NULL;
+            END;
+          END LOOP;
+        END LOOP;
+
+        -- Finally delete the store itself
+        DELETE FROM public.stores WHERE id = v_store_id;
+      END
+      $body$;
+      `.replace("$1", String(Math.floor(storeId)))
+    );
+
+    // Invalidate public caches for the deleted store
+    try {
+      const { invalidateStorePublicCache } = await import("./public");
+      await invalidateStorePublicCache(storeId, targetStore.slug);
+    } catch {}
+
+    res.json({ success: true, deletedId: storeId, deletedName: targetStore.name });
   } catch (e: any) {
-    await pool.query("ROLLBACK");
     console.error("Error deleting store:", e);
-    res.status(400).json({ error: e.message });
+    const detail = e?.detail ? ` (${e.detail})` : "";
+    res.status(400).json({ error: `${e?.message || "Mağaza silinemedi"}${detail}` });
   }
 });
 

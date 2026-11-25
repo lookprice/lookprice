@@ -11,11 +11,22 @@ export interface R2Config {
 }
 
 export function getR2Config(): R2Config {
-  const accountId = String(process.env.R2_ACCOUNT_ID || process.env.CLOUDFLARE_ACCOUNT_ID || "").trim();
+  let rawAccountId = String(process.env.R2_ACCOUNT_ID || process.env.CLOUDFLARE_ACCOUNT_ID || "").trim();
+  // Defensive: if user pasted full S3 endpoint URL (e.g. https://<id>.r2.cloudflarestorage.com/bucket), extract <id>
+  if (rawAccountId.includes(".r2.cloudflarestorage.com")) {
+    const match = rawAccountId.match(/([a-f0-9]{16,64})\.r2\.cloudflarestorage\.com/i);
+    if (match?.[1]) {
+      rawAccountId = match[1];
+    }
+  }
+  const accountId = rawAccountId.replace(/^https?:\/\//i, "").split("/")[0].trim();
   const accessKeyId = String(process.env.R2_ACCESS_KEY_ID || "").trim();
   const secretAccessKey = String(process.env.R2_SECRET_ACCESS_KEY || "").trim();
   const bucketName = String(process.env.R2_BUCKET_NAME || "lookprice-media").trim();
-  const publicUrl = String(process.env.R2_PUBLIC_URL || "").trim().replace(/\/+$/, "");
+  let publicUrl = String(process.env.R2_PUBLIC_URL || "").trim().replace(/\/+$/, "");
+  if (publicUrl && !/^https?:\/\//i.test(publicUrl)) {
+    publicUrl = `https://${publicUrl}`;
+  }
   const endpoint = accountId ? `https://${accountId}.r2.cloudflarestorage.com` : "";
   const configured = Boolean(accountId && accessKeyId && secretAccessKey && bucketName);
   return {

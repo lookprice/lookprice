@@ -78,6 +78,8 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
   const [showAdd, setShowAdd] = useState(false);
   const [storeToDelete, setStoreToDelete] = useState<any>(null);
   const [deletePassword, setDeletePassword] = useState("");
+  const [deletingStore, setDeletingStore] = useState(false);
+  const [deleteStoreError, setDeleteStoreError] = useState<string | null>(null);
   const [storeSearchTerm, setStoreSearchTerm] = useState("");
   const [leadSearchTerm, setLeadSearchTerm] = useState("");
   const [storeFilter, setStoreFilter] = useState<'all' | 'active' | 'expiring_soon' | 'expired'>('all');
@@ -675,13 +677,29 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
 
   const handleDeleteStore = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!storeToDelete || deletingStore) return;
+    setDeletingStore(true);
+    setDeleteStoreError(null);
     try {
-      await api.deleteStore(storeToDelete.id, deletePassword);
+      const res = await api.deleteStore(storeToDelete.id, deletePassword);
+      if (!res || res.error || res.success === false) {
+        setDeleteStoreError(
+          res?.error ||
+            (lang === "tr" ? "Şifre hatalı veya mağaza silinemedi." : "Incorrect password or store could not be deleted.")
+        );
+        return;
+      }
       setStoreToDelete(null);
       setDeletePassword("");
+      setDeleteStoreError(null);
       fetchData();
-    } catch (error) {
-      alert(lang === 'tr' ? "Şifre hatalı veya mağaza silinemedi" : "Incorrect password or store could not be deleted");
+    } catch (error: any) {
+      setDeleteStoreError(
+        error?.message ||
+          (lang === "tr" ? "Şifre hatalı veya mağaza silinemedi." : "Incorrect password or store could not be deleted.")
+      );
+    } finally {
+      setDeletingStore(false);
     }
   };
 
@@ -1058,11 +1076,20 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
         />
         <DeleteStoreModal 
           isOpen={!!storeToDelete}
-          onClose={() => setStoreToDelete(null)}
+          onClose={() => {
+            setStoreToDelete(null);
+            setDeletePassword("");
+            setDeleteStoreError(null);
+          }}
           store={storeToDelete || {}}
           password={deletePassword}
-          setPassword={setDeletePassword}
+          setPassword={(val) => {
+            setDeletePassword(val);
+            if (deleteStoreError) setDeleteStoreError(null);
+          }}
           onDelete={handleDeleteStore}
+          isDeleting={deletingStore}
+          errorMessage={deleteStoreError}
         />
         <AddStoreModal 
           isOpen={showAdd}
