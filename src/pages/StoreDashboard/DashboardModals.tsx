@@ -130,6 +130,8 @@ export interface DashboardModalsProps {
   editingProduct?: any;
   setEditingProduct?: (p: any) => void;
   handleAddProduct?: (e: React.FormEvent) => void;
+  initialProductModalTab?: 'general' | 'variants' | 'placement';
+  onPlacementChanged?: () => void;
 
   showCompanyModal?: boolean;
   setShowCompanyModal?: (show: boolean) => void;
@@ -189,6 +191,7 @@ export const DashboardModals: React.FC<DashboardModalsProps> = (props) => {
     
     // Missing Modals Props
     showProductModal, setShowProductModal, editingProduct, setEditingProduct, handleAddProduct,
+    initialProductModalTab = 'general', onPlacementChanged,
     showCompanyModal, setShowCompanyModal, editingCompany, setEditingCompany, handleAddCompany,
     showUserModal, setShowUserModal, handleAddUser,
     showQuotationModal, setShowQuotationModal, editingQuotation, setEditingQuotation, quotationItems = [], setQuotationItems, handleAddQuotation, isTaxInclusive = false, setIsTaxInclusive, quotationNotes, setQuotationNotes,
@@ -393,6 +396,8 @@ export const DashboardModals: React.FC<DashboardModalsProps> = (props) => {
         branding={branding}
         translations={t}
         products={products}
+        initialTab={initialProductModalTab}
+        onPlacementChanged={onPlacementChanged}
       />
 
       {/* Company Add / Edit Modal */}

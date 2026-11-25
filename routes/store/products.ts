@@ -9,6 +9,7 @@ import { masterBookLookup, generateHighResBookCoverSvg } from "./bookLookupServi
 import { getPredefinedSectorPackages, seedStoreSectorTaxonomy, autoBridgeStoreCategories, populateMarketplaceMasterTaxonomies } from "./hepsiburadaTaxonomyService";
 import { computeSellableStock, recalculateProductReservedStock, syncProductStockToMarketplaces } from "../../src/services/marketplaceSync";
 import { matchProductSearch, expandAuthorQueryTerms } from "../../src/lib/searchUtils";
+import { isWarehouseEligibleStore } from "../../src/services/backend/warehouseService";
 
 export function cleanMpString(val: any): string | null {
   if (val === undefined || val === null) return null;
@@ -1993,6 +1994,73 @@ router.get("/", async (req: any, res) => {
         rows = rows.slice(safeOffset);
       }
     }
+
+    // Attach compact bin/shelf location summaries for warehouse-eligible (ShopLP/BookLP) stores
+    if (rows.length > 0) {
+      try {
+        const eligibility = await isWarehouseEligibleStore(pool, storeIdNum);
+        if (eligibility.eligible) {
+          const prodIds = rows.map((r: any) => Number(r.id)).filter((id: number) => !isNaN(id));
+          if (prodIds.length > 0) {
+            const [locStocksRes, branchSettingsRes] = await Promise.all([
+              pool.query(
+                `SELECT pls.product_id, pls.location_id, pls.quantity, pls.reserved_quantity,
+                        sl.name AS location_name, sl.code, sl.full_code, sl.full_path, sl.system_role
+                 FROM product_location_stocks pls
+                 JOIN storage_locations sl ON sl.id = pls.location_id
+                 WHERE pls.product_id = ANY($1::int[]) AND (pls.quantity > 0 OR pls.reserved_quantity > 0)
+                 ORDER BY (sl.system_role = 'STANDARD') DESC, sl.sort_order ASC, pls.quantity DESC`,
+                [prodIds]
+              ),
+              pool.query(
+                `SELECT pbs.product_id, pbs.store_id, pbs.default_location_id,
+                        dl.full_path AS default_location_path, dl.full_code AS default_location_code
+                 FROM product_branch_settings pbs
+                 LEFT JOIN storage_locations dl ON dl.id = pbs.default_location_id
+                 WHERE pbs.product_id = ANY($1::int[]) AND pbs.default_location_id IS NOT NULL`,
+                [prodIds]
+              )
+            ]);
+
+            const locMap = new Map<number, any[]>();
+            for (const ls of locStocksRes.rows) {
+              const pid = Number(ls.product_id);
+              if (!locMap.has(pid)) locMap.set(pid, []);
+              locMap.get(pid)!.push({
+                location_id: Number(ls.location_id),
+                name: ls.location_name,
+                code: ls.code,
+                full_code: ls.full_code,
+                full_path: ls.full_path,
+                system_role: ls.system_role,
+                quantity: Number(ls.quantity || 0),
+                reserved_quantity: Number(ls.reserved_quantity || 0)
+              });
+            }
+
+            const defMap = new Map<string, any>();
+            for (const bs of branchSettingsRes.rows) {
+              defMap.set(`${bs.product_id}_${bs.store_id}`, bs);
+            }
+
+            rows = rows.map((r: any) => {
+              const pid = Number(r.id);
+              const defSetting = defMap.get(`${pid}_${r.store_id}`);
+              return {
+                ...r,
+                location_summary: locMap.get(pid) || [],
+                default_location_id: defSetting?.default_location_id ? Number(defSetting.default_location_id) : null,
+                default_location_path: defSetting?.default_location_path || null,
+                default_location_code: defSetting?.default_location_code || null
+              };
+            });
+          }
+        }
+      } catch (locErr: any) {
+        console.warn("[Products GET] Location enrichment skipped:", locErr?.message);
+      }
+    }
+
     res.json(rows);
   } catch (error) {
     console.error("Fetch products error:", error);

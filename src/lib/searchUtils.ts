@@ -332,6 +332,10 @@ export const matchProductSearch = (p: any, search: string): boolean => {
     ? p.variants.map((v: any) => `${v.name || ''} ${v.barcode || ''} ${v.sku || ''}`).join(" ")
     : "";
 
+  const locationText = Array.isArray(p.location_summary)
+    ? p.location_summary.map((l: any) => `${l.full_path || ''} ${l.full_code || ''} ${l.name || ''}`).join(" ")
+    : "";
+
   const authorRaw = [p.author, sec.author, sec.writer, sec.translator].filter(Boolean).map(String).join(" ");
   const normAuthorText = normalizeSearch(authorRaw);
   const authorCollapsed = normAuthorText.replace(/[-_/.+'\s]+/g, "");
@@ -360,6 +364,9 @@ export const matchProductSearch = (p: any, search: string): boolean => {
     p.n11_id,
     p.trendyol_id,
     p.store_name,
+    p.default_location_path,
+    p.default_location_code,
+    locationText,
     variantText
   ].filter(Boolean).map(String);
 

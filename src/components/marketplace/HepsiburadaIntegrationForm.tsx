@@ -95,6 +95,26 @@ export const HepsiburadaIntegrationForm: React.FC<HepsiburadaIntegrationFormProp
   const [showHbSecret, setShowHbSecret] = useState(false);
   const [copiedWebhook, setCopiedWebhook] = useState(false);
 
+  const normalizedCargoValue =
+    String(hbDefaultCargoCompany || "Hepsijet").trim().toLowerCase() === "hepsijet"
+      ? "Hepsijet"
+      : (hbDefaultCargoCompany || "Hepsijet");
+
+  const syncHbBranding = (patch: Record<string, any>) => {
+    onBrandingChange('hepsiburada_settings', {
+      ...(branding.hepsiburada_settings || {}),
+      merchantId: hbMerchantId,
+      apiSecret: hbApiSecret,
+      apiKey: hbApiKey || "lookprice_dev",
+      defaultCargoCompany: normalizedCargoValue,
+      defaultDispatchTime: Number(hbDefaultDispatchTime) || 1,
+      autoSyncOrders: hbAutoSyncOrders,
+      autoStockSync: hbAutoStockSync,
+      isTestMode: hbIsTestMode,
+      ...patch,
+    });
+  };
+
   return (
     <div className="bg-white border border-slate-200/90 rounded-xl p-5 shadow-xs space-y-4" id="hb-integration-card">
       {/* Card Header */}
@@ -148,12 +168,7 @@ export const HepsiburadaIntegrationForm: React.FC<HepsiburadaIntegrationFormProp
             onChange={(e) => {
               const val = e.target.value;
               setHbMerchantId(val);
-              onBrandingChange('hepsiburada_settings', {
-                ...(branding.hepsiburada_settings || {}),
-                merchantId: val,
-                apiSecret: hbApiSecret,
-                apiKey: hbApiKey || "lookprice_dev"
-              });
+              syncHbBranding({ merchantId: val });
             }}
             placeholder="örn. ea3f02b7-ef8c-439b-ac03-9e2ed38a4deb"
           />
@@ -178,12 +193,7 @@ export const HepsiburadaIntegrationForm: React.FC<HepsiburadaIntegrationFormProp
               onChange={(e) => {
                 const val = e.target.value;
                 setHbApiSecret(val);
-                onBrandingChange('hepsiburada_settings', {
-                  ...(branding.hepsiburada_settings || {}),
-                  merchantId: hbMerchantId,
-                  apiSecret: val,
-                  apiKey: hbApiKey || "lookprice_dev"
-                });
+                syncHbBranding({ apiSecret: val });
               }}
               placeholder="Hepsiburada API Şifresi"
             />
@@ -215,12 +225,7 @@ export const HepsiburadaIntegrationForm: React.FC<HepsiburadaIntegrationFormProp
             onChange={(e) => {
               const val = e.target.value;
               setHbApiKey(val);
-              onBrandingChange('hepsiburada_settings', {
-                ...(branding.hepsiburada_settings || {}),
-                merchantId: hbMerchantId,
-                apiSecret: hbApiSecret,
-                apiKey: val || "lookprice_dev"
-              });
+              syncHbBranding({ apiKey: val || "lookprice_dev" });
             }}
             placeholder="lookprice_dev"
           />
@@ -232,8 +237,12 @@ export const HepsiburadaIntegrationForm: React.FC<HepsiburadaIntegrationFormProp
             {t.hepsiburadaDefaultCargo || "Varsayılan Kargo Şirketi"}
           </label>
           <select 
-            value={hbDefaultCargoCompany}
-            onChange={(e) => setHbDefaultCargoCompany(e.target.value)}
+            value={normalizedCargoValue}
+            onChange={(e) => {
+              const val = e.target.value;
+              setHbDefaultCargoCompany(val);
+              syncHbBranding({ defaultCargoCompany: val });
+            }}
             className="w-full h-9 px-3 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs text-slate-900 transition-colors"
           >
             <option value="Hepsijet">HepsiJet</option>
@@ -254,7 +263,11 @@ export const HepsiburadaIntegrationForm: React.FC<HepsiburadaIntegrationFormProp
             <input 
               type="checkbox"
               checked={hbAutoSyncOrders}
-              onChange={(e) => setHbAutoSyncOrders(e.target.checked)}
+              onChange={(e) => {
+                const val = e.target.checked;
+                setHbAutoSyncOrders(val);
+                syncHbBranding({ autoSyncOrders: val });
+              }}
               className="rounded border-slate-300 text-slate-900 focus:ring-slate-800 h-3.5 w-3.5"
             />
             <span className="font-medium text-slate-700">{lang === 'tr' ? 'Otomatik Sipariş Çekme' : 'Auto Sync Orders'}</span>
@@ -264,7 +277,11 @@ export const HepsiburadaIntegrationForm: React.FC<HepsiburadaIntegrationFormProp
             <input 
               type="checkbox"
               checked={hbAutoStockSync}
-              onChange={(e) => setHbAutoStockSync(e.target.checked)}
+              onChange={(e) => {
+                const val = e.target.checked;
+                setHbAutoStockSync(val);
+                syncHbBranding({ autoStockSync: val });
+              }}
               className="rounded border-slate-300 text-slate-900 focus:ring-slate-800 h-3.5 w-3.5"
             />
             <span className="font-medium text-slate-700">{lang === 'tr' ? 'Anlık Stok Eşitleme' : 'Real-time Stock'}</span>
@@ -274,7 +291,11 @@ export const HepsiburadaIntegrationForm: React.FC<HepsiburadaIntegrationFormProp
             <input 
               type="checkbox"
               checked={hbIsTestMode}
-              onChange={(e) => setHbIsTestMode(e.target.checked)}
+              onChange={(e) => {
+                const val = e.target.checked;
+                setHbIsTestMode(val);
+                syncHbBranding({ isTestMode: val });
+              }}
               className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 h-3.5 w-3.5"
             />
             <span className="font-medium text-slate-700">{lang === 'tr' ? 'Test Modu' : 'Test Mode'}</span>
@@ -284,8 +305,12 @@ export const HepsiburadaIntegrationForm: React.FC<HepsiburadaIntegrationFormProp
         <div className="flex items-center space-x-2">
           <span className="text-slate-500 text-[11px]">{lang === 'tr' ? 'Kargoya Verme:' : 'Dispatch:'}</span>
           <select 
-            value={hbDefaultDispatchTime}
-            onChange={(e) => setHbDefaultDispatchTime(Number(e.target.value))}
+            value={Number(hbDefaultDispatchTime) || 1}
+            onChange={(e) => {
+              const val = Math.max(1, Number(e.target.value) || 1);
+              setHbDefaultDispatchTime(val);
+              syncHbBranding({ defaultDispatchTime: val });
+            }}
             className="h-7 px-2 text-xs bg-white border border-slate-200 rounded-md font-medium text-slate-800"
           >
             <option value={1}>1 Gün</option>

@@ -668,7 +668,7 @@ export const api = {
     const qs = params.toString();
     return api.get(`/api/integrations/n11/categories/${categoryId}/attributes${qs ? `?${qs}` : ""}`);
   },
-  saveN11Settings: (data: { appKey?: string, appSecret?: string, categoryMappings?: any, categoryAttributes?: any, categoryMarkups?: any, defaultCommissionRate?: number, defaultFixedFee?: number, connected?: boolean, storeId?: number }) => api.post("/api/integrations/n11/settings", data),
+  saveN11Settings: (data: { appKey?: string, appSecret?: string, shipmentTemplate?: string, preparingDay?: number, categoryMappings?: any, categoryAttributes?: any, categoryMarkups?: any, defaultCommissionRate?: number, defaultFixedFee?: number, connected?: boolean, storeId?: number }) => api.post("/api/integrations/n11/settings", data),
   
   // Google Drive
   getGoogleDriveAuthUrl: () => api.get("/api/google-drive/auth-url"),
@@ -696,8 +696,8 @@ export const api = {
   // Integration Test Methods
   testN11Connection: (storeId?: number, data?: any) => api.post("/api/integrations/n11/test", { storeId, ...(data || {}) }),
   testHepsiburadaConnection: (storeId?: number, extraData?: any) => api.post("/api/integrations/hepsiburada/test", { storeId, ...(extraData || {}) }),
-  testTrendyolConnection: (storeId?: number) => api.post("/api/integrations/trendyol/test", { storeId }),
-  testPazaramaConnection: (storeId?: number) => api.post("/api/integrations/pazarama/test", { storeId }),
+  testTrendyolConnection: (storeId?: number, extraData?: any) => api.post("/api/integrations/trendyol/test", { storeId, ...(extraData || {}) }),
+  testPazaramaConnection: (storeId?: number, extraData?: any) => api.post("/api/integrations/pazarama/test", { storeId, ...(extraData || {}) }),
   
   // Integrator Hub
   getIntegratorConfigs: () => api.get("/api/admin/integrator-configs"),

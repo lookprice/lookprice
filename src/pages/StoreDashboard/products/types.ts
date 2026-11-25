@@ -7,6 +7,7 @@ export interface ProductsTabProps {
   onBulkWebSale?: (ids: number[], isWebSale: boolean) => Promise<any> | void;
   onBulkCategoryAssign?: (ids: number[], category: string, subCategory?: string, updateSubCategory?: boolean) => Promise<any> | void;
   onEdit: (product: any) => void;
+  onOpenPlacement?: (product: any) => void;
   onAddNew: () => void;
   onImport: () => void;
   onDelete: (id: number) => void;

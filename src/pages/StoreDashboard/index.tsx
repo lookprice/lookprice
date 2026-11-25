@@ -350,6 +350,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
   const [includeBranches, setIncludeBranches] = useState(false);
   const [branches, setBranches] = useState<any[]>([]);
+  const [initialProductModalTab, setInitialProductModalTab] = useState<'general' | 'variants' | 'placement'>('general');
 
   const planLimits: Record<string, number> = {
     free: 50,
@@ -1702,8 +1703,9 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   onBulkDelete={handleBulkDelete}
                   onBulkWebSale={handleBulkWebSale}
                   onBulkCategoryAssign={handleBulkCategoryAssign}
-                  onEdit={(p) => { setEditingProduct(p); setShowProductModal(true); }}
-                  onAddNew={() => { setEditingProduct(null); setShowProductModal(true); }}
+                  onEdit={(p) => { setInitialProductModalTab('general'); setEditingProduct(p); setShowProductModal(true); }}
+                  onOpenPlacement={(p) => { setInitialProductModalTab('placement'); setEditingProduct(p); setShowProductModal(true); }}
+                  onAddNew={() => { setInitialProductModalTab('general'); setEditingProduct(null); setShowProductModal(true); }}
                   onImport={() => setShowImportModal(true)}
                   onDelete={handleDeleteProduct}
                   onExportReport={handleExportProducts}
@@ -2261,10 +2263,15 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
         // Missing Modals Props
         showProductModal={showProductModal}
-        setShowProductModal={setShowProductModal}
+        setShowProductModal={(open) => {
+          setShowProductModal(open);
+          if (!open) setInitialProductModalTab('general');
+        }}
         editingProduct={editingProduct}
         setEditingProduct={setEditingProduct}
         handleAddProduct={handleAddProduct}
+        initialProductModalTab={initialProductModalTab}
+        onPlacementChanged={fetchProductsData}
         
         showCompanyModal={showCompanyModal}
         setShowCompanyModal={setShowCompanyModal}

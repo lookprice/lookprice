@@ -27,6 +27,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
   onBulkWebSale,
   onBulkCategoryAssign,
   onEdit,
+  onOpenPlacement,
   onAddNew,
   onImport,
   onDelete,
@@ -1055,6 +1056,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
         setMarketplaceModalStatus={setMarketplaceModalStatus}
         handleAutoFindImages={handleAutoFindImages}
         onEdit={onEdit}
+        onOpenPlacement={onOpenPlacement}
         onDelete={onDelete}
         onConvertToSingle={handleConvertSingleProductToSimple}
         setRecipeProduct={setRecipeProduct}

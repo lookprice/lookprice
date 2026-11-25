@@ -964,9 +964,10 @@ async function resolveProductInStore(client: any, storeId: number, productId?: n
   return null;
 }
 
-async function resolveLocationInStore(client: any, storeId: number, locationId?: number, locationCode?: string) {
-  if (locationId) {
-    const r = await client.query("SELECT * FROM storage_locations WHERE id = $1 AND store_id = $2", [Number(locationId), storeId]);
+async function resolveLocationInStore(client: any, storeId: number, locationId?: number | string, locationCode?: string) {
+  const numId = Number(locationId);
+  if (locationId && !isNaN(numId) && numId > 0) {
+    const r = await client.query("SELECT * FROM storage_locations WHERE id = $1 AND store_id = $2", [numId, storeId]);
     if (r.rows[0]) return r.rows[0];
   }
   if (locationCode) {
@@ -990,7 +991,8 @@ router.post("/move", async (req: any, res) => {
     to_location_id,
     to_location_barcode,
     quantity,
-    note = ""
+    note = "",
+    set_as_default = false
   } = req.body || {};
 
   const storeId = Number(target_store_id || req.warehouseStoreId);
@@ -1008,9 +1010,26 @@ router.post("/move", async (req: any, res) => {
 
     await reconcileProductDefaultLocation(client, storeId, Number(prod.id));
 
-    const fromLoc = await resolveLocationInStore(client, storeId, from_location_id, from_location_barcode);
     const toLoc = await resolveLocationInStore(client, storeId, to_location_id, to_location_barcode);
-    if (!fromLoc || !toLoc) throw new Error("Kaynak veya hedef raf bulunamadı.");
+    if (!toLoc) throw new Error("Hedef raf bulunamadı.");
+
+    let fromLoc = await resolveLocationInStore(client, storeId, from_location_id, from_location_barcode);
+    if (!fromLoc && (!from_location_id || from_location_id === "__AUTO__") && !from_location_barcode) {
+      const autoSrc = await client.query(
+        `SELECT sl.*
+         FROM product_location_stocks pls
+         JOIN storage_locations sl ON sl.id = pls.location_id
+         WHERE pls.store_id = $1 AND pls.product_id = $2 AND pls.variant_key = $3
+           AND sl.system_role != 'DAMAGED' AND sl.id != $4
+           AND (pls.quantity - pls.reserved_quantity) > 0
+         ORDER BY (sl.system_role = 'DEFAULT') DESC, (sl.system_role = 'RECEIVING') DESC, (pls.quantity - pls.reserved_quantity) DESC
+         LIMIT 1`,
+        [storeId, prod.id, String(variant_key || ""), toLoc.id]
+      );
+      fromLoc = autoSrc.rows[0] || null;
+    }
+
+    if (!fromLoc) throw new Error("Kaynak raf bulunamadı veya taşınabilir stok yok.");
     if (Number(fromLoc.id) === Number(toLoc.id)) throw new Error("Kaynak ve hedef raf aynı olamaz.");
 
     const srcStock = await client.query(
@@ -1034,6 +1053,19 @@ router.post("/move", async (req: any, res) => {
        DO UPDATE SET quantity = product_location_stocks.quantity + EXCLUDED.quantity, last_moved_at = CURRENT_TIMESTAMP`,
       [req.warehouseRootStoreId, storeId, prod.id, String(variant_key || ""), toLoc.id, qty]
     );
+
+    if (set_as_default === true && toLoc.system_role !== "DAMAGED" && toLoc.system_role !== "RECEIVING") {
+      await client.query(
+        `INSERT INTO product_branch_settings (
+          root_store_id, store_id, product_id, variant_key, default_location_id, updated_at
+        ) VALUES ($1,$2,$3,$4,$5,CURRENT_TIMESTAMP)
+        ON CONFLICT (root_store_id, store_id, product_id, variant_key)
+        DO UPDATE SET
+          default_location_id = EXCLUDED.default_location_id,
+          updated_at = CURRENT_TIMESTAMP`,
+        [req.warehouseRootStoreId, storeId, prod.id, String(variant_key || ""), toLoc.id]
+      );
+    }
 
     const movType = toLoc.system_role === "DAMAGED" ? "DAMAGE_MARK" : "INTERNAL_TRANSFER";
     await client.query(

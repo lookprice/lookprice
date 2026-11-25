@@ -149,8 +149,10 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
               isCafe
                 ? (lang === 'tr' ? "Ürün / menü ara..." : (t.searchProduct || "Search menu product..."))
                 : isBookstore
-                  ? (lang === 'tr' ? "Kitap adı, yazar, yayınevi veya ISBN ile ara..." : "Search title, author, publisher or ISBN...")
-                  : (lang === 'tr' ? "Ürün adı veya barkod ile ara..." : (t.searchProduct || "Search product name or barcode..."))
+                  ? (lang === 'tr' ? "Kitap adı, yazar, yayınevi, ISBN veya raf ile ara..." : "Search title, author, publisher, ISBN or shelf...")
+                  : isShopLp
+                    ? (lang === 'tr' ? "Ürün adı, barkod veya raf kodu ile ara..." : "Search product name, barcode or shelf...")
+                    : (lang === 'tr' ? "Ürün adı veya barkod ile ara..." : (t.searchProduct || "Search product name or barcode..."))
             }
             className="os-input w-full pr-8 py-1.5 text-xs font-medium text-slate-800 placeholder:text-slate-400 focus:border-indigo-500 shadow-xs"
             style={{ paddingLeft: '2.25rem' }}

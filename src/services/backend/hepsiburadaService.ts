@@ -10,12 +10,21 @@ export interface HepsiburadaConfig {
   apiSecret: string;
   isTestMode?: boolean;
   userAgent?: string;
+  authUsername?: string;
+  authUserAgent?: string;
+  listingAuthUsername?: string;
+  listingAuthUserAgent?: string;
   defaultDispatchTime?: number;
   defaultCargoCompany?: string;
   autoSyncOrders?: boolean;
   autoStockSync?: boolean;
   webhookSecret?: string;
   last_sync?: string | null;
+}
+
+export interface HepsiburadaAuthCandidate {
+  username: string;
+  userAgent: string;
 }
 
 export interface HepsiburadaInventoryItem {
@@ -43,14 +52,43 @@ export interface HepsiburadaProductPayload {
 export class HepsiburadaService {
   private config: HepsiburadaConfig;
   private storeId: number;
+  private workingAuth: HepsiburadaAuthCandidate | null = null;
+  private workingListingAuth: HepsiburadaAuthCandidate | null = null;
+  private persistedWorkingAuth = false;
 
   constructor(config: HepsiburadaConfig, storeId: number) {
+    const rawUa = String(config?.userAgent || "").trim();
+    const cleanUa = /lookprice marketplace manager/i.test(rawUa) ? "" : rawUa;
+    const rawAuthUa = String(config?.authUserAgent || "").trim();
+    const cleanAuthUa = /lookprice marketplace manager/i.test(rawAuthUa) ? "" : rawAuthUa;
+    const rawListUa = String(config?.listingAuthUserAgent || "").trim();
+    const cleanListUa = /lookprice marketplace manager/i.test(rawListUa) ? "" : rawListUa;
+
     this.config = {
       ...config,
-      isTestMode: !!config.isTestMode,
-      defaultDispatchTime: config.defaultDispatchTime || 1,
+      merchantId: String(config?.merchantId || "").trim(),
+      apiKey: String(config?.apiKey || "lookprice_dev").trim() || "lookprice_dev",
+      apiSecret: String(config?.apiSecret || "").trim(),
+      userAgent: cleanUa || undefined,
+      authUserAgent: cleanAuthUa || undefined,
+      listingAuthUserAgent: cleanListUa || undefined,
+      isTestMode: !!config?.isTestMode,
+      defaultDispatchTime: Math.max(1, Math.floor(Number(config?.defaultDispatchTime) || 1)),
     };
     this.storeId = storeId;
+
+    if (this.config.authUsername && this.config.authUserAgent) {
+      this.workingAuth = {
+        username: String(this.config.authUsername).trim(),
+        userAgent: this.config.authUserAgent,
+      };
+    }
+    if (this.config.listingAuthUsername && this.config.listingAuthUserAgent) {
+      this.workingListingAuth = {
+        username: String(this.config.listingAuthUsername).trim(),
+        userAgent: this.config.listingAuthUserAgent,
+      };
+    }
   }
 
   // Determine Base URLs depending on Test (SIT) vs Production mode
@@ -66,6 +104,12 @@ export class HepsiburadaService {
       : "https://listing-external.hepsiburada.com";
   }
 
+  private get listingDirectUrl(): string {
+    return this.config.isTestMode
+      ? "https://listing-external-sit.hepsiburada.com"
+      : "https://listing-external.hepsiburada.com";
+  }
+
   private get catalogBaseUrl(): string {
     return this.config.isTestMode
       ? "https://mpop-sit.hepsiburada.com/product/api"
@@ -78,16 +122,186 @@ export class HepsiburadaService {
       : "https://product-external.hepsiburada.com";
   }
 
+  // Build prioritized, deduplicated list of Hepsiburada Basic Auth + User-Agent candidates
+  public getAuthCandidates(preferred?: Partial<HepsiburadaAuthCandidate> | null): HepsiburadaAuthCandidate[] {
+    const apiKey = (this.config.apiKey || "lookprice_dev").trim() || "lookprice_dev";
+    const merchantId = (this.config.merchantId || "").trim();
+    const customUa = (this.config.userAgent || "").trim();
+
+    const list: HepsiburadaAuthCandidate[] = [];
+    const seen = new Set<string>();
+    const add = (username?: string, userAgent?: string) => {
+      const u = String(username || "").trim();
+      const ua = String(userAgent || "").trim();
+      if (!u || !ua) return;
+      const key = `${u}::${ua}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        list.push({ username: u, userAgent: ua });
+      }
+    };
+
+    if (preferred?.username && preferred?.userAgent) {
+      add(preferred.username, preferred.userAgent);
+    }
+    if (this.workingListingAuth) {
+      add(this.workingListingAuth.username, this.workingListingAuth.userAgent);
+    }
+    if (this.workingAuth) {
+      add(this.workingAuth.username, this.workingAuth.userAgent);
+    }
+    if (customUa) {
+      add(merchantId, customUa);
+      add(apiKey, customUa);
+    }
+
+    // Standard Hepsiburada Integrator & Merchant auth formats
+    add(merchantId, apiKey);
+    add(apiKey, apiKey);
+    if (merchantId) {
+      add(merchantId, `${apiKey} - ${merchantId}`);
+      add(apiKey, `${apiKey} - ${merchantId}`);
+      add(merchantId, `${merchantId} - ${apiKey}`);
+      add(apiKey, `${merchantId} - ${apiKey}`);
+    }
+
+    if (apiKey !== "lookprice_dev") {
+      add(merchantId, "lookprice_dev");
+      add("lookprice_dev", "lookprice_dev");
+      if (merchantId) {
+        add(merchantId, `lookprice_dev - ${merchantId}`);
+        add("lookprice_dev", `lookprice_dev - ${merchantId}`);
+        add(merchantId, `${merchantId} - lookprice_dev`);
+      }
+    }
+
+    return list;
+  }
+
+  private isAuthError(err: any): boolean {
+    const status = Number(err?.response?.status);
+    return status === 401 || status === 403;
+  }
+
+  private async persistWorkingAuth(cand: HepsiburadaAuthCandidate, channel: "oms" | "listing" = "oms"): Promise<void> {
+    if (channel === "listing") {
+      this.workingListingAuth = cand;
+      this.config.listingAuthUsername = cand.username;
+      this.config.listingAuthUserAgent = cand.userAgent;
+    } else {
+      this.workingAuth = cand;
+      this.config.authUsername = cand.username;
+      this.config.authUserAgent = cand.userAgent;
+      this.config.userAgent = cand.userAgent;
+    }
+
+    if (!this.storeId || this.storeId <= 0) return;
+
+    try {
+      const storeRes = await pool.query("SELECT hepsiburada_settings, branding FROM stores WHERE id = $1", [this.storeId]);
+      if (storeRes.rows.length === 0) return;
+
+      let prev = storeRes.rows[0]?.hepsiburada_settings || {};
+      if (typeof prev === "string") {
+        try { prev = JSON.parse(prev); } catch { prev = {}; }
+      }
+      let br = storeRes.rows[0]?.branding || {};
+      if (typeof br === "string") {
+        try { br = JSON.parse(br); } catch { br = {}; }
+      }
+
+      // Only persist if stored credentials match current config (prevent overwriting during unsaved test probes)
+      const storedMerchantId = String(prev?.merchantId || br?.hepsiburada_settings?.merchantId || "").trim();
+      const storedSecret = String(prev?.apiSecret || br?.hepsiburada_settings?.apiSecret || "").trim();
+      if (storedMerchantId && storedSecret && (storedMerchantId !== this.config.merchantId || storedSecret !== this.config.apiSecret)) {
+        return;
+      }
+
+      const patch: Record<string, any> =
+        channel === "listing"
+          ? {
+              listingAuthUsername: cand.username,
+              listingAuthUserAgent: cand.userAgent,
+              ...(prev.authUsername ? {} : { authUsername: cand.username, authUserAgent: cand.userAgent, userAgent: cand.userAgent }),
+            }
+          : {
+              authUsername: cand.username,
+              authUserAgent: cand.userAgent,
+              userAgent: cand.userAgent,
+            };
+
+      const updatedHb = { ...(br.hepsiburada_settings || {}), ...prev, ...patch };
+      br.hepsiburada_settings = updatedHb;
+
+      await pool.query("UPDATE stores SET hepsiburada_settings = $1, branding = $2 WHERE id = $3", [
+        updatedHb,
+        br,
+        this.storeId,
+      ]);
+      this.persistedWorkingAuth = true;
+    } catch {
+      // Non-blocking persistence (e.g. during unit tests without DB)
+    }
+  }
+
+  private async withAuthRetry<T>(
+    operation: (headers: Record<string, string>, cand: HepsiburadaAuthCandidate) => Promise<T>,
+    options?: { preferred?: Partial<HepsiburadaAuthCandidate> | null; channel?: "oms" | "listing" }
+  ): Promise<T> {
+    const channel = options?.channel || "oms";
+    const candidates = this.getAuthCandidates(
+      options?.preferred || (channel === "listing" ? this.workingListingAuth : this.workingAuth)
+    );
+
+    let lastAuthError: any = null;
+    for (const cand of candidates) {
+      const headers = this.getHeaders(cand.username, cand.userAgent);
+      try {
+        const result = await operation(headers, cand);
+        const alreadyKnown =
+          channel === "listing"
+            ? this.workingListingAuth?.username === cand.username && this.workingListingAuth?.userAgent === cand.userAgent
+            : this.workingAuth?.username === cand.username && this.workingAuth?.userAgent === cand.userAgent;
+        if (!alreadyKnown || !this.persistedWorkingAuth) {
+          this.persistWorkingAuth(cand, channel).catch(() => {});
+        }
+        return result;
+      } catch (err: any) {
+        if (this.isAuthError(err)) {
+          lastAuthError = err;
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    throw lastAuthError || new Error("Hepsiburada API kimlik doğrulaması reddedildi (401/403).");
+  }
+
   // Generate Base64 Auth header and mandatory User-Agent
   private getHeaders(customUsername?: string, customUserAgent?: string): Record<string, string> {
-    const apiKey = (this.config.apiKey || "").trim();
+    const apiKey = (this.config.apiKey || "lookprice_dev").trim() || "lookprice_dev";
     const apiSecret = (this.config.apiSecret || "").trim();
     const merchantId = (this.config.merchantId || "").trim();
 
-    const username = (customUsername || merchantId || apiKey || "lookprice_dev").trim();
+    const username = (
+      customUsername ||
+      this.workingAuth?.username ||
+      this.config.authUsername ||
+      merchantId ||
+      apiKey ||
+      "lookprice_dev"
+    ).trim();
     const rawCredentials = `${username}:${apiSecret}`;
     const base64Auth = Buffer.from(rawCredentials).toString("base64");
-    const userAgent = customUserAgent || this.config.userAgent || "lookprice_dev";
+    const userAgent = (
+      customUserAgent ||
+      this.workingAuth?.userAgent ||
+      this.config.authUserAgent ||
+      this.config.userAgent ||
+      apiKey ||
+      "lookprice_dev"
+    ).trim();
 
     return {
       Authorization: `Basic ${base64Auth}`,
@@ -102,7 +316,7 @@ export class HepsiburadaService {
    * Verifies credentials against both OMS and Listing endpoints with multiple candidate combinations
    */
   async testConnection(): Promise<{ success: boolean; message: string; error?: string; details?: any }> {
-    const apiKey = (this.config.apiKey || "lookprice_dev").trim();
+    const apiKey = (this.config.apiKey || "lookprice_dev").trim() || "lookprice_dev";
     const apiSecret = (this.config.apiSecret || "").trim();
     const merchantId = (this.config.merchantId || "").trim();
 
@@ -114,19 +328,14 @@ export class HepsiburadaService {
       };
     }
 
-    // Standard candidate auth options used by Hepsiburada integrations
-    const candidates = [
-      { username: merchantId, userAgent: "lookprice_dev" },
-      { username: apiKey, userAgent: "lookprice_dev" },
-      { username: merchantId, userAgent: `lookprice_dev - ${merchantId}` },
-      { username: apiKey, userAgent: `lookprice_dev - ${merchantId}` },
-      { username: merchantId, userAgent: `${merchantId} - lookprice_dev` },
-    ];
+    const candidates = this.getAuthCandidates();
 
-    let workingCandidate: { username: string; userAgent: string } | null = null;
+    let workingCandidate: HepsiburadaAuthCandidate | null = null;
+    let workingListingCandidate: HepsiburadaAuthCandidate | null = null;
     let omsOk = false;
     let listingOk = false;
-    let lastError = "";
+    let omsError = "";
+    let listingError = "";
 
     // Test candidates against OMS
     for (const cand of candidates) {
@@ -139,13 +348,14 @@ export class HepsiburadaService {
         if (res.status === 200 && res.data && typeof res.data === 'object' && !String(res.data).includes('<!DOCTYPE')) {
           omsOk = true;
           workingCandidate = cand;
+          omsError = "";
           break;
         }
       } catch (e: any) {
-        if (e.response?.status === 401 || e.response?.status === 403) {
-          lastError = "Hepsiburada Yetkilendirme Hatası (401/403): Merchant ID veya Servis Anahtarı Hepsiburada tarafından henüz onaylanmamış veya geçersiz.";
+        if (this.isAuthError(e)) {
+          omsError = "Hepsiburada OMS Yetkilendirme Hatası (401/403): Merchant ID veya Servis Anahtarı Hepsiburada tarafından onaylanmamış veya geçersiz.";
         } else {
-          lastError = e.response?.data?.message || e.response?.data?.error || e.message || "OMS API Bağlantı hatası";
+          omsError = e.response?.data?.message || e.response?.data?.error || e.message || "OMS API Bağlantı hatası";
         }
       }
     }
@@ -165,7 +375,7 @@ export class HepsiburadaService {
           if (legacyRes.status === 200 && typeof legacyRes.data === 'object' && !String(legacyRes.data).includes('<!DOCTYPE') && legacyRes.data?.orders) {
             omsOk = true;
             workingCandidate = cand;
-            lastError = "";
+            omsError = "";
             break;
           }
         } catch (err2: any) {}
@@ -173,36 +383,61 @@ export class HepsiburadaService {
     }
 
     if (workingCandidate) {
-      this.config.apiKey = workingCandidate.username;
+      this.workingAuth = workingCandidate;
+      this.config.authUsername = workingCandidate.username;
+      this.config.authUserAgent = workingCandidate.userAgent;
       this.config.userAgent = workingCandidate.userAgent;
+      await this.persistWorkingAuth(workingCandidate, "oms");
     }
 
-    // Test Listing endpoint using working candidate or default
-    const testHeaders = workingCandidate
-      ? this.getHeaders(workingCandidate.username, workingCandidate.userAgent)
-      : this.getHeaders();
-
-    try {
-      const res = await axios.get(
-        `${this.listingBaseUrl}/inventory/import/status/${merchantId}/task/test-ping`,
-        { headers: testHeaders, timeout: 8000 }
-      );
-      if (res.status === 200) listingOk = true;
-    } catch (e: any) {
-      if (e.response?.status === 404 || e.response?.status === 400) {
-        if (!lastError.includes("401") && !lastError.includes("403")) {
+    // Test Listing endpoint across candidates (prioritizing workingCandidate if OMS succeeded)
+    const listingCandidates = this.getAuthCandidates(workingCandidate);
+    for (const cand of listingCandidates) {
+      const testHeaders = this.getHeaders(cand.username, cand.userAgent);
+      try {
+        const res = await axios.get(
+          `${this.listingDirectUrl}/listings/merchantid/${merchantId}?limit=1`,
+          { headers: testHeaders, timeout: 8000 }
+        );
+        if (res.status === 200) {
           listingOk = true;
+          workingListingCandidate = cand;
+          listingError = "";
+          break;
         }
-      } else if (e.response?.status === 401 || e.response?.status === 403) {
-        if (!omsOk) {
-          lastError = "Listing API yetkilendirme hatası (401/403): API Key veya Secret geçersiz.";
+      } catch (e: any) {
+        if (this.isAuthError(e)) {
+          listingError = "Hepsiburada Listing API yetkilendirme hatası (401/403): Entegratör yetkisi veya Servis Anahtarı geçersiz.";
+          continue;
         }
+        if (e.response?.status === 404 || e.response?.status === 400) {
+          listingOk = true;
+          workingListingCandidate = cand;
+          listingError = "";
+          break;
+        }
+        listingError = e.response?.data?.message || e.message || "Listing API bağlantı hatası";
       }
     }
 
-    const hasAuthError = lastError.includes("401") || lastError.includes("403");
-    const success = (omsOk || listingOk) && !hasAuthError;
-    const errMsg = lastError || (success ? undefined : "Hepsiburada API sunucusu istek yetkisini reddetti.");
+    if (workingListingCandidate) {
+      await this.persistWorkingAuth(workingListingCandidate, "listing");
+    }
+
+    const omsAuthFailed = !omsOk && (omsError.includes("401") || omsError.includes("403"));
+    const listingAuthFailed = !listingOk && (listingError.includes("401") || listingError.includes("403"));
+    const success = (omsOk || listingOk) && !omsAuthFailed && !listingAuthFailed;
+
+    let errMsg = "";
+    if (!success) {
+      if (omsOk && listingAuthFailed) {
+        errMsg = `Sipariş API bağlandı ancak İlan/Listing API yetkisi reddedildi (401/403). Entegratör (${apiKey}) yetkilerinizi kontrol edin.`;
+      } else if (listingOk && omsAuthFailed) {
+        errMsg = `İlan API bağlandı ancak Sipariş (OMS) API yetkisi reddedildi (401/403).`;
+      } else {
+        errMsg = omsError || listingError || "Hepsiburada API sunucusu istek yetkisini reddetti.";
+      }
+    }
 
     return {
       success,
@@ -210,7 +445,15 @@ export class HepsiburadaService {
         ? "Hepsiburada API bağlantısı başarılı."
         : `Bağlantı başarısız: ${errMsg}`,
       error: success ? undefined : errMsg,
-      details: { omsOk, listingOk, workingCandidate, isTestMode: this.config.isTestMode, error: lastError },
+      details: {
+        omsOk,
+        listingOk,
+        workingCandidate,
+        workingListingCandidate,
+        isTestMode: this.config.isTestMode,
+        environment: this.config.isTestMode ? "Sandbox (Test)" : "Production",
+        error: errMsg || undefined,
+      },
     };
   }
 
@@ -240,7 +483,6 @@ export class HepsiburadaService {
 
     const groupedOrdersMap = new Map<string, any>();
     let lastError: any = null;
-    const headers = this.getHeaders();
 
     // Helper to safely extract, group, and insert orders/packages into map
     const processRawItems = (items: any[]) => {
@@ -311,21 +553,64 @@ export class HepsiburadaService {
       queryUrls.unshift(`${this.omsBaseUrl}/packages/merchantid/${merchantId}?begindate=${encodeURIComponent(options.beginDate)}&limit=${limit}`);
     }
 
-    for (const url of queryUrls) {
-      try {
-        const response = await axios.get(url, { headers, timeout: 8000 });
-        const rawData = response.data;
-        const items = rawData?.items || rawData?.orders || rawData?.packages || (Array.isArray(rawData) ? rawData : []);
-        if (Array.isArray(items) && items.length > 0) {
-          processRawItems(items);
+    const candidates = this.getAuthCandidates(this.workingAuth);
+    let anyAuthenticatedSuccess = false;
+
+    for (const cand of candidates) {
+      const headers = this.getHeaders(cand.username, cand.userAgent);
+      let candGotAuthFailure = false;
+
+      for (const url of queryUrls) {
+        try {
+          const response = await axios.get(url, { headers, timeout: 8000 });
+          const rawData = response.data;
+          if (typeof rawData === 'string' && rawData.includes('<!DOCTYPE')) continue;
+          anyAuthenticatedSuccess = true;
+          this.persistWorkingAuth(cand, "oms").catch(() => {});
+          const items = rawData?.items || rawData?.orders || rawData?.packages || (Array.isArray(rawData) ? rawData : []);
+          if (Array.isArray(items) && items.length > 0) {
+            processRawItems(items);
+          }
+        } catch (err: any) {
+          lastError = err;
+          if (this.isAuthError(err)) {
+            candGotAuthFailure = true;
+            break; // Switch immediately to next auth candidate
+          }
         }
-      } catch (err: any) {
-        lastError = err;
+      }
+
+      if (anyAuthenticatedSuccess) {
+        break;
+      }
+
+      // Also check legacy merchant API endpoint if current OMS failed
+      if (candGotAuthFailure || lastError) {
+        try {
+          const legacyRes = await axios.get(
+            `https://merchant.hepsiburada.com/api/orders/merchantid/${merchantId}`,
+            { headers, timeout: 8000 }
+          );
+          const rawData = legacyRes.data;
+          if (rawData && typeof rawData === 'object' && !String(rawData).includes('<!DOCTYPE')) {
+            anyAuthenticatedSuccess = true;
+            this.persistWorkingAuth(cand, "oms").catch(() => {});
+            const items = rawData?.items || rawData?.orders || rawData?.packages || (Array.isArray(rawData) ? rawData : []);
+            if (Array.isArray(items) && items.length > 0) {
+              processRawItems(items);
+            }
+            break;
+          }
+        } catch (legacyErr: any) {
+          if (!this.isAuthError(legacyErr)) {
+            lastError = legacyErr;
+          }
+        }
       }
     }
 
     const finalOrders = Array.from(groupedOrdersMap.values());
-    if (finalOrders.length > 0) {
+    if (finalOrders.length > 0 || anyAuthenticatedSuccess) {
       return finalOrders;
     }
 
@@ -821,15 +1106,31 @@ export class HepsiburadaService {
       }
     }
 
-    // Update last sync time
-    const updatedSettings = {
-      ...this.config,
-      last_sync: new Date().toISOString(),
-    };
-    await pool.query(
-      "UPDATE stores SET hepsiburada_settings = $1 WHERE id = $2",
-      [updatedSettings, this.storeId]
-    );
+    // Update last sync time safely without clobbering DB fields
+    try {
+      const storeSyncRes = await pool.query("SELECT hepsiburada_settings, branding FROM stores WHERE id = $1", [this.storeId]);
+      let prevDb = storeSyncRes.rows[0]?.hepsiburada_settings || {};
+      if (typeof prevDb === "string") { try { prevDb = JSON.parse(prevDb); } catch { prevDb = {}; } }
+      let brDb = storeSyncRes.rows[0]?.branding || {};
+      if (typeof brDb === "string") { try { brDb = JSON.parse(brDb); } catch { brDb = {}; } }
+
+      const cleanPrevUa = /lookprice marketplace manager/i.test(String(prevDb.userAgent || "")) ? undefined : prevDb.userAgent;
+      const updatedSettings = {
+        ...(brDb.hepsiburada_settings || {}),
+        ...prevDb,
+        ...(cleanPrevUa ? { userAgent: cleanPrevUa } : { userAgent: this.config.userAgent || this.config.apiKey || "lookprice_dev" }),
+        ...(this.workingAuth ? { authUsername: this.workingAuth.username, authUserAgent: this.workingAuth.userAgent, userAgent: this.workingAuth.userAgent } : {}),
+        ...(this.workingListingAuth ? { listingAuthUsername: this.workingListingAuth.username, listingAuthUserAgent: this.workingListingAuth.userAgent } : {}),
+        last_sync: new Date().toISOString(),
+      };
+      brDb.hepsiburada_settings = updatedSettings;
+      await pool.query(
+        "UPDATE stores SET hepsiburada_settings = $1, branding = $2 WHERE id = $3",
+        [updatedSettings, brDb, this.storeId]
+      );
+    } catch {
+      // ignore sync timestamp save failure
+    }
 
     return { syncedCount, errors };
   }
@@ -845,7 +1146,6 @@ export class HepsiburadaService {
       return { success: false, message: "Güncellenecek ürün bulunamadı." };
     }
 
-    const headers = this.getHeaders();
     const merchantId = this.config.merchantId;
 
     // PRE-FLIGHT LIVE LISTING SKU & MERCHANTSKU AUTO-RESOLVER (Self-Healing Architecture)
@@ -992,9 +1292,7 @@ export class HepsiburadaService {
       return entry;
     });
 
-    const listingDirectUrl = this.config.isTestMode
-      ? "https://listing-external-sit.hepsiburada.com"
-      : "https://listing-external.hepsiburada.com";
+    const listingDirectUrl = this.listingDirectUrl;
 
     const endpoints = [
       {
@@ -1014,14 +1312,11 @@ export class HepsiburadaService {
       },
     ];
 
-    const headersList = [
-      this.getHeaders(),
-      ...(this.config.apiKey && this.config.apiKey.trim() !== (this.config.merchantId || "").trim() ? [this.getHeaders(this.config.apiKey.trim())] : [])
-    ];
-
+    const candidates = this.getAuthCandidates(this.workingListingAuth || this.workingAuth);
     let lastError: any = null;
 
-    for (const headers of headersList) {
+    for (const cand of candidates) {
+      const headers = this.getHeaders(cand.username, cand.userAgent);
       for (const ep of endpoints) {
         try {
           const response = await axios.post(ep.url, ep.data, { headers, timeout: 30000 });
@@ -1030,6 +1325,10 @@ export class HepsiburadaService {
             response.data?.id ||
             response.data?.taskId ||
             response.data?.data?.trackingId;
+
+          if (!this.workingListingAuth || this.workingListingAuth.username !== cand.username || this.workingListingAuth.userAgent !== cand.userAgent) {
+            this.persistWorkingAuth(cand, "listing").catch(() => {});
+          }
 
           // Also push to dedicated high-priority Price Uploads endpoint for immediate price propagation
           const priceUploadPayload = payloadV1
@@ -1111,29 +1410,43 @@ export class HepsiburadaService {
             details: response.data,
           };
         } catch (err: any) {
+          if (err?.message === "Yüksek Fiyat" || String(err?.message || "").startsWith("Hepsiburada İlan Güncelleme Reddi:")) {
+            throw err;
+          }
           lastError = err;
-          console.warn(`[HB updatePriceAndStock] ${ep.name} denemesi başarısız oldu:`, err.response?.data || err.message);
+          console.warn(`[HB updatePriceAndStock] ${ep.name} (${cand.username}) denemesi başarısız oldu:`, err.response?.data || err.message);
+          if (this.isAuthError(err) && !this.config.isTestMode) {
+            // In production all 3 listing endpoints share listing-external.hepsiburada.com,
+            // so on 401/403 advance directly to the next auth candidate.
+            break;
+          }
         }
       }
     }
 
-    // If bulk endpoints failed, try single-SKU PUT fallback
+    // If bulk endpoints failed, try single-SKU PUT fallback with auth retry
     if (payloadV2.length > 0) {
       try {
-        const singleResults = [];
-        for (const item of payloadV2) {
-          const singleUrl = `${this.listingBaseUrl}/listings/merchantid/${merchantId}/sku/${encodeURIComponent(item.MerchantSku)}`;
-          const singleRes = await axios.put(
-            singleUrl,
-            {
-              price: item.Price,
-              availableStock: item.AvailableStock,
-              dispatchTime: item.DispatchTime,
-            },
-            { headers, timeout: 15000 }
-          );
-          singleResults.push(singleRes.data);
-        }
+        const singleResults = await this.withAuthRetry(
+          async (putHeaders) => {
+            const results = [];
+            for (const item of payloadV2) {
+              const singleUrl = `${listingDirectUrl}/listings/merchantid/${merchantId}/sku/${encodeURIComponent(item.MerchantSku)}`;
+              const singleRes = await axios.put(
+                singleUrl,
+                {
+                  price: item.Price,
+                  availableStock: item.AvailableStock,
+                  dispatchTime: item.DispatchTime,
+                },
+                { headers: putHeaders, timeout: 15000 }
+              );
+              results.push(singleRes.data);
+            }
+            return results;
+          },
+          { channel: "listing", preferred: this.workingListingAuth || this.workingAuth }
+        );
 
         return {
           success: true,
@@ -1141,6 +1454,9 @@ export class HepsiburadaService {
           details: singleResults,
         };
       } catch (putErr: any) {
+        if (!lastError || !this.isAuthError(lastError)) {
+          lastError = putErr;
+        }
         console.warn("[HB updatePriceAndStock] Single SKU PUT fallback de başarısız oldu:", putErr.response?.data || putErr.message);
       }
     }
@@ -1339,63 +1655,78 @@ export class HepsiburadaService {
    * 4. Check Asynchronous Task / Import Status
    */
   async checkTaskStatus(taskId: string): Promise<any> {
-    const headers = this.getHeaders();
-    const listingDirectUrl = this.config.isTestMode
-      ? "https://listing-external-sit.hepsiburada.com"
-      : "https://listing-external.hepsiburada.com";
-    try {
-      const directUrl = `${listingDirectUrl}/listings/merchantid/${this.config.merchantId}/inventory-uploads/id/${taskId}`;
-      const resDirect = await axios.get(directUrl, { headers, timeout: 15000 });
-      return resDirect.data;
-    } catch {
-      const url = `${this.listingBaseUrl}/inventory/import/status/${this.config.merchantId}/task/${taskId}`;
-      const response = await axios.get(url, { headers, timeout: 15000 });
-      return response.data;
-    }
+    const listingDirectUrl = this.listingDirectUrl;
+    return this.withAuthRetry(
+      async (headers) => {
+        try {
+          const directUrl = `${listingDirectUrl}/listings/merchantid/${this.config.merchantId}/inventory-uploads/id/${taskId}`;
+          const resDirect = await axios.get(directUrl, { headers, timeout: 15000 });
+          return resDirect.data;
+        } catch (directErr: any) {
+          if (this.isAuthError(directErr)) throw directErr;
+          const url = `${this.listingBaseUrl}/inventory/import/status/${this.config.merchantId}/task/${taskId}`;
+          const response = await axios.get(url, { headers, timeout: 15000 });
+          return response.data;
+        }
+      },
+      { channel: "listing" }
+    );
   }
 
   /**
    * 5. Katalog & Kategori Servisi (Catalog & Categories)
    */
   async getAllCategories(): Promise<any[]> {
-    const headers = this.getHeaders();
     try {
-      const url = `${this.catalogBaseUrl}/categories/get-all-categories`;
-      const response = await axios.get(url, { headers, timeout: 30000 });
-      return response.data?.data || response.data?.categories || response.data || [];
+      return await this.withAuthRetry(
+        async (headers) => {
+          try {
+            const url = `${this.catalogBaseUrl}/categories/get-all-categories`;
+            const response = await axios.get(url, { headers, timeout: 30000 });
+            return response.data?.data || response.data?.categories || response.data || [];
+          } catch (error: any) {
+            if (this.isAuthError(error)) throw error;
+            const fallbackUrl = `https://catalog-external.hepsiburada.com/categories`;
+            const res = await axios.get(fallbackUrl, { headers, timeout: 20000 });
+            return res.data?.data || res.data || [];
+          }
+        },
+        { channel: "listing" }
+      );
     } catch (error: any) {
-      // Fallback category endpoint
-      try {
-        const fallbackUrl = `https://catalog-external.hepsiburada.com/categories`;
-        const res = await axios.get(fallbackUrl, { headers, timeout: 20000 });
-        return res.data?.data || res.data || [];
-      } catch (err2: any) {
-        throw new Error(`Kategori listesi alınamadı: ${error.message}`);
-      }
+      throw new Error(`Kategori listesi alınamadı: ${error.message}`);
     }
   }
 
   async getCategoryAttributes(categoryId: number | string): Promise<any> {
-    const headers = this.getHeaders();
     try {
-      const url = `${this.catalogBaseUrl}/categories/${categoryId}/attributes`;
-      const response = await axios.get(url, { headers, timeout: 20000 });
-      return response.data?.data || response.data || {};
+      return await this.withAuthRetry(
+        async (headers) => {
+          const url = `${this.catalogBaseUrl}/categories/${categoryId}/attributes`;
+          const response = await axios.get(url, { headers, timeout: 20000 });
+          return response.data?.data || response.data || {};
+        },
+        { channel: "listing" }
+      );
     } catch (error: any) {
       throw new Error(`Kategori özellikleri alınamadı: ${error.message}`);
     }
   }
 
   async getCategoryAttributeValues(categoryId: number | string, attributeId: string): Promise<any[]> {
-    const headers = this.getHeaders();
     try {
-      const url = `${this.catalogBaseUrl}/categories/${categoryId}/attribute/${attributeId}/values?page=0&size=100`;
-      const response = await axios.get(url, { headers, timeout: 15000 });
-      if (Array.isArray(response.data)) {
-        return response.data;
-      }
-      return response.data?.data || [];
-    } catch (error: any) {
+      return await this.withAuthRetry(
+        async (headers) => {
+          const url = `${this.catalogBaseUrl}/categories/${categoryId}/attribute/${attributeId}/values?page=0&size=100`;
+          const response = await axios.get(url, { headers, timeout: 15000 });
+          if (Array.isArray(response.data)) {
+            return response.data;
+          }
+          return response.data?.data || [];
+        },
+        { channel: "listing" }
+      );
+    } catch {
       return [];
     }
   }
@@ -1414,26 +1745,31 @@ export class HepsiburadaService {
       attributes: p.attributes || {}
     }));
 
-    const form = new FormData();
-    form.append("file", Buffer.from(JSON.stringify(payload)), {
-      filename: "products.json",
-      contentType: "application/json"
-    });
-
-    const headers = {
-      ...this.getHeaders(),
-      ...form.getHeaders()
-    };
-
     const url = `${this.catalogBaseUrl}/products/import`;
     try {
-      const response = await axios.post(url, form, { headers, timeout: 30000 });
-      const trackingId = response.data?.data?.trackingId || response.data?.trackingId;
-      return {
-        success: true,
-        trackingId,
-        message: trackingId ? `Katalog içe aktarımı başlatıldı (Takip No: ${trackingId})` : "Katalog aktarıldı"
-      };
+      return await this.withAuthRetry(
+        async (baseHeaders) => {
+          const form = new FormData();
+          form.append("file", Buffer.from(JSON.stringify(payload)), {
+            filename: "products.json",
+            contentType: "application/json"
+          });
+
+          const headers = {
+            ...baseHeaders,
+            ...form.getHeaders()
+          };
+
+          const response = await axios.post(url, form, { headers, timeout: 30000 });
+          const trackingId = response.data?.data?.trackingId || response.data?.trackingId;
+          return {
+            success: true,
+            trackingId,
+            message: trackingId ? `Katalog içe aktarımı başlatıldı (Takip No: ${trackingId})` : "Katalog aktarıldı"
+          };
+        },
+        { channel: "listing" }
+      );
     } catch (error: any) {
       const detail = error.response?.data?.message || error.response?.data?.description || error.message;
       throw new Error(`Hepsiburada katalog aktarımı başarısız: ${detail}`);
@@ -1444,19 +1780,24 @@ export class HepsiburadaService {
    * 5.1 Check Catalog Tracking Status
    */
   async checkCatalogStatus(trackingId: string): Promise<any> {
-    const headers = this.getHeaders();
     try {
-      const url = `${this.catalogBaseUrl}/products/status/${trackingId}`;
-      const response = await axios.get(url, { headers, timeout: 15000 });
-      return response.data?.data || response.data;
+      return await this.withAuthRetry(
+        async (headers) => {
+          try {
+            const url = `${this.catalogBaseUrl}/products/status/${trackingId}`;
+            const response = await axios.get(url, { headers, timeout: 15000 });
+            return response.data?.data || response.data;
+          } catch (error: any) {
+            if (this.isAuthError(error)) throw error;
+            const url2 = `${this.listingBaseUrl}/inventory/import/status/${this.config.merchantId}/task/${trackingId}`;
+            const res2 = await axios.get(url2, { headers, timeout: 15000 });
+            return res2.data;
+          }
+        },
+        { channel: "listing" }
+      );
     } catch (error: any) {
-      try {
-        const url2 = `${this.listingBaseUrl}/inventory/import/status/${this.config.merchantId}/task/${trackingId}`;
-        const res2 = await axios.get(url2, { headers, timeout: 15000 });
-        return res2.data;
-      } catch (err2: any) {
-        throw new Error(`Katalog takip durumu sorgulanamadı: ${error.response?.data?.message || error.message}`);
-      }
+      throw new Error(`Katalog takip durumu sorgulanamadı: ${error.response?.data?.message || error.message}`);
     }
   }
 
@@ -1470,9 +1811,8 @@ export class HepsiburadaService {
     totalAmount: number;
     taxAmount: number;
   }): Promise<any> {
-    const headers = this.getHeaders();
     const url = `${this.omsBaseUrl}/packages/merchantid/${this.config.merchantId}/invoice`;
-    
+
     const payload = {
       packageNumber: orderNumberOrPackageNumber,
       invoiceNumber: invoiceData.invoiceNumber,
@@ -1483,14 +1823,20 @@ export class HepsiburadaService {
     };
 
     try {
-      const response = await axios.post(url, payload, { headers, timeout: 20000 });
+      const responseData = await this.withAuthRetry(
+        async (headers) => {
+          const response = await axios.post(url, payload, { headers, timeout: 20000 });
+          return response.data;
+        },
+        { channel: "oms" }
+      );
       await pool.query(
         `UPDATE hepsiburada_orders 
          SET invoice_sent = true, invoice_sent_at = NOW() 
          WHERE store_id = $1 AND (hepsiburada_order_id = $2 OR package_number = $2)`,
         [this.storeId, orderNumberOrPackageNumber]
       );
-      return response.data;
+      return responseData;
     } catch (error: any) {
       throw new Error(`Fatura bilgisi Hepsiburada'ya iletilemedi: ${error.response?.data?.message || error.message}`);
     }
@@ -1563,21 +1909,31 @@ export class HepsiburadaService {
       return [];
     }
 
-    const listingDirectUrl = this.config.isTestMode
-      ? "https://listing-external-sit.hepsiburada.com"
-      : "https://listing-external.hepsiburada.com";
+    const listingDirectUrl = this.listingDirectUrl;
 
     const allListingsMap = new Map<string, any>();
-    const headers = this.getHeaders();
     let offset = 0;
     const limit = options?.limit || 100;
     let totalCount = 0;
+    let activeHeaders: Record<string, string> | null = null;
 
-    // Direct paginated fetch from official Listing API
+    // Direct paginated fetch from official Listing API with auth fallback on page 0
     try {
       while (true) {
         const url = `${listingDirectUrl}/listings/merchantid/${merchantId}?limit=${limit}&offset=${offset}`;
-        const res = await axios.get(url, { headers, timeout: 10000 });
+        let res: any;
+        if (!activeHeaders) {
+          res = await this.withAuthRetry(
+            async (hdrs) => {
+              const r = await axios.get(url, { headers: hdrs, timeout: 10000 });
+              activeHeaders = hdrs;
+              return r;
+            },
+            { channel: "listing" }
+          );
+        } else {
+          res = await axios.get(url, { headers: activeHeaders, timeout: 10000 });
+        }
         const rawItems = res.data?.listings || res.data?.items || res.data?.data || (Array.isArray(res.data) ? res.data : []);
         totalCount = res.data?.totalCount || rawItems.length;
 

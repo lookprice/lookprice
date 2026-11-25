@@ -236,11 +236,17 @@ export const SettingsEStoresTab = ({
           if (h.apiKey !== undefined) setHbApiKey(h.apiKey || "lookprice_dev");
           if (h.apiSecret !== undefined) setHbApiSecret(h.apiSecret || "");
           if (h.merchantId !== undefined) setHbMerchantId(h.merchantId || "");
-          if (h.isTestMode !== undefined) setHbIsTestMode(h.isTestMode);
-          if (h.defaultDispatchTime !== undefined) setHbDefaultDispatchTime(h.defaultDispatchTime);
-          if (h.defaultCargoCompany) setHbDefaultCargoCompany(h.defaultCargoCompany);
-          if (h.autoSyncOrders !== undefined) setHbAutoSyncOrders(h.autoSyncOrders);
-          if (h.autoStockSync !== undefined) setHbAutoStockSync(h.autoStockSync);
+          if (h.isTestMode !== undefined) setHbIsTestMode(Boolean(h.isTestMode));
+          if (h.defaultDispatchTime !== undefined) setHbDefaultDispatchTime(Math.max(1, Number(h.defaultDispatchTime) || 1));
+          if (h.defaultCargoCompany) {
+            setHbDefaultCargoCompany(
+              String(h.defaultCargoCompany).trim().toLowerCase() === "hepsijet"
+                ? "Hepsijet"
+                : h.defaultCargoCompany
+            );
+          }
+          if (h.autoSyncOrders !== undefined) setHbAutoSyncOrders(Boolean(h.autoSyncOrders));
+          if (h.autoStockSync !== undefined) setHbAutoStockSync(Boolean(h.autoStockSync));
           if (h.webhookSecret) setHbWebhookSecret(h.webhookSecret);
           if (onBrandingChange) onBrandingChange('hepsiburada_settings', h);
         }
@@ -292,7 +298,7 @@ export const SettingsEStoresTab = ({
           if (n11.appKey) setN11AppKey(n11.appKey);
           if (n11.appSecret) setN11AppSecret(n11.appSecret);
           if (n11.shipmentTemplate) setN11ShipmentTemplate(n11.shipmentTemplate);
-          if (n11.preparingDay) setN11PreparingDay(n11.preparingDay);
+          if (n11.preparingDay) setN11PreparingDay(Math.max(1, Number(n11.preparingDay) || 1));
           if (onBrandingChange) onBrandingChange('n11_settings', n11);
         }
       }
@@ -306,6 +312,7 @@ export const SettingsEStoresTab = ({
   // Sync state when branding prop changes, with defensive checks (never wipe non-empty with empty)
   useEffect(() => {
     const amz = branding.amazon_settings || {};
+    if (amz.appId) setAmazonAppId(amz.appId);
     if (amz.clientId) setAmazonClientId(amz.clientId);
     if (amz.clientSecret) setAmazonClientSecret(amz.clientSecret);
     if (amz.refresh_token) setAmazonRefreshToken(amz.refresh_token);
@@ -316,17 +323,23 @@ export const SettingsEStoresTab = ({
     if (n.appKey) setN11AppKey(n.appKey);
     if (n.appSecret) setN11AppSecret(n.appSecret);
     if (n.shipmentTemplate) setN11ShipmentTemplate(n.shipmentTemplate);
-    if (n.preparingDay) setN11PreparingDay(n.preparingDay);
+    if (n.preparingDay) setN11PreparingDay(Math.max(1, Number(n.preparingDay) || 1));
 
     const h = branding.hepsiburada_settings || {};
     if (h.apiKey !== undefined) setHbApiKey(h.apiKey || "lookprice_dev");
     if (h.apiSecret !== undefined) setHbApiSecret(h.apiSecret || "");
     if (h.merchantId !== undefined) setHbMerchantId(h.merchantId || "");
-    if (h.isTestMode !== undefined) setHbIsTestMode(h.isTestMode);
-    if (h.defaultDispatchTime !== undefined) setHbDefaultDispatchTime(h.defaultDispatchTime);
-    if (h.defaultCargoCompany) setHbDefaultCargoCompany(h.defaultCargoCompany);
-    if (h.autoSyncOrders !== undefined) setHbAutoSyncOrders(h.autoSyncOrders);
-    if (h.autoStockSync !== undefined) setHbAutoStockSync(h.autoStockSync);
+    if (h.isTestMode !== undefined) setHbIsTestMode(Boolean(h.isTestMode));
+    if (h.defaultDispatchTime !== undefined) setHbDefaultDispatchTime(Math.max(1, Number(h.defaultDispatchTime) || 1));
+    if (h.defaultCargoCompany) {
+      setHbDefaultCargoCompany(
+        String(h.defaultCargoCompany).trim().toLowerCase() === "hepsijet"
+          ? "Hepsijet"
+          : h.defaultCargoCompany
+      );
+    }
+    if (h.autoSyncOrders !== undefined) setHbAutoSyncOrders(Boolean(h.autoSyncOrders));
+    if (h.autoStockSync !== undefined) setHbAutoStockSync(Boolean(h.autoStockSync));
     if (h.webhookSecret) setHbWebhookSecret(h.webhookSecret);
 
     const ty = branding.trendyol_settings || {};
@@ -606,7 +619,14 @@ export const SettingsEStoresTab = ({
       const res = await api.testN11Connection(currentStoreId, { appKey: n11AppKey, appSecret: n11AppSecret });
       if (res?.success || res?.data?.success) {
         toast.success(lang === 'tr' ? 'N11 Bağlantısı Başarılı!' : 'N11 Connection Successful!');
-        onBrandingChange('n11_settings', { ...branding.n11_settings, appKey: n11AppKey, appSecret: n11AppSecret, connected: true });
+        onBrandingChange('n11_settings', {
+          ...(branding.n11_settings || {}),
+          appKey: n11AppKey,
+          appSecret: n11AppSecret,
+          shipmentTemplate: n11ShipmentTemplate,
+          preparingDay: Math.max(1, Number(n11PreparingDay) || 1),
+          connected: true
+        });
       } else {
         const errMsg = res?.error || res?.message || res?.data?.error || res?.data?.message || 'Kimlik doğrulama başarısız';
         toast.error(`${lang === 'tr' ? 'N11 Bağlantı Hatası' : 'N11 Connection Error'}: ${errMsg}`);
@@ -623,14 +643,21 @@ export const SettingsEStoresTab = ({
   const handleSaveHbSettings = async () => {
     try {
       const prevHb = branding.hepsiburada_settings || {};
-      const isConn = !!(hbApiSecret && hbMerchantId);
+      const cleanMerchantId = String(hbMerchantId || "").trim();
+      const cleanSecret = String(hbApiSecret || "").trim();
+      const cleanKey = String(hbApiKey || "lookprice_dev").trim() || "lookprice_dev";
+      const normalizedCargo = String(hbDefaultCargoCompany || "Hepsijet").trim().toLowerCase() === "hepsijet"
+        ? "Hepsijet"
+        : (hbDefaultCargoCompany || "Hepsijet");
+      const parsedDispatch = Math.max(1, Math.floor(Number(hbDefaultDispatchTime) || 1));
+      const isConn = !!(cleanSecret && cleanMerchantId);
       const payload = { 
-        apiKey: hbApiKey || "lookprice_dev", 
-        apiSecret: hbApiSecret, 
-        merchantId: hbMerchantId,
+        apiKey: cleanKey, 
+        apiSecret: cleanSecret, 
+        merchantId: cleanMerchantId,
         isTestMode: hbIsTestMode,
-        defaultDispatchTime: hbDefaultDispatchTime,
-        defaultCargoCompany: hbDefaultCargoCompany,
+        defaultDispatchTime: parsedDispatch,
+        defaultCargoCompany: normalizedCargo,
         defaultCommissionRate: prevHb.defaultCommissionRate ?? 18,
         defaultFixedFee: prevHb.defaultFixedFee ?? 20,
         autoSyncOrders: hbAutoSyncOrders,
@@ -648,6 +675,18 @@ export const SettingsEStoresTab = ({
       if (savedData.apiKey !== undefined) setHbApiKey(savedData.apiKey || "lookprice_dev");
       if (savedData.apiSecret !== undefined) setHbApiSecret(savedData.apiSecret || "");
       if (savedData.merchantId !== undefined) setHbMerchantId(savedData.merchantId || "");
+      if (savedData.defaultDispatchTime !== undefined) setHbDefaultDispatchTime(Math.max(1, Number(savedData.defaultDispatchTime) || 1));
+      if (savedData.defaultCargoCompany) {
+        setHbDefaultCargoCompany(
+          String(savedData.defaultCargoCompany).trim().toLowerCase() === "hepsijet"
+            ? "Hepsijet"
+            : savedData.defaultCargoCompany
+        );
+      }
+      if (savedData.autoSyncOrders !== undefined) setHbAutoSyncOrders(Boolean(savedData.autoSyncOrders));
+      if (savedData.autoStockSync !== undefined) setHbAutoStockSync(Boolean(savedData.autoStockSync));
+      if (savedData.isTestMode !== undefined) setHbIsTestMode(Boolean(savedData.isTestMode));
+      if (savedData.webhookSecret) setHbWebhookSecret(savedData.webhookSecret);
 
       onBrandingChange('hepsiburada_settings', savedData);
       toast.success(isConn ? (lang === 'tr' ? "HB hesabı başarıyla bağlandı ve kaydedildi" : "HB account connected and saved successfully") : (t.saveSuccess || "Kaydedildi"));
@@ -743,20 +782,30 @@ export const SettingsEStoresTab = ({
       const res = await api.testHepsiburadaConnection(currentStoreId, {
         merchantId: hbMerchantId,
         apiSecret: hbApiSecret,
-        apiKey: hbApiKey || "lookprice_dev"
+        apiKey: hbApiKey || "lookprice_dev",
+        isTestMode: hbIsTestMode
       });
       const data = res.data || res;
       if (data.success) {
         toast.success(
           lang === 'tr' 
-            ? `Hepsiburada API Bağlantısı Başarılı! (Ortam: ${data.environment || 'Production'}, Mağaza: ${data.merchantName || 'Onaylandı'})` 
+            ? `Hepsiburada API Bağlantısı Başarılı! (Ortam: ${data.environment || (hbIsTestMode ? 'Sandbox (Test)' : 'Production')}, Mağaza: ${data.merchantName || 'Onaylandı'})` 
             : `Hepsiburada API Connected! (${data.environment || 'Production'})`
         );
+        const workingCand = data.details?.workingCandidate;
+        const workingListingCand = data.details?.workingListingCandidate;
         onBrandingChange('hepsiburada_settings', {
-          ...branding.hepsiburada_settings,
+          ...(branding.hepsiburada_settings || {}),
           apiKey: hbApiKey || "lookprice_dev",
           apiSecret: hbApiSecret,
           merchantId: hbMerchantId,
+          defaultCargoCompany: String(hbDefaultCargoCompany || "Hepsijet").trim().toLowerCase() === "hepsijet" ? "Hepsijet" : hbDefaultCargoCompany,
+          defaultDispatchTime: Math.max(1, Number(hbDefaultDispatchTime) || 1),
+          autoSyncOrders: hbAutoSyncOrders,
+          autoStockSync: hbAutoStockSync,
+          isTestMode: hbIsTestMode,
+          ...(workingCand ? { authUsername: workingCand.username, authUserAgent: workingCand.userAgent, userAgent: workingCand.userAgent } : {}),
+          ...(workingListingCand ? { listingAuthUsername: workingListingCand.username, listingAuthUserAgent: workingListingCand.userAgent } : {}),
           connected: true
         });
       } else {
@@ -824,7 +873,11 @@ export const SettingsEStoresTab = ({
 
   const handleTestTy = async () => {
     try {
-      const res = await api.testTrendyolConnection(currentStoreId);
+      const res = await api.testTrendyolConnection(currentStoreId, {
+        apiKey: tyApiKey,
+        apiSecret: tyApiSecret,
+        merchantId: tyMerchantId
+      });
       if (res.success) {
         toast.success(lang === 'tr' ? 'Trendyol Bağlantısı Başarılı!' : 'Trendyol Connection Successful!');
         onBrandingChange('trendyol_settings', {
@@ -837,15 +890,19 @@ export const SettingsEStoresTab = ({
       } else {
         toast.error(`${lang === 'tr' ? 'Trendyol Bağlantı Hatası' : 'Trendyol Connection Error'}: ${res.error || 'Bilinmeyen hata'}`);
       }
-    } catch (error) {
-      toast.error(t.errorOccurred || 'Bir hata oluştu');
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || t.errorOccurred || 'Bir hata oluştu');
     }
   };
 
   // --- Handlers: Pazarama ---
   const handleTestPz = async () => {
     try {
-      const res = await api.testPazaramaConnection(currentStoreId);
+      const res = await api.testPazaramaConnection(currentStoreId, {
+        apiKey: pzApiKey,
+        apiSecret: pzApiSecret,
+        merchantId: pzMerchantId
+      });
       if (res.success) {
         toast.success(lang === 'tr' ? 'Pazarama Bağlantısı Başarılı!' : 'Pazarama Connection Successful!');
         onBrandingChange('pazarama_settings', {
@@ -858,8 +915,8 @@ export const SettingsEStoresTab = ({
       } else {
         toast.error(`${lang === 'tr' ? 'Pazarama Bağlantı Hatası' : 'Pazarama Connection Error'}: ${res.error || 'Bilinmeyen hata'}`);
       }
-    } catch (error) {
-      toast.error(t.errorOccurred || 'Bir hata oluştu');
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || t.errorOccurred || 'Bir hata oluştu');
     }
   };
 

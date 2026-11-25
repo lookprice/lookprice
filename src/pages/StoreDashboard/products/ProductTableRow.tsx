@@ -22,7 +22,8 @@ import {
   Pencil,
   Unlink,
   Globe,
-  EyeOff
+  EyeOff,
+  MapPin
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/services/api";
@@ -64,6 +65,7 @@ interface ProductTableRowProps {
   setMarketplaceModalStatus: (status: any) => void;
   handleAutoFindImages: (params: any) => void;
   onEdit: (product: any) => void;
+  onOpenPlacement?: (product: any) => void;
   onDelete: (id: number) => void;
   onConvertToSingle?: (product: any) => void;
   setRecipeProduct: (p: any) => void;
@@ -111,6 +113,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
   setMarketplaceModalStatus,
   handleAutoFindImages,
   onEdit,
+  onOpenPlacement,
   onDelete,
   onConvertToSingle,
   setRecipeProduct,
@@ -948,9 +951,76 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                 );
               };
 
+              const renderShelfLocationHint = () => {
+                if (!isShopLp || p.product_type === 'service') return null;
+                const locs = Array.isArray(p.location_summary) ? p.location_summary : [];
+                const standardLocs = locs.filter((l: any) => l.system_role === 'STANDARD');
+                const receivingLocs = locs.filter((l: any) => l.system_role === 'RECEIVING');
+                const primaryLoc = standardLocs[0] || locs[0];
+                const formatCompactPath = (rawPath?: string, storeName?: string) => {
+                  if (!rawPath) return '';
+                  const prefix = storeName ? `${storeName} > ` : '';
+                  const noStore = prefix && rawPath.startsWith(prefix) ? rawPath.slice(prefix.length) : rawPath;
+                  const parts = noStore.split(' > ').map((x: string) => x.trim()).filter(Boolean);
+                  if (parts.length > 2) return parts.slice(-2).join(' > ');
+                  return noStore;
+                };
+
+                let labelText = '';
+                let fullTooltip = '';
+                let toneClass = 'text-slate-500 hover:text-indigo-700 hover:bg-indigo-50/70';
+                let iconClass = 'text-slate-400';
+
+                if (standardLocs.length > 0 && primaryLoc) {
+                  labelText = formatCompactPath(primaryLoc.full_path, p.store_name) || primaryLoc.full_code || primaryLoc.name;
+                  if (standardLocs.length > 1) labelText += ` (+${standardLocs.length - 1})`;
+                  fullTooltip = standardLocs.map((l: any) => `${l.full_path}${l.full_code ? ` [${l.full_code}]` : ''}: ${l.quantity}`).join('\n');
+                  toneClass = 'text-indigo-700 hover:text-indigo-900 hover:bg-indigo-50';
+                  iconClass = 'text-indigo-600';
+                } else if (receivingLocs.length > 0 && Number(receivingLocs[0]?.quantity || 0) > 0) {
+                  labelText = lang === 'tr' ? 'Mal Kabulde' : 'In Receiving';
+                  fullTooltip = receivingLocs.map((l: any) => `${l.full_path}: ${l.quantity}`).join('\n');
+                  toneClass = 'text-amber-700 hover:text-amber-900 hover:bg-amber-50';
+                  iconClass = 'text-amber-600';
+                } else if (p.default_location_path) {
+                  labelText = formatCompactPath(p.default_location_path, p.store_name);
+                  fullTooltip = `${lang === 'tr' ? 'Varsayılan Raf' : 'Default Shelf'}: ${p.default_location_path}`;
+                  toneClass = 'text-slate-500 hover:text-indigo-700 hover:bg-indigo-50/70';
+                  iconClass = 'text-slate-400';
+                } else if (effectiveStock > 0) {
+                  labelText = lang === 'tr' ? 'Raf Ata' : 'Assign Shelf';
+                  fullTooltip = lang === 'tr' ? 'Ürün henüz özel rafa yerleştirilmemiş — rafa koymak için tıklayın' : 'Click to assign shelf';
+                  toneClass = 'text-slate-500 hover:text-indigo-700 hover:bg-indigo-50/70';
+                  iconClass = 'text-slate-400';
+                } else {
+                  return null;
+                }
+
+                const canClickPlacement = !isViewer && Boolean(onOpenPlacement || onEdit);
+                return (
+                  <button
+                    type="button"
+                    disabled={!canClickPlacement}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!canClickPlacement) return;
+                      if (onOpenPlacement) onOpenPlacement(p);
+                      else onEdit(p);
+                    }}
+                    title={fullTooltip}
+                    className={`mt-0.5 inline-flex items-center gap-1 max-w-[165px] px-1 py-0.2 -mx-1 rounded text-[10px] font-medium transition-colors text-left ${
+                      canClickPlacement ? 'cursor-pointer' : 'cursor-default'
+                    } ${toneClass}`}
+                  >
+                    <MapPin className={`w-2.5 h-2.5 shrink-0 ${iconClass}`} />
+                    <span className="truncate">{labelText}</span>
+                  </button>
+                );
+              };
+
               if (hasVariants) {
                 return (
-                  <div className="flex flex-col">
+                  <div className="flex flex-col items-start">
                     <div className="flex items-center gap-1.5">
                       <span className={`text-xs font-medium tabular-nums ${isLowStock ? 'text-rose-600' : 'text-slate-800'}`}>
                         {Math.floor(effectiveStock)}
@@ -961,13 +1031,14 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                         </span>
                       )}
                     </div>
+                    {renderShelfLocationHint()}
                     {renderReserveBadgeAndPopover()}
                   </div>
                 );
               }
 
               return (
-                <div className="flex flex-col">
+                <div className="flex flex-col items-start">
                   <div 
                     onDoubleClick={handleStartEditStock}
                     onTouchStart={(e) => {
@@ -991,6 +1062,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                       <Pencil className="w-2.5 h-2.5 text-slate-300 group-hover/stock:text-indigo-600 opacity-0 group-hover/stock:opacity-100 transition-all" />
                     )}
                   </div>
+                  {renderShelfLocationHint()}
                   {renderReserveBadgeAndPopover()}
                 </div>
               );
@@ -1115,6 +1187,21 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                           </button>
                         )}
 
+                        {isShopLp && p.product_type !== 'service' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOpenActionMenuId(null);
+                              if (onOpenPlacement) onOpenPlacement(p);
+                              else onEdit(p);
+                            }}
+                            className="w-full px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+                          >
+                            <MapPin className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                            <span>{lang === 'tr' ? "Raf & Yerleşim (Taşı)" : "Shelf & Placement"}</span>
+                          </button>
+                        )}
+
                         <button
                           type="button"
                           onClick={() => {
@@ -1185,6 +1272,8 @@ export const ProductTableRow = React.memo(ProductTableRowComponent, (prevProps, 
     prevProps.product.has_variants === nextProps.product.has_variants &&
     prevProps.product.variants === nextProps.product.variants &&
     prevProps.product.barcode === nextProps.product.barcode &&
+    prevProps.product.location_summary === nextProps.product.location_summary &&
+    prevProps.product.default_location_id === nextProps.product.default_location_id &&
     prevProps.product.is_hepsiburada_active === nextProps.product.is_hepsiburada_active &&
     prevProps.product.is_trendyol_active === nextProps.product.is_trendyol_active &&
     prevProps.product.is_n11_active === nextProps.product.is_n11_active &&
@@ -1199,6 +1288,7 @@ export const ProductTableRow = React.memo(ProductTableRowComponent, (prevProps, 
     prevProps.currentStoreId === nextProps.currentStoreId &&
     prevProps.lang === nextProps.lang &&
     prevProps.onToggleWebSale === nextProps.onToggleWebSale &&
+    prevProps.onOpenPlacement === nextProps.onOpenPlacement &&
     prevProps.selectedIds.includes(prevProps.product.id) === nextProps.selectedIds.includes(nextProps.product.id) &&
     (prevProps.openActionMenuId === prevProps.product.id) === (nextProps.openActionMenuId === nextProps.product.id) &&
     (prevProps.badgePopoverProductId === prevProps.product.id) === (nextProps.badgePopoverProductId === nextProps.product.id) &&

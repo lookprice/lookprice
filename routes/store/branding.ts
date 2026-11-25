@@ -125,10 +125,27 @@ router.post("/", async (req: any, res) => {
 
     // Ensure marketplace settings are preserved and synchronized
     const mergedHb = mergeProtectedSettings(existingHb, existingBranding.hepsiburada_settings, cleanedBody.hepsiburada_settings || updatedBranding.hepsiburada_settings, mpCredKeys);
+    if (mergedHb.userAgent && /lookprice marketplace manager/i.test(String(mergedHb.userAgent))) {
+      mergedHb.userAgent = mergedHb.apiKey || "lookprice_dev";
+    }
+    if (mergedHb.authUserAgent && /lookprice marketplace manager/i.test(String(mergedHb.authUserAgent))) {
+      delete mergedHb.authUsername;
+      delete mergedHb.authUserAgent;
+    }
+    if (mergedHb.listingAuthUserAgent && /lookprice marketplace manager/i.test(String(mergedHb.listingAuthUserAgent))) {
+      delete mergedHb.listingAuthUsername;
+      delete mergedHb.listingAuthUserAgent;
+    }
+    if (mergedHb.defaultDispatchTime !== undefined) {
+      mergedHb.defaultDispatchTime = Math.max(1, Math.floor(Number(mergedHb.defaultDispatchTime) || 1));
+    }
     const mergedTy = mergeProtectedSettings(existingTy, existingBranding.trendyol_settings, cleanedBody.trendyol_settings || updatedBranding.trendyol_settings, mpCredKeys);
     const mergedAmz = mergeProtectedSettings(existingAmz, existingBranding.amazon_settings, cleanedBody.amazon_settings || updatedBranding.amazon_settings, mpCredKeys);
     const mergedPz = mergeProtectedSettings(existingPz, existingBranding.pazarama_settings, cleanedBody.pazarama_settings || updatedBranding.pazarama_settings, mpCredKeys);
     const mergedN11 = mergeProtectedSettings(existingN11, existingBranding.n11_settings, cleanedBody.n11_settings || updatedBranding.n11_settings, mpCredKeys);
+    if (mergedN11.preparingDay !== undefined) {
+      mergedN11.preparingDay = Math.max(1, Math.floor(Number(mergedN11.preparingDay) || 1));
+    }
 
     updatedBranding.hepsiburada_settings = mergedHb;
     updatedBranding.trendyol_settings = mergedTy;

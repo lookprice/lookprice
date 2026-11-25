@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { motion } from "motion/react";
-import { X, Plus, Trash2, Search, Flame, Sparkles, Camera, Upload, Palette, History, BookOpen, Check, Star, Award, Crown, Clock, Tag, Loader2, TrendingUp, ExternalLink, Layers, Unlink } from "lucide-react";
+import { X, Plus, Trash2, Search, Flame, Sparkles, Camera, Upload, Palette, History, BookOpen, Check, Star, Award, Crown, Clock, Tag, Loader2, TrendingUp, ExternalLink, Layers, Unlink, MapPin, ArrowRightLeft } from "lucide-react";
 import { toast } from "sonner";
 import { MultiImageUploader } from "../../../components/MultiImageUploader";
 import { api } from "../../../services/api";
@@ -26,6 +26,8 @@ interface ProductModalProps {
   branding: any;
   translations: any;
   products?: any[];
+  initialTab?: 'general' | 'variants' | 'placement';
+  onPlacementChanged?: () => void;
 }
 
 export const ProductModal = ({
@@ -39,6 +41,8 @@ export const ProductModal = ({
   branding,
   translations: t,
   products = [],
+  initialTab = 'general',
+  onPlacementChanged,
 }: ProductModalProps) => {
   const formRef = useRef<HTMLFormElement>(null);
   const [productImageUrl, setProductImageUrl] = useState("");
@@ -46,6 +50,8 @@ export const ProductModal = ({
   const [newExtraImageUrl, setNewExtraImageUrl] = useState("");
   const [productType, setProductType] = useState<string>("product");
   const [activeTab, setActiveTab] = useState<'general' | 'variants' | 'placement' | 'marketplaces'>('general');
+  const [quickPlacementBranches, setQuickPlacementBranches] = useState<any[] | null>(null);
+  const [placementRefreshKey, setPlacementRefreshKey] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedSubCategory, setSelectedSubCategory] = useState("");
   const [selectedCategory2, setSelectedCategory2] = useState("");
@@ -476,7 +482,13 @@ export const ProductModal = ({
       setSelectedCategory2(editingProduct?.category_2 || "");
       setSelectedSubCategory2(editingProduct?.sub_category_2 || "");
 
-      setActiveTab('general');
+      setActiveTab(
+        initialTab === 'placement' && isShopLp && editingProduct?.id
+          ? 'placement'
+          : initialTab === 'variants'
+          ? 'variants'
+          : 'general'
+      );
       let parsedVars: any[] = [];
       if (Array.isArray(editingProduct?.variants)) {
         parsedVars = editingProduct.variants;
@@ -544,8 +556,29 @@ export const ProductModal = ({
       setIsNewCategoryMode(false);
       setIsNewSubCategoryMode(false);
       setRecipeItems([]);
+      setQuickPlacementBranches(null);
     }
-  }, [showProductModal, editingProduct?.id, isBookstore]);
+  }, [showProductModal, editingProduct?.id, isBookstore, initialTab, isShopLp]);
+
+  useEffect(() => {
+    if (!showProductModal || !isShopLp || !editingProduct?.id) {
+      setQuickPlacementBranches(null);
+      return;
+    }
+    const resolvedStoreId = Number(branding?.id || branding?.store_id || editingProduct.store_id);
+    if (!resolvedStoreId) return;
+    let cancelled = false;
+    api.getProductPlacement(Number(editingProduct.id), resolvedStoreId)
+      .then((res) => {
+        if (!cancelled && Array.isArray(res?.branches)) {
+          setQuickPlacementBranches(res.branches);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [showProductModal, editingProduct?.id, isShopLp, branding?.id, branding?.store_id, placementRefreshKey]);
 
   const toggleBookBadge = (badgeId: string) => {
     setSelectedBookBadges((prev) => {
@@ -687,7 +720,9 @@ export const ProductModal = ({
                 )}
               </h3>
               <p className="text-[10px] text-slate-300 leading-none mt-0.5 hidden sm:block truncate">
-                {isTr
+                {editingProduct?.name
+                  ? `${editingProduct.name}${editingProduct?.barcode ? ` • ${editingProduct.barcode}` : ""}`
+                  : isTr
                   ? isBookstore ? "Eser künyesi, vitrin ve fiyatlandırma." : "Stok, fiyat ve vitrin tanımları."
                   : isBookstore ? "Book details and pricing." : "Product details and pricing."}
               </p>
@@ -1828,6 +1863,67 @@ export const ProductModal = ({
                       </select>
                     </div>
                   </div>
+
+                  {isShopLp && editingProduct?.id && productType !== 'service' && (() => {
+                    const liveBins: { branchName: string; path: string; code: string; qty: number; role: string }[] = [];
+                    if (Array.isArray(quickPlacementBranches)) {
+                      quickPlacementBranches.forEach((b: any) => {
+                        if (Array.isArray(b.locations)) {
+                          b.locations.forEach((l: any) => {
+                            const prefix = `${b.store_name} > `;
+                            const clean = l.full_path?.startsWith(prefix) ? l.full_path.slice(prefix.length) : (l.full_path || l.location_name);
+                            liveBins.push({
+                              branchName: b.store_name,
+                              path: clean,
+                              code: l.full_code || '',
+                              qty: Number(l.quantity || 0),
+                              role: l.system_role || 'STANDARD'
+                            });
+                          });
+                        }
+                      });
+                    } else if (Array.isArray(editingProduct?.location_summary)) {
+                      editingProduct.location_summary.forEach((l: any) => {
+                        liveBins.push({
+                          branchName: '',
+                          path: l.full_path || l.name || '',
+                          code: l.full_code || '',
+                          qty: Number(l.quantity || 0),
+                          role: l.system_role || 'STANDARD'
+                        });
+                      });
+                    }
+
+                    const customBins = liveBins.filter((b) => b.role === 'STANDARD');
+                    const primaryBin = customBins[0] || liveBins[0];
+
+                    return (
+                      <div className="pt-1.5 mt-1 border-t border-amber-200/70 flex items-center justify-between gap-2">
+                        <div className="min-w-0 flex items-center gap-1.5 text-[11px]">
+                          <MapPin className={`w-3.5 h-3.5 shrink-0 ${customBins.length > 0 ? 'text-indigo-600' : 'text-amber-600'}`} />
+                          {primaryBin ? (
+                            <span className="truncate text-slate-800 font-medium" title={liveBins.map(x => `${x.path} (${x.qty})`).join(' • ')}>
+                              {primaryBin.path}
+                              {primaryBin.code ? <span className="font-mono text-[10px] text-slate-500 ml-1">({primaryBin.code})</span> : null}
+                              {liveBins.length > 1 ? <span className="text-[10px] text-indigo-700 ml-1">+{liveBins.length - 1} raf</span> : null}
+                            </span>
+                          ) : (
+                            <span className="truncate text-slate-500">
+                              {isTr ? "Özel rafa henüz yerleştirilmedi" : "Not assigned to a shelf yet"}
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('placement')}
+                          className="px-2 py-1 rounded-md bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-[10px] font-semibold inline-flex items-center gap-1 shrink-0 cursor-pointer transition-colors"
+                        >
+                          <ArrowRightLeft className="w-3 h-3" />
+                          <span>{isTr ? "Raf Ata / Yönet" : "Assign Shelf"}</span>
+                        </button>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* 3. GÖRSEL, ETİKETLER & VİTRİN ANAHTARLARI */}
@@ -2173,6 +2269,10 @@ export const ProductModal = ({
               productId={Number(editingProduct.id)}
               storeId={Number(branding?.id || branding?.store_id || editingProduct.store_id)}
               isTr={isTr}
+              onPlacementChanged={() => {
+                setPlacementRefreshKey((k) => k + 1);
+                onPlacementChanged?.();
+              }}
             />
           </div>
         )}

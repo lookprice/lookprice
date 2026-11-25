@@ -95,40 +95,42 @@ router.get("/amazon/auth-url", authenticate, async (req: any, res) => {
 
 // 2. Save Amazon Settings (Manual or Central OAuth)
 router.post("/amazon/settings", authenticate, async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const storeId = getAuthorizedStoreId(req, req.body?.storeId || req.query?.storeId);
   const { appId, clientId, clientSecret, refreshToken, sellerId, categoryMappings, categoryAttributes, categoryMarkups, defaultCommissionRate, defaultFixedFee, isSandbox } = req.body;
 
   try {
     const storeRes = await pool.query("SELECT amazon_settings, branding FROM stores WHERE id = $1", [storeId]);
-    const prev = storeRes.rows[0]?.amazon_settings || {};
+    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Mağaza bulunamadı" });
+
+    let prev = storeRes.rows[0]?.amazon_settings || {};
+    if (typeof prev === 'string') { try { prev = JSON.parse(prev); } catch { prev = {}; } }
     let br = storeRes.rows[0]?.branding || {};
-    if (typeof br === 'string') {
-      try { br = JSON.parse(br); } catch (e) { br = {}; }
-    }
+    if (typeof br === 'string') { try { br = JSON.parse(br); } catch { br = {}; } }
+    const prevMerged = { ...(br.amazon_settings || {}), ...prev };
 
     const central = await getCentralAmazonCredentials();
-    const finalAppId = appId ? String(appId).trim() : (prev.appId || central.appId || DEFAULT_LOOKPRICE_AMAZON_APP_ID);
-    const finalClientId = clientId ? String(clientId).trim() : (prev.clientId || central.clientId || "");
-    const finalClientSecret = clientSecret ? String(clientSecret).trim() : (prev.clientSecret || central.clientSecret || "");
-    const finalRefreshToken = refreshToken ? String(refreshToken).trim() : (prev.refresh_token || "");
-    const finalSellerId = sellerId ? String(sellerId).trim() : (prev.sellerId || "");
+    const finalAppId = (appId !== undefined ? String(appId).trim() : String(prevMerged.appId || "").trim()) || central.appId || DEFAULT_LOOKPRICE_AMAZON_APP_ID;
+    const finalClientId = (clientId !== undefined ? String(clientId).trim() : String(prevMerged.clientId || "").trim()) || central.clientId || "";
+    const finalClientSecret = (clientSecret !== undefined ? String(clientSecret).trim() : String(prevMerged.clientSecret || "").trim()) || central.clientSecret || "";
+    const finalRefreshToken = refreshToken !== undefined ? String(refreshToken).trim() : String(prevMerged.refresh_token || "").trim();
+    const finalSellerId = sellerId !== undefined ? String(sellerId).trim() : String(prevMerged.sellerId || "").trim();
 
     const settings = {
-      ...prev,
+      ...prevMerged,
       connected: !!((finalClientId && finalClientSecret && finalRefreshToken) || (finalRefreshToken && finalSellerId)),
       appId: finalAppId,
       clientId: finalClientId,
       clientSecret: finalClientSecret,
       refresh_token: finalRefreshToken,
       sellerId: finalSellerId,
-      isSandbox: typeof isSandbox === 'boolean' ? isSandbox : (prev.isSandbox || false),
+      isSandbox: typeof isSandbox === 'boolean' ? isSandbox : (prevMerged.isSandbox || false),
       marketplace_id: AMAZON_TR_MARKETPLACE_ID,
-      defaultCommissionRate: defaultCommissionRate !== undefined ? Number(defaultCommissionRate) : (prev.defaultCommissionRate ?? 15),
-      defaultFixedFee: defaultFixedFee !== undefined ? Number(defaultFixedFee) : (prev.defaultFixedFee ?? 20),
-      categoryMappings: categoryMappings !== undefined ? categoryMappings : (prev.categoryMappings || {}),
-      categoryAttributes: categoryAttributes !== undefined ? categoryAttributes : (prev.categoryAttributes || {}),
-      categoryMarkups: categoryMarkups !== undefined ? categoryMarkups : (prev.categoryMarkups || {}),
-      last_sync: prev.last_sync || null
+      defaultCommissionRate: defaultCommissionRate !== undefined ? Number(defaultCommissionRate) : (prevMerged.defaultCommissionRate ?? 15),
+      defaultFixedFee: defaultFixedFee !== undefined ? Number(defaultFixedFee) : (prevMerged.defaultFixedFee ?? 20),
+      categoryMappings: categoryMappings !== undefined ? categoryMappings : (prevMerged.categoryMappings || {}),
+      categoryAttributes: categoryAttributes !== undefined ? categoryAttributes : (prevMerged.categoryAttributes || {}),
+      categoryMarkups: categoryMarkups !== undefined ? categoryMarkups : (prevMerged.categoryMarkups || {}),
+      last_sync: prevMerged.last_sync || null
     };
 
     br.amazon_settings = settings;
@@ -792,35 +794,61 @@ router.post("/amazon/resolve-asin", authenticate, async (req: any, res) => {
 
 // --- N11 Integration ---
 
-// 1. Save N11 Settings
+// 1. Save N11 Settings (Unified canonical endpoint)
 router.post("/n11/settings", authenticate, async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
-  const { appKey, appSecret, categoryMappings, categoryAttributes, categoryMarkups, defaultCommissionRate, defaultFixedFee } = req.body;
+  const storeId = getAuthorizedStoreId(req, req.body?.storeId || req.query?.storeId);
+  const {
+    appKey,
+    appSecret,
+    shipmentTemplate,
+    preparingDay,
+    categoryMappings,
+    categoryAttributes,
+    categoryMarkups,
+    defaultCommissionRate,
+    defaultFixedFee,
+    connected
+  } = req.body;
 
   try {
     const storeRes = await pool.query("SELECT n11_settings, branding FROM stores WHERE id = $1", [storeId]);
-    const prev = storeRes.rows[0]?.n11_settings || {};
-    let br = storeRes.rows[0]?.branding || {};
-    if (typeof br === 'string') { try { br = JSON.parse(br); } catch (e) { br = {}; } }
+    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Mağaza bulunamadı" });
 
-    const finalKey = appKey ? String(appKey).trim() : (prev.appKey || "");
-    const finalSecret = appSecret ? String(appSecret).trim() : (prev.appSecret || "");
+    let prev = storeRes.rows[0]?.n11_settings || {};
+    if (typeof prev === 'string') { try { prev = JSON.parse(prev); } catch { prev = {}; } }
+    let br = storeRes.rows[0]?.branding || {};
+    if (typeof br === 'string') { try { br = JSON.parse(br); } catch { br = {}; } }
+    const prevMerged = { ...(br.n11_settings || {}), ...prev };
+
+    const finalKey = appKey !== undefined ? String(appKey).trim() : String(prevMerged.appKey || "").trim();
+    const finalSecret = appSecret !== undefined ? String(appSecret).trim() : String(prevMerged.appSecret || "").trim();
+    const finalShipmentTemplate = shipmentTemplate !== undefined
+      ? (String(shipmentTemplate).trim() || "Alıcı Öder")
+      : (prevMerged.shipmentTemplate || "Alıcı Öder");
+    const finalPreparingDay = preparingDay !== undefined
+      ? Math.max(1, Math.min(30, Math.floor(Number(preparingDay) || 1)))
+      : Math.max(1, Math.floor(Number(prevMerged.preparingDay) || 1));
 
     const settings = {
-      ...prev,
-      connected: !!(finalKey && finalSecret),
+      ...prevMerged,
+      connected: connected !== undefined ? Boolean(connected) : !!(finalKey && finalSecret),
       appKey: finalKey,
       appSecret: finalSecret,
-      defaultCommissionRate: defaultCommissionRate !== undefined ? Number(defaultCommissionRate) : (prev.defaultCommissionRate ?? 15),
-      defaultFixedFee: defaultFixedFee !== undefined ? Number(defaultFixedFee) : (prev.defaultFixedFee ?? 20),
-      categoryMappings: categoryMappings !== undefined ? categoryMappings : (prev.categoryMappings || {}),
-      categoryAttributes: categoryAttributes !== undefined ? categoryAttributes : (prev.categoryAttributes || {}),
-      categoryMarkups: categoryMarkups !== undefined ? categoryMarkups : (prev.categoryMarkups || {}),
-      last_sync: prev.last_sync || null
+      shipmentTemplate: finalShipmentTemplate,
+      preparingDay: finalPreparingDay,
+      defaultCommissionRate: defaultCommissionRate !== undefined ? Number(defaultCommissionRate) : (prevMerged.defaultCommissionRate ?? 18),
+      defaultFixedFee: defaultFixedFee !== undefined ? Number(defaultFixedFee) : (prevMerged.defaultFixedFee ?? 20),
+      categoryMappings: categoryMappings !== undefined ? categoryMappings : (prevMerged.categoryMappings || {}),
+      categoryAttributes: categoryAttributes !== undefined ? categoryAttributes : (prevMerged.categoryAttributes || {}),
+      categoryMarkups: categoryMarkups !== undefined ? categoryMarkups : (prevMerged.categoryMarkups || {}),
+      last_sync: prevMerged.last_sync || null
     };
 
     br.n11_settings = settings;
     await pool.query("UPDATE stores SET n11_settings = $1, branding = $2 WHERE id = $3", [settings, br, storeId]);
+    import("../src/services/cronJobs").then(({ syncMarketplacePricesOnRateChange }) => {
+      syncMarketplacePricesOnRateChange(Number(storeId)).catch(() => {});
+    }).catch(() => {});
     res.json({ success: true, settings });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -945,44 +973,7 @@ router.post("/n11/test", authenticate, async (req: any, res) => {
   }
 });
 
-router.post("/n11/settings", authenticate, async (req: any, res) => {
-  const storeId = getAuthorizedStoreId(req, req.body.storeId || req.query.storeId);
-  try {
-    const { appKey, appSecret, categoryMappings, categoryAttributes, categoryMarkups, defaultCommissionRate, defaultFixedFee, connected } = req.body;
-    const storeRes = await pool.query("SELECT n11_settings, branding FROM stores WHERE id = $1", [storeId]);
-    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Store not found" });
 
-    const prevSettings = storeRes.rows[0].n11_settings || {};
-    const isConn = connected !== undefined ? connected : (!!((appKey || prevSettings.appKey)?.trim()) && !!((appSecret || prevSettings.appSecret)?.trim()));
-    const updatedSettings = {
-      ...prevSettings,
-      appKey: appKey !== undefined ? String(appKey).trim() : prevSettings.appKey,
-      appSecret: appSecret !== undefined ? String(appSecret).trim() : prevSettings.appSecret,
-      categoryMappings: categoryMappings !== undefined ? categoryMappings : (prevSettings.categoryMappings || {}),
-      categoryAttributes: categoryAttributes !== undefined ? categoryAttributes : (prevSettings.categoryAttributes || {}),
-      categoryMarkups: categoryMarkups !== undefined ? categoryMarkups : (prevSettings.categoryMarkups || {}),
-      defaultCommissionRate: defaultCommissionRate !== undefined ? Number(defaultCommissionRate) : (prevSettings.defaultCommissionRate ?? 18),
-      defaultFixedFee: defaultFixedFee !== undefined ? Number(defaultFixedFee) : (prevSettings.defaultFixedFee ?? 20),
-      connected: isConn
-    };
-
-    const branding = storeRes.rows[0].branding || {};
-    branding.n11_settings = updatedSettings;
-
-    await pool.query("UPDATE stores SET n11_settings = $1, branding = $2 WHERE id = $3", [
-      JSON.stringify(updatedSettings),
-      JSON.stringify(branding),
-      storeId
-    ]);
-    import("../src/services/cronJobs").then(({ syncMarketplacePricesOnRateChange }) => {
-      syncMarketplacePricesOnRateChange(Number(storeId)).catch(() => {});
-    }).catch(() => {});
-
-    res.json({ success: true, settings: updatedSettings });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
 
 router.get("/n11/categories", authenticate, async (req: any, res) => {
   const storeId = getAuthorizedStoreId(req, req.query.storeId);
@@ -1866,7 +1857,7 @@ router.post("/n11/disconnect", authenticate, async (req: any, res) => {
 
 // 1. Save Hepsiburada Settings
 router.post("/hepsiburada/settings", authenticate, async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const storeId = getAuthorizedStoreId(req, req.body?.storeId || req.query?.storeId);
   const { 
     apiKey, 
     apiSecret, 
@@ -1887,37 +1878,74 @@ router.post("/hepsiburada/settings", authenticate, async (req: any, res) => {
 
   try {
     const storeRes = await pool.query("SELECT hepsiburada_settings, branding FROM stores WHERE id = $1", [storeId]);
-    const prev = storeRes.rows[0]?.hepsiburada_settings || {};
+    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Mağaza bulunamadı" });
+
+    let prev = storeRes.rows[0]?.hepsiburada_settings || {};
+    if (typeof prev === 'string') { try { prev = JSON.parse(prev); } catch { prev = {}; } }
     let br = storeRes.rows[0]?.branding || {};
-    if (typeof br === 'string') { try { br = JSON.parse(br); } catch (e) { br = {}; } }
+    if (typeof br === 'string') { try { br = JSON.parse(br); } catch { br = {}; } }
+    const prevMerged = { ...(br.hepsiburada_settings || {}), ...prev };
 
-    const finalApiKey = (apiKey !== undefined ? apiKey?.trim() : prev.apiKey) || "lookprice_dev";
-    const finalApiSecret = apiSecret !== undefined ? apiSecret?.trim() : (prev.apiSecret || "");
-    const finalMerchantId = merchantId !== undefined ? merchantId?.trim() : (prev.merchantId || "");
+    const finalApiKey = (apiKey !== undefined ? String(apiKey).trim() : String(prevMerged.apiKey || "").trim()) || "lookprice_dev";
+    const finalApiSecret = apiSecret !== undefined ? String(apiSecret).trim() : String(prevMerged.apiSecret || "").trim();
+    const finalMerchantId = merchantId !== undefined ? String(merchantId).trim() : String(prevMerged.merchantId || "").trim();
+    const finalIsTestMode = isTestMode !== undefined ? Boolean(isTestMode) : Boolean(prevMerged.isTestMode);
 
-    const rawCatMappings = categoryMappings !== undefined ? categoryMappings : (prev.categoryMappings || {});
+    const credsChanged =
+      finalApiKey !== String(prevMerged.apiKey || "").trim() ||
+      finalApiSecret !== String(prevMerged.apiSecret || "").trim() ||
+      finalMerchantId !== String(prevMerged.merchantId || "").trim() ||
+      finalIsTestMode !== Boolean(prevMerged.isTestMode);
+
+    const rawReqUa = userAgent !== undefined ? String(userAgent).trim() : "";
+    const cleanReqUa = /lookprice marketplace manager/i.test(rawReqUa) ? "" : rawReqUa;
+    const rawPrevUa = String(prevMerged.userAgent || "").trim();
+    const cleanPrevUa = /lookprice marketplace manager/i.test(rawPrevUa) ? "" : rawPrevUa;
+    const finalUserAgent = cleanReqUa || (credsChanged ? finalApiKey : (cleanPrevUa || finalApiKey));
+
+    const rawCargo = String(defaultCargoCompany !== undefined ? defaultCargoCompany : (prevMerged.defaultCargoCompany || "Hepsijet")).trim();
+    const normalizedCargo = rawCargo.toLowerCase() === "hepsijet" ? "Hepsijet" : (rawCargo || "Hepsijet");
+    const parsedDispatch = Math.max(1, Math.floor(Number(defaultDispatchTime ?? prevMerged.defaultDispatchTime ?? 1) || 1));
+
+    const rawCatMappings = categoryMappings !== undefined ? categoryMappings : (prevMerged.categoryMappings || {});
     const { sanitizeCategoryMappings } = await import("../src/services/backend/systemGuardService");
     const cleanCatMappings = sanitizeCategoryMappings(rawCatMappings);
 
-    const settings = {
-      ...prev,
+    const settings: any = {
+      ...prevMerged,
       connected: !!(finalApiKey && finalApiSecret && finalMerchantId),
       apiKey: finalApiKey,
       apiSecret: finalApiSecret,
       merchantId: finalMerchantId,
-      isTestMode: isTestMode !== undefined ? !!isTestMode : !!prev.isTestMode,
-      userAgent: userAgent || prev.userAgent || `${finalMerchantId || 'lookprice'} - LookPrice Marketplace Manager`,
-      defaultDispatchTime: Number(defaultDispatchTime) || prev.defaultDispatchTime || 1,
-      defaultCargoCompany: defaultCargoCompany || prev.defaultCargoCompany || "Hepsijet",
-      defaultCommissionRate: defaultCommissionRate !== undefined ? Number(defaultCommissionRate) : (prev.defaultCommissionRate ?? 18),
-      defaultFixedFee: defaultFixedFee !== undefined ? Number(defaultFixedFee) : (prev.defaultFixedFee ?? 20),
-      autoSyncOrders: autoSyncOrders !== undefined ? autoSyncOrders : (prev.autoSyncOrders ?? true),
-      autoStockSync: autoStockSync !== undefined ? autoStockSync : (prev.autoStockSync ?? true),
-      webhookSecret: webhookSecret || prev.webhookSecret || `hb_wh_${Math.random().toString(36).substring(2, 12)}`,
+      isTestMode: finalIsTestMode,
+      userAgent: finalUserAgent,
+      defaultDispatchTime: parsedDispatch,
+      defaultCargoCompany: normalizedCargo,
+      defaultCommissionRate: defaultCommissionRate !== undefined ? Number(defaultCommissionRate) : (prevMerged.defaultCommissionRate ?? 18),
+      defaultFixedFee: defaultFixedFee !== undefined ? Number(defaultFixedFee) : (prevMerged.defaultFixedFee ?? 20),
+      autoSyncOrders: autoSyncOrders !== undefined ? Boolean(autoSyncOrders) : (prevMerged.autoSyncOrders ?? true),
+      autoStockSync: autoStockSync !== undefined ? Boolean(autoStockSync) : (prevMerged.autoStockSync ?? true),
+      webhookSecret: webhookSecret || prevMerged.webhookSecret || `hb_wh_${Math.random().toString(36).substring(2, 12)}`,
       categoryMappings: cleanCatMappings,
-      categoryAttributes: categoryAttributes !== undefined ? categoryAttributes : (prev.categoryAttributes || {}),
-      categoryMarkups: categoryMarkups !== undefined ? categoryMarkups : (prev.categoryMarkups || {})
+      categoryAttributes: categoryAttributes !== undefined ? categoryAttributes : (prevMerged.categoryAttributes || {}),
+      categoryMarkups: categoryMarkups !== undefined ? categoryMarkups : (prevMerged.categoryMarkups || {})
     };
+
+    if (credsChanged) {
+      delete settings.authUsername;
+      delete settings.authUserAgent;
+      delete settings.listingAuthUsername;
+      delete settings.listingAuthUserAgent;
+    } else {
+      if (settings.authUserAgent && /lookprice marketplace manager/i.test(String(settings.authUserAgent))) {
+        delete settings.authUsername;
+        delete settings.authUserAgent;
+      }
+      if (settings.listingAuthUserAgent && /lookprice marketplace manager/i.test(String(settings.listingAuthUserAgent))) {
+        delete settings.listingAuthUsername;
+        delete settings.listingAuthUserAgent;
+      }
+    }
 
     br.hepsiburada_settings = settings;
     await pool.query("UPDATE stores SET hepsiburada_settings = $1, branding = $2 WHERE id = $3", [settings, br, storeId]);
@@ -1932,16 +1960,20 @@ router.post("/hepsiburada/settings", authenticate, async (req: any, res) => {
 
 // 2. Get Hepsiburada Settings
 router.get("/hepsiburada/settings", authenticate, async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  const storeId = getAuthorizedStoreId(req, req.query?.storeId);
   try {
     const result = await pool.query("SELECT hepsiburada_settings, branding FROM stores WHERE id = $1", [storeId]);
     const row = result.rows[0];
     let hb = row?.hepsiburada_settings || {};
-    if (typeof hb === 'string') { try { hb = JSON.parse(hb); } catch(e) { hb = {}; } }
+    if (typeof hb === 'string') { try { hb = JSON.parse(hb); } catch { hb = {}; } }
     let br = row?.branding || {};
-    if (typeof br === 'string') { try { br = JSON.parse(br); } catch(e) { br = {}; } }
+    if (typeof br === 'string') { try { br = JSON.parse(br); } catch { br = {}; } }
     const hbBr = br.hepsiburada_settings || {};
-    res.json({ ...hbBr, ...hb });
+    const merged: any = { ...hbBr, ...hb };
+    if (merged.userAgent && /lookprice marketplace manager/i.test(String(merged.userAgent))) {
+      merged.userAgent = merged.apiKey || "lookprice_dev";
+    }
+    res.json(merged);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -1949,23 +1981,45 @@ router.get("/hepsiburada/settings", authenticate, async (req: any, res) => {
 
 // 3. Test Hepsiburada Connection
 router.post("/hepsiburada/test", authenticate, async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const storeId = getAuthorizedStoreId(req, req.body?.storeId || req.query?.storeId);
   try {
     if (await checkIsDemoStore(storeId)) {
       return res.json({ success: true, simulated: true, message: "Demo mağaza simülasyonu: Hepsiburada bağlantısı başarılı." });
     }
 
-    const storeRes = await pool.query("SELECT hepsiburada_settings FROM stores WHERE id = $1", [storeId]);
-    let settings = storeRes.rows[0]?.hepsiburada_settings || {};
+    const storeRes = await pool.query("SELECT hepsiburada_settings, branding FROM stores WHERE id = $1", [storeId]);
+    let hbDb = storeRes.rows[0]?.hepsiburada_settings || {};
+    if (typeof hbDb === 'string') { try { hbDb = JSON.parse(hbDb); } catch { hbDb = {}; } }
+    let br = storeRes.rows[0]?.branding || {};
+    if (typeof br === 'string') { try { br = JSON.parse(br); } catch { br = {}; } }
+    let settings: any = { ...(br.hepsiburada_settings || {}), ...hbDb };
 
     // Allow testing with unsaved/fresh parameters passed in request body
-    if (req.body && (req.body.merchantId || req.body.apiSecret)) {
+    if (req.body && (req.body.merchantId || req.body.apiSecret || req.body.apiKey || req.body.isTestMode !== undefined)) {
+      const nextApiKey = String(req.body.apiKey || settings.apiKey || "lookprice_dev").trim() || "lookprice_dev";
+      const nextApiSecret = String(req.body.apiSecret || settings.apiSecret || "").trim();
+      const nextMerchantId = String(req.body.merchantId || settings.merchantId || "").trim();
+      const nextIsTestMode = req.body.isTestMode !== undefined ? Boolean(req.body.isTestMode) : Boolean(settings.isTestMode);
+      const overrideChanged =
+        nextApiKey !== String(settings.apiKey || "").trim() ||
+        nextApiSecret !== String(settings.apiSecret || "").trim() ||
+        nextMerchantId !== String(settings.merchantId || "").trim() ||
+        nextIsTestMode !== Boolean(settings.isTestMode);
+
       settings = {
         ...settings,
-        apiKey: req.body.apiKey || settings.apiKey || "lookprice_dev",
-        apiSecret: req.body.apiSecret || settings.apiSecret,
-        merchantId: req.body.merchantId || settings.merchantId,
+        apiKey: nextApiKey,
+        apiSecret: nextApiSecret,
+        merchantId: nextMerchantId,
+        isTestMode: nextIsTestMode,
       };
+      if (overrideChanged) {
+        delete settings.authUsername;
+        delete settings.authUserAgent;
+        delete settings.listingAuthUsername;
+        delete settings.listingAuthUserAgent;
+        delete settings.userAgent;
+      }
     }
 
     if (!settings || !settings.merchantId || !settings.apiSecret) {
@@ -1979,6 +2033,8 @@ router.post("/hepsiburada/test", authenticate, async (req: any, res) => {
     const testResult = await hbService.testConnection();
     res.json({
       ...testResult,
+      environment: testResult?.details?.environment || (settings.isTestMode ? "Sandbox (Test)" : "Production"),
+      merchantName: testResult.success ? "Onaylandı" : undefined,
       error: testResult.success ? undefined : (testResult.error || testResult.details?.error || testResult.message)
     });
   } catch (error: any) {
@@ -1991,10 +2047,7 @@ router.post("/hepsiburada/test", authenticate, async (req: any, res) => {
 
 // 4. Sync Hepsiburada Orders
 router.post("/hepsiburada/sync", authenticate, async (req: any, res) => {
-  const rawStoreId = req.body?.storeId || req.query?.storeId || req.user?.store_id;
-  const storeId = req.user.role === "superadmin" 
-    ? Number(rawStoreId || req.user.store_id || 1) 
-    : Number(req.user.store_id || rawStoreId);
+  const storeId = Number(getAuthorizedStoreId(req, req.body?.storeId || req.query?.storeId) || req.user?.store_id || 1);
 
   try {
     if (await checkIsDemoStore(storeId)) {
@@ -2007,13 +2060,11 @@ router.post("/hepsiburada/sync", authenticate, async (req: any, res) => {
     }
 
     const row = storeRes.rows[0];
-    let settings = row?.hepsiburada_settings;
-    if (typeof settings === 'string') { try { settings = JSON.parse(settings); } catch(e) { settings = {}; } }
-    let branding = row?.branding;
-    if (typeof branding === 'string') { try { branding = JSON.parse(branding); } catch(e) { branding = {}; } }
-    if (!settings || !settings.merchantId) {
-      settings = branding?.hepsiburada_settings || settings || {};
-    }
+    let hbDb = row?.hepsiburada_settings || {};
+    if (typeof hbDb === 'string') { try { hbDb = JSON.parse(hbDb); } catch { hbDb = {}; } }
+    let branding = row?.branding || {};
+    if (typeof branding === 'string') { try { branding = JSON.parse(branding); } catch { branding = {}; } }
+    const settings = { ...(branding?.hepsiburada_settings || {}), ...hbDb };
 
     const merchantId = String(settings?.merchantId || req.body?.merchantId || "").trim();
     const apiKey = String(settings?.apiKey || req.body?.apiKey || "lookprice_dev").trim() || "lookprice_dev";
@@ -2451,21 +2502,18 @@ router.post("/hepsiburada/check-bulk-pending-status", authenticate, async (req: 
 
 // 6. Publish / Update Single Product to Hepsiburada
 router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
-  const rawStoreId = req.body?.storeId || req.query?.storeId || req.user?.store_id;
-  const storeId = req.user.role === "superadmin" ? Number(rawStoreId || req.user.store_id || 1) : Number(req.user.store_id || rawStoreId);
+  const storeId = Number(getAuthorizedStoreId(req, req.body?.storeId || req.query?.storeId) || req.user?.store_id || 1);
   const productId = req.body.productId;
 
   try {
     const storeRes = await pool.query("SELECT hepsiburada_settings, branding FROM stores WHERE id = $1", [storeId]);
     if (storeRes.rows.length === 0) return res.status(404).json({ error: "Mağaza bulunamadı" });
     
-    let settings = storeRes.rows[0]?.hepsiburada_settings;
-    if (typeof settings === 'string') { try { settings = JSON.parse(settings); } catch(e) { settings = {}; } }
-    let branding = storeRes.rows[0]?.branding;
-    if (typeof branding === 'string') { try { branding = JSON.parse(branding); } catch(e) { branding = {}; } }
-    if (!settings || !settings.merchantId || !settings.apiSecret) {
-      settings = branding?.hepsiburada_settings || settings || {};
-    }
+    let hbDb = storeRes.rows[0]?.hepsiburada_settings || {};
+    if (typeof hbDb === 'string') { try { hbDb = JSON.parse(hbDb); } catch { hbDb = {}; } }
+    let branding = storeRes.rows[0]?.branding || {};
+    if (typeof branding === 'string') { try { branding = JSON.parse(branding); } catch { branding = {}; } }
+    const settings = { ...(branding?.hepsiburada_settings || {}), ...hbDb };
 
     const merchantId = String(settings?.merchantId || "").trim();
     const apiKey = String(settings?.apiKey || "lookprice_dev").trim() || "lookprice_dev";
@@ -2629,7 +2677,7 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
       }
     }
 
-    const hbService = new HepsiburadaService(settings, storeId);
+    const hbService = new HepsiburadaService(cleanSettings, storeId);
     const storeInfoRes = await pool.query("SELECT currency_rates, branding FROM stores WHERE id = $1", [storeId]);
     const storeInfo = storeInfoRes.rows[0];
     const rates = storeInfo?.currency_rates || storeInfo?.branding?.currency_rates || {};
@@ -2784,7 +2832,7 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
         MerchantSku: resolvedHbMerchantSku,
         Price: effectivePrice,
         AvailableStock: computeSellableStock(p.stock_quantity, p.reserved_stock),
-        DispatchTime: settings.defaultDispatchTime || 1,
+        DispatchTime: Math.max(1, Math.floor(Number(hbData.dispatchTime || cleanSettings.defaultDispatchTime || 1) || 1)),
       }
     ]);
 
@@ -2843,8 +2891,8 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
            hepsiburada_last_sync = NOW(), 
            hepsiburada_last_error = NULL, 
            marketplace_data = $3 
-       WHERE id = $4`,
-      [isLive, resolvedHbSku || null, JSON.stringify(mpData), productId]
+       WHERE id = $4 AND store_id = $5`,
+      [isLive, resolvedHbSku || null, JSON.stringify(mpData), productId, storeId]
     );
 
     const message = isLive
@@ -2868,7 +2916,7 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
   } catch (e: any) {
     const errMsg = e.message || "Hepsiburada ürün aktarımı başarısız.";
     if (productId) {
-      await pool.query("UPDATE products SET hepsiburada_last_error = $1 WHERE id = $2", [errMsg, productId]);
+      await pool.query("UPDATE products SET hepsiburada_last_error = $1 WHERE id = $2 AND store_id = $3", [errMsg, productId, storeId]);
     }
     res.status(400).json({ error: errMsg });
   }
@@ -3892,27 +3940,35 @@ router.post("/hepsiburada/webhook/:storeId", async (req: any, res) => {
 
 // 1. Save Trendyol Settings
 router.post("/trendyol/settings", authenticate, async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const storeId = getAuthorizedStoreId(req, req.body?.storeId || req.query?.storeId);
   const { apiKey, apiSecret, merchantId, categoryMappings, categoryAttributes, categoryMarkups, defaultCommissionRate, defaultFixedFee } = req.body;
 
   try {
     const storeRes = await pool.query("SELECT trendyol_settings, branding FROM stores WHERE id = $1", [storeId]);
-    const prev = storeRes.rows[0]?.trendyol_settings || {};
+    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Mağaza bulunamadı" });
+
+    let prev = storeRes.rows[0]?.trendyol_settings || {};
+    if (typeof prev === 'string') { try { prev = JSON.parse(prev); } catch { prev = {}; } }
     let br = storeRes.rows[0]?.branding || {};
-    if (typeof br === 'string') { try { br = JSON.parse(br); } catch (e) { br = {}; } }
+    if (typeof br === 'string') { try { br = JSON.parse(br); } catch { br = {}; } }
+    const prevMerged = { ...(br.trendyol_settings || {}), ...prev };
+
+    const finalApiKey = apiKey !== undefined ? String(apiKey).trim() : String(prevMerged.apiKey || "").trim();
+    const finalApiSecret = apiSecret !== undefined ? String(apiSecret).trim() : String(prevMerged.apiSecret || "").trim();
+    const finalMerchantId = merchantId !== undefined ? String(merchantId).trim() : String(prevMerged.merchantId || "").trim();
 
     const settings = {
-      ...prev,
-      connected: !!(apiKey && apiSecret && merchantId),
-      apiKey: apiKey !== undefined ? apiKey?.trim() : prev.apiKey,
-      apiSecret: apiSecret !== undefined ? apiSecret?.trim() : prev.apiSecret,
-      merchantId: merchantId !== undefined ? merchantId?.trim() : prev.merchantId,
-      defaultCommissionRate: defaultCommissionRate !== undefined ? Number(defaultCommissionRate) : (prev.defaultCommissionRate ?? 18),
-      defaultFixedFee: defaultFixedFee !== undefined ? Number(defaultFixedFee) : (prev.defaultFixedFee ?? 20),
-      categoryMappings: categoryMappings !== undefined ? categoryMappings : (prev.categoryMappings || {}),
-      categoryAttributes: categoryAttributes !== undefined ? categoryAttributes : (prev.categoryAttributes || {}),
-      categoryMarkups: categoryMarkups !== undefined ? categoryMarkups : (prev.categoryMarkups || {}),
-      last_sync: prev.last_sync || null
+      ...prevMerged,
+      connected: !!(finalApiKey && finalApiSecret && finalMerchantId),
+      apiKey: finalApiKey,
+      apiSecret: finalApiSecret,
+      merchantId: finalMerchantId,
+      defaultCommissionRate: defaultCommissionRate !== undefined ? Number(defaultCommissionRate) : (prevMerged.defaultCommissionRate ?? 18),
+      defaultFixedFee: defaultFixedFee !== undefined ? Number(defaultFixedFee) : (prevMerged.defaultFixedFee ?? 20),
+      categoryMappings: categoryMappings !== undefined ? categoryMappings : (prevMerged.categoryMappings || {}),
+      categoryAttributes: categoryAttributes !== undefined ? categoryAttributes : (prevMerged.categoryAttributes || {}),
+      categoryMarkups: categoryMarkups !== undefined ? categoryMarkups : (prevMerged.categoryMarkups || {}),
+      last_sync: prevMerged.last_sync || null
     };
 
     br.trendyol_settings = settings;
@@ -4137,14 +4193,30 @@ router.post("/trendyol/sync", authenticate, async (req: any, res) => {
 });
 
 router.post("/trendyol/test", authenticate, async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const storeId = getAuthorizedStoreId(req, req.body?.storeId || req.query?.storeId);
   try {
     if (await checkIsDemoStore(storeId)) {
       return res.json({ success: true, simulated: true, message: "Demo mağaza simülasyonu: Trendyol bağlantısı başarılı." });
     }
-    const storeRes = await pool.query("SELECT trendyol_settings FROM stores WHERE id = $1", [storeId]);
-    const settings = storeRes.rows[0]?.trendyol_settings;
-    if (!settings || !settings.apiKey || !settings.apiSecret || !settings.merchantId) return res.status(400).json({ error: "Trendyol API bilgileri eksik" });
+    const storeRes = await pool.query("SELECT trendyol_settings, branding FROM stores WHERE id = $1", [storeId]);
+    let tyDb = storeRes.rows[0]?.trendyol_settings || {};
+    if (typeof tyDb === 'string') { try { tyDb = JSON.parse(tyDb); } catch { tyDb = {}; } }
+    let br = storeRes.rows[0]?.branding || {};
+    if (typeof br === 'string') { try { br = JSON.parse(br); } catch { br = {}; } }
+    let settings: any = { ...(br.trendyol_settings || {}), ...tyDb };
+
+    if (req.body && (req.body.apiKey || req.body.apiSecret || req.body.merchantId)) {
+      settings = {
+        ...settings,
+        apiKey: String(req.body.apiKey || settings.apiKey || "").trim(),
+        apiSecret: String(req.body.apiSecret || settings.apiSecret || "").trim(),
+        merchantId: String(req.body.merchantId || settings.merchantId || "").trim(),
+      };
+    }
+
+    if (!settings || !settings.apiKey || !settings.apiSecret || !settings.merchantId) {
+      return res.status(400).json({ error: "Trendyol API bilgileri eksik" });
+    }
     const success = await testTrendyolConnection(settings);
     res.json({ success });
   } catch (error: any) { 
@@ -4927,30 +4999,40 @@ router.get("/trendyol/brands", authenticate, async (req: any, res) => {
 
 // 1. Save Pazarama Settings
 router.post("/pazarama/settings", authenticate, async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const storeId = getAuthorizedStoreId(req, req.body?.storeId || req.query?.storeId);
   const { apiKey, apiSecret, merchantId, commissionRate, defaultCommissionRate, defaultFixedFee, categoryMappings, categoryAttributes, categoryMarkups, brandMappings } = req.body;
 
   try {
     const prevRes = await pool.query("SELECT pazarama_settings, branding FROM stores WHERE id = $1", [storeId]);
-    const prevSettings = prevRes.rows[0]?.pazarama_settings || {};
-    let br = prevRes.rows[0]?.branding || {};
-    if (typeof br === 'string') { try { br = JSON.parse(br); } catch (e) { br = {}; } }
+    if (prevRes.rows.length === 0) return res.status(404).json({ error: "Mağaza bulunamadı" });
 
-    const effectiveComm = defaultCommissionRate !== undefined ? Number(defaultCommissionRate) : (commissionRate !== undefined ? Number(commissionRate) : (prevSettings.defaultCommissionRate ?? prevSettings.commissionRate ?? 15));
+    let prevSettings = prevRes.rows[0]?.pazarama_settings || {};
+    if (typeof prevSettings === 'string') { try { prevSettings = JSON.parse(prevSettings); } catch { prevSettings = {}; } }
+    let br = prevRes.rows[0]?.branding || {};
+    if (typeof br === 'string') { try { br = JSON.parse(br); } catch { br = {}; } }
+    const prevMerged = { ...(br.pazarama_settings || {}), ...prevSettings };
+
+    const finalApiKey = apiKey !== undefined ? String(apiKey).trim() : String(prevMerged.apiKey || "").trim();
+    const finalApiSecret = apiSecret !== undefined ? String(apiSecret).trim() : String(prevMerged.apiSecret || "").trim();
+    const finalMerchantId = merchantId !== undefined ? String(merchantId).trim() : String(prevMerged.merchantId || "").trim();
+
+    const effectiveComm = defaultCommissionRate !== undefined
+      ? Number(defaultCommissionRate)
+      : (commissionRate !== undefined ? Number(commissionRate) : (prevMerged.defaultCommissionRate ?? prevMerged.commissionRate ?? 15));
 
     const settings = {
-      ...prevSettings,
-      connected: !!(apiKey && apiSecret),
-      apiKey,
-      apiSecret,
-      merchantId: merchantId || prevSettings.merchantId || "",
+      ...prevMerged,
+      connected: !!(finalApiKey && finalApiSecret),
+      apiKey: finalApiKey,
+      apiSecret: finalApiSecret,
+      merchantId: finalMerchantId,
       commissionRate: effectiveComm,
       defaultCommissionRate: effectiveComm,
-      defaultFixedFee: defaultFixedFee !== undefined ? Number(defaultFixedFee) : (prevSettings.defaultFixedFee ?? 20),
-      categoryMappings: categoryMappings || prevSettings.categoryMappings || {},
-      categoryAttributes: categoryAttributes || prevSettings.categoryAttributes || {},
-      categoryMarkups: categoryMarkups || prevSettings.categoryMarkups || {},
-      brandMappings: brandMappings || prevSettings.brandMappings || {}
+      defaultFixedFee: defaultFixedFee !== undefined ? Number(defaultFixedFee) : (prevMerged.defaultFixedFee ?? 20),
+      categoryMappings: categoryMappings !== undefined ? categoryMappings : (prevMerged.categoryMappings || {}),
+      categoryAttributes: categoryAttributes !== undefined ? categoryAttributes : (prevMerged.categoryAttributes || {}),
+      categoryMarkups: categoryMarkups !== undefined ? categoryMarkups : (prevMerged.categoryMarkups || {}),
+      brandMappings: brandMappings !== undefined ? brandMappings : (prevMerged.brandMappings || {})
     };
 
     br.pazarama_settings = settings;
@@ -5108,14 +5190,30 @@ router.post("/pazarama/sync", authenticate, async (req: any, res) => {
 });
 
 router.post("/pazarama/test", authenticate, async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const storeId = getAuthorizedStoreId(req, req.body?.storeId || req.query?.storeId);
   try {
     if (await checkIsDemoStore(storeId)) {
       return res.json({ success: true, simulated: true, message: "Demo mağaza simülasyonu: Pazarama bağlantısı başarılı." });
     }
-    const storeRes = await pool.query("SELECT pazarama_settings FROM stores WHERE id = $1", [storeId]);
-    const settings = storeRes.rows[0]?.pazarama_settings;
-    if (!settings || !settings.apiKey || !settings.apiSecret) return res.status(400).json({ error: "Pazarama API bilgileri eksik" });
+    const storeRes = await pool.query("SELECT pazarama_settings, branding FROM stores WHERE id = $1", [storeId]);
+    let pzDb = storeRes.rows[0]?.pazarama_settings || {};
+    if (typeof pzDb === 'string') { try { pzDb = JSON.parse(pzDb); } catch { pzDb = {}; } }
+    let br = storeRes.rows[0]?.branding || {};
+    if (typeof br === 'string') { try { br = JSON.parse(br); } catch { br = {}; } }
+    let settings: any = { ...(br.pazarama_settings || {}), ...pzDb };
+
+    if (req.body && (req.body.apiKey || req.body.apiSecret || req.body.merchantId)) {
+      settings = {
+        ...settings,
+        apiKey: String(req.body.apiKey || settings.apiKey || "").trim(),
+        apiSecret: String(req.body.apiSecret || settings.apiSecret || "").trim(),
+        merchantId: String(req.body.merchantId || settings.merchantId || "").trim(),
+      };
+    }
+
+    if (!settings || !settings.apiKey || !settings.apiSecret) {
+      return res.status(400).json({ error: "Pazarama API bilgileri eksik" });
+    }
     const success = await testPazaramaConnection(settings);
     res.json({ success });
   } catch (error: any) { 

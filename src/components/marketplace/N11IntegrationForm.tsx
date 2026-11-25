@@ -71,6 +71,17 @@ export const N11IntegrationForm: React.FC<N11IntegrationFormProps> = ({
 
   const mappedCatCount = Object.keys(branding.n11_settings?.categoryMappings || {}).length;
 
+  const syncN11Branding = (patch: Record<string, any>) => {
+    onBrandingChange('n11_settings', {
+      ...(branding.n11_settings || {}),
+      appKey: n11AppKey,
+      appSecret: n11AppSecret,
+      shipmentTemplate: n11ShipmentTemplate,
+      preparingDay: Number(n11PreparingDay) || 1,
+      ...patch,
+    });
+  };
+
   return (
     <div className="bg-white border border-slate-200/90 rounded-xl p-4 sm:p-5 shadow-xs space-y-4" id="n11-integration-card">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-2">
@@ -114,11 +125,7 @@ export const N11IntegrationForm: React.FC<N11IntegrationFormProps> = ({
             onChange={(e) => {
               const val = e.target.value;
               setN11AppKey(val);
-              onBrandingChange('n11_settings', {
-                ...(branding.n11_settings || {}),
-                appKey: val,
-                appSecret: n11AppSecret
-              });
+              syncN11Branding({ appKey: val });
             }}
             placeholder="N11 App Key"
           />
@@ -138,11 +145,7 @@ export const N11IntegrationForm: React.FC<N11IntegrationFormProps> = ({
               onChange={(e) => {
                 const val = e.target.value;
                 setN11AppSecret(val);
-                onBrandingChange('n11_settings', {
-                  ...(branding.n11_settings || {}),
-                  appKey: n11AppKey,
-                  appSecret: val
-                });
+                syncN11Branding({ appSecret: val });
               }}
               placeholder="N11 App Secret"
             />
@@ -169,10 +172,7 @@ export const N11IntegrationForm: React.FC<N11IntegrationFormProps> = ({
             onChange={(e) => {
               const val = e.target.value;
               setN11ShipmentTemplate(val);
-              onBrandingChange('n11_settings', {
-                ...(branding.n11_settings || {}),
-                shipmentTemplate: val
-              });
+              syncN11Branding({ shipmentTemplate: val });
             }}
             placeholder={lang === 'tr' ? "Örn: Alıcı Öder, Mağaza Öder veya YurtiçiKargo" : "e.g. Alıcı Öder"}
           />
@@ -190,14 +190,11 @@ export const N11IntegrationForm: React.FC<N11IntegrationFormProps> = ({
           <select 
             id="n11-preparing-day-select"
             className="w-full h-9 px-3 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs text-slate-900 cursor-pointer transition-colors"
-            value={n11PreparingDay}
+            value={Number(n11PreparingDay) || 1}
             onChange={(e) => {
-              const val = Number(e.target.value);
+              const val = Math.max(1, Number(e.target.value) || 1);
               setN11PreparingDay(val);
-              onBrandingChange('n11_settings', {
-                ...(branding.n11_settings || {}),
-                preparingDay: val
-              });
+              syncN11Branding({ preparingDay: val });
             }}
           >
             {Array.from({ length: 15 }, (_, i) => i + 1).map((day) => (

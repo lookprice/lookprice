@@ -41,6 +41,7 @@ interface ProductsTableProps {
   setMarketplaceModalStatus: (status: any) => void;
   handleAutoFindImages: (params: any) => void;
   onEdit: (product: any) => void;
+  onOpenPlacement?: (product: any) => void;
   onDelete: (id: number) => void;
   onConvertToSingle?: (product: any) => void;
   setRecipeProduct: (p: any) => void;
@@ -94,6 +95,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
   setMarketplaceModalStatus,
   handleAutoFindImages,
   onEdit,
+  onOpenPlacement,
   onDelete,
   onConvertToSingle,
   setRecipeProduct,
@@ -206,6 +208,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
                   setMarketplaceModalStatus={setMarketplaceModalStatus}
                   handleAutoFindImages={handleAutoFindImages}
                   onEdit={onEdit}
+                  onOpenPlacement={onOpenPlacement}
                   onDelete={onDelete}
                   onConvertToSingle={onConvertToSingle}
                   setRecipeProduct={setRecipeProduct}
