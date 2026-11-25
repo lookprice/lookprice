@@ -187,13 +187,13 @@ export const SECTOR_TAXONOMY_PACKAGES: SectorTaxonomyPackage[] = [
       },
       {
         category: "Saklama Ürünleri",
-        sub_categories: ["Saklama Kutuları & Sepetler", "Vakumlu Hurç & Saklama Poşetleri", "Erzak & Kuru Gıda Saklama Kapları", "Elbise Askıları & Giysi Kılıfları", "Çamaşır Sepetleri & Düzenleyiciler"],
-        hb_category_id: 8000130
+        sub_categories: ["Saklama Kutuları & Sepetler", "Giyim & Yastık Hurçları", "Sandık-Baza Hurçları", "Vakumlu Hurç & Saklama Poşetleri", "Erzak & Kuru Gıda Saklama Kapları", "Elbise Askıları & Giysi Kılıfları", "Çamaşır Sepetleri & Yıkama Fileleri"],
+        hb_category_id: 9010271
       },
       {
         category: "Organizerler",
-        sub_categories: ["Çekmece İçi Organizer", "Dolap İçi Düzenleyici & Raf", "Makyaj & Kozmetik Organizeri", "Ayakkabı Organizeri & Kutusu", "Masaüstü & Ofis Organizeri", "Buzdolabı & Mutfak Dolap İçi Organizer", "Takı & Mücevher Organizeri", "Askılı & Kapı Arkası Organizer"],
-        hb_category_id: 8000140
+        sub_categories: ["Çekmece İçi Organizer", "Dolap İçi Düzenleyici & Raf", "Makyaj & Kozmetik Organizeri", "Ayakkabı Organizeri & Kutusu", "Masaüstü & Ofis Organizeri", "Buzdolabı & Mutfak Dolap İçi Organizer", "Takı & Mücevher Organizeri", "Banyo Organizeri"],
+        hb_category_id: 9010269
       }
     ]
   },
@@ -246,24 +246,31 @@ export function resolveSubCategoryLeafHbId(subName: string, fallbackParentId?: n
   if (s.includes("kap") || s.includes("su pınarı") || s.includes("su pinari") || s.includes("dispenser")) return "9000122";
   if (s.includes("kedi") || s.includes("pet")) return "9000110";
 
-  // Organizerler
-  if (s.includes("çekmece") || s.includes("cekmece")) return "8000141";
-  if (s.includes("dolap içi") || s.includes("dolap ici")) return "8000142";
-  if (s.includes("makyaj") || s.includes("kozmetik organizer")) return "8000143";
-  if (s.includes("ayakkabı organizer") || s.includes("ayakkabi organizer")) return "8000144";
-  if (s.includes("masaüstü organizer") || s.includes("masaustu organizer")) return "8000145";
-  if (s.includes("buzdolabı") || s.includes("buzdolabi")) return "8000146";
-  if (s.includes("takı organizer") || s.includes("taki organizer") || s.includes("mücevher")) return "8000147";
-  if (s.includes("kapı arkası") || s.includes("kapi arkasi") || s.includes("askılı organizer")) return "8000148";
-  if (s.includes("organizer") || s.includes("düzenleyici") || s.includes("duzenleyici")) return "8000140";
+  // Organizerler (Verified Live HB Leaf IDs)
+  if (s.includes("çekmece") || s.includes("cekmece")) return "9010269";
+  if (s.includes("dolap içi") || s.includes("dolap ici")) return "9010269";
+  if (s.includes("makyaj") || s.includes("kozmetik organizer")) return "80485001";
+  if (s.includes("ayakkabı organizer") || s.includes("ayakkabi organizer") || s.includes("ayakkabı kutu") || s.includes("ayakkabi kutu")) return "60004980";
+  if (s.includes("masaüstü organizer") || s.includes("masaustu organizer")) return "278747";
+  if (s.includes("buzdolabı") || s.includes("buzdolabi") || s.includes("mutfak organizer")) return "80667015";
+  if (s.includes("takı") || s.includes("taki") || s.includes("mücevher")) return "60004982";
+  if (s.includes("banyo organizer") || s.includes("banyo düzenleyici")) return "60003486";
+  if (s.includes("kapı arkası") || s.includes("kapi arkasi") || s.includes("askılı organizer")) return "9010269";
+  if (s.includes("organizer") || s.includes("düzenleyici") || s.includes("duzenleyici")) return "9010269";
 
-  // Saklama Ürünleri
-  if (s.includes("saklama kutu") || s.includes("saklama sepet")) return "8000131";
-  if (s.includes("hurç") || s.includes("hurc") || s.includes("vakumlu")) return "8000132";
-  if (s.includes("erzak") || s.includes("gıda saklama") || s.includes("kavanoz")) return "8000133";
-  if (s.includes("askı") || s.includes("aski") || s.includes("giysi kılıf")) return "8000134";
-  if (s.includes("çamaşır sepet") || s.includes("camasir sepet")) return "8000135";
-  if (s.includes("saklama")) return "8000130";
+  // Saklama Ürünleri & Hurçlar (Verified Live HB Leaf IDs)
+  if (s.includes("vakumlu")) return "9010267";
+  if (s.includes("sandık") || s.includes("sandik") || s.includes("baza")) return "9010270";
+  if (s.includes("halı hur") || s.includes("hali hur")) return "9010268";
+  if (s.includes("hurç") || s.includes("hurc")) return "9010271";
+  if (s.includes("saklama kutu") || s.includes("kapaklı saklama") || s.includes("kapakli saklama")) return "60004981";
+  if (s.includes("erzak") || s.includes("gıda saklama") || s.includes("kavanoz") || s.includes("saklama kab")) return "60003720";
+  if (s.includes("askı") || s.includes("aski") || s.includes("giysi kılıf")) return "60004987";
+  if (s.includes("yıkama file") || s.includes("yikama file") || s.includes("yıkama torba") || s.includes("yikama torba")) return "80383030";
+  if (s.includes("çamaşır sepet") || s.includes("camasir sepet")) return "18021928";
+  if (s.includes("valiz kılıf") || s.includes("valiz kilif")) return "60003938";
+  if (s.includes("valiz") || s.includes("bavul")) return "1300939";
+  if (s.includes("saklama")) return "60004981";
 
   // Ev Tekstili
   if (s.includes("nevresim") || s.includes("çarşaf") || s.includes("carsaf")) return "8000111";
@@ -547,7 +554,22 @@ export async function autoBridgeStoreCategories(storeId: number): Promise<{
     { pattern: /(kedi\s*sağlık|kedi\s*bakım|kedi\s*tarak|furminator|kedi\s*şampuan)/i, category: "Kediler", subCategory: "Kedi Sağlık, Bakım & Hijyen", hbId: "9000120", amzId: "7000803" },
     { pattern: /(kedi\s*tasma|kedi\s*göğüs|gezdirme\s*kayış)/i, category: "Kediler", subCategory: "Kedi Tasmaları & Gezdirme Kayışları", hbId: "9000121", amzId: "7000803" },
     { pattern: /(kedi\s*mama\s*kabı|kedi\s*su\s*kabı|otomatik\s*su\s*pınarı|su\s*pınarı)/i, category: "Kediler", subCategory: "Kedi Mama & Su Kapları", hbId: "9000122", amzId: "7000803" },
-    { pattern: /\b(kedi\s*maması|kedi\s*mama|kediler|pet\s*shop|petshop|evcil\s*hayvan)\b/i, category: "Kediler", subCategory: "Kuru Kedi Maması", hbId: "9000111", amzId: "7000801" }
+    { pattern: /\b(kedi\s*maması|kedi\s*mama|kediler|pet\s*shop|petshop|evcil\s*hayvan)\b/i, category: "Kediler", subCategory: "Kuru Kedi Maması", hbId: "9000111", amzId: "7000801" },
+
+    // Ev Dekorasyon, Hurçlar, Saklama & Organizerler (Verified Live HB Leaf IDs)
+    { pattern: /(vakumlu\s*hurç|vakumlu\s*poşet|vakumlu)/i, category: "Hurçlar", subCategory: "Vakumlu Hurçlar", hbId: "9010267", amzId: "7000407" },
+    { pattern: /(baza\s*hur|sandık\s*hur|akordiyon\s*hur)/i, category: "Hurçlar", subCategory: "Sandık-Baza Hurçları", hbId: "9010270", amzId: "7000407" },
+    { pattern: /(halı\s*hur)/i, category: "Hurçlar", subCategory: "Halı Hurçları", hbId: "9010268", amzId: "7000407" },
+    { pattern: /(hurç|hurc|yastık\s*hurcu|yorgan\s*hurcu)/i, category: "Hurçlar", subCategory: "Giyim Hurçları", hbId: "9010271", amzId: "7000407" },
+    { pattern: /(çamaşır\s*yıkama\s*file|çamaşır\s*yıkama\s*torba|yıkama\s*filesi)/i, category: "Banyo", subCategory: "Çamaşır Yıkama Torbası", hbId: "80383030", amzId: "7000407" },
+    { pattern: /(çamaşır\s*sepet)/i, category: "Çamaşır Sepetleri", subCategory: "Çamaşır Sepeti", hbId: "18021928", amzId: "7000407" },
+    { pattern: /(makyaj\s*organizer|kozmetik\s*organizer)/i, category: "Organizerler", subCategory: "Makyaj Organizerleri", hbId: "80485001", amzId: "7000408" },
+    { pattern: /(banyo\s*organizer)/i, category: "Banyo", subCategory: "Banyo Organizeri", hbId: "60003486", amzId: "7000408" },
+    { pattern: /(çekmece.*düzenleyici|dolap\s*içi.*düzenleyici|organizer|düzenleyici)/i, category: "Düzenleyiciler", subCategory: "Organizerler", hbId: "9010269", amzId: "7000408" },
+    { pattern: /(saklama\s*kutu|kapaklı\s*kutu|hasır\s*kutu)/i, category: "Düzenleyiciler", subCategory: "Saklama Kutusu", hbId: "60004981", amzId: "7000407" },
+    { pattern: /(ayakkabı\s*kutu|ayakkabı\s*hur|ayakkabı\s*saklama)/i, category: "Düzenleyiciler", subCategory: "Ayakkabı Kutusu", hbId: "60004980", amzId: "7000408" },
+    { pattern: /(valiz\s*kılıf|valiz\s*düzenleyici)/i, category: "Seyahat", subCategory: "Valiz Kılıfı", hbId: "60003938", amzId: "7000407" },
+    { pattern: /(elbise\s*askı|giysi\s*kılıf|gamze\s*kılıf)/i, category: "Saklama Ürünleri", subCategory: "Elbise Askısı", hbId: "60004987", amzId: "7000407" }
   ];
 
   let mappedCount = 0;

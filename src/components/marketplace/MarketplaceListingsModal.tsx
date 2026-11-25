@@ -259,8 +259,12 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
       const res = await api.checkHepsiburadaBulkPendingStatus(currentStoreId);
       const data = (res as any)?.data ?? res;
       if (data && data.success) {
-        toast.success(data.message, { duration: 6000 });
-        if (data.matchedCount > 0 && onRefresh) {
+        if (data.failedCount > 0 && (data.matchedCount || 0) === 0) {
+          toast.warning(data.message, { duration: 7000 });
+        } else {
+          toast.success(data.message, { duration: 6000 });
+        }
+        if ((data.matchedCount > 0 || data.failedCount > 0 || data.updatedCount > 0) && onRefresh) {
           onRefresh();
         }
       } else {
@@ -431,7 +435,7 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
           (hb.hepsiburadaSku && !String(hb.hepsiburadaSku).startsWith('undefined')) ||
           (hb.productId && String(hb.productId).toUpperCase().startsWith('HBC'))
         );
-        if (!p.hepsiburada_last_error) {
+        if (!p.hepsiburada_last_error && hb.status !== 'FAILED' && hb.status !== 'ERROR' && !hb.error) {
           if (hb.status === 'PENDING_APPROVAL' || (!hasSku && (hb.catalogTrackingId || hb.listingTrackingId || p.is_hepsiburada_active))) {
             return true;
           }
@@ -510,18 +514,46 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
             return item;
           }));
           if (onRefresh) onRefresh();
+        } else if (data.status === 'FAILED' || data.isFailed || Boolean(data.error)) {
+          const errMsg = data.error || data.message || (isTr ? "Hepsiburada katalog/ilan aktarımında hata tespit edildi." : "Hepsiburada submission failed.");
+          toast.error(errMsg, { duration: 7000 });
+          setLocalProducts(prev => prev.map(item => {
+            if (item.id === productId) {
+              const prevMp = typeof item.marketplace_data === 'object' ? item.marketplace_data : {};
+              return {
+                ...item,
+                is_hepsiburada_active: false,
+                hepsiburada_last_error: errMsg,
+                marketplace_data: {
+                  ...(prevMp || {}),
+                  hepsiburada: {
+                    ...((prevMp as any)?.hepsiburada || {}),
+                    status: 'FAILED',
+                    error: errMsg,
+                    lastChecked: new Date().toISOString(),
+                    lastStatusMessage: errMsg
+                  }
+                }
+              };
+            }
+            return item;
+          }));
+          if (onRefresh) onRefresh();
         } else {
           const pendingMsg = data.message || (isTr ? "Hepsiburada katalog ve barkod incelemesi sürüyor. Henüz onay kodu atanmadı." : "Catalog review still in progress on HB.");
           toast.info(pendingMsg, { duration: 5000 });
           setLocalProducts(prev => prev.map(item => {
             if (item.id === productId) {
+              const prevMp = typeof item.marketplace_data === 'object' ? item.marketplace_data : {};
               return {
                 ...item,
+                hepsiburada_last_error: null,
                 marketplace_data: {
-                  ...((typeof item.marketplace_data === 'object' ? item.marketplace_data : {}) || {}),
+                  ...(prevMp || {}),
                   hepsiburada: {
-                    ...(((typeof item.marketplace_data === 'object' ? item.marketplace_data : {}) as any)?.hepsiburada || {}),
+                    ...((prevMp as any)?.hepsiburada || {}),
                     status: 'PENDING_APPROVAL',
+                    error: null,
                     lastChecked: new Date().toISOString(),
                     lastStatusMessage: pendingMsg
                   }
@@ -999,11 +1031,12 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
 
       if (targetMp === 'hepsiburada') {
         const res = await api.bulkPublishHepsiburadaProducts(eligibleIds, currentStoreId);
-        toast.success(
+        const msg = res?.data?.message || (
           isTr 
-            ? `Hepsiburada'ya ${res.data?.syncedCount || eligibleIds.length} ürün iletildi (Katalog incelemesi başlatıldı)!` 
-            : `Sent ${res.data?.syncedCount || eligibleIds.length} products to Hepsiburada!`
+            ? `Hepsiburada'ya ${res?.data?.syncedCount || eligibleIds.length} ürün iletildi (Katalog incelemesi başlatıldı)!` 
+            : `Sent ${res?.data?.syncedCount || eligibleIds.length} products to Hepsiburada!`
         );
+        toast.success(msg, { duration: 6000 });
         if (onRefresh) onRefresh();
       } else {
         let count = 0;

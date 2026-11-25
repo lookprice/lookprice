@@ -1457,150 +1457,190 @@ export const HEPSIBURADA_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
     sector: "home"
   },
   {
-    id: 8000130,
-    name: "Saklama Ürünleri",
-    displayName: "Ev & Yaşam > Ev Dekorasyon > Saklama Ürünleri",
-    paths: ["Ev & Yaşam", "Ev Dekorasyon", "Saklama Ürünleri"],
+    id: 60004981,
+    name: "Saklama Kutusu",
+    displayName: "Ev Dekorasyon > Dekorasyon > Ev Düzenleme & Saklama > Saklama Kutusu",
+    paths: ["Ev Dekorasyon", "Dekorasyon", "Ev Düzenleme & Saklama"],
     leaf: true,
     available: true,
     status: "ACTIVE",
     sector: "home"
   },
   {
-    id: 8000131,
-    name: "Saklama Kutuları & Sepetler",
-    displayName: "Ev & Yaşam > Saklama Ürünleri > Saklama Kutusu & Sepet",
-    paths: ["Ev & Yaşam", "Saklama Ürünleri", "Saklama Kutusu"],
+    id: 9010271,
+    name: "Giyim Hurçları",
+    displayName: "Ev Dekorasyon > Ev Tekstili > Saklama Ürünleri > Giyim Hurçları (Yastık & Yorgan Hurcu)",
+    paths: ["Ev Dekorasyon", "Ev Tekstili", "Saklama Ürünleri"],
     leaf: true,
     available: true,
     status: "ACTIVE",
     sector: "home"
   },
   {
-    id: 8000132,
-    name: "Vakumlu Hurç & Saklama Poşetleri",
-    displayName: "Ev & Yaşam > Saklama Ürünleri > Vakumlu Hurç & Poşet",
-    paths: ["Ev & Yaşam", "Saklama Ürünleri", "Hurç"],
+    id: 9010270,
+    name: "Sandık-Baza Hurçları",
+    displayName: "Ev Dekorasyon > Ev Tekstili > Saklama Ürünleri > Sandık-Baza Hurçları",
+    paths: ["Ev Dekorasyon", "Ev Tekstili", "Saklama Ürünleri"],
     leaf: true,
     available: true,
     status: "ACTIVE",
     sector: "home"
   },
   {
-    id: 8000133,
-    name: "Erzak & Kuru Gıda Saklama Kapları",
-    displayName: "Ev & Yaşam > Mutfak > Erzak & Saklama Kapları",
-    paths: ["Ev & Yaşam", "Mutfak", "Saklama Kapları"],
+    id: 9010268,
+    name: "Halı Hurçları",
+    displayName: "Ev Dekorasyon > Ev Tekstili > Saklama Ürünleri > Halı Hurçları",
+    paths: ["Ev Dekorasyon", "Ev Tekstili", "Saklama Ürünleri"],
     leaf: true,
     available: true,
     status: "ACTIVE",
     sector: "home"
   },
   {
-    id: 8000134,
-    name: "Elbise Askıları & Giysi Kılıfları",
-    displayName: "Ev & Yaşam > Saklama Ürünleri > Askı & Giysi Kılıfı",
-    paths: ["Ev & Yaşam", "Saklama Ürünleri", "Askı"],
+    id: 9010267,
+    name: "Vakumlu Hurçlar",
+    displayName: "Ev Dekorasyon > Ev Tekstili > Saklama Ürünleri > Vakumlu Hurçlar & Poşetler",
+    paths: ["Ev Dekorasyon", "Ev Tekstili", "Saklama Ürünleri"],
     leaf: true,
     available: true,
     status: "ACTIVE",
     sector: "home"
   },
   {
-    id: 8000135,
-    name: "Çamaşır Sepetleri & Düzenleyiciler",
-    displayName: "Ev & Yaşam > Banyo & Ev > Çamaşır Sepetleri",
-    paths: ["Ev & Yaşam", "Banyo", "Çamaşır Sepeti"],
+    id: 60003720,
+    name: "Saklama Kapları",
+    displayName: "Ev & Yaşam > Mutfak > Saklama & Düzenleme > Erzak & Saklama Kapları",
+    paths: ["Ev & Yaşam", "Mutfak", "Saklama & Düzenleme"],
     leaf: true,
     available: true,
     status: "ACTIVE",
     sector: "home"
   },
   {
-    id: 8000140,
+    id: 60004987,
+    name: "Elbise Askısı",
+    displayName: "Ev Dekorasyon > Dekorasyon > Ev Düzenleme & Saklama > Elbise Askısı & Giysi Kılıfı",
+    paths: ["Ev Dekorasyon", "Dekorasyon", "Ev Düzenleme & Saklama"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "home"
+  },
+  {
+    id: 18021928,
+    name: "Çamaşır Sepeti",
+    displayName: "Ev Dekorasyon > Banyo & Mutfak > Banyo Aksesuarları > Çamaşır Sepeti",
+    paths: ["Ev Dekorasyon", "Banyo & Mutfak", "Banyo Aksesuarları"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "home"
+  },
+  {
+    id: 80383030,
+    name: "Çamaşır Yıkama Torbası",
+    displayName: "Ev Dekorasyon > Banyo & Mutfak > Çamaşır Yıkama Torbası & Filesi",
+    paths: ["Ev Dekorasyon", "Banyo & Mutfak", "Çamaşır Gereçleri"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "home"
+  },
+  {
+    id: 9010269,
     name: "Organizerler",
-    displayName: "Ev & Yaşam > Ev Dekorasyon > Organizerler & Düzenleyiciler",
-    paths: ["Ev & Yaşam", "Ev Dekorasyon", "Organizerler"],
+    displayName: "Ev Dekorasyon > Ev Tekstili > Saklama Ürünleri > Organizerler (Çekmece & Dolap İçi Düzenleyici)",
+    paths: ["Ev Dekorasyon", "Ev Tekstili", "Saklama Ürünleri"],
     leaf: true,
     available: true,
     status: "ACTIVE",
     sector: "home"
   },
   {
-    id: 8000141,
-    name: "Çekmece İçi Organizer",
-    displayName: "Ev & Yaşam > Organizerler > Çekmece İçi Düzenleyici & Organizer",
-    paths: ["Ev & Yaşam", "Organizerler", "Çekmece İçi Organizer"],
+    id: 80667015,
+    name: "Organizer",
+    displayName: "Ev & Yaşam > Mutfak > Saklama & Düzenleme > Mutfak & Buzdolabı Organizeri",
+    paths: ["Ev & Yaşam", "Mutfak", "Saklama & Düzenleme"],
     leaf: true,
     available: true,
     status: "ACTIVE",
     sector: "home"
   },
   {
-    id: 8000142,
-    name: "Dolap İçi Düzenleyici & Raf",
-    displayName: "Ev & Yaşam > Organizerler > Dolap İçi Düzenleyici & Raf",
-    paths: ["Ev & Yaşam", "Organizerler", "Dolap İçi Düzenleyici"],
+    id: 60003486,
+    name: "Banyo Organizeri",
+    displayName: "Ev Dekorasyon > Banyo & Mutfak > Banyo Aksesuarları > Banyo Organizeri",
+    paths: ["Ev Dekorasyon", "Banyo & Mutfak", "Banyo Aksesuarları"],
     leaf: true,
     available: true,
     status: "ACTIVE",
     sector: "home"
   },
   {
-    id: 8000143,
-    name: "Makyaj & Kozmetik Organizeri",
-    displayName: "Ev & Yaşam > Organizerler > Makyaj & Kozmetik Düzenleyici",
-    paths: ["Ev & Yaşam", "Organizerler", "Makyaj Organizeri"],
+    id: 80485001,
+    name: "Makyaj Düzenleyici ve Organizerleri",
+    displayName: "Ev & Yaşam > Organizerler > Makyaj Düzenleyici ve Kozmetik Organizerleri",
+    paths: ["Ev & Yaşam", "Organizerler", "Makyaj Organizerleri"],
     leaf: true,
     available: true,
     status: "ACTIVE",
     sector: "home"
   },
   {
-    id: 8000144,
-    name: "Ayakkabı Organizeri & Kutusu",
-    displayName: "Ev & Yaşam > Organizerler > Ayakkabı Düzenleyici & Organizer",
-    paths: ["Ev & Yaşam", "Organizerler", "Ayakkabı Organizeri"],
+    id: 60004980,
+    name: "Ayakkabı Kutusu",
+    displayName: "Ev Dekorasyon > Dekorasyon > Ev Düzenleme & Saklama > Ayakkabı Kutusu & Organizeri",
+    paths: ["Ev Dekorasyon", "Dekorasyon", "Ev Düzenleme & Saklama"],
     leaf: true,
     available: true,
     status: "ACTIVE",
     sector: "home"
   },
   {
-    id: 8000145,
-    name: "Masaüstü & Ofis Organizeri",
-    displayName: "Ev & Yaşam > Organizerler > Masaüstü & Evrak Düzenleyici",
-    paths: ["Ev & Yaşam", "Organizerler", "Masaüstü Organizer"],
+    id: 278747,
+    name: "Masaüstü Organizer",
+    displayName: "Ofis & Kırtasiye > Masaüstü Gereçleri > Masaüstü & Ofis Organizeri",
+    paths: ["Ofis & Kırtasiye", "Masaüstü Gereçleri", "Masaüstü Organizer"],
     leaf: true,
     available: true,
     status: "ACTIVE",
     sector: "home"
   },
   {
-    id: 8000146,
-    name: "Buzdolabı & Mutfak Dolap İçi Organizer",
-    displayName: "Ev & Yaşam > Organizerler > Buzdolabı & Mutfak Düzenleyici",
-    paths: ["Ev & Yaşam", "Organizerler", "Buzdolabı Organizeri"],
+    id: 60004982,
+    name: "Takı Kutusu",
+    displayName: "Ev Dekorasyon > Dekorasyon > Ev Düzenleme & Saklama > Takı & Mücevher Kutusu",
+    paths: ["Ev Dekorasyon", "Dekorasyon", "Ev Düzenleme & Saklama"],
     leaf: true,
     available: true,
     status: "ACTIVE",
     sector: "home"
   },
   {
-    id: 8000147,
-    name: "Takı & Mücevher Organizeri",
-    displayName: "Ev & Yaşam > Organizerler > Takı & Mücevher Kutusu",
-    paths: ["Ev & Yaşam", "Organizerler", "Takı Organizeri"],
+    id: 60004983,
+    name: "Dekoratif Kutu",
+    displayName: "Ev Dekorasyon > Dekorasyon > Ev Düzenleme & Saklama > Dekoratif Kutu",
+    paths: ["Ev Dekorasyon", "Dekorasyon", "Ev Düzenleme & Saklama"],
     leaf: true,
     available: true,
     status: "ACTIVE",
     sector: "home"
   },
   {
-    id: 8000148,
-    name: "Askılı & Kapı Arkası Organizer",
-    displayName: "Ev & Yaşam > Organizerler > Kapı Arkası & Askılı Düzenleyici",
-    paths: ["Ev & Yaşam", "Organizerler", "Kapı Arkası Organizer"],
+    id: 60003938,
+    name: "Valiz Kılıfı",
+    displayName: "Çanta & Valiz > Seyahat Aksesuarları > Valiz Kılıfı & Seyahat Organizeri",
+    paths: ["Çanta & Valiz", "Seyahat Aksesuarları", "Valiz Kılıfı"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "home"
+  },
+  {
+    id: 1300939,
+    name: "Bavul & Valiz",
+    displayName: "Çanta & Valiz > Valizler > Bavul & Valiz",
+    paths: ["Çanta & Valiz", "Valizler", "Bavul & Valiz"],
     leaf: true,
     available: true,
     status: "ACTIVE",
@@ -2842,19 +2882,31 @@ export const CATEGORY_ID_ATTRIBUTE_MAP: Record<string, MarketplaceAttribute[]> =
   "107": COMMON_MARKETPLACE_ATTRIBUTES.home_textile,
   "1000631": COMMON_MARKETPLACE_ATTRIBUTES.home_textile,
 
-  // Storage Products
+  // Storage Products (Verified live HB leaf IDs + legacy virtual compatibility)
   "8000130": COMMON_MARKETPLACE_ATTRIBUTES.storage_products,
   "8000131": COMMON_MARKETPLACE_ATTRIBUTES.storage_products,
   "8000132": COMMON_MARKETPLACE_ATTRIBUTES.storage_products,
   "8000133": COMMON_MARKETPLACE_ATTRIBUTES.storage_products,
   "8000134": COMMON_MARKETPLACE_ATTRIBUTES.storage_products,
   "8000135": COMMON_MARKETPLACE_ATTRIBUTES.storage_products,
+  "9010271": COMMON_MARKETPLACE_ATTRIBUTES.storage_products,
+  "9010270": COMMON_MARKETPLACE_ATTRIBUTES.storage_products,
+  "9010268": COMMON_MARKETPLACE_ATTRIBUTES.storage_products,
+  "9010267": COMMON_MARKETPLACE_ATTRIBUTES.storage_products,
+  "60004981": COMMON_MARKETPLACE_ATTRIBUTES.storage_products,
+  "60004983": COMMON_MARKETPLACE_ATTRIBUTES.storage_products,
+  "60004987": COMMON_MARKETPLACE_ATTRIBUTES.storage_products,
+  "60003720": COMMON_MARKETPLACE_ATTRIBUTES.storage_products,
+  "18021928": COMMON_MARKETPLACE_ATTRIBUTES.storage_products,
+  "80383030": COMMON_MARKETPLACE_ATTRIBUTES.storage_products,
+  "60003938": COMMON_MARKETPLACE_ATTRIBUTES.storage_products,
+  "1300939": COMMON_MARKETPLACE_ATTRIBUTES.storage_products,
   "80103": COMMON_MARKETPLACE_ATTRIBUTES.storage_products,
   "7000407": COMMON_MARKETPLACE_ATTRIBUTES.storage_products,
   "113": COMMON_MARKETPLACE_ATTRIBUTES.storage_products,
   "1000633": COMMON_MARKETPLACE_ATTRIBUTES.storage_products,
 
-  // Organizers
+  // Organizers (Verified live HB leaf IDs + legacy virtual compatibility)
   "8000140": COMMON_MARKETPLACE_ATTRIBUTES.organizers,
   "8000141": COMMON_MARKETPLACE_ATTRIBUTES.organizers,
   "8000142": COMMON_MARKETPLACE_ATTRIBUTES.organizers,
@@ -2864,6 +2916,14 @@ export const CATEGORY_ID_ATTRIBUTE_MAP: Record<string, MarketplaceAttribute[]> =
   "8000146": COMMON_MARKETPLACE_ATTRIBUTES.organizers,
   "8000147": COMMON_MARKETPLACE_ATTRIBUTES.organizers,
   "8000148": COMMON_MARKETPLACE_ATTRIBUTES.organizers,
+  "9010269": COMMON_MARKETPLACE_ATTRIBUTES.organizers,
+  "80485001": COMMON_MARKETPLACE_ATTRIBUTES.organizers,
+  "60004980": COMMON_MARKETPLACE_ATTRIBUTES.organizers,
+  "60004982": COMMON_MARKETPLACE_ATTRIBUTES.organizers,
+  "60003486": COMMON_MARKETPLACE_ATTRIBUTES.organizers,
+  "278747": COMMON_MARKETPLACE_ATTRIBUTES.organizers,
+  "80667015": COMMON_MARKETPLACE_ATTRIBUTES.organizers,
+  "80146018": COMMON_MARKETPLACE_ATTRIBUTES.organizers,
   "80104": COMMON_MARKETPLACE_ATTRIBUTES.organizers,
   "7000408": COMMON_MARKETPLACE_ATTRIBUTES.organizers,
   "1000634": COMMON_MARKETPLACE_ATTRIBUTES.organizers,
@@ -3561,6 +3621,7 @@ export function getAttributesForCategory(catName: string, paths: string[] = [], 
     text.includes("çekmece içi") ||
     text.includes("cekmece ici") ||
     text.includes("dolap içi düzenleyici") ||
+    text.includes("banyo organizer") ||
     text.includes("makyaj organizer") ||
     text.includes("ayakkabı organizer") ||
     text.includes("masaüstü organizer") ||
@@ -3585,8 +3646,15 @@ export function getAttributesForCategory(catName: string, paths: string[] = [], 
     text.includes("kuru gıda saklama") ||
     text.includes("giysi kılıf") ||
     text.includes("elbise kılıf") ||
+    text.includes("elbise askısı") ||
     text.includes("çamaşır sepeti") ||
-    text.includes("camasir sepeti")
+    text.includes("camasir sepeti") ||
+    text.includes("çamaşır yıkama torba") ||
+    text.includes("çamaşır yıkama file") ||
+    text.includes("valiz kılıf") ||
+    text.includes("ayakkabı kutusu") ||
+    text.includes("takı kutusu") ||
+    text.includes("dekoratif kutu")
   ) {
     return COMMON_MARKETPLACE_ATTRIBUTES.storage_products;
   }

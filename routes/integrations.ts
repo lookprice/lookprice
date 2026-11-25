@@ -2230,13 +2230,342 @@ router.post("/hepsiburada/sync-inventory", authenticate, async (req: any, res) =
   }
 });
 
+const VIRTUAL_TO_LIVE_HB_CATEGORY_MAP: Record<string, number> = {
+  "1000101": 970,      // Usb Bellek
+  "1000102": 698,      // Kart Okuyucular
+  "1000103": 1100011,  // Sd Kartlar
+  "1000104": 80081047, // Taşınabilir SSD
+  "1000105": 100225,   // Taşınabilir Disk (External HDD)
+  "1000106": 114814,   // SSD Solid State Drive (Dahili SSD)
+  "1000107": 100221,   // Hard Diskler (Dahili HDD)
+  "1000108": 47,       // Bellek (Ram)
+  "1000109": 152,      // Anakartlar
+  "1000110": 46,       // İşlemciler
+  "1000111": 204,      // Ekran Kartları
+  "1000113": 1125,     // Soğutucular / Overclock
+  "1000114": 98,       // Dizüstü Bilgisayar Laptop
+  "1000115": 111001,   // Mini Masaüstü
+  "1000116": 80561022, // Hazır Oyuncu Sistemleri
+  "1000117": 3002879,  // Led Monitörler
+  "1000121": 1065,     // Webcam
+  "1000122": 189,      // Switch Box Ve Çoklayıcılar
+  "1000123": 676,      // Notebook Çantaları
+  "1000127": 103939,   // Wireless Adaptör
+  "1000128": 121,      // Switch (Ethernet Ağ Anahtarları)
+  "1000130": 80857383, // Toner & Kartuş
+  "1000132": 813,      // Dvd/Hdd Kasaları
+  "1000134": 13006537, // Uzatma Kablosu & Grup Priz
+  "1000135": 676,
+  "1000136": 676,
+  "1000137": 676,
+  "1000138": 52,
+  "1000140": 60001183, // Tablet Kalemleri
+  "1000181": 189,
+  "1000182": 105307,
+  "1000183": 84120,
+  "1000184": 505,
+  "1000185": 1250,
+  "1000187": 84120,
+  "1000188": 114325,
+  "1000189": 114325,
+  "1000190": 106858,
+  "1000191": 106858,
+  "1000192": 106858,
+  "1000193": 106858,
+  "1000194": 106858,
+  "1000195": 106858,
+  "1000196": 106858,
+  "1000197": 106858,
+  "1000198": 106854,
+  "2000105": 256,
+  "371960": 371965,
+  "371966": 16113,
+  "371969": 29010123,
+  // Synthetic home/storage/organizer virtual IDs -> Verified live Hepsiburada leaf category IDs
+  "8000130": 60004981,
+  "8000131": 60004981,
+  "8000132": 9010271,
+  "8000133": 60003720,
+  "8000134": 60004987,
+  "8000135": 18021928,
+  "8000140": 9010269,
+  "8000141": 9010269,
+  "8000142": 9010269,
+  "8000143": 80485001,
+  "8000144": 60004980,
+  "8000145": 278747,
+  "8000146": 80667015,
+  "8000147": 60004982,
+  "8000148": 9010269
+};
+
+function normalizeSyntheticHbCategoryId(rawCategoryId: any, catSearchStr: string): number | "" {
+  const s = String(rawCategoryId || "").trim();
+  if (!s || s === "0" || s === "null" || s === "undefined" || s === "2147483647") return "";
+
+  if (s === "1000112") return catSearchStr.includes("psu") || catSearchStr.includes("güç kaynağı") ? 1012 : 1013;
+  if (s === "1000118") return catSearchStr.includes("set") ? 3007055 : (catSearchStr.includes("mouse pad") || catSearchStr.includes("mousepad") ? 29 : (catSearchStr.includes("mouse") || catSearchStr.includes("fare") ? 52 : 51));
+  if (s === "1000119") return catSearchStr.includes("kulaklık") ? 60004548 : (catSearchStr.includes("mouse") || catSearchStr.includes("fare") ? 52 : 51);
+  if (s === "1000120") return catSearchStr.includes("mikrofon") ? 60001543 : 60004548;
+  if (s === "1000124") return catSearchStr.includes("soğutucu") ? 106859 : 106861;
+  if (s === "1000125") return catSearchStr.includes("modem") ? 45 : 60001272;
+  if (s === "1000126") return catSearchStr.includes("router") ? 60001272 : (catSearchStr.includes("menzil") || catSearchStr.includes("extender") || catSearchStr.includes("access point") ? 410 : 103939);
+  if (s === "1000129") return catSearchStr.includes("tarayıcı") || catSearchStr.includes("scanner") ? 39 : 6;
+  if (s === "1000131") return catSearchStr.includes("yazıcı") ? 106502 : (catSearchStr.includes("terminal") ? 95088 : 106503);
+  if (s === "1000133") return catSearchStr.includes("macun") ? 1125 : 60005734;
+  if (s === "1000139") return catSearchStr.includes("projeksiyon") ? 15530 : 52;
+  if (s === "1000186") return catSearchStr.includes("sata") ? 105306 : 105325;
+  if (s === "8000132") {
+    if (catSearchStr.includes("vakum")) return 9010267;
+    if (catSearchStr.includes("sandık") || catSearchStr.includes("baza")) return 9010270;
+    if (catSearchStr.includes("halı")) return 9010268;
+    return 9010271;
+  }
+  if (s === "8000135" && (catSearchStr.includes("file") || catSearchStr.includes("torba") || catSearchStr.includes("yıkama"))) {
+    return 80383030;
+  }
+
+  if (VIRTUAL_TO_LIVE_HB_CATEGORY_MAP[s]) {
+    return VIRTUAL_TO_LIVE_HB_CATEGORY_MAP[s];
+  }
+
+  const num = Number(s);
+  return Number.isFinite(num) && num > 0 ? num : "";
+}
+
+async function resolveHepsiburadaCategoryIdForProduct(
+  p: any,
+  mpData: any,
+  hbData: any,
+  settings: any,
+  storeId: number,
+  cachedLiveCategories?: any[]
+): Promise<{ categoryId: number | ""; liveCategories?: any[] }> {
+  const catSearchStr = `${p.name || ""} ${p.category || ""} ${p.sub_category || ""}`
+    .replace(/İ/g, "i")
+    .replace(/I/g, "ı")
+    .toLowerCase();
+
+  // 1. Product manual category override
+  let rawCategoryId: any = hbData?.categoryId || mpData?.categoryId || "";
+
+  // 2. Store category mappings (hierarchical, sub_category, category)
+  if (!rawCategoryId || rawCategoryId === "2147483647") {
+    const catKey = p.category ? String(p.category).trim() : "";
+    const subCatKey = p.sub_category ? String(p.sub_category).trim() : "";
+    const hierarchicalKey = catKey && subCatKey ? `${catKey} > ${subCatKey}` : "";
+    const mappings = settings?.categoryMappings || {};
+    rawCategoryId =
+      (hierarchicalKey && (mappings[hierarchicalKey]?.hepsiburada || mappings[hierarchicalKey])) ||
+      (subCatKey && (mappings[subCatKey]?.hepsiburada || mappings[subCatKey])) ||
+      (catKey && (mappings[catKey]?.hepsiburada || mappings[catKey])) ||
+      "";
+  }
+
+  let normalized = normalizeSyntheticHbCategoryId(rawCategoryId, catSearchStr);
+  if (normalized) {
+    return { categoryId: normalized, liveCategories: cachedLiveCategories };
+  }
+
+  // 3. Deterministic electronics & home/organizer keyword heuristics (real live HB leaf IDs)
+  if (catSearchStr.includes("priz") || catSearchStr.includes("akım korumalı") || catSearchStr.includes("uzatma kablo")) {
+    return { categoryId: 13006537, liveCategories: cachedLiveCategories };
+  } else if (catSearchStr.includes("usb flash") || catSearchStr.includes("flash bellek") || (catSearchStr.includes("usb") && catSearchStr.includes("bellek"))) {
+    return { categoryId: 970, liveCategories: cachedLiveCategories };
+  } else if (catSearchStr.includes("kart okuyucu")) {
+    return { categoryId: 698, liveCategories: cachedLiveCategories };
+  } else if (catSearchStr.includes("sd kart")) {
+    return { categoryId: 1100011, liveCategories: cachedLiveCategories };
+  } else if (catSearchStr.includes("ssd") || catSearchStr.includes("nvme") || catSearchStr.includes("m.2")) {
+    return { categoryId: catSearchStr.includes("taşınabilir") || catSearchStr.includes("harici") ? 80081047 : 114814, liveCategories: cachedLiveCategories };
+  } else if (catSearchStr.includes("wi-fi") || catSearchStr.includes("wifi") || catSearchStr.includes("kablosuz adaptör") || catSearchStr.includes("ağ kart")) {
+    return { categoryId: 103939, liveCategories: cachedLiveCategories };
+  } else if (catSearchStr.includes("switch") && (catSearchStr.includes("port") || catSearchStr.includes("gigabit") || catSearchStr.includes("ethernet"))) {
+    return { categoryId: 121, liveCategories: cachedLiveCategories };
+  } else if (catSearchStr.includes("hdmi") || catSearchStr.includes("displayport") || catSearchStr.includes("vga")) {
+    return { categoryId: 84120, liveCategories: cachedLiveCategories };
+  } else if (catSearchStr.includes("cat6") || catSearchStr.includes("cat7") || catSearchStr.includes("patch") || catSearchStr.includes("ethernet kablo")) {
+    return { categoryId: 505, liveCategories: cachedLiveCategories };
+  } else if (catSearchStr.includes("notebook stand") || catSearchStr.includes("laptop stand")) {
+    return { categoryId: 106861, liveCategories: cachedLiveCategories };
+  } else if (catSearchStr.includes("klavye") && catSearchStr.includes("mouse")) {
+    return { categoryId: 3007055, liveCategories: cachedLiveCategories };
+  } else if (catSearchStr.includes("mouse") || catSearchStr.includes("fare") || catSearchStr.includes("sunum kumanda")) {
+    return { categoryId: 52, liveCategories: cachedLiveCategories };
+  } else if (catSearchStr.includes("klavye")) {
+    return { categoryId: 51, liveCategories: cachedLiveCategories };
+  } else if (catSearchStr.includes("ram") || catSearchStr.includes("ddr4") || catSearchStr.includes("ddr5")) {
+    return { categoryId: 47, liveCategories: cachedLiveCategories };
+  } else if (catSearchStr.includes("vakumlu") && (catSearchStr.includes("hurç") || catSearchStr.includes("hurc") || catSearchStr.includes("poşet"))) {
+    return { categoryId: 9010267, liveCategories: cachedLiveCategories };
+  } else if ((catSearchStr.includes("sandık") || catSearchStr.includes("baza")) && (catSearchStr.includes("hurç") || catSearchStr.includes("hurc"))) {
+    return { categoryId: 9010270, liveCategories: cachedLiveCategories };
+  } else if (catSearchStr.includes("halı") && (catSearchStr.includes("hurç") || catSearchStr.includes("hurc"))) {
+    return { categoryId: 9010268, liveCategories: cachedLiveCategories };
+  } else if (catSearchStr.includes("hurç") || catSearchStr.includes("hurc") || catSearchStr.includes("hurcu")) {
+    return { categoryId: 9010271, liveCategories: cachedLiveCategories };
+  } else if (catSearchStr.includes("çamaşır yıkama") && (catSearchStr.includes("file") || catSearchStr.includes("torba"))) {
+    return { categoryId: 80383030, liveCategories: cachedLiveCategories };
+  } else if (catSearchStr.includes("çamaşır sepet")) {
+    return { categoryId: 18021928, liveCategories: cachedLiveCategories };
+  } else if (catSearchStr.includes("makyaj") && (catSearchStr.includes("organizer") || catSearchStr.includes("düzenleyici"))) {
+    return { categoryId: 80485001, liveCategories: cachedLiveCategories };
+  } else if (catSearchStr.includes("banyo") && (catSearchStr.includes("organizer") || catSearchStr.includes("düzenleyici"))) {
+    return { categoryId: 60003486, liveCategories: cachedLiveCategories };
+  } else if (catSearchStr.includes("ayakkabı") && (catSearchStr.includes("kutu") || catSearchStr.includes("organizer") || catSearchStr.includes("düzenleyici"))) {
+    return { categoryId: 60004980, liveCategories: cachedLiveCategories };
+  } else if (catSearchStr.includes("valiz kılıf") || (catSearchStr.includes("valiz") && catSearchStr.includes("düzenleyici"))) {
+    return { categoryId: 60003938, liveCategories: cachedLiveCategories };
+  } else if (catSearchStr.includes("valiz") || catSearchStr.includes("bavul")) {
+    return { categoryId: 1300939, liveCategories: cachedLiveCategories };
+  } else if (catSearchStr.includes("elbise askı") || catSearchStr.includes("giysi kılıf") || catSearchStr.includes("elbise kılıf")) {
+    return { categoryId: 60004987, liveCategories: cachedLiveCategories };
+  } else if (catSearchStr.includes("saklama kutu") || catSearchStr.includes("kapaklı saklama")) {
+    return { categoryId: 60004981, liveCategories: cachedLiveCategories };
+  } else if (catSearchStr.includes("çekmece") || catSearchStr.includes("dolap içi") || catSearchStr.includes("düzenleyici") || catSearchStr.includes("organizer")) {
+    return { categoryId: 9010269, liveCategories: cachedLiveCategories };
+  }
+
+  // 4. Smart Auto-Match against live merged Hepsiburada leaf categories (4785+ live categories)
+  try {
+    const liveCats = cachedLiveCategories || (await getMergedHepsiburadaCategories(storeId));
+    const { suggestMarketplaceCategory } = await import("../src/data/marketplaceCategoriesData");
+    const catKey = p.category ? String(p.category).trim() : "";
+    const subCatKey = p.sub_category ? String(p.sub_category).trim() : "";
+    const queryStr = [catKey, subCatKey].filter(Boolean).join(" > ") || String(p.name || "");
+    const suggestion = suggestMarketplaceCategory(queryStr, liveCats);
+    if (suggestion?.bestMatch && suggestion.score >= 50) {
+      normalized = normalizeSyntheticHbCategoryId(suggestion.bestMatch.id, catSearchStr);
+      if (normalized) {
+        return { categoryId: normalized, liveCategories: liveCats };
+      }
+    }
+    return { categoryId: "", liveCategories: liveCats };
+  } catch {
+    return { categoryId: "", liveCategories: cachedLiveCategories };
+  }
+}
+
+function buildHepsiburadaCatalogAttributes(
+  p: any,
+  mpData: any,
+  hbData: any,
+  categoryId: number | "",
+  numericEffectivePrice: number,
+  req: any
+): Record<string, any> {
+  const userAttrs = hbData?.attributes || mpData?.attributes || {};
+
+  let effectiveHbImageUrl: string | null = null;
+  const rawHbImg = userAttrs?.Image1 || mpData?.attributes?.Image1 || p.image_url;
+  if (rawHbImg) {
+    let candidate = String(rawHbImg).trim();
+    if (candidate.startsWith("/")) {
+      const envBase = process.env.PUBLIC_APP_URL || process.env.APP_URL;
+      const host = req?.get?.("host") || "lookprice.net";
+      if (envBase && /^https?:\/\//i.test(envBase) && host.includes("localhost")) {
+        candidate = `${envBase.replace(/\/$/, "")}${candidate}`;
+      } else {
+        const protocol = req?.protocol === "http" && !host.includes("localhost") ? "https" : (req?.protocol || "https");
+        candidate = `${protocol}://${host}${candidate}`;
+      }
+    }
+    if (candidate.includes(".webp")) {
+      candidate = candidate.replace(/\.webp($|\?)/i, ".jpg$1");
+    }
+    if (candidate.startsWith("http")) {
+      effectiveHbImageUrl = candidate;
+    }
+  }
+
+  const inferredHbBrand = String(
+    p.brand ||
+    userAttrs.Marka ||
+    mpData?.n11?.attributes?.Marka ||
+    (p.name ? String(p.name).trim().split(/\s+/)[0] : "") ||
+    "Diğer"
+  ).trim();
+
+  const barcodeStr = String(p.barcode || p.sku || "").trim();
+  const attributes: Record<string, any> = {
+    merchantSku: barcodeStr,
+    VaryantGroupID: `GRP-${barcodeStr}`,
+    Barcode: barcodeStr,
+    UrunAdi: p.name,
+    UrunAciklamasi: `<p>${p.description || p.name}</p>`,
+    Marka: inferredHbBrand,
+    GarantiSuresi: userAttrs.GarantiSuresi ? parseInt(userAttrs.GarantiSuresi, 10) : 24,
+    tax_vat_rate: String(p.tax_rate || userAttrs.tax_vat_rate || 20),
+    price: numericEffectivePrice,
+    stock: computeSellableStock(p.stock_quantity, p.reserved_stock),
+    kg: String(p.desi || 1),
+    ...userAttrs
+  };
+
+  if (effectiveHbImageUrl) {
+    attributes.Image1 = effectiveHbImageUrl;
+  }
+
+  if (Number(categoryId) === 970) {
+    if (!attributes.kapasite_) {
+      const capMatch = String(p.name || "").match(/(\d+)\s*(gb|tb|mb)/i);
+      attributes.kapasite_ = capMatch ? `${capMatch[1]} ${capMatch[2].toUpperCase()}` : "64 GB";
+    }
+    if (!attributes.usb_3_0) {
+      attributes.usb_3_0 = /3\.2/i.test(p.name) ? "Var (USB 3.2)" : (/3\.1/i.test(p.name) ? "Var (USB 3.1)" : "Var");
+    }
+    if (!attributes["00000PGR"]) attributes["00000PGR"] = ["Type A", "USB 3.0"];
+    if (!attributes.okuma_hizi_) attributes.okuma_hizi_ = "100 MB/s";
+    if (!attributes.yazma_hizi) attributes.yazma_hizi = "10 MB/s";
+    if (!attributes.sifre_koruma) attributes.sifre_koruma = "Yok";
+    if (!attributes["000017ZC"]) attributes["000017ZC"] = ["Windows"];
+  }
+
+  return attributes;
+}
+
+function extractHbCatalogImportError(detail: any): string | null {
+  if (!detail) return null;
+  if (detail.success === false && detail.message) {
+    return String(detail.message);
+  }
+  const itemInfo = Array.isArray(detail) ? detail[0] : (Array.isArray(detail?.data) ? detail.data[0] : detail);
+  if (!itemInfo || typeof itemInfo !== "object") return null;
+
+  const importStatus = String(itemInfo.importStatus || itemInfo.status || itemInfo.state || "").toUpperCase();
+  const importMessages = itemInfo.importMessages || itemInfo.errors || itemInfo.failureReasons || [];
+  const hasErrMsg = Array.isArray(importMessages) && importMessages.some((m: any) => typeof m === "string" || m?.severity === "ERROR" || m?.message || m?.description);
+
+  if (importStatus === "FAILED" || importStatus === "REJECTED" || hasErrMsg) {
+    const errList = Array.isArray(importMessages)
+      ? importMessages.map((e: any) => typeof e === "string" ? e : (e.message || e.description || JSON.stringify(e))).filter(Boolean).join("; ")
+      : String(importMessages);
+    return errList || `Hepsiburada katalog aktarımı reddedildi (${importStatus || "FAILED"})`;
+  }
+  return null;
+}
+
+function extractHbInventoryTaskError(taskDetail: any): string | null {
+  if (!taskDetail || typeof taskDetail !== "object") return null;
+  const priceVals = Array.isArray(taskDetail.priceValidations) ? taskDetail.priceValidations : [];
+  if (priceVals.length > 0) {
+    return "Yüksek Fiyat";
+  }
+  const errs = Array.isArray(taskDetail.errors) ? taskDetail.errors : [];
+  if (errs.length > 0) {
+    const messages = errs.flatMap((e: any) => {
+      if (typeof e === "string") return [e];
+      if (Array.isArray(e?.errors)) return e.errors.map(String);
+      return [e?.message || e?.error || JSON.stringify(e)];
+    }).filter(Boolean);
+    return messages.join("; ") || "Envanter yükleme hatası";
+  }
+  return null;
+}
+
 // 5.1 Check Single Product Live Status on Hepsiburada
 router.post("/hepsiburada/check-product-status", authenticate, async (req: any, res) => {
-  const rawStoreId = req.body?.storeId || req.query?.storeId || req.user?.store_id;
-  const storeId = req.user.role === "superadmin" 
-    ? Number(rawStoreId || req.user.store_id || 1) 
-    : Number(req.user.store_id || rawStoreId);
-
+  const storeId = Number(getAuthorizedStoreId(req, req.body?.storeId || req.query?.storeId) || req.user?.store_id || 1);
   const productId = req.body?.productId;
   if (!productId) {
     return res.status(400).json({ error: "Ürün ID gereklidir." });
@@ -2249,11 +2578,14 @@ router.post("/hepsiburada/check-product-status", authenticate, async (req: any, 
     }
 
     const row = storeRes.rows[0];
-    let settings = row?.hepsiburada_settings || row?.branding?.hepsiburada_settings || {};
-    if (typeof settings === 'string') { try { settings = JSON.parse(settings); } catch(e) { settings = {}; } }
+    let hbDb = row?.hepsiburada_settings || {};
+    if (typeof hbDb === 'string') { try { hbDb = JSON.parse(hbDb); } catch { hbDb = {}; } }
+    let branding = row?.branding || {};
+    if (typeof branding === 'string') { try { branding = JSON.parse(branding); } catch { branding = {}; } }
+    const settings = { ...(branding?.hepsiburada_settings || {}), ...hbDb };
 
     const merchantId = String(settings?.merchantId || "").trim();
-    const apiKey = String(settings?.apiKey || "lookprice_dev").trim();
+    const apiKey = String(settings?.apiKey || "lookprice_dev").trim() || "lookprice_dev";
     const apiSecret = String(settings?.apiSecret || "").trim();
 
     if (!merchantId || !apiSecret) {
@@ -2307,12 +2639,10 @@ router.post("/hepsiburada/check-product-status", authenticate, async (req: any, 
       if (pCode && lMSku && norm(pCode) === norm(lMSku)) return true;
       if (altBc.some((b: string) => norm(b) === norm(lMSku) || norm(b) === norm(lBarcode))) return true;
 
-      // Digits-only match
       if (pBcDigits && lMSkuDigits && lMSkuDigits.length >= 8) {
         if (pBcDigits === lMSkuDigits || pBcDigits.endsWith(lMSkuDigits) || lMSkuDigits.endsWith(pBcDigits)) return true;
       }
 
-      // Model code match
       if (lCleanMSku && lCleanMSku.length >= 3 && !lCleanMSku.startsWith("HBCV") && !lCleanMSku.startsWith("HBV")) {
         const normClean = norm(lCleanMSku);
         if (normClean && norm(name).includes(normClean)) return true;
@@ -2341,6 +2671,7 @@ router.post("/hepsiburada/check-product-status", authenticate, async (req: any, 
         merchantSku: matched.merchantSku || barcode,
         status: matched.status || 'ACTIVE',
         isSalable,
+        error: null,
         productUrl: pid 
           ? `https://www.hepsiburada.com/${slugifyText(name || 'urun')}-pm-${String(pid).trim().toLowerCase()}` 
           : (hbSku && isHepsiburadaMasterCatalogId(hbSku) 
@@ -2373,68 +2704,118 @@ router.post("/hepsiburada/check-product-status", authenticate, async (req: any, 
           ? `Hepsiburada eşleşmesi doğrulandı! Ürün canlı satışta (${hbSku || pid}).`
           : `Ürün Hepsiburada'da bulundu ancak şu an pasif durumda (Durum: ${matched.status}).`
       });
-    } else {
-      // Not matched yet in live listings: check if there is a catalog tracking ID to diagnose status
-      let trackingDetail: any = null;
-      const trackingId = hbData.catalogTrackingId || hbData.listingTrackingId || hbData.trackingId;
-      if (trackingId) {
-        try {
-          trackingDetail = await hbService.checkCatalogStatus(trackingId);
-        } catch (tErr: any) {
-          console.warn("[HB-Status] Tracking check failed:", tErr.message);
-        }
-      }
-
-      let statusMsg = "Hepsiburada katalog ve barkod incelemesi sürüyor. Henüz onaylanıp mağaza envanterinize eklenmemiş.";
-      let isFailed = false;
-      let failureReason = "";
-
-      if (trackingDetail) {
-        const itemInfo = Array.isArray(trackingDetail) ? trackingDetail[0] : trackingDetail;
-        const importStatus = itemInfo?.importStatus || itemInfo?.status || itemInfo?.state || "";
-        const importMessages = itemInfo?.importMessages || itemInfo?.errors || itemInfo?.failureReasons || [];
-
-        if (importStatus === "FAILED" || (Array.isArray(importMessages) && importMessages.some((m: any) => m.severity === "ERROR" || m.message))) {
-          isFailed = true;
-          const errList = Array.isArray(importMessages) 
-            ? importMessages.map((e: any) => typeof e === "string" ? e : (e.message || e.description || JSON.stringify(e))).join("; ")
-            : String(importMessages);
-          failureReason = errList ? `Hepsiburada Katalog Reddi: ${errList}` : "Hepsiburada katalog aktarımı başarısız oldu.";
-          statusMsg = failureReason;
-        } else if (importStatus === "COMPLETED" && itemInfo?.hbSku) {
-          statusMsg = `Hepsiburada katalog incelemesi tamamlandı! (HB SKU: ${itemInfo.hbSku})`;
-        } else if (importStatus) {
-          statusMsg = `Hepsiburada katalog inceleme aşaması: ${importStatus} (Takip No: ${trackingId})`;
-        }
-      }
-
-      mpData.hepsiburada = {
-        ...hbData,
-        status: isFailed ? 'FAILED' : 'PENDING_APPROVAL',
-        trackingId: trackingId || null,
-        trackingDetail: trackingDetail || hbData.trackingDetail || null,
-        error: isFailed ? failureReason : null,
-        lastChecked: new Date().toISOString()
-      };
-
-      await pool.query(
-        `UPDATE products 
-         SET is_hepsiburada_active = false,
-             hepsiburada_last_error = $1,
-             marketplace_data = $2
-         WHERE id = $3`,
-        [isFailed ? failureReason : null, JSON.stringify(mpData), productId]
-      );
-
-      return res.json({
-        success: true,
-        isLive: false,
-        status: isFailed ? 'FAILED' : 'PENDING_APPROVAL',
-        trackingId: trackingId || null,
-        trackingDetail,
-        message: statusMsg
-      });
     }
+
+    // Not matched in live listings: inspect MPOP catalog portal directly AND tracking IDs
+    const catalogTrackingId = hbData.catalogTrackingId || (hbData.trackingId && hbData.trackingId !== hbData.listingTrackingId ? hbData.trackingId : null);
+    const listingTrackingId = hbData.listingTrackingId || (!catalogTrackingId ? hbData.trackingId : null);
+
+    let catalogCheck: { found: boolean; totalCatalogProducts: number; items: any[]; matched?: any } = {
+      found: false,
+      totalCatalogProducts: 0,
+      items: []
+    };
+    try {
+      catalogCheck = await hbService.checkCatalogProductsByStatus(hbData.merchantSku || product.barcode || product.sku);
+    } catch {
+      // non-blocking
+    }
+
+    let trackingDetail: any = null;
+    if (catalogTrackingId) {
+      try {
+        trackingDetail = await hbService.checkCatalogStatus(catalogTrackingId);
+      } catch (tErr: any) {
+        console.warn("[HB-Status] Catalog tracking check failed:", tErr.message);
+      }
+    } else if (listingTrackingId) {
+      try {
+        trackingDetail = await hbService.checkTaskStatus(listingTrackingId);
+      } catch (tErr: any) {
+        console.warn("[HB-Status] Listing tracking check failed:", tErr.message);
+      }
+    }
+
+    let statusMsg = "";
+    let isFailed = false;
+    let failureReason = "";
+
+    if (catalogCheck.found && catalogCheck.matched) {
+      const catItem = catalogCheck.matched;
+      const pStatus = String(catItem.productStatus || catItem.status || "WAITING").toUpperCase();
+      if (pStatus === "REJECTED" || pStatus === "MISSING_INFO") {
+        isFailed = true;
+        const rejectReason = catItem.rejectReason || catItem.reason || catItem.message || "";
+        failureReason = rejectReason
+          ? `Hepsiburada Katalog ${pStatus === "REJECTED" ? "Reddi" : "Eksik Bilgi"}: ${rejectReason}`
+          : `Hepsiburada katalog incelemesinde aksiyon gerekiyor (Durum: ${pStatus}).`;
+        statusMsg = failureReason;
+      } else {
+        statusMsg = `Ürün Hepsiburada katalog onay kuyruğunda doğrulandı (Durum: ${pStatus}).`;
+      }
+    } else if (catalogTrackingId) {
+      const catErr = extractHbCatalogImportError(trackingDetail);
+      const isTrackingMissing = Boolean(trackingDetail && trackingDetail.success === false && (Number(trackingDetail.code) === 4000 || /not found/i.test(String(trackingDetail.message || ""))));
+      const itemInfo = Array.isArray(trackingDetail) ? trackingDetail[0] : (Array.isArray(trackingDetail?.data) ? trackingDetail.data[0] : trackingDetail);
+      const importStatus = String(itemInfo?.importStatus || itemInfo?.status || itemInfo?.state || "").toUpperCase();
+
+      if (catErr) {
+        isFailed = true;
+        failureReason = `Hepsiburada Katalog Reddi: ${catErr}`;
+        statusMsg = failureReason;
+      } else if (isTrackingMissing) {
+        isFailed = true;
+        failureReason = `Hepsiburada katalog kaydı bulunamadı (Takip No: ${catalogTrackingId} - Tracking id not found). Ürün HB satıcı paneline işlenemedi; kategoriyi kontrol edip yeniden ilana açın.`;
+        statusMsg = failureReason;
+      } else if (importStatus === "COMPLETED" && itemInfo?.hbSku) {
+        statusMsg = `Hepsiburada katalog incelemesi tamamlandı! (HB SKU: ${itemInfo.hbSku})`;
+      } else if (importStatus) {
+        statusMsg = `Hepsiburada katalog inceleme aşaması: ${importStatus} (Takip No: ${catalogTrackingId})`;
+      } else {
+        statusMsg = `Hepsiburada katalog incelemesi sürüyor (Takip No: ${catalogTrackingId}).`;
+      }
+    } else {
+      // No catalogTrackingId AND not present in HB MPOP catalog portal!
+      isFailed = true;
+      const invErr = extractHbInventoryTaskError(trackingDetail);
+      if (invErr && /ListingNotFound/i.test(invErr)) {
+        failureReason = "Hepsiburada katalog aktarımı hiç başlatılmamış (Kategori ID eksikti). Yalnızca fiyat/stok kuyruğuna gönderildiği için HB 'ListingNotFound' hatası döndürdü — ürün HB Panelde 'Aksiyon bekleyen ürünler' listesine bu nedenle hiç düşmedi. Kategoriyi kontrol edip yeniden ilana açın.";
+      } else if (invErr) {
+        failureReason = `Hepsiburada İlan Hatası: ${invErr}. Katalog oluşturma kaydı bulunmadığından yeniden ilana açılmalıdır.`;
+      } else {
+        failureReason = "Bu ürün için Hepsiburada katalog aktarımı hiç başlatılmamış (Katalog Takip No yok ve HB satıcı panelinde kayıt bulunamadı). Lütfen kategoriyi doğrulayıp yeniden ilana açın.";
+      }
+      statusMsg = failureReason;
+    }
+
+    mpData.hepsiburada = {
+      ...hbData,
+      status: isFailed ? 'FAILED' : 'PENDING_APPROVAL',
+      trackingId: catalogTrackingId || listingTrackingId || null,
+      trackingDetail: trackingDetail || hbData.trackingDetail || null,
+      error: isFailed ? failureReason : null,
+      lastChecked: new Date().toISOString()
+    };
+
+    await pool.query(
+      `UPDATE products 
+       SET is_hepsiburada_active = false,
+           hepsiburada_last_error = $1,
+           marketplace_data = $2
+       WHERE id = $3`,
+      [isFailed ? failureReason : null, JSON.stringify(mpData), productId]
+    );
+
+    return res.json({
+      success: true,
+      isLive: false,
+      isFailed,
+      status: isFailed ? 'FAILED' : 'PENDING_APPROVAL',
+      error: isFailed ? failureReason : null,
+      trackingId: catalogTrackingId || listingTrackingId || null,
+      trackingDetail,
+      message: statusMsg
+    });
   } catch (err: any) {
     res.status(500).json({ error: err.message || "Durum sorgulanamadı." });
   }
@@ -2442,10 +2823,7 @@ router.post("/hepsiburada/check-product-status", authenticate, async (req: any, 
 
 // 5.2 Bulk Check & Auto-Resolve Pending Approval Products on Hepsiburada
 router.post("/hepsiburada/check-bulk-pending-status", authenticate, async (req: any, res) => {
-  const rawStoreId = req.body?.storeId || req.query?.storeId || req.user?.store_id;
-  const storeId = req.user.role === "superadmin" 
-    ? Number(rawStoreId || req.user.store_id || 1) 
-    : Number(req.user.store_id || rawStoreId);
+  const storeId = Number(getAuthorizedStoreId(req, req.body?.storeId || req.query?.storeId) || req.user?.store_id || 1);
 
   try {
     const storeRes = await pool.query("SELECT hepsiburada_settings, branding FROM stores WHERE id = $1", [storeId]);
@@ -2454,11 +2832,14 @@ router.post("/hepsiburada/check-bulk-pending-status", authenticate, async (req: 
     }
 
     const row = storeRes.rows[0];
-    let settings = row?.hepsiburada_settings || row?.branding?.hepsiburada_settings || {};
-    if (typeof settings === 'string') { try { settings = JSON.parse(settings); } catch(e) { settings = {}; } }
+    let hbDb = row?.hepsiburada_settings || {};
+    if (typeof hbDb === 'string') { try { hbDb = JSON.parse(hbDb); } catch { hbDb = {}; } }
+    let branding = row?.branding || {};
+    if (typeof branding === 'string') { try { branding = JSON.parse(branding); } catch { branding = {}; } }
+    const settings = { ...(branding?.hepsiburada_settings || {}), ...hbDb };
 
     const merchantId = String(settings?.merchantId || "").trim();
-    const apiKey = String(settings?.apiKey || "lookprice_dev").trim();
+    const apiKey = String(settings?.apiKey || "lookprice_dev").trim() || "lookprice_dev";
     const apiSecret = String(settings?.apiSecret || "").trim();
 
     if (!merchantId || !apiSecret) {
@@ -2468,32 +2849,131 @@ router.post("/hepsiburada/check-bulk-pending-status", authenticate, async (req: 
     const cleanSettings = { ...settings, merchantId, apiKey, apiSecret, isTestMode: Boolean(settings?.isTestMode) };
     const hbService = new HepsiburadaService(cleanSettings, storeId);
 
-    // Reconcile and auto-match store products with live Hepsiburada merchant listings
+    // 1. Reconcile and auto-match store products with live Hepsiburada merchant listings
     const matchResult = await hbService.matchListingsWithStoreProducts({ importMissing: false });
 
-    // Query current pending products count
-    const pendingRes = await pool.query(
-      `SELECT COUNT(*) as count 
-       FROM products 
-       WHERE store_id = $1 
-         AND is_hepsiburada_active = false 
+    // 2. Inspect remaining unmatched pending records against MPOP catalog + tracking status
+    const pendingRowsRes = await pool.query(
+      `SELECT id, name, barcode, sku, marketplace_data, hepsiburada_last_error
+       FROM products
+       WHERE store_id = $1
+         AND is_hepsiburada_active = false
+         AND (hepsiburada_sku IS NULL OR hepsiburada_sku = '')
          AND (
-           marketplace_data->'hepsiburada'->>'status' = 'PENDING_APPROVAL' 
-           OR (marketplace_data->'hepsiburada' IS NOT NULL AND (hepsiburada_sku IS NULL OR hepsiburada_sku = ''))
+           marketplace_data->'hepsiburada'->>'status' = 'PENDING_APPROVAL'
+           OR marketplace_data->'hepsiburada'->>'catalogTrackingId' IS NOT NULL
+           OR marketplace_data->'hepsiburada'->>'listingTrackingId' IS NOT NULL
          )`,
       [storeId]
     );
-    const remainingPending = parseInt(pendingRes.rows[0]?.count || 0, 10);
+
+    let failedCount = 0;
+    let remainingPending = 0;
+
+    if (pendingRowsRes.rows.length > 0) {
+      const catalogCheck = await hbService.checkCatalogProductsByStatus().catch(() => ({
+        found: false,
+        totalCatalogProducts: 0,
+        items: [] as any[]
+      }));
+      const norm = (s: any) => String(s || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+
+      for (const prod of pendingRowsRes.rows) {
+        let mpData: any = prod.marketplace_data;
+        if (typeof mpData === "string") { try { mpData = JSON.parse(mpData); } catch { mpData = {}; } }
+        mpData = mpData || {};
+        const hbData = mpData.hepsiburada || {};
+        const catTid = hbData.catalogTrackingId || (hbData.trackingId && hbData.trackingId !== hbData.listingTrackingId ? hbData.trackingId : null);
+        const listTid = hbData.listingTrackingId || (!catTid ? hbData.trackingId : null);
+        const bcNorm = norm(hbData.merchantSku || prod.barcode || prod.sku);
+
+        const catalogItem = catalogCheck.items.find((it: any) =>
+          [it.merchantSku, it.MerchantSku, it.barcode, it.Barcode].some((c) => c && norm(c) === bcNorm)
+        );
+
+        let failureReason: string | null = null;
+        if (catalogItem) {
+          const st = String(catalogItem.productStatus || catalogItem.status || "WAITING").toUpperCase();
+          if (st === "REJECTED" || st === "MISSING_INFO") {
+            failureReason = catalogItem.rejectReason || catalogItem.reason || `Hepsiburada katalog incelemesi reddedildi (${st}).`;
+          } else {
+            remainingPending++;
+            continue;
+          }
+        } else if (catTid) {
+          try {
+            const detail = await hbService.checkCatalogStatus(catTid);
+            const catErr = extractHbCatalogImportError(detail);
+            const isMissing = Boolean(detail && detail.success === false && (Number(detail.code) === 4000 || /not found/i.test(String(detail.message || ""))));
+            if (catErr) {
+              failureReason = `Hepsiburada Katalog Reddi: ${catErr}`;
+            } else if (isMissing) {
+              failureReason = `Hepsiburada katalog kaydı bulunamadı (Takip No: ${catTid} - Tracking id not found).`;
+            } else {
+              remainingPending++;
+              continue;
+            }
+          } catch {
+            remainingPending++;
+            continue;
+          }
+        } else {
+          // No catalogTrackingId and not in HB MPOP catalog portal
+          let taskDetail: any = null;
+          if (listTid) {
+            taskDetail = await hbService.checkTaskStatus(listTid).catch(() => null);
+          }
+          const invErr = extractHbInventoryTaskError(taskDetail);
+          if (invErr && /ListingNotFound/i.test(invErr)) {
+            failureReason = "Katalog aktarımı hiç başlatılmamış (Kategori ID eksikti); HB 'ListingNotFound' hatası döndürdü. Kategoriyi doğrulayıp yeniden ilana açın.";
+          } else {
+            failureReason = invErr
+              ? `Hepsiburada İlan Hatası: ${invErr}`
+              : "Katalog aktarımı hiç başlatılmamış (Katalog Takip No yok ve HB panelde kayıt bulunamadı). Yeniden ilana açın.";
+          }
+        }
+
+        if (failureReason) {
+          failedCount++;
+          mpData.hepsiburada = {
+            ...hbData,
+            status: 'FAILED',
+            error: failureReason,
+            lastChecked: new Date().toISOString()
+          };
+          await pool.query(
+            `UPDATE products
+             SET is_hepsiburada_active = false,
+                 hepsiburada_last_error = $1,
+                 marketplace_data = $2
+             WHERE id = $3 AND store_id = $4`,
+            [failureReason, JSON.stringify(mpData), prod.id, storeId]
+          );
+        }
+      }
+    }
+
+    let summaryMsg = "";
+    if (matchResult.matchedCount > 0) {
+      summaryMsg = `${matchResult.matchedCount} ürün Hepsiburada'da onaylanmış bulundu ve 'Satışta' durumuna geçirildi!`;
+      if (failedCount > 0) summaryMsg += ` (${failedCount} ürün katalog hatası tespit edildi.)`;
+      else if (remainingPending > 0) summaryMsg += ` (${remainingPending} ürün incelemede.)`;
+    } else if (failedCount > 0) {
+      summaryMsg = `${failedCount} ürünün Hepsiburada katalog/ilan aktarımında hata tespit edildi (Hatalı sekmesinden detayları görebilirsiniz).${remainingPending > 0 ? ` ${remainingPending} ürün katalog onayında bekliyor.` : ""}`;
+    } else {
+      summaryMsg = remainingPending > 0
+        ? `Hepsiburada canlı liste ve katalog tarandı. ${remainingPending} ürün gerçekten Hepsiburada katalog onay kuyruğunda bekliyor.`
+        : "Hepsiburada canlı liste ve katalog tarandı. Onay bekleyen ürün bulunmuyor.";
+    }
 
     return res.json({
       success: true,
       totalListings: matchResult.totalListings,
       matchedCount: matchResult.matchedCount,
-      updatedCount: matchResult.updatedCount,
+      updatedCount: matchResult.updatedCount + failedCount,
+      failedCount,
       remainingPending,
-      message: matchResult.matchedCount > 0 
-        ? `${matchResult.matchedCount} onay bekleyen ürün Hepsiburada'da onaylanmış bulundu ve anında 'Satışta' durumuna geçirildi! (${remainingPending} ürün incelemede)`
-        : `Hepsiburada canlı ilan listesi tarandı. ${remainingPending > 0 ? `${remainingPending} ürün halen Hepsiburada içerik ve katalog onay kuyruğunda bekliyor.` : "Onay bekleyen ürün bulunmuyor."}`
+      message: summaryMsg
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message || "Toplu onay sorgulaması gerçekleştirilemedi." });
@@ -2558,125 +3038,6 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
     mpData = mpData || {};
     const hbData = mpData.hepsiburada || (mpData.categoryId !== undefined ? mpData : {});
 
-    // Determine category ID with live Hepsiburada catalog mappings
-    // 1. User manual category override on product takes absolute precedence
-    let categoryId = hbData.categoryId || mpData.categoryId;
-    
-    // 2. If not manually set, check store category mappings
-    if (!categoryId) {
-      const catKey = p.category ? String(p.category).trim() : "";
-      const subCatKey = p.sub_category ? String(p.sub_category).trim() : "";
-      const hierarchicalKey = catKey && subCatKey ? `${catKey} > ${subCatKey}` : "";
-      
-      categoryId = 
-        (hierarchicalKey && (settings.categoryMappings?.[hierarchicalKey]?.hepsiburada || settings.categoryMappings?.[hierarchicalKey])) ||
-        (subCatKey && (settings.categoryMappings?.[subCatKey]?.hepsiburada || settings.categoryMappings?.[subCatKey])) ||
-        (catKey && (settings.categoryMappings?.[catKey]?.hepsiburada || settings.categoryMappings?.[catKey])) ||
-        "";
-    }
-    
-    // 3. Normalize all virtual/synthetic category IDs (1000xxx, 2000xxx, 3719xx) to verified live Hepsiburada leaf category IDs
-    const catSearchStr = `${p.name} ${p.category || ""} ${p.sub_category || ""}`.toLowerCase();
-    const catIdStr = String(categoryId || "").trim();
-    const VIRTUAL_TO_LIVE_HB_CATEGORY_MAP: Record<string, number> = {
-      "1000101": 970,      // Usb Bellek
-      "1000102": 698,      // Kart Okuyucular
-      "1000103": 1100011,  // Sd Kartlar
-      "1000104": 80081047, // Taşınabilir SSD
-      "1000105": 100225,   // Taşınabilir Disk (External HDD)
-      "1000106": 114814,   // SSD Solid State Drive (Dahili SSD)
-      "1000107": 100221,   // Hard Diskler (Dahili HDD)
-      "1000108": 47,       // Bellek (Ram)
-      "1000109": 152,      // Anakartlar
-      "1000110": 46,       // İşlemciler
-      "1000111": 204,      // Ekran Kartları
-      "1000112": catSearchStr.includes("psu") || catSearchStr.includes("güç kaynağı") ? 1012 : 1013, // Kasa / PSU
-      "1000113": 1125,     // Soğutucular / Overclock
-      "1000114": 98,       // Dizüstü Bilgisayar Laptop
-      "1000115": 111001,   // Mini Masaüstü
-      "1000116": 80561022, // Hazır Oyuncu Sistemleri
-      "1000117": 3002879,  // Led Monitörler
-      "1000118": catSearchStr.includes("set") ? 3007055 : (catSearchStr.includes("mouse pad") || catSearchStr.includes("mousepad") ? 29 : (catSearchStr.includes("mouse") || catSearchStr.includes("fare") ? 52 : 51)),
-      "1000119": catSearchStr.includes("kulaklık") ? 60004548 : (catSearchStr.includes("mouse") || catSearchStr.includes("fare") ? 52 : 51),
-      "1000120": catSearchStr.includes("mikrofon") ? 60001543 : 60004548, // Kulak Üstü Kulaklık / Mikrofon
-      "1000121": 1065,     // Webcam
-      "1000122": 189,      // Switch Box Ve Çoklayıcılar (USB Hub & Type-C Çoklayıcı)
-      "1000123": 676,      // Notebook Çantaları
-      "1000124": catSearchStr.includes("soğutucu") ? 106859 : 106861, // Notebook Standları / Soğutucuları
-      "1000125": catSearchStr.includes("modem") ? 45 : 60001272, // Modemler / Router
-      "1000126": catSearchStr.includes("router") ? 60001272 : (catSearchStr.includes("menzil") || catSearchStr.includes("extender") || catSearchStr.includes("access point") ? 410 : 103939),
-      "1000127": 103939,   // Wireless Adaptör (USB Wi-Fi Adaptör & Ağ Kartı)
-      "1000128": 121,      // Switch (Ethernet Ağ Anahtarları)
-      "1000129": catSearchStr.includes("tarayıcı") || catSearchStr.includes("scanner") ? 39 : 6, // Yazıcılar / Tarayıcılar
-      "1000130": 80857383, // Toner & Kartuş
-      "1000131": catSearchStr.includes("yazıcı") ? 106502 : (catSearchStr.includes("terminal") ? 95088 : 106503), // Barkod Okuyucu / Barkod Yazıcı / El Terminali
-      "1000132": 813,      // Dvd/Hdd Kasaları (HDD Kutusu & Caddy)
-      "1000133": catSearchStr.includes("macun") ? 1125 : 60005734, // Temizleme Spreyi / Termal Macun
-      "1000134": 13006537, // Uzatma Kablosu & Grup Priz (Akım Korumalı Priz)
-      "1000135": 676,      // Notebook Sırt Çantaları
-      "1000136": 676,      // Notebook El & Evrak Çantaları
-      "1000137": 676,      // Laptop Kılıf & Sleeve
-      "1000138": 52,       // Sunum Kumandası / Mouse
-      "1000139": catSearchStr.includes("projeksiyon") ? 15530 : 52, // Projeksiyon / Sunum Kumandası
-      "1000140": 60001183, // Tablet Kalemleri (Stylus)
-      "1000181": 189,      // Switch Box Ve Çoklayıcılar
-      "1000182": 105307,   // Çevirici ve Adaptörler (Kablo ve Dönüştürücüler)
-      "1000183": 84120,    // Ses ve Görüntü Kabloları (HDMI, DisplayPort & VGA)
-      "1000184": 505,      // Network Kabloları (Ağ & Ethernet Kabloları Cat6/Cat7)
-      "1000185": 1250,     // Usb/Seri/Paralel Kablolar
-      "1000186": catSearchStr.includes("sata") ? 105306 : 105325, // Güç Kabloları / Disk Kabloları
-      "1000187": 84120,    // Ses ve Görüntü Kabloları (Aux / RCA / Optik)
-      "1000188": 114325,   // Usb Aksesuar (Genel Bilgisayar Aksesuarları)
-      "1000189": 114325,   // Çevre Birimi Aksesuarları
-      "1000190": 106858,   // Notebook Adaptörleri
-      "1000191": 106858,   // Dell Notebook Adaptörleri
-      "1000192": 106858,   // Asus Notebook Adaptörleri
-      "1000193": 106858,   // HP Notebook Adaptörleri
-      "1000194": 106858,   // Lenovo Notebook Adaptörleri
-      "1000195": 106858,   // Acer Notebook Adaptörleri
-      "1000196": 106858,   // Apple Macbook Adaptörleri
-      "1000197": 106858,   // Muadil Notebook Adaptörleri
-      "1000198": 106854,   // Notebook Pilleri & Bataryaları
-      "2000105": 256,      // Speaker / Hoparlör
-      "371960": 371965,    // Cep Telefonu / Aksesuar
-      "371966": 16113,     // Şarj Cihazları (Leaf)
-      "371969": 29010123, // Şarj Kabloları (Leaf)
-    };
-
-    if (catIdStr && VIRTUAL_TO_LIVE_HB_CATEGORY_MAP[catIdStr]) {
-      categoryId = VIRTUAL_TO_LIVE_HB_CATEGORY_MAP[catIdStr];
-    } else if (!categoryId) {
-      if (catSearchStr.includes("priz") || catSearchStr.includes("akım korumalı") || catSearchStr.includes("uzatma kablo")) {
-        categoryId = 13006537; // Active HB Leaf: Uzatma Kablosu & Grup Priz
-      } else if (catSearchStr.includes("usb flash") || catSearchStr.includes("flash bellek") || (catSearchStr.includes("usb") && catSearchStr.includes("bellek"))) {
-        categoryId = 970; // Active HB Leaf: Usb Bellek
-      } else if (catSearchStr.includes("kart okuyucu")) {
-        categoryId = 698; // Active HB Leaf: Kart Okuyucular
-      } else if (catSearchStr.includes("sd kart")) {
-        categoryId = 1100011; // Active HB Leaf: Sd Kartlar
-      } else if (catSearchStr.includes("ssd") || catSearchStr.includes("nvme") || catSearchStr.includes("m.2")) {
-        categoryId = catSearchStr.includes("taşınabilir") || catSearchStr.includes("harici") ? 80081047 : 114814; // SSD
-      } else if (catSearchStr.includes("wi-fi") || catSearchStr.includes("wifi") || catSearchStr.includes("kablosuz adaptör") || catSearchStr.includes("ağ kart")) {
-        categoryId = 103939; // Active HB Leaf: Wireless Adaptörler
-      } else if (catSearchStr.includes("switch") && (catSearchStr.includes("port") || catSearchStr.includes("gigabit") || catSearchStr.includes("ethernet"))) {
-        categoryId = 121; // Active HB Leaf: Switch
-      } else if (catSearchStr.includes("hdmi") || catSearchStr.includes("displayport") || catSearchStr.includes("vga")) {
-        categoryId = 84120; // Active HB Leaf: Ses ve Görüntü Kabloları
-      } else if (catSearchStr.includes("cat6") || catSearchStr.includes("cat7") || catSearchStr.includes("patch") || catSearchStr.includes("ethernet kablo")) {
-        categoryId = 505; // Active HB Leaf: Network Kabloları
-      } else if (catSearchStr.includes("notebook stand") || catSearchStr.includes("laptop stand")) {
-        categoryId = 106861; // Active HB Leaf: Notebook Standları
-      } else if (catSearchStr.includes("klavye") && catSearchStr.includes("mouse")) {
-        categoryId = 3007055; // Active HB Leaf: Klavye & Mouse Setler
-      } else if (catSearchStr.includes("mouse") || catSearchStr.includes("fare") || catSearchStr.includes("sunum kumanda")) {
-        categoryId = 52; // Active HB Leaf: Mouse
-      } else if (catSearchStr.includes("klavye")) {
-        categoryId = 51; // Active HB Leaf: Klavye
-      } else if (catSearchStr.includes("ram") || catSearchStr.includes("ddr4") || catSearchStr.includes("ddr5")) {
-        categoryId = 47; // Active HB Leaf: Bellek (Ram)
-      }
-    }
-
     const hbService = new HepsiburadaService(cleanSettings, storeId);
     const storeInfoRes = await pool.query("SELECT currency_rates, branding FROM stores WHERE id = $1", [storeId]);
     const storeInfo = storeInfoRes.rows[0];
@@ -2695,91 +3056,6 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
     const effectivePrice = hbService.calculateMarketplacePrice(rawPrice, p.category, p.sub_category);
     const numericEffectivePrice = Number(effectivePrice.toFixed(2));
 
-    // Prepare catalog attributes
-    const userAttrs = hbData.attributes || mpData.attributes || {};
-
-    // Resolve Absolute Image URL for Hepsiburada API (Must be a valid public http/https URL)
-    let effectiveHbImageUrl: string | null = null;
-    const rawHbImg = userAttrs?.Image1 || mpData?.attributes?.Image1 || p.image_url;
-    if (rawHbImg) {
-      let candidate = String(rawHbImg).trim();
-      if (candidate.startsWith("/")) {
-        const host = req.get("host") || "ais-dev-fw5matlno23z7prjfvwxwu-416165499277.europe-west2.run.app";
-        const protocol = req.protocol === "http" && !host.includes("localhost") ? "https" : req.protocol;
-        candidate = `${protocol}://${host}${candidate}`;
-      }
-      if (candidate.includes(".webp")) {
-        candidate = candidate.replace(/\.webp($|\?)/i, ".jpg$1");
-      }
-      if (candidate.startsWith("http")) {
-        effectiveHbImageUrl = candidate;
-      }
-    }
-
-    // Prepare catalog attributes
-    const inferredHbBrand =
-      String(
-        p.brand ||
-        userAttrs.Marka ||
-        mpData?.n11?.attributes?.Marka ||
-        (p.name ? String(p.name).trim().split(/\s+/)[0] : "") ||
-        "Diğer"
-      ).trim();
-    const attributes: Record<string, any> = {
-      merchantSku: p.barcode.trim(),
-      VaryantGroupID: `GRP-${p.barcode.trim()}`,
-      Barcode: p.barcode.trim(),
-      UrunAdi: p.name,
-      UrunAciklamasi: `<p>${p.description || p.name}</p>`,
-      Marka: inferredHbBrand,
-      GarantiSuresi: userAttrs.GarantiSuresi ? parseInt(userAttrs.GarantiSuresi, 10) : 24,
-      tax_vat_rate: String(p.tax_rate || userAttrs.tax_vat_rate || 20),
-      price: numericEffectivePrice,
-      stock: computeSellableStock(p.stock_quantity, p.reserved_stock),
-      kg: String(p.desi || 1),
-      ...userAttrs
-    };
-
-    if (effectiveHbImageUrl) {
-      attributes.Image1 = effectiveHbImageUrl;
-    }
-
-    // Category 970 (Usb Bellek) specific defaults
-    if (Number(categoryId) === 970) {
-      if (!attributes.kapasite_) {
-        const capMatch = p.name.match(/(\d+)\s*(gb|tb|mb)/i);
-        attributes.kapasite_ = capMatch ? `${capMatch[1]} ${capMatch[2].toUpperCase()}` : "64 GB";
-      }
-      if (!attributes.usb_3_0) {
-        attributes.usb_3_0 = /3\.2/i.test(p.name) ? "Var (USB 3.2)" : (/3\.1/i.test(p.name) ? "Var (USB 3.1)" : "Var");
-      }
-      if (!attributes["00000PGR"]) {
-        attributes["00000PGR"] = ["Type A", "USB 3.0"];
-      }
-      if (!attributes.okuma_hizi_) attributes.okuma_hizi_ = "100 MB/s";
-      if (!attributes.yazma_hizi) attributes.yazma_hizi = "10 MB/s";
-      if (!attributes.sifre_koruma) attributes.sifre_koruma = "Yok";
-      if (!attributes["000017ZC"]) attributes["000017ZC"] = ["Windows"];
-    }
-
-    // 1. Send to Hepsiburada Catalog Import (Multipart Form-Data) if categoryId exists
-    let catalogTrackingId: string | undefined;
-    let catalogMsg: string | undefined;
-    if (categoryId) {
-      try {
-        const catRes = await hbService.importCatalogProducts([
-          {
-            categoryId: Number(categoryId),
-            attributes
-          }
-        ]);
-        catalogTrackingId = catRes.trackingId;
-        catalogMsg = catRes.message;
-      } catch (catErr: any) {
-        console.warn("[HB Publish] Catalog import warning:", catErr.message);
-      }
-    }
-
     // Check if user passed a Hepsiburada SKU or direct URL in request body
     let inputHbUrl = req.body.hepsiburadaUrl || req.body.hepsiburada_url;
     let inputHbSku = req.body.hepsiburadaSku || req.body.hepsiburada_sku;
@@ -2795,7 +3071,7 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
     let resolvedHbProductId = hbData.productId || "";
     let resolvedHbMerchantSku = hbData.merchantSku || p.barcode.trim();
 
-    // Always reconcile with live Hepsiburada listings if resolvedHbSku is empty OR is a parent Catalog ID (HBC0... without V)
+    // Always reconcile with live Hepsiburada listings first if resolvedHbSku is empty OR is a parent Catalog ID
     const upperInitialSku = String(resolvedHbSku || "").trim().toUpperCase();
     const isParentCatalogIdOnly =
       upperInitialSku &&
@@ -2820,23 +3096,89 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
           if (matched.productId) resolvedHbProductId = matched.productId;
           if (matched.merchantSku) resolvedHbMerchantSku = matched.merchantSku;
         }
-      } catch (lErr) {
+      } catch {
         // non-blocking
       }
     }
 
-    // 2. Send to Listing Price & Stock Inventory Update using the exact resolved variant SKU and merchantSku
-    const result = await hbService.updatePriceAndStock([
-      {
-        HepsiburadaSku: resolvedHbSku || p.hepsiburada_sku || hbData.hepsiburadaSku || "",
-        MerchantSku: resolvedHbMerchantSku,
-        Price: effectivePrice,
-        AvailableStock: computeSellableStock(p.stock_quantity, p.reserved_stock),
-        DispatchTime: Math.max(1, Math.floor(Number(hbData.dispatchTime || cleanSettings.defaultDispatchTime || 1) || 1)),
-      }
-    ]);
+    const { categoryId } = await resolveHepsiburadaCategoryIdForProduct(p, mpData, hbData, cleanSettings, storeId);
+    const attributes = buildHepsiburadaCatalogAttributes(p, mpData, hbData, categoryId, numericEffectivePrice, req);
 
-    const isLive = Boolean(resolvedHbSku);
+    // 1. If product does NOT yet exist in HB listings, we MUST submit a real Catalog Import with a valid leaf categoryId!
+    let catalogTrackingId: string | undefined;
+    let listingTrackingId: string | null = null;
+    if (!resolvedHbSku || isParentCatalogIdOnly) {
+      if (!categoryId) {
+        const missingCatErr = `"${p.name}" için Hepsiburada kategori eşleşmesi bulunamadı (Ürün kategorisi: ${p.category || "Yok"}${p.sub_category ? " > " + p.sub_category : ""}). Katalog oluşturulabilmesi için lütfen önce kategori seçin.`;
+        mpData.hepsiburada = {
+          ...hbData,
+          status: 'FAILED',
+          error: missingCatErr,
+          lastSync: new Date().toISOString()
+        };
+        await pool.query(
+          `UPDATE products SET is_hepsiburada_active = false, hepsiburada_last_error = $1, marketplace_data = $2 WHERE id = $3 AND store_id = $4`,
+          [missingCatErr, JSON.stringify(mpData), productId, storeId]
+        );
+        return res.status(400).json({ error: missingCatErr });
+      }
+
+      if (!attributes.Image1) {
+        const missingImgErr = `"${p.name}" ürününde geçerli bir ürün görseli (Image1) bulunamadı. Hepsiburada yeni katalog açılışı için HTTP/HTTPS görsel URL'i zorunludur.`;
+        mpData.hepsiburada = {
+          ...hbData,
+          categoryId: Number(categoryId),
+          status: 'FAILED',
+          error: missingImgErr,
+          lastSync: new Date().toISOString()
+        };
+        await pool.query(
+          `UPDATE products SET is_hepsiburada_active = false, hepsiburada_last_error = $1, marketplace_data = $2 WHERE id = $3 AND store_id = $4`,
+          [missingImgErr, JSON.stringify(mpData), productId, storeId]
+        );
+        return res.status(400).json({ error: missingImgErr });
+      }
+
+      // Do NOT swallow catalog import errors — surface exact HB rejections cleanly
+      const catRes = await hbService.importCatalogProducts([
+        {
+          categoryId: Number(categoryId),
+          attributes
+        }
+      ]);
+      catalogTrackingId = catRes.trackingId;
+      if (!catRes.success || !catalogTrackingId) {
+        throw new Error(catRes.message || "Hepsiburada katalog aktarımı başlatılamadı (trackingId dönmedi).");
+      }
+
+      // Briefly poll catalog status (~1.5s) to catch immediate schema/attribute/brand rejections
+      await new Promise((r) => setTimeout(r, 1500));
+      try {
+        const immediateStatus = await hbService.checkCatalogStatus(catalogTrackingId);
+        const immediateErr = extractHbCatalogImportError(immediateStatus);
+        if (immediateErr) {
+          throw new Error(`Hepsiburada Katalog Reddi: ${immediateErr}`);
+        }
+      } catch (pollErr: any) {
+        if (String(pollErr?.message || "").startsWith("Hepsiburada Katalog Reddi:")) {
+          throw pollErr;
+        }
+      }
+    } else {
+      // 2. Product already exists in HB catalog/listings -> update price, stock, dispatchTime via Listing API
+      const result = await hbService.updatePriceAndStock([
+        {
+          HepsiburadaSku: resolvedHbSku,
+          MerchantSku: resolvedHbMerchantSku,
+          Price: effectivePrice,
+          AvailableStock: computeSellableStock(p.stock_quantity, p.reserved_stock),
+          DispatchTime: Math.max(1, Math.floor(Number(hbData.dispatchTime || cleanSettings.defaultDispatchTime || 1) || 1)),
+        }
+      ]);
+      listingTrackingId = result.trackingId || null;
+    }
+
+    const isLive = Boolean(resolvedHbSku) && !isParentCatalogIdOnly;
     const upperHbSku = String(resolvedHbSku || '').toUpperCase();
     const isMasterHbSku = Boolean(
       resolvedHbSku && 
@@ -2879,8 +3221,9 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
       productId: resolvedHbProductId || hbData.productId || (isMasterHbSku ? resolvedHbSku : null),
       status: isLive ? 'ACTIVE' : 'PENDING_APPROVAL',
       productUrl: resolvedHbProductUrl,
-      catalogTrackingId: catalogTrackingId || hbData.catalogTrackingId,
-      listingTrackingId: result.trackingId || hbData.listingTrackingId,
+      catalogTrackingId: catalogTrackingId || hbData.catalogTrackingId || null,
+      listingTrackingId: listingTrackingId || null,
+      error: null,
       lastSync: new Date().toISOString()
     };
 
@@ -2897,9 +3240,7 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
 
     const message = isLive
       ? `"${p.name}" Hepsiburada kataloğunda eşleşti ve canlı satışa açıldı! (HB SKU: ${resolvedHbSku})`
-      : catalogTrackingId
-        ? `"${p.name}" Hepsiburada'ya iletildi. Katalog ve barkod incelemesi başlatıldı (Takip No: ${catalogTrackingId}). HB onaylayıp ürün kodunu oluşturduğunda satış linki otomatik olarak aktifleşecektir.`
-        : `"${p.name}" Hepsiburada envanter kuyruğuna iletildi. İnceleme sürüyor (Takip No: ${result.trackingId}).`;
+      : `"${p.name}" Hepsiburada kataloğuna başarıyla iletildi ve içerik/barkod incelemesi başlatıldı (Takip No: ${catalogTrackingId}). HB Satıcı Panelinde 'Aksiyon bekleyen ürünler > Kontrol aşamasında' sekmesine kısa süre içinde yansıyacaktır.`;
 
     res.json({
       success: true,
@@ -2907,16 +3248,28 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
       status: isLive ? 'ACTIVE' : 'PENDING_APPROVAL',
       message,
       effectivePrice,
-      trackingId: catalogTrackingId || result.trackingId,
+      trackingId: catalogTrackingId || listingTrackingId,
       catalogTrackingId,
-      listingTrackingId: result.trackingId,
+      listingTrackingId,
       hepsiburadaSku: resolvedHbSku || null,
       marketplace_data: mpData
     });
   } catch (e: any) {
     const errMsg = e.message || "Hepsiburada ürün aktarımı başarısız.";
     if (productId) {
-      await pool.query("UPDATE products SET hepsiburada_last_error = $1 WHERE id = $2 AND store_id = $3", [errMsg, productId, storeId]);
+      await pool.query(
+        `UPDATE products
+         SET is_hepsiburada_active = false,
+             hepsiburada_last_error = $1,
+             marketplace_data = jsonb_set(
+               jsonb_set(COALESCE(marketplace_data, '{}'::jsonb), '{hepsiburada,status}', '"FAILED"'::jsonb, true),
+               '{hepsiburada,error}',
+               to_jsonb($1::text),
+               true
+             )
+         WHERE id = $2 AND store_id = $3`,
+        [errMsg, productId, storeId]
+      ).catch(() => {});
     }
     res.status(400).json({ error: errMsg });
   }
@@ -2924,21 +3277,18 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
 
 // 6b. Bulk Publish / Update Selected Products to Hepsiburada
 router.post("/hepsiburada/bulk-publish", authenticate, async (req: any, res) => {
-  const rawStoreId = req.body?.storeId || req.query?.storeId || req.user?.store_id;
-  const storeId = req.user.role === "superadmin" ? Number(rawStoreId || req.user.store_id || 1) : Number(req.user.store_id || rawStoreId);
+  const storeId = Number(getAuthorizedStoreId(req, req.body?.storeId || req.query?.storeId) || req.user?.store_id || 1);
   const productIds = req.body.productIds;
 
   try {
     const storeRes = await pool.query("SELECT hepsiburada_settings, branding FROM stores WHERE id = $1", [storeId]);
     if (storeRes.rows.length === 0) return res.status(404).json({ error: "Mağaza bulunamadı" });
 
-    let settings = storeRes.rows[0]?.hepsiburada_settings;
-    if (typeof settings === 'string') { try { settings = JSON.parse(settings); } catch(e) { settings = {}; } }
-    let branding = storeRes.rows[0]?.branding;
-    if (typeof branding === 'string') { try { branding = JSON.parse(branding); } catch(e) { branding = {}; } }
-    if (!settings || !settings.merchantId || !settings.apiSecret) {
-      settings = branding?.hepsiburada_settings || settings || {};
-    }
+    let hbDb = storeRes.rows[0]?.hepsiburada_settings || {};
+    if (typeof hbDb === 'string') { try { hbDb = JSON.parse(hbDb); } catch { hbDb = {}; } }
+    let branding = storeRes.rows[0]?.branding || {};
+    if (typeof branding === 'string') { try { branding = JSON.parse(branding); } catch { branding = {}; } }
+    const settings = { ...(branding?.hepsiburada_settings || {}), ...hbDb };
 
     const merchantId = String(settings?.merchantId || "").trim();
     const apiKey = String(settings?.apiKey || "lookprice_dev").trim() || "lookprice_dev";
@@ -2977,7 +3327,18 @@ router.post("/hepsiburada/bulk-publish", authenticate, async (req: any, res) => 
     const storeInfo = storeInfoRes.rows[0];
     const rates = storeInfo?.currency_rates || storeInfo?.branding?.currency_rates || {};
 
-    const validItems: any[] = [];
+    // Fetch live listings once so already-matched barcodes update inventory instead of creating duplicate catalog items
+    let liveListings: any[] = [];
+    try {
+      liveListings = await hbService.fetchMerchantListings({ limit: 500 });
+    } catch {
+      liveListings = [];
+    }
+    const norm = (s: any) => String(s || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+
+    let liveCategoriesCache: any[] | undefined = undefined;
+    const inventoryItems: any[] = [];
+    const catalogImportItems: any[] = [];
     const skippedItems: any[] = [];
 
     for (const p of products) {
@@ -2985,75 +3346,204 @@ router.post("/hepsiburada/bulk-publish", authenticate, async (req: any, res) => 
         skippedItems.push({ id: p.id, name: p.name, reason: "Barkod eksik" });
         continue;
       }
+      if (String(p.product_type || "").toLowerCase() === "service" || /^servis$|^hizmet$/i.test(String(p.category || "").trim())) {
+        skippedItems.push({ id: p.id, name: p.name, reason: "Hizmet kalemi" });
+        continue;
+      }
+
+      const sellableStock = computeSellableStock(p.stock_quantity, p.reserved_stock);
       let rawPrice = parseFloat(p.price || "0");
       const curr = (p.currency || "TRY").toUpperCase();
-      if (curr === "USD" && rates.USD) {
-        rawPrice = rawPrice * Number(rates.USD);
-      } else if (curr === "EUR" && rates.EUR) {
-        rawPrice = rawPrice * Number(rates.EUR);
-      } else if (curr === "GBP" && rates.GBP) {
-        rawPrice = rawPrice * Number(rates.GBP);
+      if (curr === "USD" && rates.USD) rawPrice *= Number(rates.USD);
+      else if (curr === "EUR" && rates.EUR) rawPrice *= Number(rates.EUR);
+      else if (curr === "GBP" && rates.GBP) rawPrice *= Number(rates.GBP);
+
+      if (rawPrice <= 0 || sellableStock <= 0) {
+        skippedItems.push({ id: p.id, name: p.name, reason: rawPrice <= 0 ? "Fiyat 0" : "Stok 0" });
+        continue;
       }
 
       const effectivePrice = hbService.calculateMarketplacePrice(rawPrice, p.category, p.sub_category);
+      const numericEffectivePrice = Number(effectivePrice.toFixed(2));
+
       let mpData: any = p.marketplace_data;
       if (typeof mpData === "string") {
         try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
       }
       mpData = mpData || {};
-      if (!mpData.hepsiburada) mpData.hepsiburada = {};
-      if (!mpData.hepsiburada.attributes) mpData.hepsiburada.attributes = {};
-      mpData.hepsiburada.price = effectivePrice;
-      mpData.hepsiburada.attributes.price = String(effectivePrice);
-      mpData.hepsiburada.lastSync = new Date().toISOString();
+      const hbData = mpData.hepsiburada || {};
 
-      const hbMerchantSku = mpData?.hepsiburada?.merchantSku || p.barcode.trim();
+      let resolvedHbSku = p.hepsiburada_sku || hbData.hepsiburadaSku || "";
+      let resolvedMerchantSku = hbData.merchantSku || p.barcode.trim();
+      let resolvedPid = hbData.productId || "";
 
-      validItems.push({
-        productId: p.id,
-        mpData,
-        MerchantSku: hbMerchantSku,
-        HepsiburadaSku: p.hepsiburada_sku || mpData?.hepsiburada?.hepsiburadaSku || "",
-        Price: effectivePrice,
-        AvailableStock: computeSellableStock(p.stock_quantity, p.reserved_stock),
-        DispatchTime: cleanSettings.defaultDispatchTime || 1,
+      const upperSku = String(resolvedHbSku || "").trim().toUpperCase();
+      const isParentOnly = upperSku && (upperSku.startsWith("HBC0") || upperSku.startsWith("HB0")) && !upperSku.startsWith("HBCV") && !upperSku.startsWith("HBV");
+
+      if ((!resolvedHbSku || isParentOnly) && liveListings.length > 0) {
+        const matched = liveListings.find((l: any) =>
+          (resolvedHbSku && l.hepsiburadaSku && norm(l.hepsiburadaSku) === norm(resolvedHbSku)) ||
+          (l.merchantSku && norm(l.merchantSku) === norm(p.barcode)) ||
+          (l.barcode && norm(l.barcode) === norm(p.barcode)) ||
+          (p.sku && l.merchantSku && norm(l.merchantSku) === norm(p.sku))
+        );
+        if (matched) {
+          if (matched.hepsiburadaSku) resolvedHbSku = matched.hepsiburadaSku;
+          if (matched.merchantSku) resolvedMerchantSku = matched.merchantSku;
+          if (matched.productId) resolvedPid = matched.productId;
+        }
+      }
+
+      const finalUpperSku = String(resolvedHbSku || "").trim().toUpperCase();
+      const hasLiveSku = Boolean(resolvedHbSku) && !((finalUpperSku.startsWith("HBC0") || finalUpperSku.startsWith("HB0")) && !finalUpperSku.startsWith("HBCV") && !finalUpperSku.startsWith("HBV"));
+
+      if (hasLiveSku) {
+        mpData.hepsiburada = {
+          ...hbData,
+          hepsiburadaSku: resolvedHbSku,
+          merchantSku: resolvedMerchantSku,
+          productId: resolvedPid || hbData.productId || null,
+          price: numericEffectivePrice,
+          stock: sellableStock,
+          status: 'ACTIVE',
+          error: null,
+          lastSync: new Date().toISOString()
+        };
+        inventoryItems.push({
+          productId: p.id,
+          mpData,
+          resolvedHbSku,
+          MerchantSku: resolvedMerchantSku,
+          HepsiburadaSku: resolvedHbSku,
+          Price: effectivePrice,
+          AvailableStock: sellableStock,
+          DispatchTime: cleanSettings.defaultDispatchTime || 1,
+        });
+      } else {
+        const catResolution = await resolveHepsiburadaCategoryIdForProduct(p, mpData, hbData, cleanSettings, storeId, liveCategoriesCache);
+        if (catResolution.liveCategories) liveCategoriesCache = catResolution.liveCategories;
+        const categoryId = catResolution.categoryId;
+
+        if (!categoryId) {
+          const reason = `Kategori eşleşmesi eksik (${p.category || "Genel"})`;
+          skippedItems.push({ id: p.id, name: p.name, reason });
+          mpData.hepsiburada = { ...hbData, status: 'FAILED', error: reason, lastSync: new Date().toISOString() };
+          await pool.query(
+            `UPDATE products SET is_hepsiburada_active = false, hepsiburada_last_error = $1, marketplace_data = $2 WHERE store_id = $3 AND id = $4`,
+            [reason, JSON.stringify(mpData), storeId, p.id]
+          );
+          continue;
+        }
+
+        const attributes = buildHepsiburadaCatalogAttributes(p, mpData, hbData, categoryId, numericEffectivePrice, req);
+        if (!attributes.Image1) {
+          const reason = "Ürün görseli (Image1) eksik";
+          skippedItems.push({ id: p.id, name: p.name, reason });
+          mpData.hepsiburada = { ...hbData, categoryId: Number(categoryId), status: 'FAILED', error: reason, lastSync: new Date().toISOString() };
+          await pool.query(
+            `UPDATE products SET is_hepsiburada_active = false, hepsiburada_last_error = $1, marketplace_data = $2 WHERE store_id = $3 AND id = $4`,
+            [reason, JSON.stringify(mpData), storeId, p.id]
+          );
+          continue;
+        }
+
+        mpData.hepsiburada = {
+          ...hbData,
+          categoryId: Number(categoryId),
+          attributes,
+          merchantSku: resolvedMerchantSku,
+          price: numericEffectivePrice,
+          stock: sellableStock,
+          status: 'PENDING_APPROVAL',
+          error: null,
+          lastSync: new Date().toISOString()
+        };
+        catalogImportItems.push({
+          productId: p.id,
+          mpData,
+          payload: {
+            categoryId: Number(categoryId),
+            attributes
+          }
+        });
+      }
+    }
+
+    if (inventoryItems.length === 0 && catalogImportItems.length === 0) {
+      return res.status(400).json({
+        error: skippedItems.length > 0
+          ? `Hiçbir ürün gönderilemedi: ${skippedItems.slice(0, 3).map((s) => `${s.name} (${s.reason})`).join(", ")}`
+          : "İlana açılacak uygun ürün bulunamadı.",
+        skipped: skippedItems
       });
     }
 
-    if (validItems.length === 0) {
-      return res.status(400).json({ error: "Seçilen ürünlerin hiçbirinde geçerli barkod bulunamadı.", skipped: skippedItems });
-    }
+    let invTrackingId: string | undefined;
+    let catTrackingId: string | undefined;
 
-    const result = await hbService.updatePriceAndStock(
-      validItems.map(({ MerchantSku, HepsiburadaSku, Price, AvailableStock, DispatchTime }) => ({
-        MerchantSku,
-        HepsiburadaSku,
-        Price,
-        AvailableStock,
-        DispatchTime,
-      }))
-    );
-
-    // Update marketplace_data price & sync timestamp by exact product ID
-    for (const item of validItems) {
-      await pool.query(
-        `UPDATE products 
-         SET is_hepsiburada_active = (CASE WHEN (hepsiburada_sku IS NOT NULL AND hepsiburada_sku != '') THEN true ELSE false END), 
-             hepsiburada_last_sync = NOW(), 
-             hepsiburada_last_error = NULL,
-             marketplace_data = $1
-         WHERE store_id = $2 AND id = $3`,
-        [JSON.stringify(item.mpData), storeId, item.productId]
+    if (inventoryItems.length > 0) {
+      const invRes = await hbService.updatePriceAndStock(
+        inventoryItems.map(({ MerchantSku, HepsiburadaSku, Price, AvailableStock, DispatchTime }) => ({
+          MerchantSku,
+          HepsiburadaSku,
+          Price,
+          AvailableStock,
+          DispatchTime,
+        }))
       );
+      invTrackingId = invRes.trackingId;
+      for (const item of inventoryItems) {
+        item.mpData.hepsiburada.listingTrackingId = invTrackingId || null;
+        await pool.query(
+          `UPDATE products 
+           SET is_hepsiburada_active = true,
+               hepsiburada_sku = COALESCE(NULLIF($1, ''), hepsiburada_sku),
+               hepsiburada_last_sync = NOW(), 
+               hepsiburada_last_error = NULL,
+               marketplace_data = $2
+           WHERE store_id = $3 AND id = $4`,
+          [item.resolvedHbSku || null, JSON.stringify(item.mpData), storeId, item.productId]
+        );
+      }
     }
 
+    if (catalogImportItems.length > 0) {
+      const CHUNK_SIZE = 50;
+      for (let i = 0; i < catalogImportItems.length; i += CHUNK_SIZE) {
+        const chunk = catalogImportItems.slice(i, i + CHUNK_SIZE);
+        const catRes = await hbService.importCatalogProducts(chunk.map((c) => c.payload));
+        if (!catRes.success || !catRes.trackingId) {
+          throw new Error(catRes.message || "Toplu Hepsiburada katalog aktarımı takip numarası döndürmedi.");
+        }
+        catTrackingId = catRes.trackingId;
+        for (const item of chunk) {
+          item.mpData.hepsiburada.catalogTrackingId = catTrackingId;
+          item.mpData.hepsiburada.listingTrackingId = null;
+          await pool.query(
+            `UPDATE products
+             SET is_hepsiburada_active = false,
+                 hepsiburada_last_sync = NOW(),
+                 hepsiburada_last_error = NULL,
+                 marketplace_data = $1
+             WHERE store_id = $2 AND id = $3`,
+            [JSON.stringify(item.mpData), storeId, item.productId]
+          );
+        }
+      }
+    }
+
+    const totalSynced = inventoryItems.length + catalogImportItems.length;
     res.json({ 
       success: true, 
-      syncedCount: validItems.length, 
+      syncedCount: totalSynced,
+      inventoryUpdatedCount: inventoryItems.length,
+      catalogSubmittedCount: catalogImportItems.length,
       skippedCount: skippedItems.length, 
       skipped: skippedItems, 
-      trackingId: result.trackingId, 
-      message: `${validItems.length} ürün Hepsiburada'ya iletildi. Onaylı SKU'su olanlar satışta, diğerleri katalog incelemesinde tutuluyor.` 
+      trackingId: catTrackingId || invTrackingId,
+      catalogTrackingId: catTrackingId || null,
+      listingTrackingId: invTrackingId || null,
+      message: `${totalSynced} ürün Hepsiburada'ya iletildi (${inventoryItems.length} mevcut ilan güncellendi, ${catalogImportItems.length} yeni ürün katalog onayına gönderildi${skippedItems.length > 0 ? `, ${skippedItems.length} ürün atlandı` : ""}).` 
     });
   } catch (error: any) {
     res.status(400).json({ error: error.message || "Toplu Hepsiburada ilana açma başarısız." });
@@ -3455,16 +3945,20 @@ async function getMergedHepsiburadaCategories(storeId?: number) {
   const { HEPSIBURADA_DEFAULT_CATEGORIES, detectCategorySector } = await import("../src/data/marketplaceCategoriesData");
   let categories: any[] = [...HEPSIBURADA_DEFAULT_CATEGORIES];
 
-  // Use cache if available and fresh (< 2 hours)
-  if (hbLiveCategoryCache && (Date.now() - hbLiveCategoryCache.timestamp) < 7200000 && hbLiveCategoryCache.categories.length > 0) {
+  // Use cache ONLY if it holds live categories (> 500 items) and is fresh (< 2 hours)
+  if (hbLiveCategoryCache && (Date.now() - hbLiveCategoryCache.timestamp) < 7200000 && hbLiveCategoryCache.categories.length > 500) {
     return hbLiveCategoryCache.categories;
   }
 
-  // Try live API if storeId provided
+  // Try live API if storeId provided (supporting both hepsiburada_settings column & branding.hepsiburada_settings)
   if (storeId) {
     try {
-      const storeRes = await pool.query("SELECT hepsiburada_settings FROM stores WHERE id = $1", [storeId]);
-      const settings = storeRes.rows[0]?.hepsiburada_settings;
+      const storeRes = await pool.query("SELECT hepsiburada_settings, branding FROM stores WHERE id = $1", [storeId]);
+      let hbDb = storeRes.rows[0]?.hepsiburada_settings || {};
+      if (typeof hbDb === 'string') { try { hbDb = JSON.parse(hbDb); } catch { hbDb = {}; } }
+      let branding = storeRes.rows[0]?.branding || {};
+      if (typeof branding === 'string') { try { branding = JSON.parse(branding); } catch { branding = {}; } }
+      const settings = { ...(branding?.hepsiburada_settings || {}), ...hbDb };
       if (settings?.apiSecret && settings?.merchantId) {
         const hbService = new HepsiburadaService(settings, storeId);
         const rawLive = await hbService.getAllCategories();

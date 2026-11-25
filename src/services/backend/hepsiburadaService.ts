@@ -1680,16 +1680,44 @@ export class HepsiburadaService {
     try {
       return await this.withAuthRetry(
         async (headers) => {
-          try {
-            const url = `${this.catalogBaseUrl}/categories/get-all-categories`;
-            const response = await axios.get(url, { headers, timeout: 30000 });
-            return response.data?.data || response.data?.categories || response.data || [];
-          } catch (error: any) {
-            if (this.isAuthError(error)) throw error;
-            const fallbackUrl = `https://catalog-external.hepsiburada.com/categories`;
-            const res = await axios.get(fallbackUrl, { headers, timeout: 20000 });
-            return res.data?.data || res.data || [];
+          const collected: any[] = [];
+          const seenIds = new Set<string>();
+          const pageSize = 2000;
+          let totalPages = 1;
+
+          for (let page = 0; page < Math.min(totalPages, 15); page++) {
+            const url = `${this.catalogBaseUrl}/categories/get-all-categories?leaf=true&status=ACTIVE&available=true&page=${page}&size=${pageSize}`;
+            try {
+              const response = await axios.get(url, { headers, timeout: 30000 });
+              const rawData = response.data?.data ?? response.data?.categories ?? response.data;
+              const chunk = Array.isArray(rawData) ? rawData : [];
+              if (typeof response.data?.totalPages === "number" && response.data.totalPages > 0) {
+                totalPages = response.data.totalPages;
+              }
+              for (const item of chunk) {
+                const cid = String(item?.categoryId ?? item?.id ?? "").trim();
+                if (!cid || seenIds.has(cid)) continue;
+                seenIds.add(cid);
+                collected.push(item);
+              }
+              if (chunk.length < pageSize && page + 1 >= totalPages) {
+                break;
+              }
+              if (chunk.length === 0) break;
+            } catch (pageErr: any) {
+              if (this.isAuthError(pageErr)) throw pageErr;
+              if (page === 0) {
+                // Fallback to unpaginated endpoint on the same host
+                const fallbackUrl = `${this.catalogBaseUrl}/categories/get-all-categories`;
+                const res = await axios.get(fallbackUrl, { headers, timeout: 30000 });
+                const rawFallback = res.data?.data ?? res.data?.categories ?? res.data;
+                return Array.isArray(rawFallback) ? rawFallback : [];
+              }
+              break;
+            }
           }
+
+          return collected;
         },
         { channel: "listing" }
       );
@@ -1784,14 +1812,16 @@ export class HepsiburadaService {
       return await this.withAuthRetry(
         async (headers) => {
           try {
-            const url = `${this.catalogBaseUrl}/products/status/${trackingId}`;
+            const url = `${this.catalogBaseUrl}/products/status/${encodeURIComponent(trackingId)}`;
             const response = await axios.get(url, { headers, timeout: 15000 });
-            return response.data?.data || response.data;
+            if (response.data && response.data.success === false) {
+              // Preserve full error response (e.g. code 4000 "Tracking id not found") instead of returning empty data: []
+              return response.data;
+            }
+            return response.data?.data ?? response.data;
           } catch (error: any) {
             if (this.isAuthError(error)) throw error;
-            const url2 = `${this.listingBaseUrl}/inventory/import/status/${this.config.merchantId}/task/${trackingId}`;
-            const res2 = await axios.get(url2, { headers, timeout: 15000 });
-            return res2.data;
+            return await this.checkTaskStatus(trackingId);
           }
         },
         { channel: "listing" }
@@ -1799,6 +1829,83 @@ export class HepsiburadaService {
     } catch (error: any) {
       throw new Error(`Katalog takip durumu sorgulanamadı: ${error.response?.data?.message || error.message}`);
     }
+  }
+
+  /**
+   * 5.2 Inspect Catalog Products directly on MPOP (all-products-of-merchant + WAITING/MISSING_INFO/REJECTED)
+   */
+  async checkCatalogProductsByStatus(merchantSkuOrBarcode?: string): Promise<{
+    found: boolean;
+    totalCatalogProducts: number;
+    items: any[];
+    matched?: any;
+  }> {
+    const norm = (v: any) => String(v || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+    const targetNorm = norm(merchantSkuOrBarcode);
+
+    return await this.withAuthRetry(
+      async (headers) => {
+        const items: any[] = [];
+        const seen = new Set<string>();
+
+        const addItem = (it: any, statusHint?: string) => {
+          if (!it || typeof it !== "object") return;
+          const mSku = String(it.merchantSku || it.MerchantSku || "").trim();
+          const bc = String(it.barcode || it.Barcode || "").trim();
+          const hbSku = String(it.hbSku || it.hepsiburadaSku || "").trim();
+          const key = `${mSku}::${bc}::${hbSku}::${statusHint || ""}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            items.push(statusHint && !it.productStatus ? { ...it, productStatus: statusHint } : it);
+          }
+        };
+
+        try {
+          const resAll = await axios.get(
+            `${this.catalogBaseUrl}/products/all-products-of-merchant/${this.config.merchantId}?page=0&size=50`,
+            { headers, timeout: 15000 }
+          );
+          if (Array.isArray(resAll.data?.data)) {
+            for (const it of resAll.data.data) addItem(it);
+          }
+        } catch (err: any) {
+          if (this.isAuthError(err)) throw err;
+        }
+
+        const statusesToCheck = ["WAITING", "MISSING_INFO", "PRE_MATCHED", "REJECTED", "MATCHED"];
+        for (const st of statusesToCheck) {
+          try {
+            const resSt = await axios.get(
+              `${this.catalogBaseUrl}/products/products-by-merchant-and-status?merchantId=${encodeURIComponent(this.config.merchantId)}&productStatus=${st}&page=0&size=50`,
+              { headers, timeout: 12000 }
+            );
+            if (Array.isArray(resSt.data?.data)) {
+              for (const it of resSt.data.data) addItem(it, st);
+            }
+          } catch (err: any) {
+            if (this.isAuthError(err)) throw err;
+          }
+        }
+
+        const matched = targetNorm
+          ? items.find((it) => {
+              const cands = [it.merchantSku, it.MerchantSku, it.barcode, it.Barcode, it.hbSku, it.hepsiburadaSku];
+              return cands.some((c) => c && norm(c) === targetNorm);
+            })
+          : undefined;
+
+        return {
+          found: Boolean(matched),
+          totalCatalogProducts: items.length,
+          items,
+          matched
+        };
+      },
+      { channel: "listing" }
+    ).catch((err) => {
+      if (this.isAuthError(err)) throw err;
+      return { found: false, totalCatalogProducts: 0, items: [] };
+    });
   }
 
   /**
