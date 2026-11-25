@@ -12,7 +12,10 @@ router.get("/", async (req: any, res) => {
 
     if (req.query.slug) {
       const slug = String(req.query.slug || "").trim();
-      let storeRes = await pool.query("SELECT id, parent_id, slug FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
+      let storeRes = await pool.query(
+        "SELECT id, parent_id, slug FROM stores WHERE LOWER(slug) = LOWER($1) ORDER BY CASE WHEN slug = $1 THEN 0 ELSE 1 END, id ASC",
+        [slug]
+      );
       if (storeRes.rows.length === 0) {
         storeRes = await pool.query("SELECT id, parent_id, slug FROM stores WHERE LOWER(store_code) = LOWER($1)", [slug]);
       }

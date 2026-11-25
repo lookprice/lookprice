@@ -1004,6 +1004,9 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       { id: "faq", label: txt('S.S.S. (Sıkça Sorulanlar)', 'FAQ Management', 'Συχνές Ερωτήσεις'), icon: HelpCircle },
       { id: "seo", label: txt('SEO & Sayfa Başlıkları', 'SEO & Page Titles', 'Σελίδες SEO'), icon: Globe },
     ]},
+    { type: 'category', key: "finance_operations", title: txt('Finans & Kasa', 'Finance & Cash', 'Οικονομικά & Ταμείο'), items: [
+      { id: "portfolio_finances", label: txt('Gelir & Gider / Kasa', 'Finances & Cash Flow', 'Έσοδα & Έξοδα / Ταμείο'), icon: Wallet },
+    ]},
     { type: 'category', key: "integrations", title: txt('Google, Meta & İstatistik', 'Google, Meta & Analytics', 'Google, Meta & Στατιστικά'), items: [
       { id: "meta", label: txt('Meta & Instagram Tanımları', 'Meta & Instagram Setup', 'Ρυθμίσεις Meta & Instagram'), icon: Facebook },
       { id: "analytics", label: txt('Ziyaretçi İstatistikleri', 'Visitor Analytics', 'Στατιστικά Επισκεπτών'), icon: BarChart3 },
@@ -1105,6 +1108,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         badge: Number(notifications?.reconciliations_total || 0) > 0 ? Number(notifications?.reconciliations_total) : undefined,
         badgeType: Number(notifications?.reconciliations_disputed || 0) > 0 ? 'error' : 'normal'
       },
+      { id: "portfolio_finances", label: txt('Gelir & Gider / Kasa', 'Finances & Cash Flow', 'Έσοδα & Έξοδα / Ταμείο'), icon: Wallet },
       ...(!(branding?.branch_type === 'WAREHOUSE' && branding?.has_pos === false) ? [{ id: "pos", label: t.pos, icon: CreditCard, badge: notifications.sales }] : []),
       ...(!(branding?.branch_type === 'WAREHOUSE' && branding?.has_pos === false) ? [{ id: "fast-pos", label: t.fastPos, icon: Scan }] : []),
     ]},
@@ -1187,6 +1191,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         { type: 'item', id: "stock_transfer", label: t.stock_transfer, icon: ArrowLeftRight },
         { type: 'item', id: "sales_invoices", label: txt('Satış Faturaları', 'Sales Invoices', 'Τιμολόγια Πώλησης'), icon: FileText },
         { type: 'item', id: "companies", label: t.companies, icon: Store },
+        { type: 'item', id: "portfolio_finances", label: txt('Gelir & Gider / Kasa', 'Finances & Cash Flow', 'Έσοδα & Έξοδα / Ταμείο'), icon: Wallet },
         { type: 'item', id: "pos", label: t.pos, icon: CreditCard }
       ];
     }
@@ -2154,7 +2159,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 <PortfolioFinancesTab 
                   storeId={currentStoreId!} 
                   isAutomotive={isAutomotive} 
-                  isRealEstate={isRealEstate}
+                  isRealEstate={isRealEstate || isDeveloperProject}
+                  domainId={domainId}
                   branding={branding}
                 />
               )}

@@ -2284,10 +2284,42 @@ export async function initDb() {
       }
     }
 
-    // Seed default stores if none exist or missing
+    // Self-heal: remove phantom duplicate store id=1 ('gap') if an empty auto-seeded shell shadows the real GAP store (e.g. id=2, slug='GAP')
+    try {
+      const dupGapRes = await client.query(`
+        SELECT s.id
+        FROM stores s
+        WHERE s.id = 1
+          AND LOWER(s.slug) = 'gap'
+          AND EXISTS (SELECT 1 FROM stores s2 WHERE s2.id <> s.id AND LOWER(s2.slug) = 'gap')
+          AND NOT EXISTS (SELECT 1 FROM products p WHERE p.store_id = s.id)
+          AND NOT EXISTS (SELECT 1 FROM purchase_invoices pi WHERE pi.store_id = s.id)
+          AND NOT EXISTS (SELECT 1 FROM sales_invoices si WHERE si.store_id = s.id)
+          AND NOT EXISTS (SELECT 1 FROM companies c WHERE c.store_id = s.id)
+      `);
+      if (dupGapRes.rows.length > 0) {
+        const shoplpDemoRes = await client.query("SELECT id FROM stores WHERE LOWER(slug) = 'shoplp-demo' LIMIT 1");
+        const demoTargetId = shoplpDemoRes.rows[0]?.id || null;
+        if (demoTargetId) {
+          await client.query("UPDATE users SET store_id = $1 WHERE store_id = 1 AND role <> 'superadmin'", [demoTargetId]);
+        } else {
+          await client.query("DELETE FROM users WHERE store_id = 1 AND role <> 'superadmin'");
+        }
+        await client.query("DELETE FROM stores WHERE id = 1");
+        console.log("[DB Init] Removed phantom empty duplicate store id=1 ('gap') shadowing real GAP store.");
+      }
+    } catch (healErr) {
+      console.warn("[DB Init] Phantom gap cleanup notice:", healErr);
+    }
+
+    // Seed default stores only when neither slug (case-insensitive) nor id exists
+    const storesCountRes = await client.query("SELECT COUNT(*)::int AS cnt FROM stores");
+    const isFreshEmptyDb = Number(storesCountRes.rows[0]?.cnt || 0) === 0;
     const defaultStores = [
-      { id: 1, name: "GAP Bilişim", slug: "gap", code: "LP-100001", type: "shop" },
-      { id: 2, name: "LookPrice Gayrimenkul", slug: "restatelp", code: "LP-200002", type: "real_estate" },
+      ...(isFreshEmptyDb ? [
+        { id: 1, name: "GAP Bilişim", slug: "gap", code: "LP-100001", type: "shop" },
+        { id: 2, name: "LookPrice Gayrimenkul", slug: "restatelp", code: "LP-200002", type: "real_estate" },
+      ] : []),
       { id: 3, name: "autoLP Motorlu Araçlar & VIP Galeri (Demo)", slug: "autolp-demo", code: "LP-AUTO00", type: "auto", is_demo: true, branch_name: "Merkez Showroom (Lefkoşa)" },
       { id: 4, name: "Grand LookPrice Hotel & Resort (Demo)", slug: "horecalp-demo", code: "LP-HORECA00", type: "cafe_restaurant", is_demo: true, hotel_module_enabled: true },
       { id: 43, name: "autoLP Girne Prestij & Spor Araçlar Şubesi (Demo)", slug: "autolp-girne-demo", code: "LP-AUTO01", type: "auto", parent_id: 3, is_demo: true, branch_name: "Girne Prestij & Spor Araçlar Şubesi" },
@@ -2298,7 +2330,7 @@ export async function initDb() {
     ];
 
     for (const s of defaultStores) {
-      const stCheck = await client.query("SELECT id FROM stores WHERE slug = $1 OR id = $2", [s.slug, s.id]);
+      const stCheck = await client.query("SELECT id FROM stores WHERE LOWER(slug) = LOWER($1) OR id = $2", [s.slug, s.id]);
       if (stCheck.rows.length === 0) {
         await client.query(`
           INSERT INTO stores (id, name, slug, store_code, store_type, is_approved, status, plan, branding, parent_id, branch_name, hotel_module_enabled, bookstore_module_enabled)
@@ -2332,25 +2364,29 @@ export async function initDb() {
       }
     }
 
-    // Seed demo store admins
+    // Seed demo store admins against their demo store slugs (never attach demo admins to live stores)
     const storeAdmins = [
-      { email: "admin@shoplp.com", store_id: 1 },
-      { email: "demo@shoplp.com", store_id: 1 },
-      { email: "demo@restatelp.com", store_id: 2 },
-      { email: "demo@autolp.com", store_id: 3 },
-      { email: "demo@horecalp.com", store_id: 4 },
-      { email: "demo@booklp.com", store_id: 45 },
-      { email: "demo@weblp.com", store_id: 47 }
+      { email: "admin@shoplp.com", targetSlug: "shoplp-demo" },
+      { email: "demo@shoplp.com", targetSlug: "shoplp-demo" },
+      { email: "demo@restatelp.com", targetSlug: "restatelp-demo" },
+      { email: "demo@autolp.com", targetSlug: "autolp-demo" },
+      { email: "demo@horecalp.com", targetSlug: "horecalp-demo" },
+      { email: "demo@booklp.com", targetSlug: "booklp-demo" },
+      { email: "demo@weblp.com", targetSlug: "weblp-demo" }
     ];
 
     for (const sa of storeAdmins) {
       const uCheck = await client.query("SELECT id FROM users WHERE email = $1", [sa.email]);
       if (uCheck.rows.length === 0) {
-        await client.query(`
-          INSERT INTO users (email, password, role, store_id, is_active)
-          VALUES ($1, $2, 'admin', $3, true)
-          ON CONFLICT (email) DO UPDATE SET store_id = EXCLUDED.store_id
-        `, [sa.email, hashedPassword, sa.store_id]);
+        const targetStoreRes = await client.query("SELECT id FROM stores WHERE LOWER(slug) = LOWER($1) LIMIT 1", [sa.targetSlug]);
+        const targetStoreId = targetStoreRes.rows[0]?.id;
+        if (targetStoreId) {
+          await client.query(`
+            INSERT INTO users (email, password, role, store_id, is_active)
+            VALUES ($1, $2, 'admin', $3, true)
+            ON CONFLICT (email) DO NOTHING
+          `, [sa.email, hashedPassword, targetStoreId]);
+        }
       }
     }
 

@@ -700,7 +700,7 @@ async function findPublicStoreRow(rawIdentifier: string, selectCols: string) {
   const clean = String(rawIdentifier || "").trim();
   if (!clean) return null;
 
-  let res = await pool.query(`SELECT ${selectCols} FROM stores WHERE LOWER(slug) = LOWER($1) LIMIT 1`, [clean]);
+  let res = await pool.query(`SELECT ${selectCols} FROM stores WHERE LOWER(slug) = LOWER($1) ORDER BY CASE WHEN slug = $1 THEN 0 ELSE 1 END, id ASC LIMIT 1`, [clean]);
   if (res.rows[0]) return res.rows[0];
 
   res = await pool.query(`SELECT ${selectCols} FROM stores WHERE LOWER(store_code) = LOWER($1) LIMIT 1`, [clean]);
@@ -1444,7 +1444,7 @@ router.get("/store/:slug/products", async (req, res) => {
     return res.json(cached);
   }
 
-  const storeRes = await pool.query("SELECT id, name, slug, default_currency, currency_rates, store_type FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
+  const storeRes = await pool.query("SELECT id, name, slug, default_currency, currency_rates, store_type FROM stores WHERE LOWER(slug) = LOWER($1) ORDER BY CASE WHEN slug = $1 THEN 0 ELSE 1 END, id ASC", [slug]);
   let store = storeRes.rows[0];
 
   if (!store && (slug === 'demo-store' || slug === 'demo')) {

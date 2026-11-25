@@ -1751,42 +1751,24 @@ async function ensurePortfolioTransactionsSchema() {
 }
 
 function resolveTransactionStoreId(req: any): number | null {
-  const raw =
+  const requested =
     req.query?.storeId ??
     req.query?.store_id ??
     req.body?.store_id ??
-    req.body?.storeId ??
-    req.user?.user?.store_id ??
-    req.user?.store_id;
-  const parsed = Number(raw);
-  return !isNaN(parsed) && parsed > 0 ? parsed : null;
+    req.body?.storeId;
+  const authorized = getAuthorizedStoreId(req, requested);
+  const resolved = authorized > 0 ? authorized : Number(req.user?.user?.store_id || 0);
+  return !isNaN(resolved) && resolved > 0 ? resolved : null;
 }
 
 router.get('/transactions', authenticate, async (req: any, res) => {
   await ensurePortfolioTransactionsSchema();
   const storeId = resolveTransactionStoreId(req);
   if (!storeId) {
-    return res.json([]);
+    return res.status(403).json({ error: "Unauthorized store context." });
   }
 
   try {
-    // Self-heal any orphaned transactions where store_id was null or mismatched fallback 40
-    await pool.query(
-      `UPDATE portfolio_transactions SET store_id = $1 WHERE store_id IS NULL`,
-      [storeId]
-    ).catch(() => {});
-
-    if (req.user?.store_id && Number(req.user.store_id) !== storeId) {
-      // If a user token had a fallback store_id (e.g. 40) that doesn't exist in stores table, migrate its records to actual storeId
-      const checkFallback = await pool.query(`SELECT id FROM stores WHERE id = $1`, [ Number(req.user.store_id) ]).catch(() => ({ rows: [] }));
-      if (checkFallback.rows.length === 0) {
-        await pool.query(
-          `UPDATE portfolio_transactions SET store_id = $1 WHERE store_id = $2`,
-          [storeId, Number(req.user.store_id)]
-        ).catch(() => {});
-      }
-    }
-
     const { startDate, endDate, currency, type, category } = req.query;
     const params: any[] = [storeId];
     let whereClause = `WHERE t.store_id = $1`;
@@ -1822,8 +1804,8 @@ router.get('/transactions', authenticate, async (req: any, res) => {
                   ELSE NULL
                 END as property_title 
          FROM portfolio_transactions t
-         LEFT JOIN real_estate_properties p ON t.property_id = p.id
-         LEFT JOIN vehicles v ON t.property_id = v.id
+         LEFT JOIN real_estate_properties p ON t.property_id = p.id AND p.store_id = t.store_id
+         LEFT JOIN vehicles v ON t.property_id = v.id AND v.store_id = t.store_id
          ${whereClause}
          ORDER BY t.date DESC, t.id DESC`,
         params
@@ -1901,6 +1883,9 @@ router.post('/financial-accounts', authenticate, async (req: any, res) => {
 router.put('/financial-accounts/:id', authenticate, async (req: any, res) => {
   await ensurePortfolioTransactionsSchema();
   const storeId = resolveTransactionStoreId(req);
+  if (!storeId) {
+    return res.status(403).json({ error: "Unauthorized store context." });
+  }
   const { id } = req.params;
   const { account_type, account_name, bank_name, account_number, currency, initial_balance } = req.body;
 
@@ -1914,7 +1899,7 @@ router.put('/financial-accounts/:id', authenticate, async (req: any, res) => {
            currency = COALESCE($5, currency),
            initial_balance = COALESCE($6, initial_balance),
            updated_at = CURRENT_TIMESTAMP
-       WHERE id = $7 AND ($8::integer IS NULL OR store_id = $8)
+       WHERE id = $7 AND store_id = $8
        RETURNING *`,
       [
         account_type,
@@ -1940,11 +1925,14 @@ router.put('/financial-accounts/:id', authenticate, async (req: any, res) => {
 router.delete('/financial-accounts/:id', authenticate, async (req: any, res) => {
   await ensurePortfolioTransactionsSchema();
   const storeId = resolveTransactionStoreId(req);
+  if (!storeId) {
+    return res.status(403).json({ error: "Unauthorized store context." });
+  }
   const { id } = req.params;
 
   try {
     const result = await pool.query(
-      `DELETE FROM store_financial_accounts WHERE id = $1 AND ($2::integer IS NULL OR store_id = $2) RETURNING *`,
+      `DELETE FROM store_financial_accounts WHERE id = $1 AND store_id = $2 RETURNING *`,
       [Number(id), storeId]
     );
     if (result.rowCount === 0) {
@@ -2031,6 +2019,9 @@ router.post('/transactions', authenticate, async (req: any, res) => {
 router.put('/transactions/:id', authenticate, async (req: any, res) => {
   await ensurePortfolioTransactionsSchema();
   const storeId = resolveTransactionStoreId(req);
+  if (!storeId) {
+    return res.status(403).json({ error: "Unauthorized store context." });
+  }
   const { id } = req.params;
   const { type, category, title, amount, currency, date, property_id, description, payment_method, reference_no, contact_name, account_id, account_name } = req.body;
 
@@ -2039,6 +2030,9 @@ router.put('/transactions/:id', authenticate, async (req: any, res) => {
   }
 
   const parsedAmount = Number(amount);
+  if (isNaN(parsedAmount) || parsedAmount <= 0) {
+    return res.status(400).json({ error: "Valid positive amount is required." });
+  }
   const parsedPropertyId = property_id ? (Number(property_id) || null) : null;
   const parsedAccountId = account_id ? (Number(account_id) || null) : null;
   const txDate = date ? new Date(date).toISOString() : new Date().toISOString();
@@ -2060,7 +2054,7 @@ router.put('/transactions/:id', authenticate, async (req: any, res) => {
            account_id = $12,
            account_name = $13,
            updated_at = CURRENT_TIMESTAMP
-       WHERE id = $14 AND ($15::integer IS NULL OR store_id = $15)
+       WHERE id = $14 AND store_id = $15
        RETURNING *`,
       [
         type,
@@ -2096,11 +2090,14 @@ router.put('/transactions/:id', authenticate, async (req: any, res) => {
 router.delete('/transactions/:id', authenticate, async (req: any, res) => {
   await ensurePortfolioTransactionsSchema();
   const storeId = resolveTransactionStoreId(req);
+  if (!storeId) {
+    return res.status(403).json({ error: "Unauthorized store context." });
+  }
   const { id } = req.params;
 
   try {
     const result = await pool.query(
-      `DELETE FROM portfolio_transactions WHERE id = $1 AND ($2::integer IS NULL OR store_id = $2) RETURNING *`,
+      `DELETE FROM portfolio_transactions WHERE id = $1 AND store_id = $2 RETURNING *`,
       [Number(id), storeId]
     );
 

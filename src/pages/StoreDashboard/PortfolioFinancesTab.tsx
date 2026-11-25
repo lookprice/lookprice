@@ -40,11 +40,13 @@ import { printHtmlContract } from "../../utils/printContractHelper";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
+import { DomainId, resolveDomainId } from "../../utils/sectorCapability";
 
 interface PortfolioFinancesTabProps {
   storeId: number;
   isAutomotive?: boolean;
   isRealEstate?: boolean;
+  domainId?: DomainId;
   branding?: any;
 }
 
@@ -69,19 +71,33 @@ export default function PortfolioFinancesTab({
   storeId, 
   isAutomotive = false, 
   isRealEstate = false,
+  domainId,
   branding
 }: PortfolioFinancesTabProps) {
   const { lang } = useLanguage();
   const isTr = lang === "tr";
 
-  const activeAutomotive = isAutomotive;
-  const activeRealEstate = isRealEstate || (!isAutomotive && !isRealEstate);
+  const resolvedDomain: DomainId = domainId || resolveDomainId(branding);
+  const activeAutomotive = Boolean(isAutomotive || resolvedDomain === "AUTOMOTIVE");
+  const activeRealEstate = Boolean(isRealEstate || resolvedDomain === "REAL_ESTATE" || resolvedDomain === "DEVELOPER_PROJECT");
+  const isPortfolioSector = activeAutomotive || activeRealEstate;
+  const isHorecaSector = resolvedDomain === "HORECA" || resolvedDomain === "HOTEL";
+  const isHotelSector = resolvedDomain === "HOTEL";
+  const isCorporateSector = resolvedDomain === "CORPORATE";
+  const isBookstoreSector = resolvedDomain === "BOOKSTORE";
+  const defaultSectorCurrency = activeRealEstate ? "GBP" : "TRY";
 
-  const { properties } = useRealEstate(storeId);
+  const { properties } = useRealEstate(activeRealEstate ? storeId : undefined);
   const { transactions, loading: loadingFinances, addTransaction, updateTransaction, deleteTransaction, fetchTransactions } = usePortfolioFinances(storeId);
 
-  // Tab View Switcher: "statement" (Genel Kasa & Ekstre) vs "portfolio_profit" (Portföy Kâr/Zarar Takibi)
+  // Tab View Switcher: "statement" (Genel Kasa & Ekstre) vs "portfolio_profit" (Portföy Kâr/Zarar Takibi - yalnız portföy sektörleri)
   const [viewTab, setViewTab] = useState<ViewTabMode>("statement");
+
+  useEffect(() => {
+    if (!isPortfolioSector && viewTab === "portfolio_profit") {
+      setViewTab("statement");
+    }
+  }, [isPortfolioSector, viewTab]);
 
   // Financial Accounts (Bank accounts, Credit cards, etc.)
   const [accounts, setAccounts] = useState<FinancialAccount[]>([]);
@@ -91,7 +107,7 @@ export default function PortfolioFinancesTab({
 
   // Store default currency & exchange rates for cross-currency portfolio P&L
   const [storeDefaultCurrency, setStoreDefaultCurrency] = useState<string>(
-    (branding?.default_currency || branding?.currency || (activeAutomotive ? "TRY" : "GBP")).toUpperCase()
+    (branding?.default_currency || branding?.currency || defaultSectorCurrency).toUpperCase()
   );
   const [storeCurrencyRates, setStoreCurrencyRates] = useState<Record<string, number>>(() => {
     const base: Record<string, number> = { USD: 34.50, EUR: 37.80, GBP: 45.20, TRY: 1 };
@@ -136,7 +152,7 @@ export default function PortfolioFinancesTab({
     fetchStore(storeId)
       .then((info: any) => {
         if (!info) return;
-        const defCur = (info.default_currency || info.currency || (activeAutomotive ? "TRY" : "GBP")).toUpperCase();
+        const defCur = (info.default_currency || info.currency || defaultSectorCurrency).toUpperCase();
         setStoreDefaultCurrency(defCur);
         const rawRates = info.currency_rates || {};
         const parsedRates: Record<string, number> = { USD: 34.50, EUR: 37.80, GBP: 45.20, TRY: 1 };
@@ -150,7 +166,7 @@ export default function PortfolioFinancesTab({
         setStoreCurrencyRates(parsedRates);
       })
       .catch((err: any) => console.error("Error fetching store currency info:", err));
-  }, [storeId, activeAutomotive]);
+  }, [storeId, defaultSectorCurrency]);
 
   const convertPortfolioCurrency = useCallback((amount: number, fromCurr: string, toCurr: string) => {
     const val = Number(amount) || 0;
@@ -243,13 +259,125 @@ export default function PortfolioFinancesTab({
   const [portfolioSearch, setPortfolioSearch] = useState("");
   const [profitTabSearch, setProfitTabSearch] = useState("");
 
+  const categories = useMemo(() => {
+    if (activeAutomotive) {
+      return {
+        income: [
+          { id: "car_sales", label: isTr ? "Araç Satış Geliri" : "Vehicle Sales Income" },
+          { id: "commission", label: isTr ? "Oto Satış Komisyonu" : "Vehicle Sales Commission" },
+          { id: "car_rental", label: isTr ? "Araç Kiralama Geliri" : "Car Rental Income" },
+          { id: "deposit_income", label: isTr ? "Kapora / Ön Ödeme" : "Deposit Received" },
+          { id: "consulting", label: isTr ? "Ekspertiz & Danışmanlık" : "Appraisal & Consulting" },
+          { id: "other", label: isTr ? "Diğer Gelirler" : "Other Income" }
+        ],
+        expense: [
+          { id: "car_purchase", label: isTr ? "Stok Araç Alım Bedeli" : "Vehicle Inventory Purchase" },
+          { id: "vehicle_maintenance", label: isTr ? "Araç Bakım, Onarım & Ekspertiz" : "Vehicle Maintenance & Appraisal" },
+          { id: "advertising", label: isTr ? "Portal İlan Ücretleri" : "Listing Portal Fees" },
+          { id: "rent_utilities", label: isTr ? "Ofis/Galeri Kirası & Faturalar" : "Gallery Rent & Utilities" },
+          { id: "agent_commission", label: isTr ? "Satış Personeli Primi & Maaş" : "Agent Commission & Salary" },
+          { id: "tax_official", label: isTr ? "Noter, Vergi & Resmi Harçlar" : "Notary, Tax & Official Fees" },
+          { id: "marketing", label: isTr ? "Reklam & Tanıtım Giderleri" : "Marketing & Printing" },
+          { id: "other", label: isTr ? "Diğer Giderler" : "Other Expenses" }
+        ]
+      };
+    }
+
+    if (activeRealEstate) {
+      return {
+        income: [
+          { id: "commission", label: isTr ? "Emlak Satış Komisyonu" : "Real Estate Sales Commission" },
+          { id: "rental_placement", label: isTr ? "Kiralama Hizmet Bedeli" : "Rental Placement Fee" },
+          { id: "deposit_income", label: isTr ? "Kapora / Ön Ödeme Tahsilatı" : "Deposit Received" },
+          { id: "property_management", label: isTr ? "Mülk Yönetim & Aidat Geliri" : "Property Management Fee" },
+          { id: "consulting", label: isTr ? "Danışmanlık & Ekspertiz Bedeli" : "Consulting & Appraisal Fee" },
+          { id: "other", label: isTr ? "Diğer Gelirler" : "Other Income" }
+        ],
+        expense: [
+          { id: "advertising", label: isTr ? "Portal İlan & Vitrin Ücretleri" : "Listing Portal Fees" },
+          { id: "rent_utilities", label: isTr ? "Ofis Kirası, Elektrik, Su & İnternet" : "Office Rent & Utilities" },
+          { id: "agent_commission", label: isTr ? "Danışman Primi & Personel Ödemesi" : "Agent Commission & Payroll" },
+          { id: "marketing", label: isTr ? "Dijital Reklam, Afiş & Tabela" : "Marketing, Banner & Printing" },
+          { id: "vehicle", label: isTr ? "Ulaşım, Taşıt & Yakıt Gideri" : "Transportation & Fuel" },
+          { id: "tax_official", label: isTr ? "Tapu, Vergi & Resmi Harçlar" : "Title Deed, Tax & Official Fees" },
+          { id: "office_supplies", label: isTr ? "Ofis Mutfak & Kırtasiye Gideri" : "Office & Hospitality Expenses" },
+          { id: "other", label: isTr ? "Diğer Giderler" : "Other Expenses" }
+        ]
+      };
+    }
+
+    if (isHorecaSector) {
+      return {
+        income: [
+          { id: "pos_sales", label: isTr ? "Adisyon / Masa & Kasa Satışı" : "POS & Table Sales" },
+          { id: "takeaway_delivery", label: isTr ? "Paket Servis & Gel-Al Geliri" : "Takeaway & Delivery Sales" },
+          ...(isHotelSector ? [{ id: "hotel_accommodation", label: isTr ? "Oda Konaklama & Rezervasyon Geliri" : "Room & Reservation Income" }] : []),
+          { id: "catering_event", label: isTr ? "Catering & Özel Organizasyon" : "Catering & Events" },
+          { id: "deposit_income", label: isTr ? "Kapora / Ön Ödeme Tahsilatı" : "Deposit Received" },
+          { id: "other", label: isTr ? "Diğer Gelirler" : "Other Income" }
+        ],
+        expense: [
+          { id: "kitchen_supplies", label: isTr ? "Mutfak, Hammadde & İçecek Alımı" : "Kitchen & Beverage Supplies" },
+          { id: "rent_utilities", label: isTr ? "İşletme Kirası, Elektrik, Su & Gaz" : "Rent & Utilities" },
+          { id: "staff_payroll", label: isTr ? "Personel Maaş, Avans & Prim" : "Staff Payroll & Benefits" },
+          { id: "delivery_commission", label: isTr ? "Kurye & Sipariş Platformu Gideri" : "Delivery & Courier Fees" },
+          { id: "maintenance_cleaning", label: isTr ? "Temizlik, Bakım & Ekipman" : "Cleaning & Maintenance" },
+          { id: "tax_official", label: isTr ? "Vergi, Stopaj & Resmi Harçlar" : "Tax & Official Fees" },
+          { id: "marketing", label: isTr ? "Menü, Reklam & Tanıtım" : "Marketing & Menu" },
+          { id: "other", label: isTr ? "Diğer Giderler" : "Other Expenses" }
+        ]
+      };
+    }
+
+    if (isCorporateSector) {
+      return {
+        income: [
+          { id: "service_revenue", label: isTr ? "Hizmet & Proje Tahsilatı" : "Service & Project Revenue" },
+          { id: "consulting", label: isTr ? "Danışmanlık & Sözleşme Geliri" : "Consulting & Retainer" },
+          { id: "deposit_income", label: isTr ? "Ön Ödeme / Avans Tahsilatı" : "Advance / Deposit Received" },
+          { id: "other", label: isTr ? "Diğer Gelirler" : "Other Income" }
+        ],
+        expense: [
+          { id: "supplier_payment", label: isTr ? "Tedarikçi & Taşeron Ödemesi" : "Vendor & Contractor Payment" },
+          { id: "rent_utilities", label: isTr ? "Ofis Kirası, Elektrik & İnternet" : "Office Rent & Utilities" },
+          { id: "staff_payroll", label: isTr ? "Personel Maaş, SGK & Prim" : "Staff Payroll & Benefits" },
+          { id: "marketing", label: isTr ? "Dijital Reklam, Web & Tanıtım" : "Digital Marketing & Web" },
+          { id: "office_supplies", label: isTr ? "Ofis, Yazılım & Kırtasiye" : "Office, Software & Supplies" },
+          { id: "tax_official", label: isTr ? "Vergi, Muhasebe & Resmi Harçlar" : "Tax, Accounting & Fees" },
+          { id: "other", label: isTr ? "Diğer Giderler" : "Other Expenses" }
+        ]
+      };
+    }
+
+    // RETAIL (shopLP) & BOOKSTORE (BookLP)
+    return {
+      income: [
+        { id: "retail_sales", label: isBookstoreSector ? (isTr ? "Mağaza & Kitap Satış Geliri" : "Store & Book Sales") : (isTr ? "Mağaza & Kasa Satış Geliri" : "Store & POS Sales") },
+        { id: "online_marketplace", label: isTr ? "E-Ticaret & Pazaryeri Tahsilatı" : "E-Commerce & Marketplace Payout" },
+        { id: "invoice_collection", label: isTr ? "Cari / Fatura Tahsilatı" : "Account & Invoice Collection" },
+        { id: "deposit_income", label: isTr ? "Kapora / Ön Ödeme Tahsilatı" : "Deposit Received" },
+        { id: "other", label: isTr ? "Diğer Gelirler" : "Other Income" }
+      ],
+      expense: [
+        { id: "supplier_payment", label: isBookstoreSector ? (isTr ? "Yayınevi & Tedarikçi Ödemesi" : "Publisher & Supplier Payment") : (isTr ? "Mal Alımı & Tedarikçi Ödemesi" : "Inventory & Supplier Payment") },
+        { id: "rent_utilities", label: isTr ? "Mağaza Kirası, Elektrik & İnternet" : "Store Rent & Utilities" },
+        { id: "staff_payroll", label: isTr ? "Personel Maaş, SGK & Prim" : "Staff Payroll & Benefits" },
+        { id: "shipping_logistics", label: isTr ? "Kargo, Lojistik & Paketleme" : "Shipping & Packaging" },
+        { id: "marketing", label: isTr ? "Reklam, Kampanya & Vitrin" : "Advertising & Marketing" },
+        { id: "tax_official", label: isTr ? "Vergi, Stopaj & Resmi Harçlar" : "Tax & Official Fees" },
+        { id: "office_supplies", label: isTr ? "Mağaza Sarf & Kırtasiye" : "Store Supplies" },
+        { id: "other", label: isTr ? "Diğer Giderler" : "Other Expenses" }
+      ]
+    };
+  }, [activeAutomotive, activeRealEstate, isHorecaSector, isHotelSector, isCorporateSector, isBookstoreSector, isTr]);
+
   // Form State
   const [formData, setFormData] = useState({
     type: "income" as "income" | "expense",
-    category: activeAutomotive ? "car_sales" : "commission",
+    category: categories.income[0]?.id || "other",
     title: "",
     amount: "",
-    currency: activeAutomotive ? "TRY" : "GBP",
+    currency: defaultSectorCurrency,
     date: new Date().toISOString().split("T")[0],
     property_id: "" as string | number,
     payment_method: "cash",
@@ -266,47 +394,6 @@ export default function PortfolioFinancesTab({
     { id: "credit_card", label: isTr ? "Kredi Kartı" : "Credit Card" },
     { id: "check_promissory", label: isTr ? "Çek / Senet" : "Check / Note" }
   ];
-
-  const categories = useMemo(() => ({
-    income: activeAutomotive 
-      ? [
-          { id: "car_sales", label: isTr ? "Araç Satış Geliri" : "Vehicle Sales Income" },
-          { id: "commission", label: isTr ? "Oto Satış Komisyonu" : "Vehicle Sales Commission" },
-          { id: "car_rental", label: isTr ? "Araç Kiralama Geliri" : "Car Rental Income" },
-          { id: "deposit_income", label: isTr ? "Kapora / Ön Ödeme" : "Deposit Received" },
-          { id: "consulting", label: isTr ? "Ekspertiz & Danışmanlık" : "Appraisal & Consulting" },
-          { id: "other", label: isTr ? "Diğer Gelirler" : "Other Income" }
-        ]
-      : [
-          { id: "commission", label: isTr ? "Emlak Satış Komisyonu" : "Real Estate Sales Commission" },
-          { id: "rental_placement", label: isTr ? "Kiralama Hizmet Bedeli" : "Rental Placement Fee" },
-          { id: "deposit_income", label: isTr ? "Kapora / Ön Ödeme Tahsilatı" : "Deposit Received" },
-          { id: "property_management", label: isTr ? "Mülk Yönetim & Aidat Geliri" : "Property Management Fee" },
-          { id: "consulting", label: isTr ? "Danışmanlık & Ekspertiz Bedeli" : "Consulting & Appraisal Fee" },
-          { id: "other", label: isTr ? "Diğer Gelirler" : "Other Income" }
-        ],
-    expense: activeAutomotive
-      ? [
-          { id: "car_purchase", label: isTr ? "Stok Araç Alım Bedeli" : "Vehicle Inventory Purchase" },
-          { id: "vehicle_maintenance", label: isTr ? "Araç Bakım, Onarım & Ekspertiz" : "Vehicle Maintenance & Appraisal" },
-          { id: "advertising", label: isTr ? "Portal İlan Ücretleri" : "Listing Portal Fees" },
-          { id: "rent_utilities", label: isTr ? "Ofis/Galeri Kirası & Faturalar" : "Gallery Rent & Utilities" },
-          { id: "agent_commission", label: isTr ? "Satış Personeli Primi & Maaş" : "Agent Commission & Salary" },
-          { id: "tax_official", label: isTr ? "Noter, Vergi & Resmi Harçlar" : "Notary, Tax & Official Fees" },
-          { id: "marketing", label: isTr ? "Reklam & Tanıtım Giderleri" : "Marketing & Printing" },
-          { id: "other", label: isTr ? "Diğer Giderler" : "Other Expenses" }
-        ]
-      : [
-          { id: "advertising", label: isTr ? "Portal İlan & Vitrin Ücretleri" : "Listing Portal Fees" },
-          { id: "rent_utilities", label: isTr ? "Ofis Kirası, Elektrik, Su & İnternet" : "Office Rent & Utilities" },
-          { id: "agent_commission", label: isTr ? "Danışman Primi & Personel Ödemesi" : "Agent Commission & Payroll" },
-          { id: "marketing", label: isTr ? "Dijital Reklam, Afiş & Tabela" : "Marketing, Banner & Printing" },
-          { id: "vehicle", label: isTr ? "Ulaşım, Taşıt & Yakıt Gideri" : "Transportation & Fuel" },
-          { id: "tax_official", label: isTr ? "Tapu, Vergi & Resmi Harçlar" : "Title Deed, Tax & Official Fees" },
-          { id: "office_supplies", label: isTr ? "Ofis Mutfak & Kırtasiye Gideri" : "Office & Hospitality Expenses" },
-          { id: "other", label: isTr ? "Diğer Giderler" : "Other Expenses" }
-        ]
-  }), [activeAutomotive, isTr]);
 
   // Apply Date Preset
   const handleSelectDatePreset = (preset: DatePreset) => {
@@ -352,15 +439,15 @@ export default function PortfolioFinancesTab({
   const handleOpenCreateModal = (preselectedPropertyId?: string | number) => {
     setEditingTx(null);
     setPortfolioSearch("");
-    const defaultCur = currencyFilter !== "all" ? currencyFilter : (storeDefaultCurrency || (activeAutomotive ? "TRY" : "GBP"));
+    const defaultCur = currencyFilter !== "all" ? currencyFilter : (storeDefaultCurrency || defaultSectorCurrency);
     setFormData({
       type: "income",
-      category: activeAutomotive ? "car_sales" : "commission",
+      category: categories.income[0]?.id || "other",
       title: "",
       amount: "",
       currency: defaultCur,
       date: new Date().toISOString().split("T")[0],
-      property_id: preselectedPropertyId ? String(preselectedPropertyId) : (selectedPropertyFilter !== "all" ? selectedPropertyFilter : ""),
+      property_id: isPortfolioSector ? (preselectedPropertyId ? String(preselectedPropertyId) : (selectedPropertyFilter !== "all" ? selectedPropertyFilter : "")) : "",
       payment_method: "cash",
       account_id: "",
       account_name: `${defaultCur} Nakit Kasa`,
@@ -376,7 +463,7 @@ export default function PortfolioFinancesTab({
     setEditingTx(tx);
     setPortfolioSearch("");
     const txDateStr = tx.date ? new Date(tx.date).toISOString().split("T")[0] : new Date().toISOString().split("T")[0];
-    const txCurr = tx.currency || storeDefaultCurrency || (activeAutomotive ? "TRY" : "GBP");
+    const txCurr = tx.currency || storeDefaultCurrency || defaultSectorCurrency;
     const txMethod = tx.payment_method || "cash";
     const resolvedAccName = (txMethod === "cash" && !tx.account_id)
       ? `${txCurr} Nakit Kasa`
@@ -388,7 +475,7 @@ export default function PortfolioFinancesTab({
       amount: String(tx.amount || ""),
       currency: txCurr,
       date: txDateStr,
-      property_id: tx.property_id ? String(tx.property_id) : "",
+      property_id: isPortfolioSector && tx.property_id ? String(tx.property_id) : "",
       payment_method: txMethod,
       account_id: tx.account_id ? String(tx.account_id) : "",
       account_name: resolvedAccName,
@@ -488,53 +575,128 @@ export default function PortfolioFinancesTab({
     }
   };
 
+  const escapeHtmlStr = (val?: string | null) =>
+    String(val ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+
   const handlePrintReceipt = (t: PortfolioTransaction) => {
-    const prop = t.property_id ? properties.find(p => p.id === t.property_id) : null;
-    const isRent = t.category === "rental_placement" || (prop && prop.listing_intent === "rent") || (t.title && t.title.toLowerCase().includes("kira"));
-    const templateId = isRent ? "rental_commission_receipt" : "sales_commission_receipt";
-    const tpl = contractTemplates.find(ct => ct.id === templateId);
-    if (!tpl) {
-      toast.error(isTr ? "Makbuz şablonu bulunamadı." : "Receipt template not found.");
+    if (activeRealEstate) {
+      const prop = t.property_id ? properties.find(p => p.id === t.property_id) : null;
+      const isRent = t.category === "rental_placement" || (prop && prop.listing_intent === "rent") || (t.title && t.title.toLowerCase().includes("kira"));
+      const templateId = isRent ? "rental_commission_receipt" : "sales_commission_receipt";
+      const tpl = contractTemplates.find(ct => ct.id === templateId);
+      if (!tpl) {
+        toast.error(isTr ? "Makbuz şablonu bulunamadı." : "Receipt template not found.");
+        return;
+      }
+
+      const rawTitle = (branding?.store_name || branding?.name || "").trim();
+      const storeTitle = rawTitle && !/^lookprice$/i.test(rawTitle) ? rawTitle : "Seçkin Emlak";
+      const storeAddress = branding?.address || "-";
+      const storePhone = branding?.phone || branding?.whatsapp_number || "";
+
+      const propTitle = prop ? resolveOfficialPropertyTitle(prop) : (t.property_title || t.title);
+      const propAddress = prop?.address || (prop ? `${prop.kktc_sub_region || ""} ${prop.kktc_region || ""}`.trim() : "-");
+
+      const receiptNo = t.reference_no || `MAK-${isRent ? "KIR" : "SAT"}-${t.id || Date.now().toString().slice(-4)}`;
+      const payerName = t.contact_name || (isRent ? "Kiracı" : (prop?.owner_info?.fullName || "Mülk Sahibi"));
+
+      const { html } = tpl.getTemplate({
+        storeName: storeTitle,
+        storePhone: storePhone,
+        brokerAddress: storeAddress,
+        clientName: payerName,
+        clientIdentity: "-",
+        clientPhone: isRent ? (branding?.phone || "") : (prop?.owner_info?.phone || ""),
+        ownerName: isRent ? "" : payerName,
+        sellerIdentity: isRent ? "" : (prop?.owner_info?.identityNo || "-"),
+        ownerPhone: isRent ? "" : (prop?.owner_info?.phone || ""),
+        propertyTitle: propTitle,
+        propertyAddress: propAddress,
+        propertyLocation: prop ? `${prop.kktc_region || ""} / ${prop.kktc_sub_region || ""}` : "",
+        propertyPrice: `${t.amount} ${t.currency}`,
+        commissionRate: `${t.amount} ${t.currency}`,
+        commissionAmountWords: String(t.amount),
+        rentCurrency: t.currency,
+        saleCurrency: t.currency,
+        commissionPaymentMethod: t.payment_method || (isTr ? "Banka Havalesi / EFT" : "Bank Transfer"),
+        commissionReceiptNo: receiptNo,
+        commissionPayerName: payerName,
+        commissionPayerRole: isRent ? "KİRACI" : "MAL SAHİBİ",
+        contractDate: t.date ? new Date(t.date).toLocaleDateString("tr-TR") : new Date().toLocaleDateString("tr-TR")
+      });
+
+      printHtmlContract(html, `${isRent ? "Kiralık" : "Satılık"} Komisyon Alım Belgesi - ${receiptNo}`);
+      toast.success(isTr ? "Resmi Komisyon Alım Belgesi yazdırma penceresi açılıyor..." : "Opening receipt print preview...");
       return;
     }
 
-    const storeTitle = branding?.store_name || branding?.name || "Yetkili Emlak Ofisi";
-    const storeAddress = branding?.address || "Atatürk Caddesi No: 81/A Küçük Kaymaklı / Lefkoşa";
+    // Store-branded official collection receipt for Retail, HoReCa, Hotel, Automotive & Corporate sectors
+    const rawStoreTitle = (branding?.store_name || branding?.name || "").trim();
+    const storeTitle = rawStoreTitle && !/^lookprice$/i.test(rawStoreTitle)
+      ? rawStoreTitle
+      : (activeAutomotive ? "Seçkin Otomotiv" : "Seçkin Mağaza");
+    const storeAddress = branding?.address || "";
     const storePhone = branding?.phone || branding?.whatsapp_number || "";
-
-    const propTitle = prop ? resolveOfficialPropertyTitle(prop) : (t.property_title || t.title);
-    const propAddress = prop?.address || (prop ? `${prop.kktc_sub_region || ""} ${prop.kktc_region || ""}`.trim() : "-");
-
-    const receiptNo = t.reference_no || `MAK-${isRent ? "KIR" : "SAT"}-${t.id || Date.now().toString().slice(-4)}`;
-    const payerName = t.contact_name || (isRent ? "Kiracı" : (prop?.owner_info?.fullName || "Mülk Sahibi"));
-
-    const { html } = tpl.getTemplate({
-      storeName: storeTitle,
-      storePhone: storePhone,
-      brokerAddress: storeAddress,
-      clientName: payerName,
-      clientIdentity: "-",
-      clientPhone: isRent ? (branding?.phone || "") : (prop?.owner_info?.phone || ""),
-      ownerName: isRent ? "" : payerName,
-      sellerIdentity: isRent ? "" : (prop?.owner_info?.identityNo || "-"),
-      ownerPhone: isRent ? "" : (prop?.owner_info?.phone || ""),
-      propertyTitle: propTitle,
-      propertyAddress: propAddress,
-      propertyLocation: prop ? `${prop.kktc_region || ""} / ${prop.kktc_sub_region || ""}` : "",
-      propertyPrice: `${t.amount} ${t.currency}`,
-      commissionRate: `${t.amount} ${t.currency}`,
-      commissionAmountWords: String(t.amount),
-      rentCurrency: t.currency,
-      saleCurrency: t.currency,
-      commissionPaymentMethod: t.payment_method || (isTr ? "Banka Havalesi / EFT" : "Bank Transfer"),
-      commissionReceiptNo: receiptNo,
-      commissionPayerName: payerName,
-      commissionPayerRole: isRent ? "KİRACI" : "MAL SAHİBİ",
-      contractDate: t.date ? new Date(t.date).toLocaleDateString("tr-TR") : new Date().toLocaleDateString("tr-TR")
-    });
-
-    printHtmlContract(html, `${isRent ? "Kiralık" : "Satılık"} Komisyon Alım Belgesi - ${receiptNo}`);
-    toast.success(isTr ? "Resmi Komisyon Alım Belgesi yazdırma penceresi açılıyor..." : "Opening receipt print preview...");
+    const receiptNo = t.reference_no || `MKB-${t.id || Date.now().toString().slice(-4)}`;
+    const dateStr = t.date ? new Date(t.date).toLocaleDateString("tr-TR") : new Date().toLocaleDateString("tr-TR");
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>${escapeHtmlStr(isTr ? "Tahsilat Makbuzu" : "Collection Receipt")} - ${escapeHtmlStr(receiptNo)}</title>
+        <style>
+          @page { size: A5 landscape; margin: 12mm; }
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #0f172a; margin: 0; padding: 16px; }
+          .box { border: 2px solid #0f172a; border-radius: 10px; padding: 18px; }
+          .head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #cbd5e1; padding-bottom: 10px; margin-bottom: 14px; }
+          .brand { font-size: 16px; font-weight: 700; }
+          .sub { font-size: 11px; color: #475569; margin-top: 2px; }
+          .badge { background: #0f172a; color: #ffffff; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; }
+          table { width: 100%; border-collapse: collapse; font-size: 12px; }
+          td { padding: 6px 4px; border-bottom: 1px solid #f1f5f9; }
+          td.lbl { width: 34%; color: #475569; font-weight: 600; }
+          .amt { font-size: 16px; font-weight: 700; color: #047857; }
+          .foot { display: flex; justify-content: space-between; margin-top: 22px; font-size: 11px; color: #475569; }
+          .sig { border-top: 1px solid #94a3b8; padding-top: 4px; width: 180px; text-align: center; }
+        </style>
+      </head>
+      <body>
+        <div class="box">
+          <div class="head">
+            <div>
+              <div class="brand">${escapeHtmlStr(storeTitle)}</div>
+              ${storeAddress ? `<div class="sub">${escapeHtmlStr(storeAddress)}</div>` : ""}
+              ${storePhone ? `<div class="sub">${escapeHtmlStr(storePhone)}</div>` : ""}
+            </div>
+            <div style="text-align:right">
+              <div class="badge">${escapeHtmlStr(isTr ? "TAHSİLAT MAKBUZU" : "COLLECTION RECEIPT")}</div>
+              <div class="sub" style="margin-top:6px;">No: <strong>${escapeHtmlStr(receiptNo)}</strong> • ${escapeHtmlStr(dateStr)}</div>
+            </div>
+          </div>
+          <table>
+            <tr><td class="lbl">${escapeHtmlStr(isTr ? "İşlem Başlığı" : "Title")}</td><td>${escapeHtmlStr(t.title)}</td></tr>
+            <tr><td class="lbl">${escapeHtmlStr(isTr ? "Kategori" : "Category")}</td><td>${escapeHtmlStr(getCategoryLabel(t.type, t.category))}</td></tr>
+            <tr><td class="lbl">${escapeHtmlStr(isTr ? "Ödeme Yöntemi / Hesap" : "Method / Account")}</td><td>${escapeHtmlStr(getPaymentMethodLabel(t.payment_method))} • ${escapeHtmlStr(getResolvedAccountName(t))}</td></tr>
+            ${t.contact_name ? `<tr><td class="lbl">${escapeHtmlStr(isTr ? "İlgili Kişi / Kurum" : "Contact")}</td><td>${escapeHtmlStr(t.contact_name)}</td></tr>` : ""}
+            ${t.description ? `<tr><td class="lbl">${escapeHtmlStr(isTr ? "Açıklama" : "Notes")}</td><td>${escapeHtmlStr(t.description)}</td></tr>` : ""}
+            <tr><td class="lbl">${escapeHtmlStr(isTr ? "Tahsil Edilen Tutar" : "Amount")}</td><td class="amt">+${escapeHtmlStr(formatMoney(t.amount, t.currency))} (${escapeHtmlStr(t.currency)})</td></tr>
+          </table>
+          <div class="foot">
+            <div class="sig">${escapeHtmlStr(isTr ? "Ödeyen / İlgili İmza" : "Payer Signature")}</div>
+            <div class="sig">${escapeHtmlStr(isTr ? "Tahsil Eden Yetkili" : "Authorized Signature")}</div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+    printHtmlContract(html, `${isTr ? "Tahsilat Makbuzu" : "Receipt"} - ${receiptNo}`);
+    toast.success(isTr ? "Tahsilat makbuzu yazdırma penceresi açılıyor..." : "Opening receipt print preview...");
   };
 
   // Financial Account Form Submit
@@ -579,9 +741,46 @@ export default function PortfolioFinancesTab({
     }
   };
 
+  const LEGACY_CATEGORY_LABELS: Record<string, { tr: string; en: string }> = {
+    car_sales: { tr: "Araç Satış Geliri", en: "Vehicle Sales Income" },
+    car_rental: { tr: "Araç Kiralama Geliri", en: "Car Rental Income" },
+    car_purchase: { tr: "Stok Araç Alım Bedeli", en: "Vehicle Inventory Purchase" },
+    vehicle_maintenance: { tr: "Araç Bakım & Ekspertiz", en: "Vehicle Maintenance" },
+    commission: { tr: "Satış Komisyonu", en: "Sales Commission" },
+    rental_placement: { tr: "Kiralama Hizmet Bedeli", en: "Rental Placement Fee" },
+    property_management: { tr: "Mülk Yönetim & Aidat", en: "Property Management" },
+    deposit_income: { tr: "Kapora / Ön Ödeme", en: "Deposit Received" },
+    consulting: { tr: "Danışmanlık & Ekspertiz", en: "Consulting & Appraisal" },
+    pos_sales: { tr: "Adisyon / Masa & Kasa Satışı", en: "POS & Table Sales" },
+    takeaway_delivery: { tr: "Paket Servis & Gel-Al", en: "Takeaway & Delivery" },
+    hotel_accommodation: { tr: "Oda Konaklama Geliri", en: "Room & Reservation Income" },
+    catering_event: { tr: "Catering & Organizasyon", en: "Catering & Events" },
+    kitchen_supplies: { tr: "Mutfak & İçecek Alımı", en: "Kitchen & Beverage Supplies" },
+    delivery_commission: { tr: "Kurye & Platform Gideri", en: "Delivery & Courier Fees" },
+    maintenance_cleaning: { tr: "Temizlik, Bakım & Ekipman", en: "Cleaning & Maintenance" },
+    retail_sales: { tr: "Mağaza & Kasa Satış Geliri", en: "Store & POS Sales" },
+    online_marketplace: { tr: "E-Ticaret & Pazaryeri Tahsilatı", en: "E-Commerce Payout" },
+    invoice_collection: { tr: "Cari / Fatura Tahsilatı", en: "Account & Invoice Collection" },
+    service_revenue: { tr: "Hizmet & Proje Tahsilatı", en: "Service & Project Revenue" },
+    supplier_payment: { tr: "Tedarikçi Ödemesi", en: "Supplier Payment" },
+    shipping_logistics: { tr: "Kargo & Lojistik", en: "Shipping & Packaging" },
+    staff_payroll: { tr: "Personel Maaş & Prim", en: "Staff Payroll & Benefits" },
+    rent_utilities: { tr: "Kira & Faturalar", en: "Rent & Utilities" },
+    agent_commission: { tr: "Personel Primi & Maaş", en: "Payroll & Commission" },
+    advertising: { tr: "İlan & Vitrin Ücretleri", en: "Listing Portal Fees" },
+    marketing: { tr: "Reklam & Tanıtım", en: "Advertising & Marketing" },
+    vehicle: { tr: "Ulaşım & Yakıt Gideri", en: "Transportation & Fuel" },
+    tax_official: { tr: "Vergi & Resmi Harçlar", en: "Tax & Official Fees" },
+    office_supplies: { tr: "Sarf & Kırtasiye Gideri", en: "Office & Store Supplies" },
+    other: { tr: "Diğer", en: "Other" }
+  };
+
   const getCategoryLabel = (type: "income" | "expense", id: string) => {
     const list = type === "income" ? categories.income : categories.expense;
-    return list.find(c => c.id === id)?.label || id;
+    const found = list.find(c => c.id === id)?.label;
+    if (found) return found;
+    const fallback = LEGACY_CATEGORY_LABELS[id];
+    return fallback ? (isTr ? fallback.tr : fallback.en) : id;
   };
 
   const getPaymentMethodLabel = (method?: string) => {
@@ -919,20 +1118,22 @@ export default function PortfolioFinancesTab({
       const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
       XLSX.utils.book_append_sheet(wb, wsSummary, isTr ? "Kasa Özeti" : "Cash Summary");
 
-      // 2. Sheet: Portföy Kâr / Zarar Raporu
-      const portfolioRows = portfolioAnalysis.activeWithTxs.map(p => ({
-        [isTr ? "Portföy No" : "Ref"]: p.property.reference_no || p.property.id,
-        [isTr ? "İlan Başlığı" : "Title"]: p.property.title || "-",
-        [isTr ? "İlan Fiyatı" : "Price"]: `${p.property.price || 0} ${p.currency}`,
-        [isTr ? "Toplam Gelir (+)" : "Income"]: p.income,
-        [isTr ? "Toplam Masraf / Gider (-)" : "Expense"]: p.expense,
-        [isTr ? "Net Kâr / Zarar" : "Net P&L"]: p.net,
-        [isTr ? "Durum" : "Status"]: p.net >= 0 ? (isTr ? "KÂRDA" : "PROFIT") : (isTr ? "ZARARDA" : "LOSS"),
-        [isTr ? "İşlem Sayısı" : "Tx Count"]: p.txCount
-      }));
-      if (portfolioRows.length > 0) {
-        const wsPort = XLSX.utils.json_to_sheet(portfolioRows);
-        XLSX.utils.book_append_sheet(wb, wsPort, isTr ? "Portföy Kâr-Zarar" : "Portfolio P&L");
+      // 2. Sheet: Portföy Kâr / Zarar Raporu (Yalnızca portföy sektörlerinde)
+      if (isPortfolioSector) {
+        const portfolioRows = portfolioAnalysis.activeWithTxs.map(p => ({
+          [isTr ? "Portföy No" : "Ref"]: p.property.reference_no || p.property.id,
+          [isTr ? "İlan Başlığı" : "Title"]: p.property.title || "-",
+          [isTr ? "İlan Fiyatı" : "Price"]: `${p.property.price || 0} ${p.currency}`,
+          [isTr ? "Toplam Gelir (+)" : "Income"]: p.income,
+          [isTr ? "Toplam Masraf / Gider (-)" : "Expense"]: p.expense,
+          [isTr ? "Net Kâr / Zarar" : "Net P&L"]: p.net,
+          [isTr ? "Durum" : "Status"]: p.net >= 0 ? (isTr ? "KÂRDA" : "PROFIT") : (isTr ? "ZARARDA" : "LOSS"),
+          [isTr ? "İşlem Sayısı" : "Tx Count"]: p.txCount
+        }));
+        if (portfolioRows.length > 0) {
+          const wsPort = XLSX.utils.json_to_sheet(portfolioRows);
+          XLSX.utils.book_append_sheet(wb, wsPort, isTr ? "Portföy Kâr-Zarar" : "Portfolio P&L");
+        }
       }
 
       // 3. Sheet: Ekrandaki Filtreli Ekstre
@@ -943,7 +1144,7 @@ export default function PortfolioFinancesTab({
         [isTr ? "Tür" : "Type"]: t.type === "income" ? (isTr ? "GELİR (+)" : "INCOME (+)") : (isTr ? "GİDER (-)" : "EXPENSE (-)"),
         [isTr ? "Kategori" : "Category"]: getCategoryLabel(t.type, t.category),
         [isTr ? "İşlem Başlığı" : "Title"]: t.title || "",
-        [isTr ? "İlişkili Portföy" : "Linked Property"]: t.property_title || "-",
+        ...(isPortfolioSector ? { [isTr ? "İlişkili Portföy" : "Linked Property"]: t.property_title || "-" } : {}),
         [isTr ? "Hesap / Kasa" : "Account"]: getResolvedAccountName(t),
         [isTr ? "Ödeme Yöntemi" : "Payment Method"]: getPaymentMethodLabel(t.payment_method),
         [isTr ? "İlgili Kişi / Kurum" : "Contact"]: t.contact_name || "-",
@@ -957,7 +1158,8 @@ export default function PortfolioFinancesTab({
       const wsAll = XLSX.utils.json_to_sheet(allLedgerRows);
       XLSX.utils.book_append_sheet(wb, wsAll, isTr ? "Ekstre" : "Statement");
 
-      XLSX.writeFile(wb, `Kasa_ve_Portfoy_Ekstresi_${new Date().toISOString().split("T")[0]}.xlsx`);
+      const exportPrefix = isPortfolioSector ? "Kasa_ve_Portfoy_Ekstresi" : "Gelir_Gider_ve_Kasa_Ekstresi";
+      XLSX.writeFile(wb, `${exportPrefix}_${new Date().toISOString().split("T")[0]}.xlsx`);
       toast.success(isTr ? "Excel raporu indirildi." : "Excel report exported.");
     } catch (err) {
       toast.error(isTr ? "Excel oluşturulurken hata oluştu." : "Failed to export Excel.");
@@ -1001,16 +1203,16 @@ export default function PortfolioFinancesTab({
         <div class="header">
           <div>
             <div class="title">Gelir - Gider & Kasa Ekstresi</div>
-            <div class="meta">Dönem: ${periodStr}</div>
+            <div class="meta">Dönem: ${escapeHtmlStr(periodStr)}</div>
           </div>
-          <div class="meta right">Yazdırma Tarihi: ${new Date().toLocaleDateString("tr-TR")}</div>
+          <div class="meta right">Yazdırma Tarihi: ${escapeHtmlStr(new Date().toLocaleDateString("tr-TR"))}</div>
         </div>
         <table>
           <thead>
             <tr>
               <th>Tarih</th>
               <th>İşlem Başlığı</th>
-              <th>İlişkili Portföy</th>
+              ${isPortfolioSector ? "<th>İlişkili Portföy</th>" : ""}
               <th>Hesap / Yöntem</th>
               <th>Kategori</th>
               <th class="right">Giriş (+)</th>
@@ -1021,14 +1223,14 @@ export default function PortfolioFinancesTab({
           <tbody>
             ${chronologicalRows.map(t => `
               <tr>
-                <td>${t.date ? new Date(t.date).toLocaleDateString("tr-TR") : "-"}</td>
-                <td>${t.title || ""}</td>
-                <td>${t.property_title || "-"}</td>
-                <td>${getResolvedAccountName(t)}</td>
-                <td>${getCategoryLabel(t.type, t.category)}</td>
-                <td class="right inc">${t.type === "income" ? `+${formatMoney(t.amount, t.currency)}` : "-"}</td>
-                <td class="right exp">${t.type === "expense" ? `-${formatMoney(t.amount, t.currency)}` : "-"}</td>
-                <td class="right bal">${t.runningBalance < 0 ? "-" : ""}${formatMoney(t.runningBalance, t.currency)}</td>
+                <td>${t.date ? escapeHtmlStr(new Date(t.date).toLocaleDateString("tr-TR")) : "-"}</td>
+                <td>${escapeHtmlStr(t.title || "")}</td>
+                ${isPortfolioSector ? `<td>${escapeHtmlStr(t.property_title || "-")}</td>` : ""}
+                <td>${escapeHtmlStr(getResolvedAccountName(t))}</td>
+                <td>${escapeHtmlStr(getCategoryLabel(t.type, t.category))}</td>
+                <td class="right inc">${t.type === "income" ? `+${escapeHtmlStr(formatMoney(t.amount, t.currency))}` : "-"}</td>
+                <td class="right exp">${t.type === "expense" ? `-${escapeHtmlStr(formatMoney(t.amount, t.currency))}` : "-"}</td>
+                <td class="right bal">${t.runningBalance < 0 ? "-" : ""}${escapeHtmlStr(formatMoney(t.runningBalance, t.currency))}</td>
               </tr>
             `).join("")}
           </tbody>
@@ -1161,39 +1363,41 @@ export default function PortfolioFinancesTab({
             </div>
           </div>
 
-          {/* View Mode Switcher: Genel Ekstre vs Portföy Kâr/Zarar */}
-          <div className="grid grid-cols-2 sm:inline-flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200/70 w-full sm:w-auto">
-            <button
-              type="button"
-              onClick={() => setViewTab("statement")}
-              className={`px-2 py-1 sm:py-0.5 rounded text-[11px] font-medium transition-colors flex items-center justify-center gap-1 cursor-pointer min-w-0 ${
-                viewTab === "statement"
-                  ? "bg-white text-indigo-600 shadow-2xs font-semibold"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              <Layers className="w-3 h-3 shrink-0" />
-              <span className="truncate">{isTr ? "Kasa & Hesap Ekstresi" : "Ledger"}</span>
-            </button>
+          {/* View Mode Switcher: Portföy sektörlerinde Genel Ekstre vs Portföy Kâr/Zarar */}
+          {isPortfolioSector && (
+            <div className="grid grid-cols-2 sm:inline-flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200/70 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={() => setViewTab("statement")}
+                className={`px-2 py-1 sm:py-0.5 rounded text-[11px] font-medium transition-colors flex items-center justify-center gap-1 cursor-pointer min-w-0 ${
+                  viewTab === "statement"
+                    ? "bg-white text-indigo-600 shadow-2xs font-semibold"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <Layers className="w-3 h-3 shrink-0" />
+                <span className="truncate">{isTr ? "Kasa & Hesap Ekstresi" : "Ledger"}</span>
+              </button>
 
-            <button
-              type="button"
-              onClick={() => setViewTab("portfolio_profit")}
-              className={`px-2 py-1 sm:py-0.5 rounded text-[11px] font-medium transition-colors flex items-center justify-center gap-1 cursor-pointer min-w-0 ${
-                viewTab === "portfolio_profit"
-                  ? "bg-white text-indigo-600 shadow-2xs font-semibold"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              <Building2 className="w-3 h-3 shrink-0" />
-              <span className="truncate">{isTr ? "Portföy Kâr / Zarar" : "Portfolio P&L"}</span>
-              {portfolioAnalysis.activeWithTxs.length > 0 && (
-                <span className="px-1 py-0.2 rounded text-[10px] bg-indigo-100 text-indigo-700 shrink-0">
-                  {portfolioAnalysis.activeWithTxs.length}
-                </span>
-              )}
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={() => setViewTab("portfolio_profit")}
+                className={`px-2 py-1 sm:py-0.5 rounded text-[11px] font-medium transition-colors flex items-center justify-center gap-1 cursor-pointer min-w-0 ${
+                  viewTab === "portfolio_profit"
+                    ? "bg-white text-indigo-600 shadow-2xs font-semibold"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <Building2 className="w-3 h-3 shrink-0" />
+                <span className="truncate">{isTr ? "Portföy Kâr / Zarar" : "Portfolio P&L"}</span>
+                {portfolioAnalysis.activeWithTxs.length > 0 && (
+                  <span className="px-1 py-0.2 rounded text-[10px] bg-indigo-100 text-indigo-700 shrink-0">
+                    {portfolioAnalysis.activeWithTxs.length}
+                  </span>
+                )}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Action Buttons on Desktop */}
@@ -1557,69 +1761,79 @@ export default function PortfolioFinancesTab({
           <div className="bg-white border border-slate-200/80 rounded-xl p-2.5 shadow-xs space-y-2">
             {/* Minimized Single-Row Filter Bar (No Currency Count Buttons, No "Tüm" Prefix) */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 pb-2 border-b border-slate-100 text-xs" data-dropdown-root>
-              <div className="grid grid-cols-4 sm:flex sm:items-center gap-1 sm:gap-1.5 w-full sm:w-auto relative">
-                {/* 1. Portföyler Custom Minimal 2-Line Dropdown */}
-                <div className="relative min-w-0">
-                  <button
-                    type="button"
-                    onClick={() => setOpenDropdown(prev => prev === "filter_property" ? null : "filter_property")}
-                    className={`w-full sm:w-auto sm:max-w-[160px] px-1.5 sm:px-2.5 py-1 rounded-lg border text-[10.5px] sm:text-xs font-medium flex items-center justify-between gap-1 transition-colors cursor-pointer ${
-                      selectedPropertyFilter !== "all"
-                        ? "bg-indigo-600 text-white border-indigo-600"
-                        : "bg-indigo-50/70 border-indigo-200 text-indigo-900 hover:bg-indigo-100/70"
-                    }`}
-                  >
-                    <span className="truncate">
-                      {selectedPropertyFilter === "all"
-                        ? (isTr ? "Portföyler" : "Properties")
-                        : (() => {
-                            const found = properties.find(p => String(p.id) === String(selectedPropertyFilter));
-                            return found ? (found.reference_no ? `#${found.reference_no}` : found.title) : (isTr ? "Portföyler" : "Properties");
-                          })()}
-                    </span>
-                    <ChevronDown className="w-3 h-3 shrink-0 opacity-75" />
-                  </button>
+              <div className={`grid ${isPortfolioSector ? "grid-cols-4" : "grid-cols-3"} sm:flex sm:items-center gap-1 sm:gap-1.5 w-full sm:w-auto relative`}>
+                {/* 1. Portföyler Custom Minimal 2-Line Dropdown (Yalnız Portföy Sektörleri) */}
+                {isPortfolioSector && (
+                  <div className="relative min-w-0">
+                    <button
+                      type="button"
+                      onClick={() => setOpenDropdown(prev => prev === "filter_property" ? null : "filter_property")}
+                      className={`w-full sm:w-auto sm:max-w-[160px] px-1.5 sm:px-2.5 py-1 rounded-lg border text-[10.5px] sm:text-xs font-medium flex items-center justify-between gap-1 transition-colors cursor-pointer ${
+                        selectedPropertyFilter !== "all"
+                          ? "bg-indigo-600 text-white border-indigo-600"
+                          : "bg-indigo-50/70 border-indigo-200 text-indigo-900 hover:bg-indigo-100/70"
+                      }`}
+                    >
+                      <span className="truncate">
+                        {selectedPropertyFilter === "all"
+                          ? (isTr ? (activeAutomotive ? "Araçlar" : "Portföyler") : "Portfolio")
+                          : (() => {
+                              const found = properties.find(p => String(p.id) === String(selectedPropertyFilter)) || vehicles.find(v => String(v.id) === String(selectedPropertyFilter));
+                              if (!found) return isTr ? "Portföy" : "Portfolio";
+                              if (activeAutomotive) return found.plate || `${found.brand || ""} ${found.model || ""}`;
+                              return found.reference_no ? `#${found.reference_no}` : found.title;
+                            })()}
+                      </span>
+                      <ChevronDown className="w-3 h-3 shrink-0 opacity-75" />
+                    </button>
 
-                  {openDropdown === "filter_property" && (
-                    <div className="absolute left-0 top-full mt-1 z-40 w-72 sm:w-80 max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-xl shadow-xl p-1 max-h-60 overflow-y-auto">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedPropertyFilter("all");
-                          setOpenDropdown(null);
-                        }}
-                        className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer ${
-                          selectedPropertyFilter === "all"
-                            ? "bg-indigo-50 text-indigo-700"
-                            : "text-slate-700 hover:bg-slate-50"
-                        }`}
-                      >
-                        {isTr ? "Portföyler (Hepsi)" : "Properties (All)"}
-                      </button>
-                      {properties.map(p => {
-                        const isSel = String(selectedPropertyFilter) === String(p.id);
-                        return (
-                          <button
-                            key={p.id}
-                            type="button"
-                            onClick={() => {
-                              setSelectedPropertyFilter(String(p.id));
-                              setOpenDropdown(null);
-                            }}
-                            className={`w-full text-left px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer border-t border-slate-50 ${
-                              isSel ? "bg-indigo-600 text-white" : "text-slate-700 hover:bg-slate-50"
-                            }`}
-                          >
-                            <div className="line-clamp-2 text-[11px] leading-snug font-medium break-words">
-                              {p.reference_no ? <span className={`font-mono font-semibold mr-1 ${isSel ? "text-indigo-200" : "text-indigo-600"}`}>#{p.reference_no}</span> : null}
-                              {p.title}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
+                    {openDropdown === "filter_property" && (
+                      <div className="absolute left-0 top-full mt-1 z-40 w-72 sm:w-80 max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-xl shadow-xl p-1 max-h-60 overflow-y-auto">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedPropertyFilter("all");
+                            setOpenDropdown(null);
+                          }}
+                          className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer ${
+                            selectedPropertyFilter === "all"
+                              ? "bg-indigo-50 text-indigo-700"
+                              : "text-slate-700 hover:bg-slate-50"
+                          }`}
+                        >
+                          {isTr ? (activeAutomotive ? "Araçlar (Hepsi)" : "Portföyler (Hepsi)") : "Portfolio (All)"}
+                        </button>
+                        {(activeAutomotive ? vehicles : properties).map((p: any) => {
+                          const isSel = String(selectedPropertyFilter) === String(p.id);
+                          return (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedPropertyFilter(String(p.id));
+                                setOpenDropdown(null);
+                              }}
+                              className={`w-full text-left px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer border-t border-slate-50 ${
+                                isSel ? "bg-indigo-600 text-white" : "text-slate-700 hover:bg-slate-50"
+                              }`}
+                            >
+                              <div className="line-clamp-2 text-[11px] leading-snug font-medium break-words">
+                                {activeAutomotive ? (
+                                  `${p.plate || ""} - ${p.brand || ""} ${p.model || ""}`
+                                ) : (
+                                  <>
+                                    {p.reference_no ? <span className={`font-mono font-semibold mr-1 ${isSel ? "text-indigo-200" : "text-indigo-600"}`}>#{p.reference_no}</span> : null}
+                                    {p.title}
+                                  </>
+                                )}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* 2. Ödeme Tipi Custom Dropdown */}
                 <div className="relative min-w-0">
@@ -1819,7 +2033,7 @@ export default function PortfolioFinancesTab({
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
                 <input
                   type="text"
-                  placeholder={isTr ? "Ara (başlık, portföy, kişi)..." : "Search..."}
+                  placeholder={isPortfolioSector ? (isTr ? "Ara (başlık, portföy, kişi)..." : "Search...") : (isTr ? "Ara (başlık, kişi, belge)..." : "Search...")}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-8 pr-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none font-medium"
@@ -1846,7 +2060,7 @@ export default function PortfolioFinancesTab({
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50/70">
                       <th className="py-2 px-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">{isTr ? "TARİH / BELGE" : "DATE / REF"}</th>
-                      <th className="py-2 px-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">{isTr ? "İŞLEM BAŞLIĞI / İLAN / CARİ" : "TITLE / LISTING"}</th>
+                      <th className="py-2 px-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">{isPortfolioSector ? (isTr ? "İŞLEM BAŞLIĞI / İLAN / CARİ" : "TITLE / LISTING") : (isTr ? "İŞLEM BAŞLIĞI / CARİ" : "TITLE / CONTACT")}</th>
                       <th className="py-2 px-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">{isTr ? "KATEGORİ & HESAP" : "CATEGORY & ACCOUNT"}</th>
                       <th className="py-2 px-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider text-center">{isTr ? "DÖVİZ" : "CUR"}</th>
                       <th className="py-2 px-2.5 text-[10px] font-semibold text-emerald-700 uppercase tracking-wider text-right">{isTr ? "GİRİŞ (GELİR +)" : "CREDIT (+)"}</th>
@@ -1885,7 +2099,7 @@ export default function PortfolioFinancesTab({
                                     {t.contact_name}
                                   </span>
                                 )}
-                                {cleanPropTitle && (
+                                {isPortfolioSector && cleanPropTitle && (
                                   <button
                                     type="button"
                                     onClick={() => setSelectedPropertyFilter(String(t.property_id))}
@@ -1990,7 +2204,7 @@ export default function PortfolioFinancesTab({
                                     type="button"
                                     onClick={() => handlePrintReceipt(t)}
                                     className="p-1 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
-                                    title={isTr ? "Resmi Komisyon Alım Belgesi (Makbuz) Yazdır" : "Print Commission Receipt"}
+                                    title={activeRealEstate ? (isTr ? "Resmi Komisyon Alım Belgesi (Makbuz) Yazdır" : "Print Commission Receipt") : (isTr ? "Tahsilat Makbuzu Yazdır" : "Print Collection Receipt")}
                                   >
                                     <FileText className="w-3 h-3 text-emerald-600" />
                                   </button>
@@ -2534,7 +2748,7 @@ export default function PortfolioFinancesTab({
                   <button
                     type="button"
                     onClick={() => {
-                      const defaultCat = activeAutomotive ? "car_sales" : "commission";
+                      const defaultCat = categories.income[0]?.id || "other";
                       setFormData(prev => ({ ...prev, type: "income", category: defaultCat }));
                     }}
                     className={`py-2 px-3 rounded-lg font-medium text-xs flex items-center justify-center gap-1.5 border transition-colors cursor-pointer ${
@@ -2549,7 +2763,7 @@ export default function PortfolioFinancesTab({
                   <button
                     type="button"
                     onClick={() => {
-                      const defaultCat = activeAutomotive ? "car_purchase" : "advertising";
+                      const defaultCat = categories.expense[0]?.id || "other";
                       setFormData(prev => ({ ...prev, type: "expense", category: defaultCat }));
                     }}
                     className={`py-2 px-3 rounded-lg font-medium text-xs flex items-center justify-center gap-1.5 border transition-colors cursor-pointer ${
@@ -2572,7 +2786,19 @@ export default function PortfolioFinancesTab({
                     <input
                       type="text"
                       required
-                      placeholder={formData.type === "income" ? (isTr ? "Örn: Satış Komisyonu" : "Commission") : (isTr ? "Örn: Ofis Kirası / İlan Bedeli" : "Listing Fee")}
+                      placeholder={
+                        formData.type === "income"
+                          ? (isHorecaSector ? (isTr ? "Örn: Günlük Adisyon / Kasa Satışı" : "Daily POS Sales")
+                            : isCorporateSector ? (isTr ? "Örn: Proje / Hizmet Tahsilatı" : "Service Revenue")
+                            : activeAutomotive ? (isTr ? "Örn: Araç Satış Bedeli" : "Vehicle Sale")
+                            : activeRealEstate ? (isTr ? "Örn: Satış Komisyonu" : "Commission")
+                            : (isTr ? "Örn: Günlük Mağaza Satış Tahsilatı" : "Daily Store Sales"))
+                          : (isHorecaSector ? (isTr ? "Örn: Mutfak & İçecek Alımı / Kira" : "Kitchen Supplies / Rent")
+                            : isCorporateSector ? (isTr ? "Örn: Ofis Kirası / Tedarikçi Ödemesi" : "Office Rent / Vendor")
+                            : activeAutomotive ? (isTr ? "Örn: Araç Bakım / Ekspertiz" : "Vehicle Maintenance")
+                            : activeRealEstate ? (isTr ? "Örn: Ofis Kirası / İlan Bedeli" : "Listing Fee")
+                            : (isTr ? "Örn: Tedarikçi Ödemesi / Kargo" : "Supplier Payment / Shipping"))
+                      }
                       value={formData.title}
                       onChange={(e) => setFormData(p => ({ ...p, title: e.target.value }))}
                       className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-medium text-xs text-slate-800 focus:outline-none"
@@ -2804,7 +3030,8 @@ export default function PortfolioFinancesTab({
                   </div>
                 </div>
 
-                {/* Linked Portfolio Property with Real-Time P&L Status Indicator */}
+                {/* Linked Portfolio Property with Real-Time P&L Status Indicator (Only Portfolio Sectors) */}
+                {isPortfolioSector && (
                 <div className="space-y-1 relative" data-dropdown-root>
                   <label className="text-[10px] font-medium text-slate-500 uppercase block">
                     {isTr ? `İlişkili ${activeAutomotive ? "Araç" : "Emlak İlanı"} (Kâr / Zarar Bağlantısı)` : "Linked Listing (P&L Tracking)"}
@@ -2955,6 +3182,7 @@ export default function PortfolioFinancesTab({
                     );
                   })()}
                 </div>
+                )}
 
                 {/* Description */}
                 <div>
