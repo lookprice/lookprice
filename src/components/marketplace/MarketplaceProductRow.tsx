@@ -10,7 +10,8 @@ import {
   RefreshCw, 
   UploadCloud, 
   StopCircle, 
-  Edit3 
+  Edit3,
+  Images
 } from 'lucide-react';
 import { MarketplaceKey, MARKETPLACES } from './marketplaceTypes';
 
@@ -27,8 +28,10 @@ interface MarketplaceProductRowProps {
   onCheckTyStatus?: (productId: number) => void;
   checkingStatusId: number | null;
   publishingId: number | null;
+  revisingImagesId?: number | null;
   onPublishSingle: (product: any, mpKey: MarketplaceKey) => void;
   onUnpublishSingle: (product: any, mpKey: MarketplaceKey) => void;
+  onReviseHbImagesSingle?: (product: any) => void;
   onEditProduct?: (product: any) => void;
   isProductActive: (p: any, mpKey: MarketplaceKey) => boolean;
   isProductPending: (p: any, mpKey: MarketplaceKey) => boolean;
@@ -48,8 +51,10 @@ export const MarketplaceProductRow: React.FC<MarketplaceProductRowProps> = ({
   onCheckTyStatus,
   checkingStatusId,
   publishingId,
+  revisingImagesId,
   onPublishSingle,
   onUnpublishSingle,
+  onReviseHbImagesSingle,
   onEditProduct,
   isProductActive,
   isProductPending,
@@ -60,6 +65,21 @@ export const MarketplaceProductRow: React.FC<MarketplaceProductRowProps> = ({
   const isN11Active = isProductActive(p, 'n11');
   const isAmzActive = isProductActive(p, 'amazon');
   const isPzActive = isProductActive(p, 'pazarama');
+
+  const galleryImageCount = (() => {
+    const urls = new Set<string>();
+    const addUrl = (val: any) => {
+      const s = typeof val === 'string' ? val.trim() : (val && typeof val === 'object' ? String(val.url || val.imageUrl || val.src || '').trim() : '');
+      if (s && !s.startsWith('data:') && !s.startsWith('blob:')) urls.add(s.split('?')[0].toLowerCase());
+    };
+    if (p.image_url) addUrl(p.image_url);
+    let rawImgs: any = p.images;
+    if (typeof rawImgs === 'string' && rawImgs.trim().startsWith('[')) {
+      try { rawImgs = JSON.parse(rawImgs); } catch { rawImgs = []; }
+    }
+    if (Array.isArray(rawImgs)) rawImgs.forEach(addUrl);
+    return urls.size;
+  })();
 
   const hbError = getProductError(p, 'hepsiburada');
   const tyError = getProductError(p, 'trendyol');
@@ -283,6 +303,14 @@ export const MarketplaceProductRow: React.FC<MarketplaceProductRowProps> = ({
               />
             ) : (
               <Package className="w-5 h-5 text-slate-400" />
+            )}
+            {galleryImageCount > 1 && (
+              <span
+                className="absolute bottom-0 right-0 bg-slate-900/85 text-white text-[9px] font-bold px-1 leading-tight rounded-tl-md"
+                title={isTr ? `Toplam ${galleryImageCount} ürün görseli (HB en fazla 5 görsel kabul eder)` : `${galleryImageCount} product images`}
+              >
+                {galleryImageCount}
+              </span>
             )}
           </div>
 
@@ -869,6 +897,19 @@ export const MarketplaceProductRow: React.FC<MarketplaceProductRowProps> = ({
                 <UploadCloud className={`w-4 h-4 ${publishingId === p.id ? 'animate-bounce text-orange-600' : ''}`} />
               </button>
 
+              {/* HB Çoklu Görsel Revize Et Button */}
+              {isHbActive && onReviseHbImagesSingle && galleryImageCount > 0 && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); onReviseHbImagesSingle(p); }}
+                  disabled={revisingImagesId === p.id || publishingId === p.id}
+                  className="p-1.5 rounded-lg border border-orange-300 text-orange-700 bg-orange-50/70 dark:bg-orange-950/30 hover:bg-orange-100 transition-all active:scale-95 cursor-pointer flex items-center justify-center shrink-0"
+                  title={isTr ? `Tüm Görselleri HB'ye Revize Et (${Math.min(galleryImageCount, 5)} görsel)` : `Revise Gallery Images on HB (${Math.min(galleryImageCount, 5)})`}
+                >
+                  <Images className={`w-4 h-4 ${revisingImagesId === p.id ? 'animate-pulse' : ''}`} />
+                </button>
+              )}
+
               {/* Yayından Kaldır / Satıştan Kapat Button */}
               {isHbActive && (
                 <button
@@ -954,6 +995,19 @@ export const MarketplaceProductRow: React.FC<MarketplaceProductRowProps> = ({
                     </button>
                   );
                 })()}
+
+                {/* Hepsiburada Multi-Image Revision Action on Live Listings */}
+                {selectedMarketplace === 'hepsiburada' && isTargetActive && onReviseHbImagesSingle && galleryImageCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); onReviseHbImagesSingle(p); }}
+                    disabled={revisingImagesId === p.id || publishingId === p.id}
+                    className="p-1.5 rounded-lg border border-orange-300 text-orange-700 bg-orange-50 dark:bg-orange-950/40 hover:bg-orange-100 transition-all active:scale-95 cursor-pointer flex items-center justify-center shrink-0"
+                    title={isTr ? `Çoklu Görselleri HB'ye Revize Et (${Math.min(galleryImageCount, 5)} görsel: Image1–Image5)` : `Revise Gallery Images on HB (${Math.min(galleryImageCount, 5)} images)`}
+                  >
+                    <Images className={`w-4 h-4 ${revisingImagesId === p.id ? 'animate-pulse text-orange-600' : ''}`} />
+                  </button>
+                )}
 
                 {/* Marketplace-specific Unpublish Action */}
                 {isTargetActive && (

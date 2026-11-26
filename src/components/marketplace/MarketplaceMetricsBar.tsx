@@ -6,7 +6,8 @@ import {
   RefreshCw, 
   Package, 
   UploadCloud, 
-  StopCircle 
+  StopCircle,
+  Images
 } from 'lucide-react';
 import { MarketplaceKey, ListingStatus, MarketplaceMetrics, MARKETPLACES } from './marketplaceTypes';
 
@@ -21,12 +22,14 @@ interface MarketplaceMetricsBarProps {
   isCheckingBulkPending: boolean;
   isSyncingOrders: boolean;
   isBulkPublishing: boolean;
+  isRevisingHbImages?: boolean;
   onMatchListings: (importMissing?: boolean) => void;
   onCheckBulkPending: () => void;
   onSyncOrders: () => void;
   onSyncAmazon: () => void;
   onBulkPublish: () => void;
   onBulkUnpublish: () => void;
+  onBulkReviseHbImages?: () => void;
 }
 
 export const MarketplaceMetricsBar: React.FC<MarketplaceMetricsBarProps> = ({
@@ -40,12 +43,14 @@ export const MarketplaceMetricsBar: React.FC<MarketplaceMetricsBarProps> = ({
   isCheckingBulkPending,
   isSyncingOrders,
   isBulkPublishing,
+  isRevisingHbImages = false,
   onMatchListings,
   onCheckBulkPending,
   onSyncOrders,
   onSyncAmazon,
   onBulkPublish,
   onBulkUnpublish,
+  onBulkReviseHbImages,
 }) => {
   return (
     <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1">
@@ -234,17 +239,30 @@ export const MarketplaceMetricsBar: React.FC<MarketplaceMetricsBarProps> = ({
               <button
                 type="button"
                 onClick={onBulkPublish}
-                disabled={isBulkPublishing}
+                disabled={isBulkPublishing || isRevisingHbImages}
                 className="px-2.5 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold shadow-xs transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer"
               >
                 <UploadCloud className="w-3.5 h-3.5" />
                 <span>{isTr ? `Satışa Aç (${selectedIds.length})` : `Publish (${selectedIds.length})`}</span>
               </button>
 
+              {(selectedMarketplace === 'hepsiburada' || selectedMarketplace === 'all') && onBulkReviseHbImages && (
+                <button
+                  type="button"
+                  onClick={onBulkReviseHbImages}
+                  disabled={isBulkPublishing || isRevisingHbImages}
+                  className="px-2.5 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold shadow-xs transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer"
+                  title={isTr ? "Seçilen ürünlerin tüm galeri görsellerini (Image1–Image5) Hepsiburada kataloğuna revize olarak gönderir" : "Send all gallery images (Image1–Image5) as catalog revision to Hepsiburada"}
+                >
+                  <Images className={`w-3.5 h-3.5 ${isRevisingHbImages ? 'animate-pulse' : ''}`} />
+                  <span>{isRevisingHbImages ? (isTr ? "Gönderiliyor..." : "Revising...") : (isTr ? `Görsel Revize (${selectedIds.length})` : `Revise Images (${selectedIds.length})`)}</span>
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={onBulkUnpublish}
-                disabled={isBulkPublishing}
+                disabled={isBulkPublishing || isRevisingHbImages}
                 className="px-2.5 py-1.5 rounded-lg bg-rose-700 hover:bg-rose-800 text-white text-xs font-semibold shadow-xs transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer"
                 title={isTr ? `Seçilen ürünleri ${mpName}'da yayından kaldır / satışa kapat` : `Unpublish selected from ${mpName}`}
               >

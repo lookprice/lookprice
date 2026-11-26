@@ -108,6 +108,38 @@ export const LocationTreePanel: React.FC<Props> = ({ storeId, targetStoreId, loc
     return map;
   }, [locations]);
 
+  // Defensive recursive rollup map: parent nodes (e.g. 1. Alan, Sağ Koridor) always reflect
+  // direct stock + sum of all descendant shelves/bins.
+  const rollupQtyById = useMemo(() => {
+    const byId = new Map<number, any>();
+    for (const loc of locations) byId.set(Number(loc.id), loc);
+    const cache = new Map<number, number>();
+    const calc = (id: number, visiting = new Set<number>()): number => {
+      if (cache.has(id)) return cache.get(id)!;
+      if (visiting.has(id)) return 0;
+      visiting.add(id);
+      const loc = byId.get(id);
+      if (!loc) return 0;
+      if (loc.subtree_qty !== undefined && loc.subtree_qty !== null) {
+        const val = Number(loc.subtree_qty) || 0;
+        cache.set(id, val);
+        visiting.delete(id);
+        return val;
+      }
+      let sum = Number(loc.direct_qty ?? loc.total_qty ?? 0);
+      const kids = childrenMap[String(id)] || [];
+      for (const k of kids) {
+        sum += calc(Number(k.id), visiting);
+      }
+      const rounded = Math.round(sum * 1000) / 1000;
+      cache.set(id, rounded);
+      visiting.delete(id);
+      return rounded;
+    };
+    for (const loc of locations) calc(Number(loc.id));
+    return cache;
+  }, [locations, childrenMap]);
+
   useEffect(() => {
     if (!selectedLocId && locations.length > 0) {
       setSelectedLocId(Number(locations[0].id));
@@ -340,7 +372,27 @@ export const LocationTreePanel: React.FC<Props> = ({ storeId, targetStoreId, loc
           <span className="font-mono text-[10px] text-slate-500 shrink-0">{loc.code}</span>
           <span className={`truncate flex-1 ${isSys ? "font-medium text-indigo-700" : ""}`}>{loc.name}</span>
 
-          <span className="text-[11px] text-slate-500 tabular-nums shrink-0">{Number(loc.total_qty || 0)}</span>
+          {(() => {
+            const qty = rollupQtyById.get(Number(loc.id)) ?? Number(loc.total_qty || 0);
+            const hasKids = kids.length > 0;
+            const tooltip = hasKids
+              ? `Alt lokasyonlar dahil toplam stok: ${qty}`
+              : `Lokasyon stoğu: ${qty}`;
+            return (
+              <span
+                title={tooltip}
+                className={`text-[11px] tabular-nums shrink-0 ${
+                  qty > 0
+                    ? hasKids
+                      ? "font-semibold text-indigo-700"
+                      : "font-medium text-slate-800"
+                    : "text-slate-400"
+                }`}
+              >
+                {qty}
+              </span>
+            );
+          })()}
 
           <button
             type="button"
@@ -599,7 +651,9 @@ export const LocationTreePanel: React.FC<Props> = ({ storeId, targetStoreId, loc
                 </div>
               )}
             </div>
-            <span className="text-[11px] text-slate-500 tabular-nums shrink-0">{items.length} kalem</span>
+            <span className="text-[11px] text-slate-500 tabular-nums shrink-0">
+              {items.length} kalem • {Math.round(items.reduce((sum, it) => sum + Number(it.quantity || 0), 0) * 1000) / 1000} adet
+            </span>
           </div>
 
           <div className="flex-1 max-h-[420px] overflow-y-auto divide-y divide-slate-100">

@@ -318,8 +318,8 @@ router.get("/locations", async (req: any, res) => {
     const rowsRes = await pool.query(
       `SELECT sl.*, s.name AS store_name, COALESCE(s.branch_type, 'STORE') AS store_branch_type,
               COALESCE((SELECT COUNT(DISTINCT pls.product_id)::int FROM product_location_stocks pls WHERE pls.location_id = sl.id AND pls.quantity > 0), 0) AS sku_count,
-              COALESCE((SELECT SUM(pls.quantity) FROM product_location_stocks pls WHERE pls.location_id = sl.id), 0) AS total_qty,
-              COALESCE((SELECT SUM(pls.reserved_quantity) FROM product_location_stocks pls WHERE pls.location_id = sl.id), 0) AS total_reserved
+              COALESCE((SELECT SUM(pls.quantity) FROM product_location_stocks pls WHERE pls.location_id = sl.id), 0) AS direct_qty,
+              COALESCE((SELECT SUM(pls.reserved_quantity) FROM product_location_stocks pls WHERE pls.location_id = sl.id), 0) AS direct_reserved
        FROM storage_locations sl
        JOIN stores s ON s.id = sl.store_id
        WHERE ${where}
@@ -328,7 +328,62 @@ router.get("/locations", async (req: any, res) => {
                 sl.sort_order ASC, sl.full_code ASC, sl.id ASC`,
       params
     );
-    res.json(rowsRes.rows);
+
+    const rows = rowsRes.rows;
+    const byId = new Map<number, any>();
+    const childrenByParent = new Map<number, number[]>();
+    for (const r of rows) {
+      const id = Number(r.id);
+      byId.set(id, r);
+      const pid = r.parent_id ? Number(r.parent_id) : null;
+      if (pid) {
+        const list = childrenByParent.get(pid) || [];
+        list.push(id);
+        childrenByParent.set(pid, list);
+      }
+    }
+
+    const rollupCache = new Map<number, { qty: number; reserved: number }>();
+    const computeRollup = (id: number, visiting = new Set<number>()): { qty: number; reserved: number } => {
+      const cached = rollupCache.get(id);
+      if (cached) return cached;
+      if (visiting.has(id)) return { qty: 0, reserved: 0 };
+      visiting.add(id);
+
+      const node = byId.get(id);
+      let qty = Number(node?.direct_qty || 0);
+      let reserved = Number(node?.direct_reserved || 0);
+      const kids = childrenByParent.get(id) || [];
+      for (const kidId of kids) {
+        const sub = computeRollup(kidId, visiting);
+        qty += sub.qty;
+        reserved += sub.reserved;
+      }
+      visiting.delete(id);
+      const result = {
+        qty: Math.round(qty * 1000) / 1000,
+        reserved: Math.round(reserved * 1000) / 1000,
+      };
+      rollupCache.set(id, result);
+      return result;
+    };
+
+    const enriched = rows.map((r: any) => {
+      const id = Number(r.id);
+      const directQty = Number(r.direct_qty || 0);
+      const directReserved = Number(r.direct_reserved || 0);
+      const rollup = computeRollup(id);
+      return {
+        ...r,
+        direct_qty: directQty,
+        direct_reserved: directReserved,
+        subtree_qty: rollup.qty,
+        total_qty: rollup.qty,
+        total_reserved: rollup.reserved,
+      };
+    });
+
+    res.json(enriched);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

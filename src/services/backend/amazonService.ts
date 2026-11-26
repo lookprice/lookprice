@@ -1505,10 +1505,11 @@ export class AmazonService {
                     platform: "amazon",
                     salesInvoiceId: exRow.sales_invoice_id,
                     saleId: exRow.sale_id,
+                    orderNumber: String(amazonOrderId),
                     invoiceNumber: `AMZ-${amazonOrderId}`,
-                    orderReference: amazonOrderId,
                     amount: totalAmountFloat,
                     currency: order.OrderTotal?.CurrencyCode || "TRY",
+                    date: order.PurchaseDate || new Date(),
                     status: "cancelled",
                   });
                 } catch {}
@@ -1554,10 +1555,11 @@ export class AmazonService {
                   platform: "amazon",
                   salesInvoiceId: exRow.sales_invoice_id,
                   saleId: exRow.sale_id,
+                  orderNumber: String(amazonOrderId),
                   invoiceNumber: `AMZ-${amazonOrderId}`,
-                  orderReference: amazonOrderId,
                   amount: totalAmountFloat,
                   currency: order.OrderTotal?.CurrencyCode || "TRY",
+                  date: order.PurchaseDate || new Date(),
                   status: "cancelled",
                 });
               } catch (trErr: any) {
@@ -1580,10 +1582,11 @@ export class AmazonService {
                   platform: "amazon",
                   salesInvoiceId: exRow.sales_invoice_id,
                   saleId: exRow.sale_id,
+                  orderNumber: String(amazonOrderId),
                   invoiceNumber: `AMZ-${amazonOrderId}`,
-                  orderReference: amazonOrderId,
                   amount: totalAmountFloat,
                   currency: order.OrderTotal?.CurrencyCode || "TRY",
+                  date: order.PurchaseDate || new Date(),
                   status: "cancelled",
                 });
               } catch {}
@@ -1996,12 +1999,12 @@ export class AmazonService {
             platform: "amazon",
             salesInvoiceId: invoiceId,
             saleId,
+            orderNumber: String(amazonOrderId),
             invoiceNumber,
-            orderReference: amazonOrderId,
             amount: grandTotal,
             currency: order.OrderTotal?.CurrencyCode || "TRY",
             customerName: rawBuyerName,
-            transactionDate: order.PurchaseDate ? new Date(order.PurchaseDate) : new Date(),
+            date: order.PurchaseDate ? new Date(order.PurchaseDate) : new Date(),
             status: "approved",
             notes: orderNotes,
           });

@@ -704,6 +704,7 @@ export const api = {
   publishHepsiburadaProduct: (productId: number, storeId?: number) => api.post("/api/integrations/hepsiburada/publish", { productId, storeId }),
   publishAmazonProduct: (productId: number, storeId?: number) => api.post("/api/integrations/amazon/publish", { productId, storeId }),
   bulkPublishHepsiburadaProducts: (productIds: number[], storeId?: number) => api.post("/api/integrations/hepsiburada/bulk-publish", { productIds, storeId }),
+  reviseHepsiburadaCatalog: (productIds: number[], storeId?: number) => api.post("/api/integrations/hepsiburada/revise-catalog", { productIds, storeId }),
   unpublishHepsiburadaProduct: (productId: number, storeId?: number) => api.post("/api/integrations/hepsiburada/unpublish", { productId, storeId }),
   unpublishAmazonProduct: (productId: number, storeId?: number) => api.post("/api/integrations/amazon/unpublish", { productId, storeId }),
   bulkUnpublishAmazonProducts: (productIds: number[], storeId?: number) => api.post("/api/integrations/amazon/bulk-unpublish", { productIds, storeId }),

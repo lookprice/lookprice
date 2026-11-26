@@ -135,6 +135,8 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
   const [copiedBarcode, setCopiedBarcode] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [isBulkPublishing, setIsBulkPublishing] = useState(false);
+  const [isRevisingHbImages, setIsRevisingHbImages] = useState(false);
+  const [revisingImagesId, setRevisingImagesId] = useState<number | null>(null);
   const [isMatchingListings, setIsMatchingListings] = useState(false);
   const [isCheckingBulkPending, setIsCheckingBulkPending] = useState(false);
   const [isSyncingOrders, setIsSyncingOrders] = useState(false);
@@ -1060,6 +1062,49 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
     }
   };
 
+  const handleReviseHbImagesSingle = async (product: any) => {
+    if (revisingImagesId === product.id) return;
+    try {
+      setRevisingImagesId(product.id);
+      const res = await api.reviseHepsiburadaCatalog([product.id], currentStoreId);
+      const data = (res as any)?.data ?? res;
+      if (data?.isMatchedCatalogLock || data?.warning) {
+        toast.warning(data?.message || (isTr ? "Hepsiburada katalog revizyon uyarısı döndü." : "Hepsiburada revision warning."), { duration: 8000 });
+      } else if (data?.success) {
+        toast.success(data?.message || (isTr ? `"${product.name}" görselleri Hepsiburada kataloğuna iletildi!` : "Images revised on Hepsiburada!"), { duration: 6000 });
+      } else {
+        toast.error(data?.error || data?.message || (isTr ? "Görsel revizyonu başarısız." : "Image revision failed."));
+      }
+      if (onRefresh) onRefresh();
+    } catch (e: any) {
+      toast.error(e.response?.data?.error || e.message || (isTr ? "Hepsiburada görsel revizyonu hatası" : "HB image revision error"));
+    } finally {
+      setRevisingImagesId(null);
+    }
+  };
+
+  const handleBulkReviseHbImages = async () => {
+    if (selectedIds.length === 0) return;
+    try {
+      setIsRevisingHbImages(true);
+      const res = await api.reviseHepsiburadaCatalog(selectedIds, currentStoreId);
+      const data = (res as any)?.data ?? res;
+      if (data?.isMatchedCatalogLock || data?.warning) {
+        toast.warning(data?.message || (isTr ? "Hepsiburada katalog revizyon uyarısı döndü." : "HB catalog revision warning."), { duration: 8000 });
+      } else if (data?.success) {
+        toast.success(data?.message || (isTr ? `Seçilen ${selectedIds.length} ürünün çoklu görselleri Hepsiburada'ya gönderildi!` : "Bulk image revision submitted!"), { duration: 6000 });
+      } else {
+        toast.error(data?.error || data?.message || (isTr ? "Toplu görsel revizyonu başarısız." : "Bulk image revision failed."));
+      }
+      setSelectedIds([]);
+      if (onRefresh) onRefresh();
+    } catch (e: any) {
+      toast.error(e.response?.data?.error || e.message || (isTr ? "Toplu görsel revizyonu hatası" : "Bulk image revision error"));
+    } finally {
+      setIsRevisingHbImages(false);
+    }
+  };
+
   const handleUnpublishSingle = async (product: any, mpKey: MarketplaceKey) => {
     if (publishingId === product.id) return;
     try {
@@ -1252,12 +1297,14 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
             isCheckingBulkPending={isCheckingBulkPending}
             isSyncingOrders={isSyncingOrders}
             isBulkPublishing={isBulkPublishing}
+            isRevisingHbImages={isRevisingHbImages}
             onMatchListings={handleMatchListings}
             onCheckBulkPending={handleCheckBulkPendingStatus}
             onSyncOrders={handleSyncHepsiburadaOrders}
             onSyncAmazon={() => handleMatchAmazonListings(true)}
             onBulkPublish={handleBulkPublishSelected}
             onBulkUnpublish={handleBulkUnpublishSelected}
+            onBulkReviseHbImages={handleBulkReviseHbImages}
           />
         </div>
 
@@ -1286,8 +1333,10 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
             onCheckTyStatus={handleCheckTyStatus}
             checkingStatusId={checkingStatusId}
             publishingId={publishingId}
+            revisingImagesId={revisingImagesId}
             onPublishSingle={handlePublishSingle}
             onUnpublishSingle={handleUnpublishSingle}
+            onReviseHbImagesSingle={handleReviseHbImagesSingle}
             onEditProduct={onEditProduct}
             isProductActive={isProductActive}
             isProductPending={isProductPending}

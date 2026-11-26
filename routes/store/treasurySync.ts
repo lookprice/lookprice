@@ -433,24 +433,39 @@ export async function ensureMarketplaceVaultAccount(
   if (!def) return null;
 
   const existing = await db.query(
-    `SELECT id, account_name, currency
+    `SELECT id, account_name, account_type, currency
      FROM store_financial_accounts
      WHERE store_id = $1
-       AND LOWER(account_type) = 'marketplace'
        AND (
          LOWER(COALESCE(account_number, '')) IN ($2, $3)
          OR LOWER(account_name) = LOWER($4)
        )
-     ORDER BY id ASC
+     ORDER BY CASE WHEN LOWER(COALESCE(account_type, '')) = 'marketplace' THEN 0 ELSE 1 END, id ASC
      LIMIT 1`,
     [storeId, def.key, def.code.toLowerCase(), def.accountName]
   );
 
   if (existing.rows.length > 0) {
+    const row = existing.rows[0];
+    // Auto-repair legacy misclassified marketplace vaults (e.g. saved as 'bank')
+    if (String(row.account_type || "").toLowerCase() !== "marketplace") {
+      try {
+        await db.query(
+          `UPDATE store_financial_accounts
+           SET account_type = 'marketplace',
+               bank_name = COALESCE(NULLIF(TRIM(bank_name), ''), $1),
+               account_number = COALESCE(NULLIF(TRIM(account_number), ''), $2)
+           WHERE id = $3 AND store_id = $4`,
+          [def.bankName, def.key, Number(row.id), storeId]
+        );
+      } catch {
+        // non-fatal
+      }
+    }
     return {
-      id: Number(existing.rows[0].id),
-      account_name: existing.rows[0].account_name,
-      currency: (existing.rows[0].currency || "TRY").toUpperCase(),
+      id: Number(row.id),
+      account_name: row.account_name,
+      currency: (row.currency || "TRY").toUpperCase(),
       platform,
     };
   }
@@ -692,7 +707,6 @@ export async function syncCheckNoteToPortfolio(db: DbConn, checkRow: any) {
     const category = isReceived ? "check_collection" : "check_payment";
     const label =
       checkRow.instrument_type === "promissory_note" ? "Senet" : "Çek";
-    const title = `${label} ${isReceived ? "Tahsilatı" : "Ödemesi"}: ${checkRow.document_no}`;
     const curr = (checkRow.currency || "TRY").toUpperCase();
     let accId = checkRow.collection_account_id
       ? Number(checkRow.collection_account_id)
@@ -709,21 +723,39 @@ export async function syncCheckNoteToPortfolio(db: DbConn, checkRow: any) {
         if (accRes.rows.length > 0) {
           const accRow = accRes.rows[0];
           const accType = String(accRow.account_type || "").toLowerCase();
-          if (!accName) accName = accRow.account_name;
-          if (accType === "cash") payMethod = "cash";
-          else if (accType === "credit_card") payMethod = "credit_card";
-          else if (accType === "check") payMethod = "check_promissory";
-          else payMethod = "bank_transfer";
+          accName = accRow.account_name || accName;
+          if (accType === "cash") {
+            payMethod = "cash";
+          } else if (accType === "credit_card") {
+            payMethod = "credit_card";
+          } else if (accType === "check") {
+            payMethod = "check_promissory";
+          } else {
+            payMethod = "bank_transfer";
+          }
         } else {
           payMethod = "bank_transfer";
         }
       } catch {
         payMethod = "bank_transfer";
       }
-    } else if (!accName) {
+    } else {
+      accId = null;
       accName = `${curr} Nakit Kasa`;
       payMethod = "cash";
     }
+
+    const title = `${label} ${isReceived ? "Tahsilatı (Çek Virmanı)" : "Ödemesi (Çek Virmanı)"}: #${checkRow.document_no}`;
+    const dueStr = checkRow.due_date ? String(checkRow.due_date).slice(0, 10) : "-";
+    const transferTrace = isReceived
+      ? `Çek/Senet Kasası → ${accName}`
+      : `${accName} → Çek/Senet Ödemesi`;
+    const descParts = [
+      transferTrace,
+      `Vade: ${dueStr}`,
+      checkRow.bank_name ? String(checkRow.bank_name).trim() : "",
+      checkRow.notes ? String(checkRow.notes).trim() : "",
+    ].filter(Boolean);
 
     await upsertPortfolioTxForSource(db, {
       storeId,
@@ -741,9 +773,7 @@ export async function syncCheckNoteToPortfolio(db: DbConn, checkRow: any) {
       accountName: accName,
       referenceNo: checkRow.document_no,
       contactName: checkRow.contact_name || "",
-      description:
-        checkRow.notes ||
-        `Vade: ${checkRow.due_date ? String(checkRow.due_date).slice(0, 10) : "-"} | ${checkRow.bank_name || ""}`,
+      description: descParts.join(" | "),
       companyId: checkRow.company_id || null,
       checkId,
     });
@@ -908,19 +938,56 @@ export async function syncCheckNoteForSource(
   return savedRow;
 }
 
+export function parseMarketplaceRawDate(raw: any): Date | null {
+  if (!raw) return null;
+  if (raw instanceof Date) {
+    return isNaN(raw.getTime()) ? null : raw;
+  }
+  if (typeof raw === "number") {
+    const ms = raw < 1e12 ? raw * 1000 : raw;
+    const d = new Date(ms);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  const s = String(raw).trim();
+  if (!s) return null;
+  if (/^\d{10,13}$/.test(s)) {
+    const num = Number(s);
+    const d = new Date(s.length === 10 ? num * 1000 : num);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  // Turkish DD/MM/YYYY HH:mm(:ss)? or DD.MM.YYYY HH:mm(:ss)?
+  const trMatch = s.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+  if (trMatch) {
+    const day = Number(trMatch[1]);
+    const month = Number(trMatch[2]) - 1;
+    const year = Number(trMatch[3]);
+    const hour = Number(trMatch[4] || 12);
+    const min = Number(trMatch[5] || 0);
+    const sec = Number(trMatch[6] || 0);
+    const d = new Date(year, month, day, hour, min, sec);
+    if (!isNaN(d.getTime()) && d.getFullYear() === year) return d;
+  }
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+}
+
 export async function syncMarketplaceOrderTreasury(
   db: DbConn,
   params: {
     storeId: number;
     platform: MarketplacePlatform;
-    orderNumber: string;
+    orderNumber?: string | null;
+    orderReference?: string | null;
+    invoiceNumber?: string | null;
     salesInvoiceId?: number | null;
     saleId?: number | null;
     amount: number;
     currency?: string | null;
     date?: any;
+    transactionDate?: any;
     customerName?: string | null;
     status?: string | null;
+    notes?: string | null;
   }
 ): Promise<{
   synced: boolean;
@@ -958,7 +1025,44 @@ export async function syncMarketplaceOrderTreasury(
 
   const def = MARKETPLACE_VAULT_DEFS[params.platform];
   const curr = (params.currency || vault.currency || "TRY").toUpperCase();
-  const orderRef = String(params.orderNumber || "").trim() || `${def.code}-${params.salesInvoiceId || params.saleId || ""}`;
+
+  // Resolve real order date & order reference (accept both canonical `date`/`orderNumber` and legacy `transactionDate`/`orderReference`/`invoiceNumber`)
+  let resolvedDate = parseMarketplaceRawDate(params.date) || parseMarketplaceRawDate(params.transactionDate);
+  let fallbackOrderRef = String(params.orderNumber || params.orderReference || params.invoiceNumber || "").trim();
+
+  if ((!resolvedDate || !fallbackOrderRef) && params.salesInvoiceId) {
+    try {
+      const siLookup = await db.query(
+        `SELECT invoice_date, invoice_number, created_at FROM sales_invoices WHERE id = $1 AND store_id = $2 LIMIT 1`,
+        [Number(params.salesInvoiceId), params.storeId]
+      );
+      if (siLookup.rows.length > 0) {
+        if (!resolvedDate) {
+          resolvedDate = parseMarketplaceRawDate(siLookup.rows[0].invoice_date) || parseMarketplaceRawDate(siLookup.rows[0].created_at);
+        }
+        if (!fallbackOrderRef && siLookup.rows[0].invoice_number) {
+          fallbackOrderRef = String(siLookup.rows[0].invoice_number).trim();
+        }
+      }
+    } catch {
+      // non-fatal
+    }
+  }
+  if (!resolvedDate && params.saleId) {
+    try {
+      const sLookup = await db.query(
+        `SELECT created_at FROM sales WHERE id = $1 AND store_id = $2 LIMIT 1`,
+        [Number(params.saleId), params.storeId]
+      );
+      if (sLookup.rows.length > 0) {
+        resolvedDate = parseMarketplaceRawDate(sLookup.rows[0].created_at);
+      }
+    } catch {
+      // non-fatal
+    }
+  }
+
+  const orderRef = fallbackOrderRef || `${def.code}-${params.salesInvoiceId || params.saleId || ""}`;
 
   // Canonical source: prefer sales_invoice when linked to prevent duplicate posting
   const sourceType = params.salesInvoiceId ? "sales_invoice" : "sale";
@@ -982,13 +1086,13 @@ export async function syncMarketplaceOrderTreasury(
     amount: grandTotal,
     currency: curr,
     exchangeRate: 1,
-    date: params.date || new Date(),
+    date: resolvedDate || new Date(),
     paymentMethod: "marketplace_vault",
     accountId: vault.id,
     accountName: vault.account_name,
     referenceNo: orderRef,
     contactName: (params.customerName || def.brandLabel).trim(),
-    description: `${def.brandLabel} Pazaryeri Sipariş Alacağı (#${orderRef})`,
+    description: params.notes ? String(params.notes).trim() : `${def.brandLabel} Pazaryeri Sipariş Alacağı (#${orderRef})`,
     companyId: null,
   });
 
@@ -1457,57 +1561,95 @@ export async function backfillMarketplaceVaults(
   let removedCancelledOrders = 0;
   let syncedExpenseInvoices = 0;
 
-  // 1. Auto-create vaults for any marketplace configured in store settings columns or branding JSON
+  // 0. Repair any legacy misclassified marketplace accounts & stray payment_method rows so non-cash rows never leak into Nakit Kasa
   try {
-    const storeRes = await db.query(
-      `SELECT branding, hepsiburada_settings, trendyol_settings, n11_settings, amazon_settings, pazarama_settings
-       FROM stores WHERE id = $1 LIMIT 1`,
+    await db.query(
+      `UPDATE store_financial_accounts
+       SET account_type = 'marketplace'
+       WHERE store_id = $1
+         AND LOWER(COALESCE(account_type, '')) <> 'marketplace'
+         AND (
+           LOWER(COALESCE(account_number, '')) IN ('hepsiburada', 'trendyol', 'n11', 'amazon', 'pazarama', 'hb', 'ty', 'amz', 'pzr')
+           OR LOWER(COALESCE(account_name, '')) ~ '(hepsiburada|trendyol|n11|amazon|pazarama)\\s*kasas'
+         )`,
       [storeId]
     );
-    const stRow = storeRes.rows[0] || {};
-    const branding = stRow.branding || {};
-    const mergeCfg = (a: any, b: any) => ({
-      ...(a && typeof a === "object" ? a : {}),
-      ...(b && typeof b === "object" ? b : {}),
-    });
-    const configCheck: Array<[MarketplacePlatform, any]> = [
-      ["hepsiburada", mergeCfg(branding.hepsiburada_settings, stRow.hepsiburada_settings)],
-      ["trendyol", mergeCfg(branding.trendyol_settings, stRow.trendyol_settings)],
-      ["n11", mergeCfg(branding.n11_settings, stRow.n11_settings)],
-      ["amazon", mergeCfg(branding.amazon_settings, stRow.amazon_settings)],
-      ["pazarama", mergeCfg(branding.pazarama_settings, stRow.pazarama_settings)],
-    ];
-    for (const [platform, cfg] of configCheck) {
-      if (
-        cfg &&
-        typeof cfg === "object" &&
-        (cfg.is_active ||
-          cfg.enabled ||
-          cfg.merchantId ||
-          cfg.merchant_id ||
-          cfg.supplierId ||
-          cfg.supplier_id ||
-          cfg.apiKey ||
-          cfg.api_key ||
-          cfg.sellerId ||
-          cfg.seller_id ||
-          cfg.clientId ||
-          cfg.client_id)
-      ) {
-        const v = await ensureMarketplaceVaultAccount(db, storeId, platform);
-        if (v) ensuredVaults.add(v.account_name);
-      }
-    }
+    await db.query(
+      `UPDATE portfolio_transactions pt
+       SET payment_method = CASE
+         WHEN LOWER(sfa.account_type) = 'marketplace' THEN 'marketplace_vault'
+         WHEN LOWER(sfa.account_type) = 'credit_card' THEN 'credit_card'
+         ELSE 'bank_transfer'
+       END
+       FROM store_financial_accounts sfa
+       WHERE pt.store_id = $1
+         AND pt.account_id = sfa.id
+         AND sfa.store_id = $1
+         AND LOWER(COALESCE(sfa.account_type, '')) IN ('marketplace', 'bank', 'credit_card')
+         AND LOWER(COALESCE(pt.payment_method, 'cash')) IN ('cash', 'nakit')`,
+      [storeId]
+    );
   } catch (err) {
-    console.warn("[backfillMarketplaceVaults] branding scan warning:", err);
+    console.warn("[backfillMarketplaceVaults] account/method repair warning:", err);
+  }
+
+  // 1. Ensure ALL 5 standard shopLP e-market vaults (Hepsiburada, Trendyol, N11, Amazon, Pazarama) exist
+  // (shopLP isolation is already guaranteed by the isShopLPStore check above per AGENTS.md Rule 0)
+  for (const platform of MARKETPLACE_PLATFORMS) {
+    try {
+      const v = await ensureMarketplaceVaultAccount(db, storeId, platform);
+      if (v) ensuredVaults.add(v.account_name);
+    } catch (err) {
+      console.warn(`[backfillMarketplaceVaults] ensure vault warning (${platform}):`, err);
+    }
+  }
+
+  // 1b. Build real order date & order number lookup from marketplace order tables so historical orders preserve true order dates
+  const mpMetaByInvoiceId = new Map<number, { orderNumber?: string; orderDate?: Date | null }>();
+  const mpMetaBySaleId = new Map<number, { orderNumber?: string; orderDate?: Date | null }>();
+  const mpOrderTables: Array<{ table: string; idCol: string; dateKeys: string[] }> = [
+    { table: "n11_orders", idCol: "n11_order_id", dateKeys: ["createDate", "orderDate", "createDateString"] },
+    { table: "hepsiburada_orders", idCol: "hb_order_id", dateKeys: ["orderDate", "createdDate", "created_at"] },
+    { table: "trendyol_orders", idCol: "trendyol_order_id", dateKeys: ["orderDate", "createdDate"] },
+    { table: "amazon_orders", idCol: "amazon_order_id", dateKeys: ["PurchaseDate", "purchaseDate", "orderDate"] },
+    { table: "pazarama_orders", idCol: "pazarama_order_id", dateKeys: ["orderDate", "createdDate"] },
+  ];
+  for (const tCfg of mpOrderTables) {
+    try {
+      const r = await db.query(
+        `SELECT ${tCfg.idCol} AS mp_order_id, sale_id, sales_invoice_id, order_data, created_at
+         FROM ${tCfg.table}
+         WHERE store_id = $1`,
+        [storeId]
+      );
+      for (const row of r.rows) {
+        let od: any = row.order_data;
+        if (typeof od === "string") {
+          try { od = JSON.parse(od); } catch { od = {}; }
+        }
+        od = od && typeof od === "object" ? od : {};
+        let rawDate: any = null;
+        for (const k of tCfg.dateKeys) {
+          if (od[k]) { rawDate = od[k]; break; }
+          if (od.orderDetail && od.orderDetail[k]) { rawDate = od.orderDetail[k]; break; }
+        }
+        const parsedDate = parseMarketplaceRawDate(rawDate) || parseMarketplaceRawDate(row.created_at);
+        const realOrderNo = String(od.orderNumber || row.mp_order_id || "").trim() || undefined;
+        const meta = { orderNumber: realOrderNo, orderDate: parsedDate };
+        if (row.sales_invoice_id) mpMetaByInvoiceId.set(Number(row.sales_invoice_id), meta);
+        if (row.sale_id) mpMetaBySaleId.set(Number(row.sale_id), meta);
+      }
+    } catch {
+      // Table may not exist in older schemas — safe to skip
+    }
   }
 
   // 2. Reconcile marketplace sales_invoices (+ orders & cancel cleanup)
   try {
     const siRes = await db.query(
-      `SELECT si.id, si.sale_id, si.invoice_number, si.invoice_date, si.grand_total, si.total_amount,
+      `SELECT si.id, si.sale_id, si.invoice_number, si.invoice_date, si.created_at AS si_created_at, si.grand_total, si.total_amount,
               si.currency, si.status, si.payment_method, si.customer_name,
-              s.source AS sale_source, s.status AS sale_status
+              s.source AS sale_source, s.status AS sale_status, s.created_at AS sale_created_at
        FROM sales_invoices si
        LEFT JOIN sales s ON s.id = si.sale_id AND s.store_id = si.store_id
        WHERE si.store_id = $1`,
@@ -1524,15 +1666,29 @@ export async function backfillMarketplaceVaults(
 
       const isCancelled = isCancelledOrDraftStatus(row.status) || isCancelledOrDraftStatus(row.sale_status);
       const amt = Number(row.grand_total || row.total_amount || 0);
+      const mpMeta =
+        mpMetaByInvoiceId.get(Number(row.id)) ||
+        (row.sale_id ? mpMetaBySaleId.get(Number(row.sale_id)) : undefined);
+      const resolvedOrderDate =
+        mpMeta?.orderDate ||
+        parseMarketplaceRawDate(row.invoice_date) ||
+        parseMarketplaceRawDate(row.sale_created_at) ||
+        parseMarketplaceRawDate(row.si_created_at) ||
+        new Date();
+      const resolvedOrderNo =
+        mpMeta?.orderNumber ||
+        String(row.invoice_number || "").trim() ||
+        `${MARKETPLACE_VAULT_DEFS[mp].code}-${row.id}`;
+
       const res = await syncMarketplaceOrderTreasury(db, {
         storeId,
         platform: mp,
-        orderNumber: String(row.invoice_number || `INV-${row.id}`),
+        orderNumber: resolvedOrderNo,
         salesInvoiceId: Number(row.id),
         saleId: row.sale_id ? Number(row.sale_id) : null,
         amount: amt,
         currency: row.currency || "TRY",
-        date: row.invoice_date || new Date(),
+        date: resolvedOrderDate,
         customerName: row.customer_name || MARKETPLACE_VAULT_DEFS[mp].brandLabel,
         status: isCancelled ? "cancelled" : "approved",
       });
@@ -1565,14 +1721,18 @@ export async function backfillMarketplaceVaults(
       });
       if (!mp) continue;
 
+      const mpMeta = mpMetaBySaleId.get(Number(s.id));
+      const resolvedOrderDate = mpMeta?.orderDate || parseMarketplaceRawDate(s.created_at) || new Date();
+      const resolvedOrderNo = mpMeta?.orderNumber || `${MARKETPLACE_VAULT_DEFS[mp].code}-${s.id}`;
+
       const res = await syncMarketplaceOrderTreasury(db, {
         storeId,
         platform: mp,
-        orderNumber: `${MARKETPLACE_VAULT_DEFS[mp].code}-${s.id}`,
+        orderNumber: resolvedOrderNo,
         saleId: Number(s.id),
         amount: Number(s.total_amount || 0),
         currency: s.currency || "TRY",
-        date: s.created_at || new Date(),
+        date: resolvedOrderDate,
         customerName: s.customer_name || MARKETPLACE_VAULT_DEFS[mp].brandLabel,
         status: s.status || "completed",
       });

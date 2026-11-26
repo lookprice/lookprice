@@ -1625,19 +1625,10 @@ router.post("/n11/publish", authenticate, async (req: any, res) => {
       product.barcode ||
       `PRD-${product.id}`
     ).trim();
-    const baseOrigin = process.env.APP_URL || "https://lookprice.net";
-    const rawImages = Array.isArray(product.images) && product.images.length > 0
-      ? product.images
-      : (product.image_url ? [product.image_url] : []);
-
-    const productImages = rawImages
-      .filter((img: any) => typeof img === "string" && img.trim().length > 0)
-      .map((img: string) => {
-        const clean = img.trim();
-        if (clean.startsWith("http://") || clean.startsWith("https://")) return clean;
-        if (clean.startsWith("/")) return `${baseOrigin}${clean}`;
-        return `${baseOrigin}/${clean}`;
-      });
+    const productImages = extractProductMarketplaceImages(product, req, {
+      maxCount: 8,
+      mpData,
+    });
 
     if (productImages.length === 0) {
       productImages.push("https://images.unsplash.com/photo-1526738549149-8e07eca6c147?w=800&q=80");
@@ -2485,6 +2476,125 @@ function resolveCategoryAttributeValue(rawVal: any, p: any): string {
   return valStr;
 }
 
+function normalizeMarketplaceImageUrl(
+  raw: any,
+  req: any,
+  options?: { stripQueryForExtension?: boolean }
+): string | null {
+  if (!raw) return null;
+  let candidate = "";
+  if (typeof raw === "string") {
+    candidate = raw.trim();
+  } else if (typeof raw === "object") {
+    candidate = String(raw.url || raw.imageUrl || raw.src || "").trim();
+  }
+  if (!candidate || candidate.startsWith("data:") || candidate.startsWith("blob:")) {
+    return null;
+  }
+
+  if (candidate.startsWith("/")) {
+    const envBase = process.env.PUBLIC_APP_URL || process.env.APP_URL;
+    const host = req?.get?.("host") || "lookprice.net";
+    if (envBase && /^https?:\/\//i.test(envBase) && host.includes("localhost")) {
+      candidate = `${envBase.replace(/\/$/, "")}${candidate}`;
+    } else {
+      const protocol =
+        req?.protocol === "http" && !host.includes("localhost")
+          ? "https"
+          : req?.protocol || "https";
+      candidate = `${protocol}://${host}${candidate}`;
+    }
+  } else if (!/^https?:\/\//i.test(candidate)) {
+    const baseOrigin = (process.env.PUBLIC_APP_URL || process.env.APP_URL || "https://lookprice.net").replace(/\/$/, "");
+    candidate = `${baseOrigin}/${candidate.replace(/^\/+/, "")}`;
+  }
+
+  const isOwnStoragePath = /\/(?:api\/storage|uploads)\//i.test(candidate);
+  if (!isOwnStoragePath && /\.webp($|\?)/i.test(candidate)) {
+    candidate = candidate.replace(/\.webp($|\?)/i, ".jpg$1");
+  }
+
+  if (
+    options?.stripQueryForExtension &&
+    candidate.includes("?") &&
+    /\.(jpe?g|png|webp)$/i.test(candidate.split("?")[0])
+  ) {
+    candidate = candidate.split("?")[0];
+  }
+
+  if (!/^https?:\/\//i.test(candidate)) {
+    return null;
+  }
+  return candidate;
+}
+
+function extractProductMarketplaceImages(
+  p: any,
+  req: any,
+  options?: {
+    maxCount?: number;
+    userAttrs?: Record<string, any>;
+    mpData?: any;
+    stripQueryForExtension?: boolean;
+  }
+): string[] {
+  const maxCount = Math.max(1, options?.maxCount ?? 8);
+  const rawList: any[] = [];
+  const userAttrs = options?.userAttrs || {};
+  const mpAttrs = options?.mpData?.attributes || {};
+
+  // 1. Primary cover image always comes first (explicit Image1 override -> product.image_url)
+  if (userAttrs?.Image1) rawList.push(userAttrs.Image1);
+  if (mpAttrs?.Image1) rawList.push(mpAttrs.Image1);
+  if (p?.image_url) rawList.push(p.image_url);
+
+  // 2. Product multi-image gallery (`products.images` JSONB array, stringified JSON, or delimited list)
+  let galleryImages: any[] = [];
+  if (Array.isArray(p?.images)) {
+    galleryImages = p.images;
+  } else if (typeof p?.images === "string" && p.images.trim()) {
+    const trimmed = p.images.trim();
+    if (trimmed.startsWith("[")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) galleryImages = parsed;
+      } catch {
+        galleryImages = [];
+      }
+    } else {
+      galleryImages = trimmed.split(/[\n\r;|,]+/).map((s: string) => s.trim()).filter(Boolean);
+    }
+  }
+  for (const img of galleryImages) {
+    rawList.push(img);
+  }
+
+  // 3. Explicit Image2..Image10 attribute overrides if present
+  for (let i = 2; i <= 10; i++) {
+    const key = `Image${i}`;
+    if (userAttrs?.[key]) rawList.push(userAttrs[key]);
+    if (mpAttrs?.[key]) rawList.push(mpAttrs[key]);
+  }
+
+  const seen = new Set<string>();
+  const resolved: string[] = [];
+  for (const item of rawList) {
+    const normalized = normalizeMarketplaceImageUrl(item, req, {
+      stripQueryForExtension: options?.stripQueryForExtension,
+    });
+    if (!normalized) continue;
+    const dedupeKey = /\/api\/storage\//i.test(normalized)
+      ? normalized.split("?")[0].toLowerCase()
+      : normalized.toLowerCase();
+    if (seen.has(dedupeKey)) continue;
+    seen.add(dedupeKey);
+    resolved.push(normalized);
+    if (resolved.length >= maxCount) break;
+  }
+
+  return resolved;
+}
+
 function buildHepsiburadaCatalogAttributes(
   p: any,
   mpData: any,
@@ -2510,26 +2620,16 @@ function buildHepsiburadaCatalogAttributes(
 
   const userAttrs = { ...resolvedDefaults, ...mergedProductAttrs };
 
-  let effectiveHbImageUrl: string | null = null;
-  const rawHbImg = userAttrs?.Image1 || mpData?.attributes?.Image1 || p.image_url;
-  if (rawHbImg) {
-    let candidate = String(rawHbImg).trim();
-    if (candidate.startsWith("/")) {
-      const envBase = process.env.PUBLIC_APP_URL || process.env.APP_URL;
-      const host = req?.get?.("host") || "lookprice.net";
-      if (envBase && /^https?:\/\//i.test(envBase) && host.includes("localhost")) {
-        candidate = `${envBase.replace(/\/$/, "")}${candidate}`;
-      } else {
-        const protocol = req?.protocol === "http" && !host.includes("localhost") ? "https" : (req?.protocol || "https");
-        candidate = `${protocol}://${host}${candidate}`;
-      }
-    }
-    if (candidate.includes(".webp")) {
-      candidate = candidate.replace(/\.webp($|\?)/i, ".jpg$1");
-    }
-    if (candidate.startsWith("http")) {
-      effectiveHbImageUrl = candidate;
-    }
+  // Hepsiburada MPOP officially supports up to 5 images: Image1 through Image5
+  const hbImages = extractProductMarketplaceImages(p, req, {
+    maxCount: 5,
+    userAttrs,
+    mpData,
+  });
+
+  // Remove any raw/unnormalized Image1..Image10 from userAttrs before setting clean Image1..Image5
+  for (let i = 1; i <= 10; i++) {
+    delete userAttrs[`Image${i}`];
   }
 
   const inferredHbBrand = String(
@@ -2556,9 +2656,9 @@ function buildHepsiburadaCatalogAttributes(
     ...userAttrs
   };
 
-  if (effectiveHbImageUrl) {
-    attributes.Image1 = effectiveHbImageUrl;
-  }
+  hbImages.forEach((imgUrl, idx) => {
+    attributes[`Image${idx + 1}`] = imgUrl;
+  });
 
   if (Number(categoryId) === 970) {
     if (!attributes.kapasite_) {
@@ -3605,6 +3705,254 @@ router.post("/hepsiburada/bulk-publish", authenticate, async (req: any, res) => 
     });
   } catch (error: any) {
     res.status(400).json({ error: error.message || "Toplu Hepsiburada ilana açma başarısız." });
+  }
+});
+
+// 6b-2. Revise Catalog Images (Image1..Image5) & Attributes on Existing / Live Hepsiburada Products
+router.post("/hepsiburada/revise-catalog", authenticate, async (req: any, res) => {
+  const storeId = Number(getAuthorizedStoreId(req, req.body?.storeId || req.query?.storeId) || req.user?.store_id || 1);
+  const rawIds = Array.isArray(req.body?.productIds)
+    ? req.body.productIds
+    : (req.body?.productId ? [req.body.productId] : []);
+  const productIds: number[] = Array.from(
+    new Set(rawIds.map((id: any) => Number(id)).filter((id: number) => Number.isFinite(id) && id > 0))
+  );
+
+  if (productIds.length === 0) {
+    return res.status(400).json({ error: "Revize edilecek en az bir ürün seçilmelidir." });
+  }
+
+  try {
+    const storeRes = await pool.query("SELECT hepsiburada_settings, currency_rates, branding FROM stores WHERE id = $1", [storeId]);
+    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Mağaza bulunamadı" });
+
+    let settings = storeRes.rows[0]?.hepsiburada_settings;
+    if (typeof settings === "string") { try { settings = JSON.parse(settings); } catch { settings = {}; } }
+    let branding = storeRes.rows[0]?.branding;
+    if (typeof branding === "string") { try { branding = JSON.parse(branding); } catch { branding = {}; } }
+    if (!settings || !settings.merchantId || !settings.apiSecret) {
+      settings = branding?.hepsiburada_settings || settings || {};
+    }
+    const rates = storeRes.rows[0]?.currency_rates || branding?.currency_rates || {};
+
+    const merchantId = String(settings?.merchantId || "").trim();
+    const apiKey = String(settings?.apiKey || "lookprice_dev").trim() || "lookprice_dev";
+    const apiSecret = String(settings?.apiSecret || "").trim();
+
+    if (!merchantId || !apiSecret) {
+      return res.status(400).json({ error: "Hepsiburada API bilgileri eksik (Ayarlar > E-Mağazalar sekmesinden API anahtarlarınızı kaydedin)." });
+    }
+
+    const cleanSettings = {
+      ...settings,
+      merchantId,
+      apiKey,
+      apiSecret,
+      baseUrl: settings?.baseUrl || "https://oms-external.hepsiburada.com",
+    };
+    const hbService = new HepsiburadaService(cleanSettings);
+
+    const prodsRes = await pool.query(
+      `SELECT * FROM products WHERE store_id = $1 AND id = ANY($2::int[])`,
+      [storeId, productIds]
+    );
+    if (prodsRes.rows.length === 0) {
+      return res.status(404).json({ error: "Seçilen ürünler mağazada bulunamadı." });
+    }
+
+    let liveCategoriesCache: any[] | undefined;
+    const revisionItems: Array<{
+      productId: number;
+      name: string;
+      mpData: any;
+      imagesCount: number;
+      merchantSku: string;
+      payload: { categoryId: number; attributes: Record<string, any> };
+    }> = [];
+    const skippedItems: Array<{ id: number; name: string; reason: string }> = [];
+
+    for (const p of prodsRes.rows) {
+      if (String(p.product_type || "").toLowerCase() === "service" || /^servis$|^hizmet$/i.test(String(p.category || "").trim())) {
+        skippedItems.push({ id: p.id, name: p.name, reason: "Hizmet/Servis kalemi" });
+        continue;
+      }
+
+      let mpData = p.marketplace_data || {};
+      if (typeof mpData === "string") {
+        try { mpData = JSON.parse(mpData); } catch { mpData = {}; }
+      }
+      const hbData = mpData.hepsiburada || {};
+      const resolvedMerchantSku = String(hbData.merchantSku || p.barcode || p.sku || "").trim();
+      if (!resolvedMerchantSku) {
+        skippedItems.push({ id: p.id, name: p.name, reason: "Barkod / MerchantSku eksik" });
+        continue;
+      }
+
+      let rawPrice = parseFloat(p.price || "0");
+      const curr = String(p.currency || "TRY").toUpperCase().trim();
+      if ((curr === "USD" || curr === "$") && Number(rates.USD) > 0) rawPrice *= Number(rates.USD);
+      else if ((curr === "EUR" || curr === "€") && Number(rates.EUR) > 0) rawPrice *= Number(rates.EUR);
+      else if ((curr === "GBP" || curr === "£") && Number(rates.GBP) > 0) rawPrice *= Number(rates.GBP);
+      const effectivePriceStr = HepsiburadaService.calculateMarketplacePrice(rawPrice, p.category, p.sub_category, cleanSettings);
+      const numericEffectivePrice = Math.max(1, parseFloat(String(effectivePriceStr).replace(",", ".")) || 1);
+
+      // Resolve leaf categoryId (store mappings -> product override -> live HB catalog lookup fallback)
+      const catResolution = await resolveHepsiburadaCategoryIdForProduct(p, mpData, hbData, cleanSettings, storeId, liveCategoriesCache);
+      if (catResolution.liveCategories) liveCategoriesCache = catResolution.liveCategories;
+      let categoryId: number | "" = catResolution.categoryId;
+
+      if (!categoryId) {
+        try {
+          const catStatus = await hbService.checkCatalogProductsByStatus(resolvedMerchantSku);
+          const matchedCatId = Number(catStatus?.matched?.categoryId || 0);
+          if (matchedCatId > 0) {
+            categoryId = matchedCatId;
+          }
+        } catch {
+          // non-blocking fallback
+        }
+      }
+
+      if (!categoryId) {
+        skippedItems.push({
+          id: p.id,
+          name: p.name,
+          reason: `Hepsiburada alt kategori eşleşmesi bulunamadı (${p.category || "Genel"})`
+        });
+        continue;
+      }
+
+      const attributes = buildHepsiburadaCatalogAttributes(p, mpData, hbData, categoryId, numericEffectivePrice, req, cleanSettings);
+      // Lock merchantSku to the product's actual live HB merchantSku so HB targets the existing listing card
+      attributes.merchantSku = resolvedMerchantSku;
+      if (p.barcode && String(p.barcode).trim()) {
+        attributes.Barcode = String(p.barcode).trim();
+      }
+
+      const sentImagesCount = [attributes.Image1, attributes.Image2, attributes.Image3, attributes.Image4, attributes.Image5].filter(Boolean).length;
+      if (sentImagesCount === 0) {
+        skippedItems.push({
+          id: p.id,
+          name: p.name,
+          reason: "Geçerli HTTP/HTTPS ürün görseli bulunamadı"
+        });
+        continue;
+      }
+
+      mpData.hepsiburada = {
+        ...hbData,
+        categoryId: Number(categoryId),
+        merchantSku: resolvedMerchantSku,
+        attributes,
+        sentImagesCount,
+        lastImageRevisionSync: new Date().toISOString(),
+      };
+
+      revisionItems.push({
+        productId: p.id,
+        name: p.name,
+        mpData,
+        imagesCount: sentImagesCount,
+        merchantSku: resolvedMerchantSku,
+        payload: {
+          categoryId: Number(categoryId),
+          attributes,
+        },
+      });
+    }
+
+    if (revisionItems.length === 0) {
+      return res.status(400).json({
+        error: skippedItems.length > 0
+          ? `Görsel revizyonu gönderilemedi: ${skippedItems.slice(0, 3).map((s) => `${s.name} (${s.reason})`).join(", ")}`
+          : "Revize edilecek uygun ürün bulunamadı.",
+        skipped: skippedItems,
+      });
+    }
+
+    let lastTrackingId: string | null = null;
+    const immediateWarnings: Array<{ id?: number; name?: string; reason: string; isMatchedCatalogLock?: boolean }> = [];
+    const CHUNK_SIZE = 50;
+
+    for (let i = 0; i < revisionItems.length; i += CHUNK_SIZE) {
+      const chunk = revisionItems.slice(i, i + CHUNK_SIZE);
+      const catRes = await hbService.importCatalogProducts(chunk.map((c) => c.payload));
+      if (!catRes.success || !catRes.trackingId) {
+        throw new Error(catRes.message || "Hepsiburada katalog görsel revizyonu takip numarası döndürmedi.");
+      }
+      lastTrackingId = catRes.trackingId;
+
+      // Briefly poll status (~1.5s) to detect matched/locked catalog rejections immediately
+      await new Promise((r) => setTimeout(r, 1500));
+      let chunkImmediateError: string | null = null;
+      try {
+        const immediateStatus = await hbService.checkCatalogStatus(lastTrackingId);
+        chunkImmediateError = extractHbCatalogImportError(immediateStatus);
+      } catch {
+        // non-blocking; HB often takes >1.5s to process larger batches
+      }
+
+      const isMatchedCatalogLock = Boolean(
+        chunkImmediateError &&
+        /matched|in catalog progress|can not update|cannot update|already exist|kilitli|byhbadmin|onaylı katalog/i.test(chunkImmediateError)
+      );
+
+      if (chunkImmediateError) {
+        immediateWarnings.push({
+          reason: chunkImmediateError,
+          isMatchedCatalogLock,
+        });
+      }
+
+      // Persist updated attributes & revision tracking WITHOUT altering live status, hepsiburada_sku, or hepsiburada_url
+      for (const item of chunk) {
+        item.mpData.hepsiburada.catalogRevisionTrackingId = lastTrackingId;
+        if (chunkImmediateError) {
+          item.mpData.hepsiburada.lastImageRevisionNote = chunkImmediateError;
+        } else {
+          delete item.mpData.hepsiburada.lastImageRevisionNote;
+        }
+        await pool.query(
+          `UPDATE products
+           SET marketplace_data = $1,
+               hepsiburada_last_sync = NOW()
+           WHERE store_id = $2 AND id = $3`,
+          [JSON.stringify(item.mpData), storeId, item.productId]
+        );
+      }
+    }
+
+    const totalImagesSent = revisionItems.reduce((sum, item) => sum + item.imagesCount, 0);
+    const hasMatchedLockWarning = immediateWarnings.some((w) => w.isMatchedCatalogLock);
+
+    let message = "";
+    if (hasMatchedLockWarning) {
+      message = `Hepsiburada yanıtı: Seçilen ürün(ler) başka bir satıcının veya onaylı ortak kataloğun kartına eşleştiği için API üzerinden doğrudan görsel değişikliği kısıtlandı (${immediateWarnings[0].reason}). Ortak katalog ürünlerine ek görsel eklemek için HB Satıcı Paneli > Ürünlerim > İçerik Düzenle / Talep Aç bölümünü kullanabilirsiniz.`;
+    } else if (immediateWarnings.length > 0) {
+      message = `Hepsiburada görsel revizyonu iletildi ancak HB uyarısı döndü: ${immediateWarnings[0].reason}`;
+    } else {
+      message = `${revisionItems.length} ürün için toplam ${totalImagesSent} görsel (Image1–Image5) Hepsiburada katalog güncelleme kuyruğuna iletildi (Takip No: ${lastTrackingId}). HB içerik onayının ardından ilanlara yansıyacaktır${skippedItems.length > 0 ? ` (${skippedItems.length} ürün atlandı)` : ""}.`;
+    }
+
+    res.json({
+      success: !hasMatchedLockWarning,
+      warning: hasMatchedLockWarning || immediateWarnings.length > 0,
+      isMatchedCatalogLock: hasMatchedLockWarning,
+      revisedCount: revisionItems.length,
+      totalImagesSent,
+      skippedCount: skippedItems.length,
+      skipped: skippedItems,
+      warnings: immediateWarnings,
+      trackingId: lastTrackingId,
+      results: revisionItems.map((it) => ({
+        id: it.productId,
+        name: it.name,
+        imagesCount: it.imagesCount,
+      })),
+      message,
+    });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || "Hepsiburada katalog görsel revizyonu başarısız." });
   }
 });
 
@@ -4741,12 +5089,12 @@ router.post("/trendyol/sync", authenticate, async (req: any, res) => {
               platform: "trendyol",
               salesInvoiceId,
               saleId,
+              orderNumber: String(order.id),
               invoiceNumber,
-              orderReference: String(order.id),
               amount: grandTotal,
               currency: "TRY",
               customerName: rawCustName3 || "Trendyol Müşterisi",
-              transactionDate: tyOrderDate,
+              date: tyOrderDate,
               status: isTyCancelled ? "cancelled" : "completed",
               notes: `Trendyol Siparişi: ${order.id}`,
             });
@@ -4797,12 +5145,12 @@ router.post("/trendyol/sync", authenticate, async (req: any, res) => {
             platform: "trendyol",
             salesInvoiceId: exRow.sales_invoice_id,
             saleId: exRow.sale_id,
+            orderNumber: String(order.id),
             invoiceNumber,
-            orderReference: String(order.id),
             amount: totalAmount,
             currency: "TRY",
             customerName: String(order.customer || "Trendyol Müşterisi").trim(),
-            transactionDate: tyOrderDate,
+            date: tyOrderDate,
             status: isTyCancelled ? "cancelled" : "completed",
             notes: `Trendyol Siparişi: ${order.id}`,
           });
@@ -5249,27 +5597,12 @@ router.post("/trendyol/publish", authenticate, async (req: any, res) => {
       console.warn("[Trendyol V2] Error while checking/injecting mandatory category attributes:", attrErr.message);
     }
 
-    // Resolve Absolute Image URL for Trendyol API (Must be a valid public http/https URL ending in .jpg/.jpeg/.png)
-    let effectiveImageUrl: string | null = null;
-    const rawImage = mpData?.attributes?.Image1 || p.image_url;
-
-    if (rawImage) {
-      let candidate = String(rawImage).trim();
-      if (candidate.startsWith("/")) {
-        const host = req.get("host") || "ais-dev-fw5matlno23z7prjfvwxwu-416165499277.europe-west2.run.app";
-        const protocol = req.protocol === "http" && !host.includes("localhost") ? "https" : req.protocol;
-        candidate = `${protocol}://${host}${candidate}`;
-      }
-      if (candidate.includes(".webp")) {
-        candidate = candidate.replace(/\.webp($|\?)/i, ".jpg$1");
-      }
-      if (candidate.includes("?") && /\.(jpe?g|png)/i.test(candidate.split("?")[0])) {
-        candidate = candidate.split("?")[0];
-      }
-      if (candidate.startsWith("http")) {
-        effectiveImageUrl = candidate;
-      }
-    }
+    // Resolve all absolute image URLs for Trendyol V2 API (up to 8 images, public http/https)
+    const trendyolImages = extractProductMarketplaceImages(p, req, {
+      maxCount: 8,
+      mpData,
+      stripQueryForExtension: true,
+    });
 
     // Enforce Trendyol v2 Rules: listPrice must be >= salePrice, dimensionalWeight >= 1
     const listPrice = Math.max(roundedPrice, Math.round(Number(p.list_price || roundedPrice) * 100) / 100);
@@ -5292,7 +5625,7 @@ router.post("/trendyol/publish", authenticate, async (req: any, res) => {
         salePrice: roundedPrice,
         vatRate: parseInt(p.tax_rate) || 20,
         cargoCompanyId,
-        images: effectiveImageUrl ? [{ url: effectiveImageUrl }] : [],
+        images: trendyolImages.map((url) => ({ url })),
         attributes: tyAttributes
       }]
     };
@@ -5816,12 +6149,12 @@ router.post("/pazarama/sync", authenticate, async (req: any, res) => {
               platform: "pazarama",
               salesInvoiceId,
               saleId,
+              orderNumber: String(orderId),
               invoiceNumber,
-              orderReference: String(orderId),
               amount: grandTotal,
               currency: "TRY",
               customerName,
-              transactionDate: pzOrderDate,
+              date: pzOrderDate,
               status: isPzCancelled ? "cancelled" : "completed",
               notes: `Pazarama Siparişi: ${orderId}`,
             });
@@ -5872,12 +6205,12 @@ router.post("/pazarama/sync", authenticate, async (req: any, res) => {
             platform: "pazarama",
             salesInvoiceId: exRow.sales_invoice_id,
             saleId: exRow.sale_id,
+            orderNumber: String(orderId),
             invoiceNumber,
-            orderReference: String(orderId),
             amount: totalAmount,
             currency: "TRY",
             customerName,
-            transactionDate: pzOrderDate,
+            date: pzOrderDate,
             status: isPzCancelled ? "cancelled" : "completed",
             notes: `Pazarama Siparişi: ${orderId}`,
           });
@@ -6031,9 +6364,15 @@ router.post("/pazarama/publish", authenticate, async (req: any, res) => {
       images: [] as any[]
     };
 
-    if (product.image_url) {
-      payload.images.push({ url: product.image_url, order: 1 });
-    }
+    const pazaramaImages = extractProductMarketplaceImages(product, req, {
+      maxCount: 8,
+      mpData: typeof product.marketplace_data === "string"
+        ? (() => { try { return JSON.parse(product.marketplace_data); } catch { return {}; } })()
+        : (product.marketplace_data || {}),
+    });
+    pazaramaImages.forEach((url, idx) => {
+      payload.images.push({ url, order: idx + 1 });
+    });
 
     // --- REAL API CALL ---
     let apiSuccess = false;

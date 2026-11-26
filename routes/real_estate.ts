@@ -2632,6 +2632,15 @@ router.patch('/checks-notes/:id/status', authenticate, async (req: any, res) => 
     let finalCollectedAt: any = null;
 
     if (isSettled) {
+      if (collection_account_id) {
+        const targetAccRes = await pool.query(
+          `SELECT id, account_name, account_type FROM store_financial_accounts WHERE id = $1 AND store_id = $2 LIMIT 1`,
+          [Number(collection_account_id), storeId]
+        );
+        if (targetAccRes.rows.length > 0 && String(targetAccRes.rows[0].account_type || '').toLowerCase() === 'marketplace') {
+          return res.status(400).json({ error: "Çek/senet tahsilatı pazaryeri kasasına değil, nakit kasa veya banka hesabına virman edilmelidir." });
+        }
+      }
       const resolved = await resolveFinancialAccountInfo(
         pool,
         storeId,

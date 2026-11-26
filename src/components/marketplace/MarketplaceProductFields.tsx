@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Search, ChevronDown, CheckCircle2, Layers, Sparkles, SlidersHorizontal, Info, X, Loader2, Zap, ExternalLink, Lock, Check } from "lucide-react";
+import { Search, ChevronDown, CheckCircle2, Layers, Sparkles, SlidersHorizontal, Info, X, Loader2, Zap, ExternalLink, Lock, Check, Images } from "lucide-react";
+import { toast } from "sonner";
 import { getAttributesForCategory, suggestMarketplaceCategory, HEPSIBURADA_DEFAULT_CATEGORIES, MarketplaceAttribute } from "@/data/marketplaceCategoriesData";
 import { autoHydrateTargetAttributes, getCanonicalKey, unwrapMarketplaceAttrValue, pruneCanonicalAliases } from "@/services/crossMarketplaceAttributeMapper";
 import { api } from "@/services/api";
@@ -73,6 +74,7 @@ export const MarketplaceProductFields = ({
   const [searchTerm, setSearchTerm] = useState("");
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showAttributesEditor, setShowAttributesEditor] = useState(true);
+  const [revisingHbImages, setRevisingHbImages] = useState(false);
   const [dynamicAttributes, setDynamicAttributes] = useState<any[]>([]);
   const [loadingAttributes, setLoadingAttributes] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -740,6 +742,61 @@ export const MarketplaceProductFields = ({
               ? "Hepsiburada'da aynı barkodda birden fazla kart varsa, hedeflediğiniz ürünün HBCV kodunu veya linkini yapıştırarak ürünü doğrudan o karta kilitleyebilirsiniz."
               : "Paste the exact HBCV code or listing URL to lock this product to a specific Hepsiburada catalog item."}
           </p>
+
+          {product?.id && (hbSkuInput || product?.hepsiburada_sku || marketData.hepsiburadaSku) && (() => {
+            const imgSet = new Set<string>();
+            const addUrl = (val: any) => {
+              const s = typeof val === "string" ? val.trim() : (val && typeof val === "object" ? String(val.url || val.imageUrl || val.src || "").trim() : "");
+              if (s && !s.startsWith("data:") && !s.startsWith("blob:")) imgSet.add(s.split("?")[0].toLowerCase());
+            };
+            if (product?.image_url) addUrl(product.image_url);
+            let rawImgs: any = product?.images;
+            if (typeof rawImgs === "string" && rawImgs.trim().startsWith("[")) {
+              try { rawImgs = JSON.parse(rawImgs); } catch { rawImgs = []; }
+            }
+            if (Array.isArray(rawImgs)) rawImgs.forEach(addUrl);
+            const totalImgs = imgSet.size;
+            const sendCount = Math.min(totalImgs, 5);
+            if (sendCount === 0) return null;
+
+            return (
+              <div className="pt-1.5 mt-1 border-t border-orange-100 dark:border-orange-900/40 flex items-center justify-between gap-2">
+                <span className="text-[10px] text-slate-600 dark:text-slate-300 font-medium">
+                  {isTr
+                    ? `Kayıtlı galeri: ${totalImgs} görsel (HB'ye en fazla ${sendCount} görsel gönderilir)`
+                    : `Saved gallery: ${totalImgs} images (up to ${sendCount} sent to HB)`}
+                </span>
+                <button
+                  type="button"
+                  disabled={revisingHbImages}
+                  onClick={async () => {
+                    try {
+                      setRevisingHbImages(true);
+                      const targetStoreId = product?.store_id || storeSettings?.storeId || undefined;
+                      const res = await api.reviseHepsiburadaCatalog([Number(product.id)], targetStoreId);
+                      const data = (res as any)?.data ?? res;
+                      if (data?.isMatchedCatalogLock || data?.warning) {
+                        toast.warning(data?.message || (isTr ? "Hepsiburada katalog revizyon uyarısı döndü." : "HB revision warning."), { duration: 8000 });
+                      } else if (data?.success) {
+                        toast.success(data?.message || (isTr ? "Çoklu görseller Hepsiburada kataloğuna iletildi!" : "Multi-images sent to HB!"), { duration: 6000 });
+                      } else {
+                        toast.error(data?.error || data?.message || (isTr ? "Görsel revizyonu başarısız." : "Image revision failed."));
+                      }
+                    } catch (e: any) {
+                      toast.error(e.response?.data?.error || e.message || (isTr ? "Görsel revizyonu hatası" : "Image revision error"));
+                    } finally {
+                      setRevisingHbImages(false);
+                    }
+                  }}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-orange-600 hover:bg-orange-700 text-white text-[10px] font-bold shadow-2xs transition-all active:scale-95 disabled:opacity-50 cursor-pointer shrink-0"
+                  title={isTr ? "Yeni görsel eklediyseniz önce ürünü Kaydet ile kaydedip ardından bu butona tıklayın" : "Save newly added images first, then push to HB"}
+                >
+                  {revisingHbImages ? <Loader2 className="w-3 h-3 animate-spin" /> : <Images className="w-3 h-3" />}
+                  <span>{revisingHbImages ? (isTr ? "Gönderiliyor..." : "Sending...") : (isTr ? `Görselleri HB'ye Revize Et (${sendCount})` : `Revise HB Images (${sendCount})`)}</span>
+                </button>
+              </div>
+            );
+          })()}
         </div>
 
         {/* STORE-LEVEL OR SMART AUTO-MATCHED CATEGORY BADGE */}

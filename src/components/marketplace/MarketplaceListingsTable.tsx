@@ -17,8 +17,10 @@ interface MarketplaceListingsTableProps {
   onCheckTyStatus?: (productId: number) => void;
   checkingStatusId: number | null;
   publishingId: number | null;
+  revisingImagesId?: number | null;
   onPublishSingle: (product: any, mpKey: MarketplaceKey) => void;
   onUnpublishSingle: (product: any, mpKey: MarketplaceKey) => void;
+  onReviseHbImagesSingle?: (product: any) => void;
   onEditProduct?: (product: any) => void;
   isProductActive: (p: any, mpKey: MarketplaceKey) => boolean;
   isProductPending: (p: any, mpKey: MarketplaceKey) => boolean;
@@ -39,8 +41,10 @@ export const MarketplaceListingsTable: React.FC<MarketplaceListingsTableProps> =
   onCheckTyStatus,
   checkingStatusId,
   publishingId,
+  revisingImagesId,
   onPublishSingle,
   onUnpublishSingle,
+  onReviseHbImagesSingle,
   onEditProduct,
   isProductActive,
   isProductPending,
@@ -98,8 +102,10 @@ export const MarketplaceListingsTable: React.FC<MarketplaceListingsTableProps> =
               onCheckTyStatus={onCheckTyStatus}
               checkingStatusId={checkingStatusId}
               publishingId={publishingId}
+              revisingImagesId={revisingImagesId}
               onPublishSingle={onPublishSingle}
               onUnpublishSingle={onUnpublishSingle}
+              onReviseHbImagesSingle={onReviseHbImagesSingle}
               onEditProduct={onEditProduct}
               isProductActive={isProductActive}
               isProductPending={isProductPending}
