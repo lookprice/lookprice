@@ -29,6 +29,7 @@ interface MarketplaceListingsModalProps {
   initialMarketplace?: MarketplaceKey;
   initialStatus?: ListingStatus;
   onMarketplaceChange?: (mp: MarketplaceKey) => void;
+  onBrandingChange?: (field: string, value: any) => void;
 }
 
 export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> = ({
@@ -42,7 +43,8 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
   lang = 'tr',
   initialMarketplace = 'hepsiburada',
   initialStatus = 'active',
-  onMarketplaceChange
+  onMarketplaceChange,
+  onBrandingChange
 }) => {
   const isTr = lang === 'tr';
   const [localProducts, setLocalProducts] = useState<any[]>(products);
@@ -1331,6 +1333,7 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
           branding={storeBranding || {}}
           onBrandingChange={(key, val) => {
             if (storeBranding) storeBranding[key] = val;
+            if (onBrandingChange) onBrandingChange(key, val);
           }}
           products={products}
           currentStoreId={currentStoreId}

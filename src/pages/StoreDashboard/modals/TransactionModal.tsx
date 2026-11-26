@@ -48,8 +48,8 @@ interface TransactionModalProps {
   setNewTransactionCurrency: (c: string) => void;
   newTransactionExchangeRate: string;
   setNewTransactionExchangeRate: (r: string) => void;
-  newTransactionPaymentMethod: 'cash' | 'credit_card' | 'bank' | 'term';
-  setNewTransactionPaymentMethod: (m: 'cash' | 'credit_card' | 'bank' | 'term') => void;
+  newTransactionPaymentMethod: 'cash' | 'credit_card' | 'bank' | 'term' | 'check_promissory';
+  setNewTransactionPaymentMethod: (m: 'cash' | 'credit_card' | 'bank' | 'term' | 'check_promissory') => void;
   newTransactionDescription: string;
   setNewTransactionDescription: (d: string) => void;
   newTransactionDate: string;
@@ -270,13 +270,30 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
   const [formAmount, setFormAmount] = React.useState<string>('');
   const [formCurrency, setFormCurrency] = React.useState<string>('TRY');
   const [formExchangeRate, setFormExchangeRate] = React.useState<string>('1');
-  const [formPaymentMethod, setFormPaymentMethod] = React.useState<'cash' | 'credit_card' | 'bank' | 'term'>('cash');
+  const [formPaymentMethod, setFormPaymentMethod] = React.useState<'cash' | 'credit_card' | 'bank' | 'term' | 'check_promissory'>('cash');
+  const [formFinancialAccounts, setFormFinancialAccounts] = React.useState<any[]>([]);
+  const [formFinancialAccountId, setFormFinancialAccountId] = React.useState<string>('');
+  const [formFinancialAccountName, setFormFinancialAccountName] = React.useState<string>('');
+  const [formCheckInstrumentType, setFormCheckInstrumentType] = React.useState<'check' | 'promissory_note'>('check');
+  const [formCheckNoteNo, setFormCheckNoteNo] = React.useState<string>('');
+  const [formCheckDueDate, setFormCheckDueDate] = React.useState<string>('');
+  const [formCheckBankName, setFormCheckBankName] = React.useState<string>('');
   const [formDocumentNo, setFormDocumentNo] = React.useState<string>('');
   const [formDescription, setFormDescription] = React.useState<string>('');
   const [formDate, setFormDate] = React.useState<string>(new Date().toISOString().split('T')[0]);
   // Cross-Currency (Çapraz Kur & Döviz Mahsup) state for TL transactions
   const [formTargetCurrency, setFormTargetCurrency] = React.useState<string>('');
   const [formCrossRate, setFormCrossRate] = React.useState<string>('');
+
+  React.useEffect(() => {
+    if (!showTransactionModal && !showAddTransactionModal) return;
+    const stId = selectedCompany?.store_id || branding?.id;
+    api.getFinancialAccounts(stId)
+      .then((res) => {
+        setFormFinancialAccounts(Array.isArray(res) ? res : []);
+      })
+      .catch(() => {});
+  }, [showTransactionModal, showAddTransactionModal, selectedCompany?.store_id, branding?.id]);
 
   // Clean Number Parser (supports Turkish 1.250,50 and 1,250.50 formats)
   const parseAmount = (val: string | number): number => {
@@ -308,6 +325,12 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
     setEditingTransaction(null);
     setFormTargetCurrency('');
     setFormCrossRate('');
+    setFormFinancialAccountId('');
+    setFormFinancialAccountName('');
+    setFormCheckInstrumentType('check');
+    setFormCheckNoteNo('');
+    setFormCheckDueDate('');
+    setFormCheckBankName('');
   };
 
   const handleOpenNewTransaction = () => {
@@ -321,6 +344,12 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
     setFormTargetCurrency('');
     setFormCrossRate(String(getSuggestedRate('USD') || 1));
     setFormPaymentMethod('cash');
+    setFormFinancialAccountId('');
+    setFormFinancialAccountName(`${defCurr} Nakit Kasa`);
+    setFormCheckInstrumentType('check');
+    setFormCheckNoteNo('');
+    setFormCheckDueDate('');
+    setFormCheckBankName('');
     setFormDocumentNo('');
     setFormDescription('');
     setFormDate(new Date().toISOString().split('T')[0]);
@@ -381,7 +410,14 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
 
     setFormDocumentNo(docNo);
     setFormDescription(desc);
-    setFormPaymentMethod(tx.payment_method || 'cash');
+    const txMethod = (tx.payment_method || 'cash') as any;
+    setFormPaymentMethod(txMethod);
+    setFormFinancialAccountId(tx.financial_account_id ? String(tx.financial_account_id) : '');
+    setFormFinancialAccountName(tx.financial_account_name || '');
+    setFormCheckInstrumentType(tx.check_instrument_type === 'promissory_note' ? 'promissory_note' : 'check');
+    setFormCheckNoteNo(tx.check_note_no || docNo || '');
+    setFormCheckDueDate(tx.check_due_date ? String(tx.check_due_date).split('T')[0] : '');
+    setFormCheckBankName(tx.check_bank_name || '');
     
     let dStr = new Date().toISOString().split('T')[0];
     if (tx.transaction_date) {
@@ -445,6 +481,10 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
 
     // Do not force change user's active currency tab; multi-currency resolution reflects across all tabs
 
+    const effectiveVaultCurrency = (formCurrency === 'TRY' && formTargetCurrency && formTargetCurrency !== 'NONE' && formTargetCurrency !== 'TRY')
+      ? 'TRY'
+      : finalCurrency;
+
     const txPayload = {
       company_id: formCompanyId,
       type: formType,
@@ -456,7 +496,17 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
       transaction_date: formDate,
       cross_currency: crossCurrency,
       cross_rate: crossRate,
-      cross_amount: crossAmount
+      cross_amount: crossAmount,
+      financial_account_id: (formPaymentMethod === 'cash' || formPaymentMethod === 'bank' || formPaymentMethod === 'credit_card') && formFinancialAccountId
+        ? Number(formFinancialAccountId)
+        : null,
+      financial_account_name: (formPaymentMethod === 'cash' || formPaymentMethod === 'bank' || formPaymentMethod === 'credit_card')
+        ? (formFinancialAccountName || (formPaymentMethod === 'cash' ? `${effectiveVaultCurrency} Nakit Kasa` : null))
+        : null,
+      check_instrument_type: formPaymentMethod === 'check_promissory' ? formCheckInstrumentType : null,
+      check_note_no: formPaymentMethod === 'check_promissory' ? (formCheckNoteNo.trim() || formDocumentNo.trim() || null) : null,
+      check_due_date: formPaymentMethod === 'check_promissory' ? (formCheckDueDate || formDate || null) : null,
+      check_bank_name: formPaymentMethod === 'check_promissory' ? (formCheckBankName.trim() || null) : null
     };
 
     if (editingTransaction) {
@@ -1448,6 +1498,13 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                                                     : (isTr ? 'TL Çapraz Kur' : 'Cross TRY')}
                                                 </span>
                                               ) : null}
+                                              {(tx.financial_account_name || tx.payment_method === 'check_promissory') && (
+                                                <span className="text-[9px] font-medium text-indigo-700 bg-indigo-50 border border-indigo-100 px-1 py-0.2 rounded w-fit max-w-full truncate">
+                                                  {tx.payment_method === 'check_promissory'
+                                                    ? `${tx.check_instrument_type === 'promissory_note' ? 'Senet' : 'Çek'}${tx.check_note_no ? ` #${tx.check_note_no}` : ''}`
+                                                    : tx.financial_account_name}
+                                                </span>
+                                              )}
                                             </div>
                                           </td>
                                           <td className="py-2 px-3 whitespace-nowrap">
@@ -1911,13 +1968,24 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                   </label>
                   <select
                     value={formPaymentMethod}
-                    onChange={(e) => setFormPaymentMethod(e.target.value as any)}
+                    onChange={(e) => {
+                      const val = e.target.value as any;
+                      setFormPaymentMethod(val);
+                      if (val === 'cash') {
+                        setFormFinancialAccountId('');
+                        setFormFinancialAccountName(`${formCurrency} Nakit Kasa`);
+                      } else {
+                        setFormFinancialAccountId('');
+                        setFormFinancialAccountName('');
+                      }
+                    }}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white text-xs font-medium text-slate-800 cursor-pointer"
                   >
                     <option value="cash">{t.cash || (isTr ? 'Nakit Kasa (Elden)' : 'Cash')}</option>
                     <option value="bank">{t.bank || (isTr ? 'Banka Transferi (Havale/EFT/FAST)' : 'Bank Transfer')}</option>
                     <option value="credit_card">{t.credit_card || (isTr ? 'Kredi Kartı / POS Çekimi' : 'Credit Card / POS')}</option>
-                    <option value="term">{t.term || (isTr ? 'Vadeli / Açık Hesap / Çek' : 'Term / Open Account')}</option>
+                    <option value="check_promissory">{isTr ? 'Çek / Senet (Kambiyo)' : 'Check / Promissory Note'}</option>
+                    <option value="term">{t.term || (isTr ? 'Vadeli / Açık Hesap' : 'Term / Open Account')}</option>
                   </select>
                 </div>
 
@@ -1935,6 +2003,99 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                   />
                 </div>
               </div>
+
+              {(formPaymentMethod === 'cash' || formPaymentMethod === 'bank' || formPaymentMethod === 'credit_card') && (
+                <div className="bg-indigo-50/70 border border-indigo-200 rounded-xl p-2.5 space-y-1">
+                  <label className="text-[10px] font-semibold text-indigo-800 uppercase tracking-tight flex items-center gap-1">
+                    <Landmark className="h-3 w-3 text-indigo-600" />
+                    <span>
+                      {formPaymentMethod === 'cash'
+                        ? (isTr ? 'Kasa Seçimi (Döviz Kasası / Özel Kasa)' : 'Cash Vault')
+                        : formPaymentMethod === 'bank'
+                          ? (isTr ? 'Banka Hesabı Seçimi' : 'Bank Account')
+                          : (isTr ? 'Kredi Kartı / POS Hesabı' : 'Credit Card Account')}
+                    </span>
+                  </label>
+                  <select
+                    value={formFinancialAccountId}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormFinancialAccountId(val);
+                      if (!val) {
+                        setFormFinancialAccountName(formPaymentMethod === 'cash' ? `${formCurrency} Nakit Kasa` : '');
+                      } else {
+                        const acc = formFinancialAccounts.find((a: any) => String(a.id) === val);
+                        if (acc) setFormFinancialAccountName(acc.account_name);
+                      }
+                    }}
+                    className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-lg text-xs font-semibold text-slate-800 cursor-pointer"
+                  >
+                    {formPaymentMethod === 'cash' ? (
+                      <option value="">{formCurrency} Nakit Kasa ({isTr ? 'Standart Döviz Kasası' : 'Default Cash Vault'})</option>
+                    ) : (
+                      <option value="">{isTr ? '— Genel Banka / POS Hesabı —' : '— General Account —'}</option>
+                    )}
+                    {formFinancialAccounts
+                      .filter((a: any) =>
+                        formPaymentMethod === 'cash'
+                          ? a.account_type === 'cash'
+                          : formPaymentMethod === 'bank'
+                            ? a.account_type === 'bank'
+                            : a.account_type === 'credit_card'
+                      )
+                      .map((acc: any) => (
+                        <option key={acc.id} value={acc.id}>
+                          {acc.account_name} {acc.bank_name ? `(${acc.bank_name})` : ''} — {acc.currency}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              )}
+
+              {formPaymentMethod === 'check_promissory' && (
+                <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-2.5 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div>
+                    <label className="text-[10px] font-semibold text-amber-800 uppercase block mb-0.5">{isTr ? 'Evrak Türü' : 'Type'}</label>
+                    <select
+                      value={formCheckInstrumentType}
+                      onChange={(e) => setFormCheckInstrumentType(e.target.value as 'check' | 'promissory_note')}
+                      className="w-full px-2 py-1.5 bg-white border border-amber-200 rounded-lg text-xs font-medium text-slate-800"
+                    >
+                      <option value="check">{formType === 'credit' ? (isTr ? 'Alınan Çek' : 'Received Check') : (isTr ? 'Verilen Çek' : 'Issued Check')}</option>
+                      <option value="promissory_note">{formType === 'credit' ? (isTr ? 'Alacak Senedi' : 'Receivable Note') : (isTr ? 'Borç Senedi' : 'Payable Note')}</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-amber-800 uppercase block mb-0.5">{isTr ? 'Çek/Senet No' : 'Doc No'}</label>
+                    <input
+                      type="text"
+                      value={formCheckNoteNo}
+                      onChange={(e) => setFormCheckNoteNo(e.target.value)}
+                      placeholder={isTr ? 'Örn: CK-1001' : 'No'}
+                      className="w-full px-2 py-1.5 bg-white border border-amber-200 rounded-lg text-xs font-medium text-slate-800"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-amber-800 uppercase block mb-0.5">{isTr ? 'Vade Tarihi' : 'Due Date'}</label>
+                    <input
+                      type="date"
+                      value={formCheckDueDate}
+                      onChange={(e) => setFormCheckDueDate(e.target.value)}
+                      className="w-full px-2 py-1.5 bg-white border border-amber-200 rounded-lg text-xs font-medium text-slate-800"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-amber-800 uppercase block mb-0.5">{isTr ? 'Banka / Şube' : 'Bank'}</label>
+                    <input
+                      type="text"
+                      value={formCheckBankName}
+                      onChange={(e) => setFormCheckBankName(e.target.value)}
+                      placeholder={isTr ? 'Banka Adı' : 'Bank'}
+                      className="w-full px-2 py-1.5 bg-white border border-amber-200 rounded-lg text-xs font-medium text-slate-800"
+                    />
+                  </div>
+                </div>
+              )}
 
               {/* Date */}
               <div className="space-y-1">

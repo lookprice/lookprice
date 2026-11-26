@@ -1097,6 +1097,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
         setMarketplaceModalTab={setMarketplaceModalTab}
         marketplaceModalStatus={marketplaceModalStatus}
         branding={branding}
+        setBranding={setBranding}
         currentStoreId={currentStoreId}
         onRefresh={onRefresh}
         onEdit={onEdit}

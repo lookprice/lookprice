@@ -28,7 +28,12 @@ import {
   PieChart as PieIcon,
   Layers,
   ArrowRight,
-  FileText
+  FileText,
+  Clock,
+  CheckCircle2,
+  AlertTriangle,
+  RefreshCw,
+  Banknote
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { useLanguage } from "../../contexts/LanguageContext";
@@ -63,7 +68,7 @@ export interface FinancialAccount {
 }
 
 type DatePreset = "all" | "today" | "this_week" | "this_month" | "last_month" | "this_year" | "custom";
-type ViewTabMode = "statement" | "portfolio_profit";
+type ViewTabMode = "statement" | "checks_notes" | "portfolio_profit";
 
 const SUPPORTED_CURRENCIES = ["GBP", "EUR", "USD", "TRY"] as const;
 
@@ -236,13 +241,82 @@ export default function PortfolioFinancesTab({
   // Account modal states
   const [editingAccount, setEditingAccount] = useState<FinancialAccount | null>(null);
   const [accountFormData, setAccountFormData] = useState({
-    account_type: "bank" as "bank" | "credit_card" | "check",
+    account_type: "bank" as "bank" | "credit_card" | "check" | "cash",
     account_name: "",
     bank_name: "",
     account_number: "",
     currency: "TRY",
     initial_balance: "0"
   });
+
+  // Account / Cash Vault Statement ("Ekstre") Modal States
+  const [statementModalOpen, setStatementModalOpen] = useState(false);
+  const [statementTarget, setStatementTarget] = useState<{ accountId?: number; cashCurrency?: string; label: string } | null>(null);
+  const [statementStartDate, setStatementStartDate] = useState<string>("");
+  const [statementEndDate, setStatementEndDate] = useState<string>("");
+  const [statementLoading, setStatementLoading] = useState(false);
+  const [statementData, setStatementData] = useState<any | null>(null);
+
+  // Checks & Promissory Notes ("Çek & Senetler") States
+  const [checksNotes, setChecksNotes] = useState<any[]>([]);
+  const [loadingChecks, setLoadingChecks] = useState(false);
+  const [companiesList, setCompaniesList] = useState<any[]>([]);
+  const [checkDirectionFilter, setCheckDirectionFilter] = useState<"all" | "received" | "issued">("all");
+  const [checkStatusFilter, setCheckStatusFilter] = useState<string>("all");
+  const [checkInstrumentFilter, setCheckInstrumentFilter] = useState<"all" | "check" | "promissory_note">("all");
+  const [checkStartDate, setCheckStartDate] = useState<string>("");
+  const [checkEndDate, setCheckEndDate] = useState<string>("");
+  const [checkSearchQuery, setCheckSearchQuery] = useState<string>("");
+  const [showCheckModal, setShowCheckModal] = useState(false);
+  const [editingCheck, setEditingCheck] = useState<any | null>(null);
+  const [confirmDeleteCheckId, setConfirmDeleteCheckId] = useState<number | null>(null);
+  const [checkFormData, setCheckFormData] = useState({
+    direction: "received" as "received" | "issued",
+    instrument_type: "check" as "check" | "promissory_note",
+    document_no: "",
+    company_id: "",
+    contact_name: "",
+    bank_name: "",
+    branch_name: "",
+    drawer_name: "",
+    issue_date: new Date().toISOString().split("T")[0],
+    due_date: new Date().toISOString().split("T")[0],
+    amount: "",
+    currency: defaultSectorCurrency,
+    exchange_rate: "1",
+    status: "portfolio",
+    collection_account_id: "",
+    collection_account_name: "",
+    notes: ""
+  });
+  const [settlingCheck, setSettlingCheck] = useState<any | null>(null);
+  const [settleAccountId, setSettleAccountId] = useState<string>("");
+  const [settleAccountName, setSettleAccountName] = useState<string>("");
+  const [settleDate, setSettleDate] = useState<string>(new Date().toISOString().split("T")[0]);
+  const [settleNotes, setSettleNotes] = useState<string>("");
+  const [settlingSubmitting, setSettlingSubmitting] = useState(false);
+
+  const fetchChecksNotes = useCallback(async () => {
+    if (!storeId) return;
+    setLoadingChecks(true);
+    try {
+      const res = await api.getChecksNotes({}, storeId);
+      setChecksNotes(Array.isArray(res) ? res : []);
+    } catch (err) {
+      console.error("Error fetching checks/notes:", err);
+    } finally {
+      setLoadingChecks(false);
+    }
+  }, [storeId]);
+
+  useEffect(() => {
+    fetchChecksNotes();
+    if (storeId) {
+      api.getCompanies(true, storeId)
+        .then(res => setCompaniesList(Array.isArray(res) ? res : []))
+        .catch(() => {});
+    }
+  }, [fetchChecksNotes, storeId]);
 
   // Filter States
   const [datePreset, setDatePreset] = useState<DatePreset>("all");
@@ -925,7 +999,7 @@ export default function PortfolioFinancesTab({
     };
   }, [properties, vehicles, transactions, activeAutomotive, isTr, storeDefaultCurrency, convertPortfolioCurrency]);
 
-  // Compute Chronological Running Balances & Date-Range Statement Data per Currency
+  // Compute Chronological Running Balances & Date-Range Statement Data per Currency & Account
   const statementAnalysis = useMemo(() => {
     const startTs = startDate ? new Date(`${startDate}T00:00:00`).getTime() : null;
     const endTs = endDate ? new Date(`${endDate}T23:59:59.999`).getTime() : null;
@@ -937,6 +1011,10 @@ export default function PortfolioFinancesTab({
       if (da !== db) return da - db;
       return (a.id || 0) - (b.id || 0);
     });
+
+    const cashAccountIds = new Set(
+      accounts.filter(a => a.account_type === "cash").map(a => String(a.id))
+    );
 
     const summaryByCurrency: Record<string, {
       openingBalance: number;
@@ -951,12 +1029,15 @@ export default function PortfolioFinancesTab({
     }> = {};
 
     SUPPORTED_CURRENCIES.forEach(cur => {
+      const cashInit = accounts
+        .filter(a => a.account_type === "cash" && (a.currency || "TRY").toUpperCase() === cur)
+        .reduce((s, a) => s + Number(a.initial_balance || 0), 0);
       summaryByCurrency[cur] = {
-        openingBalance: 0,
+        openingBalance: cashInit,
         periodIncome: 0,
         periodExpense: 0,
         periodNet: 0,
-        closingBalance: 0,
+        closingBalance: cashInit,
         allTimeIncome: 0,
         allTimeExpense: 0,
         allTimeNet: 0,
@@ -964,7 +1045,7 @@ export default function PortfolioFinancesTab({
       };
     });
 
-    // Account specific running balances
+    // Account specific running balances (including pre-startDate prior transactions)
     const summaryByAccount: Record<string, {
       account_id?: number | null;
       account_name: string;
@@ -977,11 +1058,27 @@ export default function PortfolioFinancesTab({
       txCount: number;
     }> = {};
 
+    accounts.forEach(acc => {
+      const accKey = String(acc.id);
+      const initBal = Number(acc.initial_balance || 0);
+      summaryByAccount[accKey] = {
+        account_id: acc.id,
+        account_name: acc.account_name,
+        account_type: acc.account_type,
+        currency: acc.currency,
+        openingBalance: initBal,
+        periodIncome: 0,
+        periodExpense: 0,
+        closingBalance: initBal,
+        txCount: 0
+      };
+    });
+
     const runningTracker: Record<string, number> = { GBP: 0, EUR: 0, USD: 0, TRY: 0 };
     const enrichedWithRunning: Array<PortfolioTransaction & { runningBalance: number }> = [];
 
     for (const tx of chronological) {
-      const cur = tx.currency || "GBP";
+      const cur = (tx.currency || "GBP").toUpperCase();
       if (!summaryByCurrency[cur]) {
         summaryByCurrency[cur] = {
           openingBalance: 0,
@@ -1000,28 +1097,42 @@ export default function PortfolioFinancesTab({
       const amt = Number(tx.amount) || 0;
       const delta = tx.type === "income" ? amt : -amt;
       const txTime = tx.date ? new Date(tx.date).getTime() : 0;
-
-      if (tx.type === "income") {
-        summaryByCurrency[cur].allTimeIncome += amt;
-      } else {
-        summaryByCurrency[cur].allTimeExpense += amt;
-      }
-      summaryByCurrency[cur].allTimeNet = summaryByCurrency[cur].allTimeIncome - summaryByCurrency[cur].allTimeExpense;
-
       const isBeforeStart = startTs !== null && txTime < startTs;
       const isAfterEnd = endTs !== null && txTime > endTs;
 
+      const accKey = tx.account_id ? String(tx.account_id) : "";
+      const isCashVaultTx =
+        (!tx.account_id && (!tx.payment_method || tx.payment_method === "cash")) ||
+        (accKey !== "" && cashAccountIds.has(accKey));
+
+      if (isCashVaultTx) {
+        if (tx.type === "income") summaryByCurrency[cur].allTimeIncome += amt;
+        else summaryByCurrency[cur].allTimeExpense += amt;
+        summaryByCurrency[cur].allTimeNet = summaryByCurrency[cur].allTimeIncome - summaryByCurrency[cur].allTimeExpense;
+
+        if (isBeforeStart) {
+          summaryByCurrency[cur].openingBalance += delta;
+        } else if (!isAfterEnd) {
+          if (tx.type === "income") summaryByCurrency[cur].periodIncome += amt;
+          else summaryByCurrency[cur].periodExpense += amt;
+          summaryByCurrency[cur].txCount += 1;
+        }
+      }
+
+      if (accKey && summaryByAccount[accKey]) {
+        if (isBeforeStart) {
+          summaryByAccount[accKey].openingBalance += delta;
+        } else if (!isAfterEnd) {
+          if (tx.type === "income") summaryByAccount[accKey].periodIncome += amt;
+          else summaryByAccount[accKey].periodExpense += amt;
+          summaryByAccount[accKey].txCount += 1;
+        }
+      }
+
       if (isBeforeStart) {
-        summaryByCurrency[cur].openingBalance += delta;
         runningTracker[cur] += delta;
       } else if (!isAfterEnd) {
         runningTracker[cur] += delta;
-        if (tx.type === "income") {
-          summaryByCurrency[cur].periodIncome += amt;
-        } else {
-          summaryByCurrency[cur].periodExpense += amt;
-        }
-        summaryByCurrency[cur].txCount += 1;
         enrichedWithRunning.push({
           ...tx,
           runningBalance: runningTracker[cur]
@@ -1035,24 +1146,9 @@ export default function PortfolioFinancesTab({
       s.closingBalance = s.openingBalance + s.periodNet;
     });
 
-    accounts.forEach(acc => {
-      const accKey = String(acc.id);
-      const accTxs = enrichedWithRunning.filter(t => String(t.account_id) === accKey);
-      const periodInc = accTxs.filter(t => t.type === "income").reduce((s, t) => s + Number(t.amount || 0), 0);
-      const periodExp = accTxs.filter(t => t.type === "expense").reduce((s, t) => s + Number(t.amount || 0), 0);
-      const initBal = Number(acc.initial_balance || 0);
-
-      summaryByAccount[accKey] = {
-        account_id: acc.id,
-        account_name: acc.account_name,
-        account_type: acc.account_type,
-        currency: acc.currency,
-        openingBalance: initBal,
-        periodIncome: periodInc,
-        periodExpense: periodExp,
-        closingBalance: initBal + (periodInc - periodExp),
-        txCount: accTxs.length
-      };
+    Object.keys(summaryByAccount).forEach(accKey => {
+      const s = summaryByAccount[accKey];
+      s.closingBalance = s.openingBalance + (s.periodIncome - s.periodExpense);
     });
 
     const periodTransactionsDesc = [...enrichedWithRunning].reverse();
@@ -1275,6 +1371,475 @@ export default function PortfolioFinancesTab({
     return map;
   }, [filteredTransactions]);
 
+  // Account / Cash Vault Statement Helpers
+  const loadAccountStatement = useCallback(async (
+    target: { accountId?: number; cashCurrency?: string; label: string },
+    sDate?: string,
+    eDate?: string
+  ) => {
+    setStatementLoading(true);
+    try {
+      const data = await api.getFinancialAccountStatement(
+        {
+          accountId: target.accountId,
+          cashCurrency: target.cashCurrency,
+          startDate: sDate || undefined,
+          endDate: eDate || undefined
+        },
+        storeId
+      );
+      setStatementData(data);
+    } catch (err: any) {
+      toast.error(err?.message || (isTr ? "Hesap ekstresi yüklenemedi." : "Failed to load account statement."));
+    } finally {
+      setStatementLoading(false);
+    }
+  }, [storeId, isTr]);
+
+  const handleOpenAccountStatement = (target: { accountId?: number; cashCurrency?: string; label: string }) => {
+    setStatementTarget(target);
+    setStatementStartDate(startDate || "");
+    setStatementEndDate(endDate || "");
+    setStatementData(null);
+    setStatementModalOpen(true);
+    loadAccountStatement(target, startDate || "", endDate || "");
+  };
+
+  const handleExportAccountStatementExcel = () => {
+    if (!statementData || !statementTarget) return;
+    try {
+      const wb = XLSX.utils.book_new();
+      const cur = statementData.account?.currency || "TRY";
+      const summaryRows = [{
+        [isTr ? "Hesap / Kasa" : "Account"]: statementData.account?.account_name || statementTarget.label,
+        [isTr ? "Para Birimi" : "Currency"]: cur,
+        [isTr ? "Dönem" : "Period"]: (statementStartDate || statementEndDate) ? `${statementStartDate || "-"} / ${statementEndDate || "-"}` : (isTr ? "Tüm Zamanlar" : "All Time"),
+        [isTr ? "Devir Bakiye" : "Opening"]: Number(statementData.openingBalance || 0),
+        [isTr ? "Dönem Giriş (+)" : "Inflows (+)"]: Number(statementData.periodIncome || 0),
+        [isTr ? "Dönem Çıkış (-)" : "Outflows (-)"]: Number(statementData.periodExpense || 0),
+        [isTr ? "Kapanış Bakiye" : "Closing"]: Number(statementData.closingBalance || 0)
+      }];
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), isTr ? "Özet" : "Summary");
+
+      const txRows = (statementData.transactions || []).map((tx: any, idx: number) => ({
+        "#": idx + 1,
+        [isTr ? "Tarih" : "Date"]: tx.date ? new Date(tx.date).toLocaleDateString("tr-TR") : "-",
+        [isTr ? "İşlem" : "Title"]: tx.title || "",
+        [isTr ? "İlgili Kişi / Cari" : "Contact"]: tx.contact_name || "-",
+        [isTr ? "Belge No" : "Ref"]: tx.reference_no || "-",
+        [isTr ? "Yöntem" : "Method"]: getPaymentMethodLabel(tx.payment_method),
+        [isTr ? "Giriş (+)" : "Credit (+)"]: tx.type === "income" ? Number(tx.amount || 0) : 0,
+        [isTr ? "Çıkış (-)" : "Debit (-)"]: tx.type === "expense" ? Number(tx.amount || 0) : 0,
+        [isTr ? "Yürüyen Bakiye" : "Balance"]: Number(tx.running_balance || 0),
+        [isTr ? "Açıklama" : "Notes"]: tx.description || ""
+      }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(txRows), isTr ? "Hareketler" : "Movements");
+      const safeName = (statementData.account?.account_name || statementTarget.label).replace(/[^a-zA-Z0-9_-]/g, "_");
+      XLSX.writeFile(wb, `Ekstre_${safeName}_${new Date().toISOString().split("T")[0]}.xlsx`);
+      toast.success(isTr ? "Hesap ekstresi Excel olarak indirildi." : "Statement exported.");
+    } catch {
+      toast.error(isTr ? "Excel oluşturulamadı." : "Excel export failed.");
+    }
+  };
+
+  const handlePrintAccountStatement = () => {
+    if (!statementData || !statementTarget) return;
+    const acc = statementData.account || {};
+    const cur = acc.currency || "TRY";
+    const periodStr = (statementStartDate || statementEndDate)
+      ? `${statementStartDate || "-"} - ${statementEndDate || "-"}`
+      : (isTr ? "Tüm Zamanlar" : "All Time");
+    const rows = statementData.transactions || [];
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>${escapeHtmlStr(acc.account_name || statementTarget.label)} - Ekstre</title>
+        <style>
+          @page { size: A4 portrait; margin: 10mm; }
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 10px; color: #0f172a; margin: 0; }
+          .head { border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: flex-end; }
+          .title { font-size: 14px; font-weight: 700; }
+          .meta { font-size: 9px; color: #475569; margin-top: 2px; }
+          .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; }
+          .kpi { border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 8px; background: #f8fafc; }
+          .kpi-lbl { font-size: 8px; text-transform: uppercase; color: #64748b; }
+          .kpi-val { font-size: 12px; font-weight: 700; margin-top: 2px; }
+          table { width: 100%; border-collapse: collapse; }
+          th { background: #f1f5f9; border-bottom: 1px solid #cbd5e1; padding: 5px 6px; text-align: left; font-size: 9px; }
+          td { border-bottom: 1px solid #f1f5f9; padding: 4px 6px; font-size: 9px; }
+          .right { text-align: right; }
+          .inc { color: #059669; font-weight: 600; }
+          .exp { color: #dc2626; font-weight: 600; }
+          .bal { font-weight: 700; }
+        </style>
+      </head>
+      <body>
+        <div class="head">
+          <div>
+            <div class="title">${escapeHtmlStr(acc.account_name || statementTarget.label)} (${escapeHtmlStr(cur)})</div>
+            <div class="meta">${acc.bank_name ? `${escapeHtmlStr(acc.bank_name)} • ` : ""}${acc.account_number ? `${escapeHtmlStr(acc.account_number)} • ` : ""}Dönem: ${escapeHtmlStr(periodStr)}</div>
+          </div>
+          <div class="meta right">Tarih: ${escapeHtmlStr(new Date().toLocaleDateString("tr-TR"))}</div>
+        </div>
+        <div class="kpis">
+          <div class="kpi"><div class="kpi-lbl">Devir Bakiye</div><div class="kpi-val">${statementData.openingBalance < 0 ? "-" : ""}${escapeHtmlStr(formatMoney(statementData.openingBalance, cur))}</div></div>
+          <div class="kpi"><div class="kpi-lbl">Dönem Giriş (+)</div><div class="kpi-val inc">+${escapeHtmlStr(formatMoney(statementData.periodIncome, cur))}</div></div>
+          <div class="kpi"><div class="kpi-lbl">Dönem Çıkış (-)</div><div class="kpi-val exp">-${escapeHtmlStr(formatMoney(statementData.periodExpense, cur))}</div></div>
+          <div class="kpi"><div class="kpi-lbl">Kapanış Bakiye</div><div class="kpi-val">${statementData.closingBalance < 0 ? "-" : ""}${escapeHtmlStr(formatMoney(statementData.closingBalance, cur))}</div></div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Tarih</th>
+              <th>İşlem / Açıklama</th>
+              <th>İlgili / Belge</th>
+              <th class="right">Giriş (+)</th>
+              <th class="right">Çıkış (-)</th>
+              <th class="right">Bakiye</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map((tx: any) => `
+              <tr>
+                <td>${tx.date ? escapeHtmlStr(new Date(tx.date).toLocaleDateString("tr-TR")) : "-"}</td>
+                <td>${escapeHtmlStr(tx.title || "")}${tx.description ? `<br/><span style="color:#64748b;font-size:8px;">${escapeHtmlStr(tx.description)}</span>` : ""}</td>
+                <td>${escapeHtmlStr(tx.contact_name || "-")} ${tx.reference_no ? `(${escapeHtmlStr(tx.reference_no)})` : ""}</td>
+                <td class="right inc">${tx.type === "income" ? `+${escapeHtmlStr(formatMoney(tx.amount, cur))}` : "-"}</td>
+                <td class="right exp">${tx.type === "expense" ? `-${escapeHtmlStr(formatMoney(tx.amount, cur))}` : "-"}</td>
+                <td class="right bal">${tx.running_balance < 0 ? "-" : ""}${escapeHtmlStr(formatMoney(tx.running_balance, cur))}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `;
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    document.body.appendChild(iframe);
+    const doc = iframe.contentWindow?.document;
+    if (doc) {
+      doc.open();
+      doc.write(html);
+      doc.close();
+      setTimeout(() => {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+        setTimeout(() => document.body.removeChild(iframe), 2000);
+      }, 250);
+    }
+  };
+
+  // Checks & Promissory Notes Computed Filters & KPIs
+  const filteredChecksNotes = useMemo(() => {
+    const q = checkSearchQuery.toLowerCase().trim();
+    const sTs = checkStartDate ? new Date(`${checkStartDate}T00:00:00`).getTime() : null;
+    const eTs = checkEndDate ? new Date(`${checkEndDate}T23:59:59`).getTime() : null;
+    return checksNotes.filter((cn: any) => {
+      if (checkDirectionFilter !== "all" && cn.direction !== checkDirectionFilter) return false;
+      if (checkStatusFilter !== "all" && cn.status !== checkStatusFilter) return false;
+      if (checkInstrumentFilter !== "all" && cn.instrument_type !== checkInstrumentFilter) return false;
+      if (sTs || eTs) {
+        const dueTs = cn.due_date ? new Date(cn.due_date).getTime() : 0;
+        if (sTs && dueTs < sTs) return false;
+        if (eTs && dueTs > eTs) return false;
+      }
+      if (q) {
+        const hay = `${cn.document_no || ""} ${cn.contact_name || ""} ${cn.company_title || ""} ${cn.bank_name || ""} ${cn.drawer_name || ""} ${cn.notes || ""}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [checksNotes, checkDirectionFilter, checkStatusFilter, checkInstrumentFilter, checkStartDate, checkEndDate, checkSearchQuery]);
+
+  const checksKpis = useMemo(() => {
+    const now = new Date();
+    const in7Days = new Date(now.getTime() + 7 * 86400000);
+    const portfolioReceivedByCur: Record<string, number> = {};
+    const portfolioIssuedByCur: Record<string, number> = {};
+    const settledByCur: Record<string, number> = {};
+    let portfolioCount = 0;
+    let upcomingDueCount = 0;
+
+    checksNotes.forEach((cn: any) => {
+      const cur = (cn.currency || "TRY").toUpperCase();
+      const amt = Number(cn.amount || 0);
+      if (cn.status === "portfolio") {
+        portfolioCount += 1;
+        if (cn.direction === "received") portfolioReceivedByCur[cur] = (portfolioReceivedByCur[cur] || 0) + amt;
+        else portfolioIssuedByCur[cur] = (portfolioIssuedByCur[cur] || 0) + amt;
+        if (cn.due_date) {
+          const dd = new Date(cn.due_date);
+          if (!isNaN(dd.getTime()) && dd <= in7Days) upcomingDueCount += 1;
+        }
+      } else if (cn.status === "collected" || cn.status === "paid") {
+        settledByCur[cur] = (settledByCur[cur] || 0) + amt;
+      }
+    });
+
+    const formatCurMap = (m: Record<string, number>) => {
+      const entries = Object.entries(m).filter(([, v]) => v > 0);
+      if (entries.length === 0) return formatMoney(0, storeDefaultCurrency || "TRY");
+      return entries.map(([c, v]) => formatMoney(v, c)).join(" • ");
+    };
+
+    return {
+      portfolioCount,
+      upcomingDueCount,
+      receivedLabel: formatCurMap(portfolioReceivedByCur),
+      issuedLabel: formatCurMap(portfolioIssuedByCur),
+      settledLabel: formatCurMap(settledByCur)
+    };
+  }, [checksNotes, storeDefaultCurrency]);
+
+  const handleOpenCreateCheck = () => {
+    setEditingCheck(null);
+    setCheckFormData({
+      direction: "received",
+      instrument_type: "check",
+      document_no: "",
+      company_id: "",
+      contact_name: "",
+      bank_name: "",
+      branch_name: "",
+      drawer_name: "",
+      issue_date: new Date().toISOString().split("T")[0],
+      due_date: new Date().toISOString().split("T")[0],
+      amount: "",
+      currency: storeDefaultCurrency || defaultSectorCurrency,
+      exchange_rate: "1",
+      status: "portfolio",
+      collection_account_id: "",
+      collection_account_name: "",
+      notes: ""
+    });
+    setShowCheckModal(true);
+  };
+
+  const handleOpenEditCheck = (cn: any) => {
+    setEditingCheck(cn);
+    setCheckFormData({
+      direction: cn.direction === "issued" ? "issued" : "received",
+      instrument_type: cn.instrument_type === "promissory_note" ? "promissory_note" : "check",
+      document_no: cn.document_no || "",
+      company_id: cn.company_id ? String(cn.company_id) : "",
+      contact_name: cn.contact_name || "",
+      bank_name: cn.bank_name || "",
+      branch_name: cn.branch_name || "",
+      drawer_name: cn.drawer_name || "",
+      issue_date: cn.issue_date ? String(cn.issue_date).split("T")[0] : new Date().toISOString().split("T")[0],
+      due_date: cn.due_date ? String(cn.due_date).split("T")[0] : new Date().toISOString().split("T")[0],
+      amount: String(cn.amount || ""),
+      currency: (cn.currency || "TRY").toUpperCase(),
+      exchange_rate: String(cn.exchange_rate || 1),
+      status: cn.status || "portfolio",
+      collection_account_id: cn.collection_account_id ? String(cn.collection_account_id) : "",
+      collection_account_name: cn.collection_account_name || "",
+      notes: cn.notes || ""
+    });
+    setShowCheckModal(true);
+  };
+
+  const handleSaveCheck = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amt = Number(String(checkFormData.amount).replace(/,/g, "."));
+    if (!checkFormData.document_no.trim() || !amt || amt <= 0 || !checkFormData.due_date) {
+      toast.error(isTr ? "Evrak numarası, geçerli tutar ve vade tarihi zorunludur." : "Document no, positive amount and due date are required.");
+      return;
+    }
+    const payload = {
+      ...checkFormData,
+      amount: amt,
+      company_id: checkFormData.company_id ? Number(checkFormData.company_id) : null,
+      exchange_rate: Number(String(checkFormData.exchange_rate).replace(/,/g, ".")) || 1,
+      collection_account_id: checkFormData.collection_account_id ? Number(checkFormData.collection_account_id) : null
+    };
+    try {
+      if (editingCheck) {
+        await api.updateCheckNote(editingCheck.id, payload, storeId);
+        toast.success(isTr ? "Çek / Senet kaydı güncellendi." : "Check/Note updated.");
+      } else {
+        await api.addCheckNote(payload, storeId);
+        toast.success(isTr ? "Çek / Senet portföye kaydedildi." : "Check/Note recorded.");
+      }
+      setShowCheckModal(false);
+      setEditingCheck(null);
+      await Promise.all([fetchChecksNotes(), fetchTransactions()]);
+    } catch (err: any) {
+      toast.error(err?.message || (isTr ? "Çek / Senet kaydedilemedi." : "Failed to save check/note."));
+    }
+  };
+
+  const handleSettleCheckSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!settlingCheck) return;
+    setSettlingSubmitting(true);
+    try {
+      const targetStatus = settlingCheck.direction === "received" ? "collected" : "paid";
+      const cur = (settlingCheck.currency || "TRY").toUpperCase();
+      await api.updateCheckNoteStatus(
+        settlingCheck.id,
+        {
+          status: targetStatus,
+          collection_account_id: settleAccountId ? Number(settleAccountId) : null,
+          collection_account_name: settleAccountId ? settleAccountName : `${cur} Nakit Kasa`,
+          collected_at: settleDate,
+          notes: settleNotes
+        },
+        storeId
+      );
+      toast.success(
+        settlingCheck.direction === "received"
+          ? (isTr ? "Çek / Senet tahsil edildi ve kasaya/bankaya işlendi." : "Collected and synced to treasury.")
+          : (isTr ? "Çek / Senet ödendi ve kasadan/bankadan düşüldü." : "Paid and synced to treasury.")
+      );
+      setSettlingCheck(null);
+      await Promise.all([fetchChecksNotes(), fetchTransactions()]);
+    } catch (err: any) {
+      toast.error(err?.message || (isTr ? "Tahsil / Ödeme işlemi başarısız." : "Settlement failed."));
+    } finally {
+      setSettlingSubmitting(false);
+    }
+  };
+
+  const handleDeleteCheck = async (id: number) => {
+    try {
+      await api.deleteCheckNote(id, storeId);
+      setConfirmDeleteCheckId(null);
+      toast.success(isTr ? "Çek / Senet silindi ve bağlı kasa hareketi temizlendi." : "Deleted check/note.");
+      await Promise.all([fetchChecksNotes(), fetchTransactions()]);
+    } catch (err: any) {
+      toast.error(err?.message || (isTr ? "Silme başarısız." : "Delete failed."));
+    }
+  };
+
+  const handleExportChecksExcel = () => {
+    if (filteredChecksNotes.length === 0) {
+      toast.error(isTr ? "Dışa aktarılacak çek/senet bulunamadı." : "No records to export.");
+      return;
+    }
+    try {
+      const wb = XLSX.utils.book_new();
+      const rows = filteredChecksNotes.map((cn: any, idx: number) => ({
+        "#": idx + 1,
+        [isTr ? "Vade Tarihi" : "Due Date"]: cn.due_date ? new Date(cn.due_date).toLocaleDateString("tr-TR") : "-",
+        [isTr ? "Düzenleme Tarihi" : "Issue Date"]: cn.issue_date ? new Date(cn.issue_date).toLocaleDateString("tr-TR") : "-",
+        [isTr ? "Evrak Türü" : "Type"]: cn.instrument_type === "promissory_note" ? (isTr ? "Senet" : "Note") : (isTr ? "Çek" : "Check"),
+        [isTr ? "Yön" : "Direction"]: cn.direction === "received" ? (isTr ? "Alınan (Müşteri)" : "Received") : (isTr ? "Verilen (Borç)" : "Issued"),
+        [isTr ? "Evrak No" : "Doc No"]: cn.document_no || "",
+        [isTr ? "Cari / İlgili" : "Party"]: cn.company_title || cn.contact_name || "-",
+        [isTr ? "Banka / Keşideci" : "Bank / Drawer"]: [cn.bank_name, cn.drawer_name].filter(Boolean).join(" / ") || "-",
+        [isTr ? "Tutar" : "Amount"]: Number(cn.amount || 0),
+        [isTr ? "Para Birimi" : "Currency"]: cn.currency || "TRY",
+        [isTr ? "Durum" : "Status"]: cn.status,
+        [isTr ? "Tahsil/Ödeme Hesabı" : "Settlement Account"]: cn.collection_account_name || "-"
+      }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), isTr ? "Çek & Senet Ekstresi" : "Checks & Notes");
+      XLSX.writeFile(wb, `Cek_Senet_Portfoyu_${new Date().toISOString().split("T")[0]}.xlsx`);
+      toast.success(isTr ? "Çek / Senet Excel raporu indirildi." : "Excel exported.");
+    } catch {
+      toast.error(isTr ? "Excel oluşturulamadı." : "Export failed.");
+    }
+  };
+
+  const handlePrintChecks = () => {
+    if (filteredChecksNotes.length === 0) {
+      toast.error(isTr ? "Yazdırılacak çek/senet kaydı yok." : "No records to print.");
+      return;
+    }
+    const statusMap: Record<string, string> = {
+      portfolio: isTr ? "Portföyde" : "Portfolio",
+      collected: isTr ? "Tahsil Edildi" : "Collected",
+      paid: isTr ? "Ödendi" : "Paid",
+      endorsed: isTr ? "Ciro Edildi" : "Endorsed",
+      bounced: isTr ? "Karşılıksız" : "Bounced",
+      cancelled: isTr ? "İptal" : "Cancelled"
+    };
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>Kambiyo Senetleri ve Çek Portföyü</title>
+        <style>
+          @page { size: A4 landscape; margin: 10mm; }
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 10px; color: #0f172a; margin: 0; }
+          .head { border-bottom: 2px solid #0f172a; padding-bottom: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: flex-end; }
+          .title { font-size: 14px; font-weight: 700; }
+          .meta { font-size: 9px; color: #64748b; }
+          table { width: 100%; border-collapse: collapse; }
+          th { background: #f1f5f9; border-bottom: 1px solid #cbd5e1; padding: 5px 6px; text-align: left; font-size: 9px; }
+          td { border-bottom: 1px solid #f1f5f9; padding: 4px 6px; font-size: 9px; }
+          .right { text-align: right; }
+        </style>
+      </head>
+      <body>
+        <div class="head">
+          <div>
+            <div class="title">Kambiyo Senetleri & Çek Portföyü Ekstresi</div>
+            <div class="meta">Toplam Kayıt: ${filteredChecksNotes.length}</div>
+          </div>
+          <div class="meta right">Tarih: ${escapeHtmlStr(new Date().toLocaleDateString("tr-TR"))}</div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Vade Tarihi</th>
+              <th>Tür / Yön</th>
+              <th>Evrak No</th>
+              <th>İlgili Cari / Kişi</th>
+              <th>Banka / Keşideci</th>
+              <th class="right">Tutar</th>
+              <th>Durum</th>
+              <th>Hesap</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filteredChecksNotes.map((cn: any) => `
+              <tr>
+                <td>${cn.due_date ? escapeHtmlStr(new Date(cn.due_date).toLocaleDateString("tr-TR")) : "-"}</td>
+                <td>${cn.instrument_type === "promissory_note" ? "Senet" : "Çek"} • ${cn.direction === "received" ? "Alınan" : "Verilen"}</td>
+                <td>${escapeHtmlStr(cn.document_no || "-")}</td>
+                <td>${escapeHtmlStr(cn.company_title || cn.contact_name || "-")}</td>
+                <td>${escapeHtmlStr([cn.bank_name, cn.drawer_name].filter(Boolean).join(" / ") || "-")}</td>
+                <td class="right"><strong>${escapeHtmlStr(formatMoney(cn.amount, cn.currency))}</strong></td>
+                <td>${escapeHtmlStr(statusMap[cn.status] || cn.status)}</td>
+                <td>${escapeHtmlStr(cn.collection_account_name || "-")}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `;
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    document.body.appendChild(iframe);
+    const doc = iframe.contentWindow?.document;
+    if (doc) {
+      doc.open();
+      doc.write(html);
+      doc.close();
+      setTimeout(() => {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+        setTimeout(() => document.body.removeChild(iframe), 2000);
+      }, 250);
+    }
+  };
+
   // Filtered property list for the dedicated "Portföy Kâr/Zarar" View Tab
   const displayedPortfolioProfitList = useMemo(() => {
     const q = profitTabSearch.toLowerCase().trim();
@@ -1363,22 +1928,40 @@ export default function PortfolioFinancesTab({
             </div>
           </div>
 
-          {/* View Mode Switcher: Portföy sektörlerinde Genel Ekstre vs Portföy Kâr/Zarar */}
-          {isPortfolioSector && (
-            <div className="grid grid-cols-2 sm:inline-flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200/70 w-full sm:w-auto">
-              <button
-                type="button"
-                onClick={() => setViewTab("statement")}
-                className={`px-2 py-1 sm:py-0.5 rounded text-[11px] font-medium transition-colors flex items-center justify-center gap-1 cursor-pointer min-w-0 ${
-                  viewTab === "statement"
-                    ? "bg-white text-indigo-600 shadow-2xs font-semibold"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                <Layers className="w-3 h-3 shrink-0" />
-                <span className="truncate">{isTr ? "Kasa & Hesap Ekstresi" : "Ledger"}</span>
-              </button>
+          {/* View Mode Switcher: Genel Kasa Ekstresi, Çek & Senetler ve Portföy Kâr/Zarar */}
+          <div className="inline-flex flex-wrap items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200/70 w-full sm:w-auto">
+            <button
+              type="button"
+              onClick={() => setViewTab("statement")}
+              className={`px-2 py-1 sm:py-0.5 rounded text-[11px] font-medium transition-colors flex items-center justify-center gap-1 cursor-pointer min-w-0 ${
+                viewTab === "statement"
+                  ? "bg-white text-indigo-600 shadow-2xs font-semibold"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <Layers className="w-3 h-3 shrink-0" />
+              <span className="truncate">{isTr ? "Kasa & Hesap Ekstresi" : "Ledger"}</span>
+            </button>
 
+            <button
+              type="button"
+              onClick={() => setViewTab("checks_notes")}
+              className={`px-2 py-1 sm:py-0.5 rounded text-[11px] font-medium transition-colors flex items-center justify-center gap-1 cursor-pointer min-w-0 ${
+                viewTab === "checks_notes"
+                  ? "bg-white text-indigo-600 shadow-2xs font-semibold"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <FileCheck2 className="w-3 h-3 shrink-0" />
+              <span className="truncate">{isTr ? "Çek & Senetler" : "Checks & Notes"}</span>
+              {checksKpis.portfolioCount > 0 && (
+                <span className="px-1 py-0.2 rounded text-[10px] bg-amber-100 text-amber-800 shrink-0 font-semibold">
+                  {checksKpis.portfolioCount}
+                </span>
+              )}
+            </button>
+
+            {isPortfolioSector && (
               <button
                 type="button"
                 onClick={() => setViewTab("portfolio_profit")}
@@ -1396,8 +1979,8 @@ export default function PortfolioFinancesTab({
                   </span>
                 )}
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Action Buttons on Desktop */}
@@ -1595,9 +2178,30 @@ export default function PortfolioFinancesTab({
                           {isNetNegative ? "-" : ""}{sym}{Math.abs(data.closingBalance).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
 
-                        <div className="flex items-center justify-between text-[10px] text-slate-400 mt-1 pt-1 border-t border-slate-200/50">
-                          <span className="text-emerald-600">+{sym}{data.periodIncome.toLocaleString("tr-TR", { maximumFractionDigits: 0 })}</span>
-                          <span className="text-rose-500">-{sym}{data.periodExpense.toLocaleString("tr-TR", { maximumFractionDigits: 0 })}</span>
+                        <div className="flex items-center justify-between text-[10px] text-slate-400 mt-1 pt-1 border-t border-slate-200/50 gap-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className={isSelected ? "text-emerald-300" : "text-emerald-600"}>+{sym}{data.periodIncome.toLocaleString("tr-TR", { maximumFractionDigits: 0 })}</span>
+                            <span className={isSelected ? "text-rose-300" : "text-rose-500"}>-{sym}{data.periodExpense.toLocaleString("tr-TR", { maximumFractionDigits: 0 })}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenAccountStatement({
+                                cashCurrency: cur,
+                                label: `${cur} ${isTr ? "Nakit Kasa" : "Cash Vault"}`
+                              });
+                            }}
+                            className={`px-1.5 py-0.5 rounded text-[10px] font-semibold flex items-center gap-0.5 cursor-pointer transition-colors ${
+                              isSelected
+                                ? "bg-white/15 hover:bg-white/25 text-white"
+                                : "bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/70"
+                            }`}
+                            title={isTr ? `${cur} Nakit Kasa Ekstresini Gör / İndir` : "Open Statement"}
+                          >
+                            <FileText className="w-2.5 h-2.5" />
+                            <span>{isTr ? "Ekstre" : "Stmt"}</span>
+                          </button>
                         </div>
                       </div>
                     );
@@ -1670,15 +2274,36 @@ export default function PortfolioFinancesTab({
                             </div>
                           )}
 
-                          <div className="flex items-center justify-between mt-1 pt-1 border-t border-slate-200/50">
+                          <div className="flex items-center justify-between mt-1 pt-1 border-t border-slate-200/50 gap-1">
                             <span className={`text-xs font-semibold ${
                               isSelected ? "text-emerald-300" : "text-slate-800"
                             }`}>
                               {sym}{accSummary.closingBalance.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </span>
-                            <span className="text-[10px] text-slate-400">
-                              {accSummary.txCount} {isTr ? "kayıt" : "records"}
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <span className={`text-[10px] ${isSelected ? "text-slate-300" : "text-slate-400"}`}>
+                                {accSummary.txCount} {isTr ? "kayıt" : "records"}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenAccountStatement({
+                                    accountId: acc.id,
+                                    label: acc.account_name
+                                  });
+                                }}
+                                className={`px-1.5 py-0.5 rounded text-[10px] font-semibold flex items-center gap-0.5 cursor-pointer transition-colors ${
+                                  isSelected
+                                    ? "bg-white/15 hover:bg-white/25 text-white"
+                                    : "bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/70"
+                                }`}
+                                title={isTr ? `${acc.account_name} Ekstresini Gör / İndir` : "Open Account Statement"}
+                              >
+                                <FileText className="w-2.5 h-2.5" />
+                                <span>{isTr ? "Ekstre" : "Stmt"}</span>
+                              </button>
+                            </div>
                           </div>
                         </div>
                       );
@@ -2265,7 +2890,316 @@ export default function PortfolioFinancesTab({
         </>
       )}
 
-      {/* VIEW TAB 2: DEDICATED PORTFÖY KÂR / ZARAR ANALİZİ (PORTFOLIO P&L DASHBOARD) */}
+      {/* VIEW TAB 2: KAMBİYO SENETLERİ & ÇEK PORTFÖYÜ */}
+      {viewTab === "checks_notes" && (
+        <div className="space-y-2.5">
+          {/* KPI Summary Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="bg-white border border-slate-200/80 rounded-xl p-3 shadow-xs">
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-tight block">
+                {isTr ? "Portföydeki Alacak Çek/Senet" : "Receivable in Portfolio"}
+              </span>
+              <div className="text-sm font-semibold text-emerald-700 mt-0.5 truncate">
+                {checksKpis.receivedLabel}
+              </div>
+              <div className="text-[10px] text-slate-400 mt-0.5">
+                {isTr ? "Tahsil bekleyen müşteri evrakları" : "Pending customer instruments"}
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-200/80 rounded-xl p-3 shadow-xs">
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-tight block">
+                {isTr ? "Portföydeki Borç Çek/Senet" : "Payable in Portfolio"}
+              </span>
+              <div className="text-sm font-semibold text-rose-700 mt-0.5 truncate">
+                {checksKpis.issuedLabel}
+              </div>
+              <div className="text-[10px] text-slate-400 mt-0.5">
+                {isTr ? "Ödeme bekleyen keşide evrakları" : "Pending issued instruments"}
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-200/80 rounded-xl p-3 shadow-xs">
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-tight block">
+                {isTr ? "Yaklaşan / Vadesi Geçmiş (7 Gün)" : "Due Soon / Overdue"}
+              </span>
+              <div className={`text-sm font-semibold mt-0.5 ${checksKpis.upcomingDueCount > 0 ? "text-amber-600" : "text-slate-800"}`}>
+                {checksKpis.upcomingDueCount} {isTr ? "Evrak" : "Items"}
+              </div>
+              <div className="text-[10px] text-slate-400 mt-0.5">
+                {checksKpis.portfolioCount} {isTr ? "toplam portföyde" : "in portfolio"}
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-200/80 rounded-xl p-3 shadow-xs">
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-tight block">
+                {isTr ? "Tahsil / Ödeme Tamamlanan" : "Settled Volume"}
+              </span>
+              <div className="text-sm font-semibold text-indigo-700 mt-0.5 truncate">
+                {checksKpis.settledLabel}
+              </div>
+              <div className="text-[10px] text-slate-400 mt-0.5">
+                {isTr ? "Kasa & bankaya aktarılan toplam" : "Synced to cash/bank"}
+              </div>
+            </div>
+          </div>
+
+          {/* Filter & Action Toolbar */}
+          <div className="bg-white border border-slate-200/80 rounded-xl p-2.5 shadow-xs flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <select
+                value={checkDirectionFilter}
+                onChange={(e) => setCheckDirectionFilter(e.target.value as any)}
+                className="px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-medium text-slate-700"
+              >
+                <option value="all">{isTr ? "Yön: Tümü" : "Direction: All"}</option>
+                <option value="received">{isTr ? "Alınan (Müşteri)" : "Received"}</option>
+                <option value="issued">{isTr ? "Verilen (Borç)" : "Issued"}</option>
+              </select>
+
+              <select
+                value={checkInstrumentFilter}
+                onChange={(e) => setCheckInstrumentFilter(e.target.value as any)}
+                className="px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-medium text-slate-700"
+              >
+                <option value="all">{isTr ? "Tür: Tümü" : "Type: All"}</option>
+                <option value="check">{isTr ? "Çek" : "Check"}</option>
+                <option value="promissory_note">{isTr ? "Kambiyo Senedi" : "Promissory Note"}</option>
+              </select>
+
+              <select
+                value={checkStatusFilter}
+                onChange={(e) => setCheckStatusFilter(e.target.value)}
+                className="px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-medium text-slate-700"
+              >
+                <option value="all">{isTr ? "Durum: Tümü" : "Status: All"}</option>
+                <option value="portfolio">{isTr ? "Portföyde" : "Portfolio"}</option>
+                <option value="collected">{isTr ? "Tahsil Edildi" : "Collected"}</option>
+                <option value="paid">{isTr ? "Ödendi" : "Paid"}</option>
+                <option value="endorsed">{isTr ? "Ciro Edildi" : "Endorsed"}</option>
+                <option value="bounced">{isTr ? "Karşılıksız" : "Bounced"}</option>
+                <option value="cancelled">{isTr ? "İptal" : "Cancelled"}</option>
+              </select>
+
+              <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-lg px-1.5 py-0.5">
+                <input
+                  type="date"
+                  value={checkStartDate}
+                  onChange={(e) => setCheckStartDate(e.target.value)}
+                  className="bg-transparent text-[11px] text-slate-700 w-24 focus:outline-none"
+                  title={isTr ? "Vade Başlangıç" : "Due From"}
+                />
+                <span className="text-slate-300">-</span>
+                <input
+                  type="date"
+                  value={checkEndDate}
+                  onChange={(e) => setCheckEndDate(e.target.value)}
+                  className="bg-transparent text-[11px] text-slate-700 w-24 focus:outline-none"
+                  title={isTr ? "Vade Bitiş" : "Due To"}
+                />
+              </div>
+
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={checkSearchQuery}
+                  onChange={(e) => setCheckSearchQuery(e.target.value)}
+                  placeholder={isTr ? "Evrak no, cari, banka ara..." : "Search doc, party..."}
+                  className="pl-7 pr-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[11px] text-slate-800 w-44 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={handlePrintChecks}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 cursor-pointer"
+                title={isTr ? "Çek / Senet Ekstresi Yazdır / PDF" : "Print PDF"}
+              >
+                <Printer className="w-3.5 h-3.5 text-slate-600" />
+                <span>PDF</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleExportChecksExcel}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
+                title={isTr ? "Excel Olarak İndir" : "Export Excel"}
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <span>Excel</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleOpenCreateCheck}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>{isTr ? "Yeni Çek / Senet" : "New Check / Note"}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Checks & Notes Table */}
+          <div className="bg-white border border-slate-200/80 rounded-xl p-2.5 shadow-xs overflow-x-auto">
+            {loadingChecks ? (
+              <div className="py-10 text-center text-slate-400 text-xs">{isTr ? "Yükleniyor..." : "Loading..."}</div>
+            ) : filteredChecksNotes.length === 0 ? (
+              <div className="py-10 text-center text-slate-400 text-xs">
+                {isTr ? "Kayıtlı çek veya kambiyo senedi bulunamadı. Faturalardan, Cari Hesaplardan veya 'Yeni Çek / Senet' butonundan ekleyebilirsiniz." : "No checks or promissory notes found."}
+              </div>
+            ) : (
+              <table className="w-full text-left border-collapse min-w-[820px] text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50/80">
+                    <th className="py-2 px-2.5 text-[10px] font-semibold text-slate-500 uppercase">{isTr ? "Vade" : "Due Date"}</th>
+                    <th className="py-2 px-2.5 text-[10px] font-semibold text-slate-500 uppercase">{isTr ? "Evrak / No" : "Instrument / No"}</th>
+                    <th className="py-2 px-2.5 text-[10px] font-semibold text-slate-500 uppercase">{isTr ? "Yön" : "Dir"}</th>
+                    <th className="py-2 px-2.5 text-[10px] font-semibold text-slate-500 uppercase">{isTr ? "Cari / İlgili" : "Party"}</th>
+                    <th className="py-2 px-2.5 text-[10px] font-semibold text-slate-500 uppercase">{isTr ? "Banka / Keşideci" : "Bank"}</th>
+                    <th className="py-2 px-2.5 text-[10px] font-semibold text-slate-500 uppercase text-right">{isTr ? "Tutar" : "Amount"}</th>
+                    <th className="py-2 px-2.5 text-[10px] font-semibold text-slate-500 uppercase text-center">{isTr ? "Durum" : "Status"}</th>
+                    <th className="py-2 px-2.5 text-[10px] font-semibold text-slate-500 uppercase">{isTr ? "Tahsil / Ödeme Hesabı" : "Account"}</th>
+                    <th className="py-2 px-2.5 text-[10px] font-semibold text-slate-500 uppercase text-center">{isTr ? "İşlem" : "Actions"}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredChecksNotes.map((cn: any) => {
+                    const isOverdue = cn.status === "portfolio" && cn.due_date && new Date(cn.due_date) < new Date(new Date().toISOString().split("T")[0]);
+                    const statusBadgeMap: Record<string, { label: string; cls: string }> = {
+                      portfolio: { label: isTr ? "Portföyde" : "Portfolio", cls: "bg-amber-50 text-amber-800 border-amber-200" },
+                      collected: { label: isTr ? "Tahsil Edildi" : "Collected", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+                      paid: { label: isTr ? "Ödendi" : "Paid", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+                      endorsed: { label: isTr ? "Ciro Edildi" : "Endorsed", cls: "bg-indigo-50 text-indigo-700 border-indigo-200" },
+                      bounced: { label: isTr ? "Karşılıksız" : "Bounced", cls: "bg-rose-50 text-rose-700 border-rose-200" },
+                      cancelled: { label: isTr ? "İptal" : "Cancelled", cls: "bg-slate-100 text-slate-500 border-slate-200" }
+                    };
+                    const st = statusBadgeMap[cn.status] || statusBadgeMap.portfolio;
+
+                    return (
+                      <tr key={cn.id} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="py-2 px-2.5 whitespace-nowrap font-medium">
+                          <span className={isOverdue ? "text-rose-600 font-semibold" : "text-slate-700"}>
+                            {cn.due_date ? new Date(cn.due_date).toLocaleDateString("tr-TR") : "-"}
+                          </span>
+                          {isOverdue && (
+                            <span className="block text-[9px] text-rose-600 font-semibold">{isTr ? "Vadesi Geçti" : "Overdue"}</span>
+                          )}
+                        </td>
+                        <td className="py-2 px-2.5 whitespace-nowrap">
+                          <span className="font-semibold text-slate-800">{cn.document_no}</span>
+                          <span className="block text-[10px] text-slate-500">
+                            {cn.instrument_type === "promissory_note" ? (isTr ? "Kambiyo Senedi" : "Note") : (isTr ? "Çek" : "Check")}
+                          </span>
+                        </td>
+                        <td className="py-2 px-2.5 whitespace-nowrap">
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold border ${
+                            cn.direction === "received"
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                              : "bg-rose-50 text-rose-700 border-rose-200"
+                          }`}>
+                            {cn.direction === "received" ? (isTr ? "Alınan" : "Received") : (isTr ? "Verilen" : "Issued")}
+                          </span>
+                        </td>
+                        <td className="py-2 px-2.5">
+                          <span className="font-medium text-slate-800">{cn.company_title || cn.contact_name || "-"}</span>
+                          {cn.source_type && cn.source_type !== "manual" && (
+                            <span className="block text-[9px] text-indigo-600">
+                              {cn.source_type === "sales_invoice" ? (isTr ? "Satış Faturasından" : "From Sales Inv.") :
+                               cn.source_type === "purchase_invoice" ? (isTr ? "Alış Faturasından" : "From Purchase Inv.") :
+                               (isTr ? "Cari İşlemden" : "From Ledger")}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2 px-2.5 text-slate-600">
+                          <div>{cn.bank_name || "-"}</div>
+                          {cn.drawer_name && <div className="text-[10px] text-slate-400">{cn.drawer_name}</div>}
+                        </td>
+                        <td className="py-2 px-2.5 text-right whitespace-nowrap font-semibold text-slate-900">
+                          {formatMoney(cn.amount, cn.currency)} <span className="text-[10px] text-slate-400">{cn.currency}</span>
+                        </td>
+                        <td className="py-2 px-2.5 text-center whitespace-nowrap">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${st.cls}`}>
+                            {st.label}
+                          </span>
+                        </td>
+                        <td className="py-2 px-2.5 text-[11px] text-slate-600">
+                          {cn.collection_account_name ? (
+                            <span className="font-medium text-indigo-700">{cn.collection_account_name}</span>
+                          ) : (
+                            <span className="text-slate-400">—</span>
+                          )}
+                        </td>
+                        <td className="py-2 px-2.5 text-center whitespace-nowrap">
+                          {confirmDeleteCheckId === cn.id ? (
+                            <div className="inline-flex items-center gap-1 bg-rose-50 border border-rose-200 rounded p-0.5">
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteCheck(cn.id)}
+                                className="px-1.5 py-0.5 bg-rose-600 text-white rounded text-[10px] font-medium cursor-pointer"
+                              >
+                                <Check className="w-3 h-3" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setConfirmDeleteCheckId(null)}
+                                className="px-1.5 py-0.5 text-slate-600 rounded text-[10px] cursor-pointer"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="inline-flex items-center gap-1">
+                              {cn.status === "portfolio" && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSettlingCheck(cn);
+                                    setSettleAccountId("");
+                                    setSettleAccountName(`${(cn.currency || "TRY").toUpperCase()} Nakit Kasa`);
+                                    setSettleDate(new Date().toISOString().split("T")[0]);
+                                    setSettleNotes(cn.notes || "");
+                                  }}
+                                  className={`px-2 py-0.5 rounded text-[10px] font-semibold text-white cursor-pointer ${
+                                    cn.direction === "received"
+                                      ? "bg-emerald-600 hover:bg-emerald-700"
+                                      : "bg-indigo-600 hover:bg-indigo-700"
+                                  }`}
+                                >
+                                  {cn.direction === "received" ? (isTr ? "Tahsil Et" : "Collect") : (isTr ? "Öde" : "Pay")}
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditCheck(cn)}
+                                className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded cursor-pointer"
+                                title={isTr ? "Düzenle" : "Edit"}
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setConfirmDeleteCheckId(cn.id)}
+                                className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded cursor-pointer"
+                                title={isTr ? "Sil" : "Delete"}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* VIEW TAB 3: DEDICATED PORTFÖY KÂR / ZARAR ANALİZİ (PORTFOLIO P&L DASHBOARD) */}
       {viewTab === "portfolio_profit" && (
         <div className="space-y-2.5">
           {/* Top KPI Cards for Portfolio Profit & Loss */}
@@ -2548,6 +3482,7 @@ export default function PortfolioFinancesTab({
                     >
                       <option value="bank">{isTr ? "Banka Hesabı" : "Bank Account"}</option>
                       <option value="credit_card">{isTr ? "Kredi Kartı" : "Credit Card"}</option>
+                      <option value="cash">{isTr ? "Nakit Kasa" : "Cash Vault"}</option>
                       <option value="check">{isTr ? "Çek / Senet Portföyü" : "Check / Note"}</option>
                     </select>
                   </div>
@@ -2676,6 +3611,15 @@ export default function PortfolioFinancesTab({
                         </div>
 
                         <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenAccountStatement({ accountId: acc.id, label: acc.account_name })}
+                            className="px-1.5 py-0.5 text-[10px] font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded cursor-pointer flex items-center gap-0.5"
+                            title={isTr ? "Hesap Ekstresini Gör" : "View Statement"}
+                          >
+                            <FileText className="w-3 h-3" />
+                            <span>{isTr ? "Ekstre" : "Stmt"}</span>
+                          </button>
                           <button
                             type="button"
                             onClick={() => {
@@ -3214,6 +4158,570 @@ export default function PortfolioFinancesTab({
                     className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs rounded-lg transition-colors shadow-2xs cursor-pointer"
                   >
                     {editingTx ? (isTr ? "Kaydet" : "Update") : (isTr ? "Kasaya Kaydet" : "Save Record")}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 8. Dedicated Account / Cash Vault Statement ("Ekstre") Modal */}
+      <AnimatePresence>
+        {statementModalOpen && statementTarget && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              className="bg-white rounded-xl w-full max-w-5xl shadow-2xl border border-slate-200 max-h-[92dvh] flex flex-col overflow-hidden text-xs"
+            >
+              {/* Dark High-Contrast Header */}
+              <div className="px-4 py-3 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-2 shrink-0">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-7 h-7 rounded-lg bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-300 shrink-0">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-semibold text-white truncate">
+                      {statementData?.account?.account_name || statementTarget.label} — {isTr ? "Hesap Ekstresi" : "Account Statement"}
+                    </h3>
+                    <div className="text-[10px] text-slate-300 truncate">
+                      {statementData?.account?.bank_name ? `${statementData.account.bank_name} • ` : ""}
+                      {statementData?.account?.account_number ? `${statementData.account.account_number} • ` : ""}
+                      {statementData?.account?.currency || ""}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={handlePrintAccountStatement}
+                    disabled={statementLoading || !statementData}
+                    className="flex items-center gap-1 px-2.5 py-1 bg-white/10 hover:bg-white/20 text-white rounded-lg text-[11px] font-medium cursor-pointer disabled:opacity-40"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    <span>PDF</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleExportAccountStatementExcel}
+                    disabled={statementLoading || !statementData}
+                    className="flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-medium cursor-pointer disabled:opacity-40"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5" />
+                    <span>Excel</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStatementModalOpen(false)}
+                    className="p-1 text-slate-300 hover:text-white hover:bg-white/10 rounded-lg cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Filter Bar */}
+              <div className="px-4 py-2 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 shrink-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-medium text-slate-500">{isTr ? "Tarih Aralığı:" : "Date Range:"}</span>
+                  <input
+                    type="date"
+                    value={statementStartDate}
+                    onChange={(e) => setStatementStartDate(e.target.value)}
+                    className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-[11px] text-slate-800"
+                  />
+                  <span className="text-slate-400">-</span>
+                  <input
+                    type="date"
+                    value={statementEndDate}
+                    onChange={(e) => setStatementEndDate(e.target.value)}
+                    className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-[11px] text-slate-800"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => loadAccountStatement(statementTarget, statementStartDate, statementEndDate)}
+                    className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-semibold flex items-center gap-1 cursor-pointer"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${statementLoading ? "animate-spin" : ""}`} />
+                    <span>{isTr ? "Sorgula" : "Apply"}</span>
+                  </button>
+                  {(statementStartDate || statementEndDate) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStatementStartDate("");
+                        setStatementEndDate("");
+                        loadAccountStatement(statementTarget, "", "");
+                      }}
+                      className="px-2 py-1 text-rose-600 hover:bg-rose-50 rounded-lg text-[11px] font-medium cursor-pointer"
+                    >
+                      {isTr ? "Tümünü Göster" : "Reset"}
+                    </button>
+                  )}
+                </div>
+                <div className="text-[11px] text-slate-500">
+                  {statementData?.transactions ? `${statementData.transactions.length} ${isTr ? "hareket" : "movements"}` : ""}
+                </div>
+              </div>
+
+              {/* KPI Strip & Movement Table */}
+              <div className="p-4 overflow-y-auto space-y-3 flex-1">
+                {statementLoading ? (
+                  <div className="py-12 text-center text-slate-400 text-xs">{isTr ? "Ekstre hesaplanıyor..." : "Loading statement..."}</div>
+                ) : statementData ? (
+                  <>
+                    {(() => {
+                      const cur = statementData.account?.currency || "TRY";
+                      return (
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                          <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5">
+                            <span className="text-[10px] font-semibold text-slate-500 uppercase block">{isTr ? "Devir / Açılış Bakiye" : "Opening Balance"}</span>
+                            <div className="text-sm font-semibold text-slate-800 mt-0.5">
+                              {statementData.openingBalance < 0 ? "-" : ""}{formatMoney(statementData.openingBalance, cur)}
+                            </div>
+                          </div>
+                          <div className="bg-emerald-50/60 border border-emerald-200/70 rounded-xl p-2.5">
+                            <span className="text-[10px] font-semibold text-emerald-700 uppercase block">{isTr ? "Dönem Giriş (+)" : "Inflows (+)"}</span>
+                            <div className="text-sm font-semibold text-emerald-700 mt-0.5">
+                              +{formatMoney(statementData.periodIncome, cur)}
+                            </div>
+                          </div>
+                          <div className="bg-rose-50/60 border border-rose-200/70 rounded-xl p-2.5">
+                            <span className="text-[10px] font-semibold text-rose-700 uppercase block">{isTr ? "Dönem Çıkış (-)" : "Outflows (-)"}</span>
+                            <div className="text-sm font-semibold text-rose-700 mt-0.5">
+                              -{formatMoney(statementData.periodExpense, cur)}
+                            </div>
+                          </div>
+                          <div className="bg-slate-900 text-white rounded-xl p-2.5">
+                            <span className="text-[10px] font-semibold text-slate-300 uppercase block">{isTr ? "Kapanış / Güncel Bakiye" : "Closing Balance"}</span>
+                            <div className={`text-sm font-semibold mt-0.5 ${statementData.closingBalance < 0 ? "text-rose-300" : "text-emerald-300"}`}>
+                              {statementData.closingBalance < 0 ? "-" : ""}{formatMoney(statementData.closingBalance, cur)}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    <div className="border border-slate-200 rounded-xl overflow-x-auto">
+                      <table className="w-full text-left border-collapse min-w-[680px] text-xs">
+                        <thead>
+                          <tr className="bg-slate-50 border-b border-slate-200">
+                            <th className="py-2 px-2.5 text-[10px] font-semibold text-slate-500 uppercase">{isTr ? "Tarih" : "Date"}</th>
+                            <th className="py-2 px-2.5 text-[10px] font-semibold text-slate-500 uppercase">{isTr ? "İşlem Başlığı / Açıklama" : "Description"}</th>
+                            <th className="py-2 px-2.5 text-[10px] font-semibold text-slate-500 uppercase">{isTr ? "İlgili / Belge No" : "Party / Ref"}</th>
+                            <th className="py-2 px-2.5 text-[10px] font-semibold text-emerald-700 uppercase text-right">{isTr ? "Giriş (+)" : "In (+)"}</th>
+                            <th className="py-2 px-2.5 text-[10px] font-semibold text-rose-700 uppercase text-right">{isTr ? "Çıkış (-)" : "Out (-)"}</th>
+                            <th className="py-2 px-2.5 text-[10px] font-semibold text-slate-700 uppercase text-right">{isTr ? "Bakiye" : "Balance"}</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {(statementData.transactions || []).length === 0 ? (
+                            <tr>
+                              <td colSpan={6} className="py-8 text-center text-slate-400">
+                                {isTr ? "Seçili dönemde bu hesap/kasa için hareket bulunmuyor." : "No movements in this period."}
+                              </td>
+                            </tr>
+                          ) : (
+                            (statementData.transactions || []).map((tx: any) => {
+                              const cur = statementData.account?.currency || tx.currency || "TRY";
+                              return (
+                                <tr key={tx.id} className="hover:bg-slate-50/70">
+                                  <td className="py-2 px-2.5 whitespace-nowrap text-slate-600">
+                                    {tx.date ? new Date(tx.date).toLocaleDateString("tr-TR") : "-"}
+                                  </td>
+                                  <td className="py-2 px-2.5">
+                                    <div className="font-medium text-slate-800">{tx.title}</div>
+                                    {tx.description && <div className="text-[10px] text-slate-400 line-clamp-1">{tx.description}</div>}
+                                  </td>
+                                  <td className="py-2 px-2.5 text-slate-600">
+                                    <div>{tx.contact_name || "-"}</div>
+                                    {tx.reference_no && <div className="text-[10px] font-mono text-slate-400">{tx.reference_no}</div>}
+                                  </td>
+                                  <td className="py-2 px-2.5 text-right whitespace-nowrap font-semibold text-emerald-600">
+                                    {tx.type === "income" ? `+${formatMoney(tx.amount, cur)}` : "—"}
+                                  </td>
+                                  <td className="py-2 px-2.5 text-right whitespace-nowrap font-semibold text-rose-600">
+                                    {tx.type === "expense" ? `-${formatMoney(tx.amount, cur)}` : "—"}
+                                  </td>
+                                  <td className="py-2 px-2.5 text-right whitespace-nowrap font-semibold text-slate-900">
+                                    {tx.running_balance < 0 ? "-" : ""}{formatMoney(tx.running_balance, cur)}
+                                  </td>
+                                </tr>
+                              );
+                            })
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                ) : null}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 9. Add / Edit Check & Promissory Note Modal */}
+      <AnimatePresence>
+        {showCheckModal && (
+          <div className="fixed inset-0 z-[75] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.97 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.97 }}
+              className="bg-white rounded-xl w-full max-w-lg p-4 shadow-xl border border-slate-200 max-h-[92vh] overflow-y-auto space-y-3 text-xs"
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                <h3 className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
+                  <FileCheck2 className="w-4 h-4 text-indigo-600" />
+                  {editingCheck ? (isTr ? "Çek / Senet Kaydını Düzenle" : "Edit Check / Note") : (isTr ? "Yeni Çek / Kambiyo Senedi Ekle" : "New Check / Promissory Note")}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowCheckModal(false)}
+                  className="p-1 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveCheck} className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCheckFormData(p => ({ ...p, direction: "received" }))}
+                    className={`py-2 px-3 rounded-lg font-semibold text-xs border cursor-pointer ${
+                      checkFormData.direction === "received"
+                        ? "bg-emerald-600 text-white border-emerald-600"
+                        : "bg-slate-50 text-slate-600 border-slate-200"
+                    }`}
+                  >
+                    {isTr ? "Alınan (Müşteri Çeki/Senedi)" : "Received (Asset)"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCheckFormData(p => ({ ...p, direction: "issued" }))}
+                    className={`py-2 px-3 rounded-lg font-semibold text-xs border cursor-pointer ${
+                      checkFormData.direction === "issued"
+                        ? "bg-rose-600 text-white border-rose-600"
+                        : "bg-slate-50 text-slate-600 border-slate-200"
+                    }`}
+                  >
+                    {isTr ? "Verilen (Firma Çeki/Senedi)" : "Issued (Payable)"}
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-[10px] font-medium text-slate-500 uppercase block mb-0.5">{isTr ? "Evrak Türü *" : "Type *"}</label>
+                    <select
+                      value={checkFormData.instrument_type}
+                      onChange={(e) => setCheckFormData(p => ({ ...p, instrument_type: e.target.value as any }))}
+                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-medium text-xs text-slate-800"
+                    >
+                      <option value="check">{isTr ? "Çek" : "Check"}</option>
+                      <option value="promissory_note">{isTr ? "Kambiyo Senedi" : "Promissory Note"}</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-medium text-slate-500 uppercase block mb-0.5">{isTr ? "Evrak / Seri No *" : "Document No *"}</label>
+                    <input
+                      type="text"
+                      required
+                      value={checkFormData.document_no}
+                      onChange={(e) => setCheckFormData(p => ({ ...p, document_no: e.target.value }))}
+                      placeholder="Örn: CK-48102"
+                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-medium text-xs text-slate-800"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-medium text-slate-500 uppercase block mb-0.5">{isTr ? "Vade Tarihi *" : "Due Date *"}</label>
+                    <input
+                      type="date"
+                      required
+                      value={checkFormData.due_date}
+                      onChange={(e) => setCheckFormData(p => ({ ...p, due_date: e.target.value }))}
+                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-medium text-xs text-slate-800"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                  <div className="sm:col-span-6">
+                    <label className="text-[10px] font-medium text-slate-500 uppercase block mb-0.5">{isTr ? "Tutar & Para Birimi *" : "Amount *"}</label>
+                    <div className="flex items-center">
+                      <input
+                        type="number"
+                        step="any"
+                        required
+                        value={checkFormData.amount}
+                        onChange={(e) => setCheckFormData(p => ({ ...p, amount: e.target.value }))}
+                        placeholder="0.00"
+                        className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-l-lg font-semibold text-xs text-slate-900"
+                      />
+                      <select
+                        value={checkFormData.currency}
+                        onChange={(e) => setCheckFormData(p => ({ ...p, currency: e.target.value }))}
+                        className="w-20 shrink-0 px-2 py-1.5 bg-slate-900 text-white border border-slate-900 rounded-r-lg font-medium text-xs"
+                      >
+                        <option value="TRY">TRY</option>
+                        <option value="USD">USD</option>
+                        <option value="EUR">EUR</option>
+                        <option value="GBP">GBP</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="sm:col-span-3">
+                    <label className="text-[10px] font-medium text-slate-500 uppercase block mb-0.5">{isTr ? "Düzenleme" : "Issue Date"}</label>
+                    <input
+                      type="date"
+                      value={checkFormData.issue_date}
+                      onChange={(e) => setCheckFormData(p => ({ ...p, issue_date: e.target.value }))}
+                      className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800"
+                    />
+                  </div>
+                  <div className="sm:col-span-3">
+                    <label className="text-[10px] font-medium text-slate-500 uppercase block mb-0.5">{isTr ? "Durum" : "Status"}</label>
+                    <select
+                      value={checkFormData.status}
+                      onChange={(e) => setCheckFormData(p => ({ ...p, status: e.target.value }))}
+                      className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800"
+                    >
+                      <option value="portfolio">{isTr ? "Portföyde" : "Portfolio"}</option>
+                      <option value="collected">{isTr ? "Tahsil Edildi" : "Collected"}</option>
+                      <option value="paid">{isTr ? "Ödendi" : "Paid"}</option>
+                      <option value="endorsed">{isTr ? "Ciro Edildi" : "Endorsed"}</option>
+                      <option value="bounced">{isTr ? "Karşılıksız" : "Bounced"}</option>
+                      <option value="cancelled">{isTr ? "İptal" : "Cancelled"}</option>
+                    </select>
+                  </div>
+                </div>
+
+                {(checkFormData.status === "collected" || checkFormData.status === "paid") && (
+                  <div className="bg-emerald-50/70 border border-emerald-200 rounded-lg p-2.5 space-y-1">
+                    <label className="text-[10px] font-semibold text-emerald-800 uppercase block">
+                      {isTr ? "Tahsil / Ödeme Yapılan Kasa veya Banka Hesabı" : "Settlement Vault / Account"}
+                    </label>
+                    <select
+                      value={checkFormData.collection_account_id}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const acc = accounts.find(a => String(a.id) === val);
+                        setCheckFormData(p => ({
+                          ...p,
+                          collection_account_id: val,
+                          collection_account_name: acc ? acc.account_name : `${p.currency} Nakit Kasa`
+                        }));
+                      }}
+                      className="w-full px-2.5 py-1.5 bg-white border border-emerald-200 rounded-lg text-xs font-semibold text-slate-800"
+                    >
+                      <option value="">{checkFormData.currency} Nakit Kasa</option>
+                      {accounts.map(acc => (
+                        <option key={acc.id} value={acc.id}>
+                          {acc.account_name} ({acc.bank_name || acc.account_type}) — {acc.currency}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] font-medium text-slate-500 uppercase block mb-0.5">{isTr ? "Bağlı Cari Hesap (Opsiyonel)" : "Linked Company"}</label>
+                    <select
+                      value={checkFormData.company_id}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const comp = companiesList.find((c: any) => String(c.id) === val);
+                        setCheckFormData(p => ({
+                          ...p,
+                          company_id: val,
+                          contact_name: comp ? (comp.title || comp.name || p.contact_name) : p.contact_name
+                        }));
+                      }}
+                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800"
+                    >
+                      <option value="">{isTr ? "— Cari Seçin (Opsiyonel) —" : "— Optional —"}</option>
+                      {companiesList.map((c: any) => (
+                        <option key={c.id} value={c.id}>{c.title || c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-medium text-slate-500 uppercase block mb-0.5">{isTr ? "İlgili Kişi / Kurum" : "Contact"}</label>
+                    <input
+                      type="text"
+                      value={checkFormData.contact_name}
+                      onChange={(e) => setCheckFormData(p => ({ ...p, contact_name: e.target.value }))}
+                      placeholder={isTr ? "Firma veya kişi adı" : "Party name"}
+                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-[10px] font-medium text-slate-500 uppercase block mb-0.5">{isTr ? "Banka Adı" : "Bank"}</label>
+                    <input
+                      type="text"
+                      value={checkFormData.bank_name}
+                      onChange={(e) => setCheckFormData(p => ({ ...p, bank_name: e.target.value }))}
+                      placeholder="Örn: Garanti BBVA"
+                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-medium text-slate-500 uppercase block mb-0.5">{isTr ? "Şube" : "Branch"}</label>
+                    <input
+                      type="text"
+                      value={checkFormData.branch_name}
+                      onChange={(e) => setCheckFormData(p => ({ ...p, branch_name: e.target.value }))}
+                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-medium text-slate-500 uppercase block mb-0.5">{isTr ? "Keşideci" : "Drawer"}</label>
+                    <input
+                      type="text"
+                      value={checkFormData.drawer_name}
+                      onChange={(e) => setCheckFormData(p => ({ ...p, drawer_name: e.target.value }))}
+                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-medium text-slate-500 uppercase block mb-0.5">{isTr ? "Notlar" : "Notes"}</label>
+                  <textarea
+                    rows={2}
+                    value={checkFormData.notes}
+                    onChange={(e) => setCheckFormData(p => ({ ...p, notes: e.target.value }))}
+                    className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800"
+                  />
+                </div>
+
+                <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowCheckModal(false)}
+                    className="px-3 py-1.5 rounded-lg hover:bg-slate-100 text-slate-600 font-medium cursor-pointer"
+                  >
+                    {isTr ? "Vazgeç" : "Cancel"}
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold cursor-pointer"
+                  >
+                    {editingCheck ? (isTr ? "Güncelle" : "Update") : (isTr ? "Portföye Kaydet" : "Save")}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 10. One-Click Check/Note Settlement Modal ("Tahsil Et / Öde") */}
+      <AnimatePresence>
+        {settlingCheck && (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-slate-900/55 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.97 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.97 }}
+              className="bg-white rounded-xl w-full max-w-md p-4 shadow-2xl border border-slate-200 space-y-3 text-xs"
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <h3 className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  {settlingCheck.direction === "received"
+                    ? (isTr ? "Çek / Senet Tahsil Et" : "Collect Check / Note")
+                    : (isTr ? "Çek / Senet Ödemesi Yap" : "Pay Check / Note")}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setSettlingCheck(null)}
+                  className="p-1 text-slate-400 hover:text-slate-700 rounded cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSettleCheckSubmit} className="space-y-3">
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-2.5 space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">{isTr ? "Evrak No:" : "Doc No:"}</span>
+                    <span className="font-semibold text-slate-800">{settlingCheck.document_no}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">{isTr ? "Tutar:" : "Amount:"}</span>
+                    <span className="font-semibold text-indigo-700">{formatMoney(settlingCheck.amount, settlingCheck.currency)} {settlingCheck.currency}</span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-600 uppercase block mb-1">
+                    {settlingCheck.direction === "received"
+                      ? (isTr ? "Tahsil Edilecek Kasa / Banka Hesabı *" : "Destination Vault / Account *")
+                      : (isTr ? "Ödemenin Çıkacağı Kasa / Banka Hesabı *" : "Source Vault / Account *")}
+                  </label>
+                  <select
+                    value={settleAccountId}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSettleAccountId(val);
+                      const acc = accounts.find(a => String(a.id) === val);
+                      setSettleAccountName(acc ? acc.account_name : `${(settlingCheck.currency || "TRY").toUpperCase()} Nakit Kasa`);
+                    }}
+                    className="w-full px-2.5 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800"
+                  >
+                    <option value="">{(settlingCheck.currency || "TRY").toUpperCase()} Nakit Kasa</option>
+                    {accounts.map(acc => (
+                      <option key={acc.id} value={acc.id}>
+                        {acc.account_name} {acc.bank_name ? `(${acc.bank_name})` : ""} — {acc.currency}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-600 uppercase block mb-1">{isTr ? "İşlem Tarihi" : "Settlement Date"}</label>
+                  <input
+                    type="date"
+                    required
+                    value={settleDate}
+                    onChange={(e) => setSettleDate(e.target.value)}
+                    className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-600 uppercase block mb-1">{isTr ? "Not" : "Notes"}</label>
+                  <input
+                    type="text"
+                    value={settleNotes}
+                    onChange={(e) => setSettleNotes(e.target.value)}
+                    className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800"
+                  />
+                </div>
+
+                <div className="pt-2 flex justify-end gap-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setSettlingCheck(null)}
+                    className="px-3 py-1.5 rounded-lg hover:bg-slate-100 text-slate-600 font-medium cursor-pointer"
+                  >
+                    {isTr ? "Vazgeç" : "Cancel"}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={settlingSubmitting}
+                    className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold cursor-pointer disabled:opacity-50"
+                  >
+                    {settlingSubmitting ? (isTr ? "İşleniyor..." : "Processing...") : (settlingCheck.direction === "received" ? (isTr ? "Tahsil Et & Kasaya İşle" : "Collect") : (isTr ? "Öde & Kasadan Düş" : "Pay"))}
                   </button>
                 </div>
               </form>

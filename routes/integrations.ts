@@ -1908,10 +1908,12 @@ router.post("/hepsiburada/settings", authenticate, async (req: any, res) => {
     const parsedDispatch = Math.max(1, Math.floor(Number(defaultDispatchTime ?? prevMerged.defaultDispatchTime ?? 1) || 1));
 
     const rawCatMappings = categoryMappings !== undefined ? categoryMappings : (prevMerged.categoryMappings || {});
-    const { sanitizeCategoryMappings } = await import("../src/services/backend/systemGuardService");
+    const { sanitizeCategoryMappings, deepScrubPoisonedCategoryIds } = await import("../src/services/backend/systemGuardService");
     const cleanCatMappings = sanitizeCategoryMappings(rawCatMappings);
+    const rawCatAttrs = categoryAttributes !== undefined ? categoryAttributes : (prevMerged.categoryAttributes || {});
+    const rawCatMarkups = categoryMarkups !== undefined ? categoryMarkups : (prevMerged.categoryMarkups || {});
 
-    const settings: any = {
+    const settings: any = deepScrubPoisonedCategoryIds({
       ...prevMerged,
       connected: !!(finalApiKey && finalApiSecret && finalMerchantId),
       apiKey: finalApiKey,
@@ -1927,9 +1929,9 @@ router.post("/hepsiburada/settings", authenticate, async (req: any, res) => {
       autoStockSync: autoStockSync !== undefined ? Boolean(autoStockSync) : (prevMerged.autoStockSync ?? true),
       webhookSecret: webhookSecret || prevMerged.webhookSecret || `hb_wh_${Math.random().toString(36).substring(2, 12)}`,
       categoryMappings: cleanCatMappings,
-      categoryAttributes: categoryAttributes !== undefined ? categoryAttributes : (prevMerged.categoryAttributes || {}),
-      categoryMarkups: categoryMarkups !== undefined ? categoryMarkups : (prevMerged.categoryMarkups || {})
-    };
+      categoryAttributes: rawCatAttrs,
+      categoryMarkups: rawCatMarkups
+    });
 
     if (credsChanged) {
       delete settings.authUsername;
@@ -2446,15 +2448,64 @@ async function resolveHepsiburadaCategoryIdForProduct(
   }
 }
 
+function resolveCategoryAttributeValue(rawVal: any, p: any): string {
+  if (rawVal === undefined || rawVal === null) return "";
+  let valStr = "";
+  if (typeof rawVal === "object") {
+    if (Array.isArray(rawVal)) return rawVal.filter(Boolean).join(", ");
+    valStr = rawVal.value !== undefined ? String(rawVal.value) : "";
+  } else {
+    valStr = String(rawVal);
+  }
+  valStr = valStr.trim();
+  if (!valStr) return "";
+  if (valStr.startsWith("$product.")) {
+    const firstVar = Array.isArray(p?.variants) && p.variants.length > 0 ? p.variants[0] : null;
+    switch (valStr) {
+      case "$product.brand": return String(p?.brand || p?.brand_name || "").trim();
+      case "$product.name": return String(p?.name || "").trim();
+      case "$product.barcode": return String(p?.barcode || "").trim();
+      case "$product.model": return String(p?.model || "").trim();
+      case "$product.tax_rate":
+      case "$product.kdv": return String(p?.tax_rate ?? p?.vat_rate ?? 20);
+      case "$product.sku":
+      case "$product.product_code": return String(p?.sku || p?.product_code || p?.barcode || "").trim();
+      case "$product.description": return String(p?.description || p?.name || "").trim();
+      case "$product.category": return String(p?.category || "").trim();
+      case "$product.sub_category": return String(p?.sub_category || "").trim();
+      case "$product.price": return p?.price !== undefined && p?.price !== null ? String(p.price) : "";
+      case "$product.variant_color": return String(p?.color || p?.sector_data?.color || firstVar?.color || "").trim();
+      case "$product.variant_size": return String(p?.size || p?.sector_data?.size || firstVar?.size || "").trim();
+      default: return "";
+    }
+  }
+  return valStr;
+}
+
 function buildHepsiburadaCatalogAttributes(
   p: any,
   mpData: any,
   hbData: any,
   categoryId: number | "",
   numericEffectivePrice: number,
-  req: any
+  req: any,
+  settings?: any
 ): Record<string, any> {
-  const userAttrs = hbData?.attributes || mpData?.attributes || {};
+  const catDefaultsRaw = categoryId ? (settings?.categoryAttributes?.[String(categoryId)] || {}) : {};
+  const resolvedDefaults: Record<string, any> = {};
+  Object.entries(catDefaultsRaw).forEach(([k, v]) => {
+    const resolved = resolveCategoryAttributeValue(v, p);
+    if (resolved !== "") resolvedDefaults[k] = resolved;
+  });
+
+  const mergedProductAttrs: Record<string, any> = {};
+  Object.entries({ ...(mpData?.attributes || {}), ...(hbData?.attributes || {}) }).forEach(([k, v]) => {
+    if (v === "") return; // deliberate clear
+    const resolved = resolveCategoryAttributeValue(v, p);
+    if (resolved !== "") mergedProductAttrs[k] = resolved;
+  });
+
+  const userAttrs = { ...resolvedDefaults, ...mergedProductAttrs };
 
   let effectiveHbImageUrl: string | null = null;
   const rawHbImg = userAttrs?.Image1 || mpData?.attributes?.Image1 || p.image_url;
@@ -3102,7 +3153,7 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
     }
 
     const { categoryId } = await resolveHepsiburadaCategoryIdForProduct(p, mpData, hbData, cleanSettings, storeId);
-    const attributes = buildHepsiburadaCatalogAttributes(p, mpData, hbData, categoryId, numericEffectivePrice, req);
+    const attributes = buildHepsiburadaCatalogAttributes(p, mpData, hbData, categoryId, numericEffectivePrice, req, cleanSettings);
 
     // 1. If product does NOT yet exist in HB listings, we MUST submit a real Catalog Import with a valid leaf categoryId!
     let catalogTrackingId: string | undefined;
@@ -3435,7 +3486,7 @@ router.post("/hepsiburada/bulk-publish", authenticate, async (req: any, res) => 
           continue;
         }
 
-        const attributes = buildHepsiburadaCatalogAttributes(p, mpData, hbData, categoryId, numericEffectivePrice, req);
+        const attributes = buildHepsiburadaCatalogAttributes(p, mpData, hbData, categoryId, numericEffectivePrice, req, cleanSettings);
         if (!attributes.Image1) {
           const reason = "Ürün görseli (Image1) eksik";
           skippedItems.push({ id: p.id, name: p.name, reason });
@@ -4951,16 +5002,19 @@ router.post("/trendyol/publish", authenticate, async (req: any, res) => {
 
     const providedAttrIds = new Set<number>();
 
-    for (const [key, val] of Object.entries(sourceAttrs)) {
-      if (val !== undefined && val !== null && String(val).trim() !== "") {
+    for (const [key, rawVal] of Object.entries(sourceAttrs)) {
+      if (rawVal === "") continue;
+      const val = resolveCategoryAttributeValue(rawVal, p);
+      if (val !== "") {
         const numId = parseInt(key, 10);
         if (!isNaN(numId) && numId > 0) {
           providedAttrIds.add(numId);
-          const numVal = parseInt(String(val), 10);
-          if (!isNaN(numVal) && String(numVal) === String(val).trim()) {
+          const cleanValStr = val.includes(":") && /^\d+:\s/.test(val) ? val.split(":")[0].trim() : val;
+          const numVal = parseInt(cleanValStr, 10);
+          if (!isNaN(numVal) && String(numVal) === cleanValStr) {
             tyAttributes.push({ attributeId: numId, attributeValueId: numVal });
           } else {
-            tyAttributes.push({ attributeId: numId, customAttributeValue: String(val).trim() });
+            tyAttributes.push({ attributeId: numId, customAttributeValue: val });
           }
         }
       }

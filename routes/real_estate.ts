@@ -3,6 +3,12 @@ import { pool } from '../models/db';
 import { authenticate, getAuthorizedStoreId } from '../middleware/auth';
 import multer from 'multer';
 import ai from '../src/services/aiService';
+import {
+  ensureTreasurySchema,
+  syncCheckNoteToPortfolio,
+  resolveFinancialAccountInfo,
+  deletePortfolioTxForSource
+} from './store/treasurySync';
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -1744,6 +1750,7 @@ async function ensurePortfolioTransactionsSchema() {
     await pool.query(`ALTER TABLE portfolio_transactions ADD COLUMN IF NOT EXISTS account_id INTEGER;`);
     await pool.query(`ALTER TABLE portfolio_transactions ADD COLUMN IF NOT EXISTS account_name TEXT;`);
     await pool.query(`ALTER TABLE portfolio_transactions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`);
+    await ensureTreasurySchema(pool);
     portfolioTransactionsSchemaReady = true;
   } catch (err) {
     console.warn("ensurePortfolioTransactionsSchema warning:", err);
@@ -1945,11 +1952,532 @@ router.delete('/financial-accounts/:id', authenticate, async (req: any, res) => 
   }
 });
 
+// GET /financial-accounts/statement - Detailed running-balance account statement for a Bank/Card account or Currency Cash Vault
+router.get('/financial-accounts/statement', authenticate, async (req: any, res) => {
+  await ensurePortfolioTransactionsSchema();
+  const storeId = resolveTransactionStoreId(req);
+  if (!storeId) {
+    return res.status(403).json({ error: "Unauthorized store context." });
+  }
+
+  try {
+    const { accountId, cashCurrency, startDate, endDate } = req.query;
+    const parsedAccountId = accountId ? Number(accountId) : null;
+    const cleanCurr = cashCurrency ? String(cashCurrency).trim().toUpperCase() : null;
+
+    if (!parsedAccountId && !cleanCurr) {
+      return res.status(400).json({ error: "accountId or cashCurrency parameter is required." });
+    }
+
+    let accountMeta: any = null;
+    let openingBase = 0;
+    let scopeSql = '';
+    const baseParams: any[] = [storeId];
+
+    if (parsedAccountId && !isNaN(parsedAccountId)) {
+      const accRes = await pool.query(
+        `SELECT * FROM store_financial_accounts WHERE id = $1 AND store_id = $2 LIMIT 1`,
+        [parsedAccountId, storeId]
+      );
+      if (accRes.rows.length === 0) {
+        return res.status(404).json({ error: "Financial account not found." });
+      }
+      accountMeta = accRes.rows[0];
+      openingBase = Number(accountMeta.initial_balance || 0);
+      baseParams.push(parsedAccountId);
+      scopeSql = `t.store_id = $1 AND t.account_id = $${baseParams.length}`;
+    } else if (cleanCurr) {
+      baseParams.push(cleanCurr);
+      const currParamIdx = baseParams.length;
+      const cashAccRes = await pool.query(
+        `SELECT COALESCE(SUM(COALESCE(initial_balance, 0)), 0) AS init_sum
+         FROM store_financial_accounts
+         WHERE store_id = $1 AND account_type = 'cash' AND UPPER(currency) = $2`,
+        [storeId, cleanCurr]
+      );
+      openingBase = Number(cashAccRes.rows[0]?.init_sum || 0);
+      accountMeta = {
+        id: null,
+        store_id: storeId,
+        account_type: 'cash',
+        account_name: `${cleanCurr} Nakit Kasa`,
+        bank_name: null,
+        account_number: null,
+        currency: cleanCurr,
+        initial_balance: openingBase
+      };
+      scopeSql = `t.store_id = $1 AND UPPER(t.currency) = $${currParamIdx} AND (
+        (t.account_id IS NULL AND LOWER(COALESCE(t.payment_method, 'cash')) IN ('cash', 'nakit'))
+        OR t.account_id IN (
+          SELECT id FROM store_financial_accounts
+          WHERE store_id = $1 AND account_type = 'cash' AND UPPER(currency) = $${currParamIdx}
+        )
+      )`;
+    }
+
+    let priorNet = 0;
+    if (startDate && String(startDate).trim()) {
+      const priorParams = [...baseParams, String(startDate).split('T')[0]];
+      const priorRes = await pool.query(
+        `SELECT COALESCE(SUM(CASE WHEN t.type = 'income' THEN t.amount ELSE -t.amount END), 0) AS prior_net
+         FROM portfolio_transactions t
+         WHERE ${scopeSql} AND t.date < $${priorParams.length}::timestamp`,
+        priorParams
+      );
+      priorNet = Number(priorRes.rows[0]?.prior_net || 0);
+    }
+
+    const openingBalance = Math.round((openingBase + priorNet) * 100) / 100;
+
+    const rangeParams = [...baseParams];
+    let rangeWhere = scopeSql;
+    if (startDate && String(startDate).trim()) {
+      rangeParams.push(String(startDate).split('T')[0]);
+      rangeWhere += ` AND t.date >= $${rangeParams.length}::timestamp`;
+    }
+    if (endDate && String(endDate).trim()) {
+      rangeParams.push(`${String(endDate).split('T')[0]} 23:59:59`);
+      rangeWhere += ` AND t.date <= $${rangeParams.length}::timestamp`;
+    }
+
+    const txRes = await pool.query(
+      `SELECT t.*
+       FROM portfolio_transactions t
+       WHERE ${rangeWhere}
+       ORDER BY t.date ASC, t.id ASC`,
+      rangeParams
+    );
+
+    let runningBalance = openingBalance;
+    let periodIncome = 0;
+    let periodExpense = 0;
+
+    const transactions = txRes.rows.map((row: any) => {
+      const amt = Number(row.amount || 0);
+      if (row.type === 'income') {
+        periodIncome += amt;
+        runningBalance += amt;
+      } else {
+        periodExpense += amt;
+        runningBalance -= amt;
+      }
+      return {
+        ...row,
+        amount: amt,
+        running_balance: Math.round(runningBalance * 100) / 100
+      };
+    });
+
+    periodIncome = Math.round(periodIncome * 100) / 100;
+    periodExpense = Math.round(periodExpense * 100) / 100;
+    const closingBalance = Math.round(runningBalance * 100) / 100;
+    const periodNet = Math.round((periodIncome - periodExpense) * 100) / 100;
+
+    res.json({
+      account: accountMeta,
+      openingBalance,
+      periodIncome,
+      periodExpense,
+      periodNet,
+      closingBalance,
+      transactions
+    });
+  } catch (error: any) {
+    console.error("Financial account statement error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==========================================
+// CHECKS & PROMISSORY NOTES (ÇEK & SENET PORTFÖYÜ)
+// ==========================================
+router.get('/checks-notes', authenticate, async (req: any, res) => {
+  await ensurePortfolioTransactionsSchema();
+  const storeId = resolveTransactionStoreId(req);
+  if (!storeId) {
+    return res.status(403).json({ error: "Unauthorized store context." });
+  }
+
+  try {
+    const { direction, status, instrument_type, startDate, endDate, search } = req.query;
+    const params: any[] = [storeId];
+    let whereClause = `WHERE cn.store_id = $1`;
+
+    if (direction && direction !== 'all') {
+      params.push(String(direction));
+      whereClause += ` AND cn.direction = $${params.length}`;
+    }
+    if (status && status !== 'all') {
+      params.push(String(status));
+      whereClause += ` AND cn.status = $${params.length}`;
+    }
+    if (instrument_type && instrument_type !== 'all') {
+      params.push(String(instrument_type));
+      whereClause += ` AND cn.instrument_type = $${params.length}`;
+    }
+    if (startDate && String(startDate).trim()) {
+      params.push(String(startDate).split('T')[0]);
+      whereClause += ` AND cn.due_date >= $${params.length}::date`;
+    }
+    if (endDate && String(endDate).trim()) {
+      params.push(String(endDate).split('T')[0]);
+      whereClause += ` AND cn.due_date <= $${params.length}::date`;
+    }
+    if (search && String(search).trim()) {
+      params.push(`%${String(search).trim()}%`);
+      const pIdx = params.length;
+      whereClause += ` AND (
+        COALESCE(cn.document_no, '') ILIKE $${pIdx}
+        OR COALESCE(cn.contact_name, '') ILIKE $${pIdx}
+        OR COALESCE(cn.bank_name, '') ILIKE $${pIdx}
+        OR COALESCE(cn.drawer_name, '') ILIKE $${pIdx}
+        OR COALESCE(cn.notes, '') ILIKE $${pIdx}
+        OR COALESCE(c.title, '') ILIKE $${pIdx}
+      )`;
+    }
+
+    const result = await pool.query(
+      `SELECT cn.*, c.title AS company_title
+       FROM store_checks_notes cn
+       LEFT JOIN companies c ON c.id = cn.company_id AND c.store_id = cn.store_id
+       ${whereClause}
+       ORDER BY cn.due_date ASC, cn.id DESC`,
+      params
+    );
+    res.json(result.rows);
+  } catch (error: any) {
+    console.error("Fetch checks-notes error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/checks-notes', authenticate, async (req: any, res) => {
+  await ensurePortfolioTransactionsSchema();
+  const storeId = resolveTransactionStoreId(req);
+  if (!storeId) {
+    return res.status(403).json({ error: "Unauthorized store context." });
+  }
+
+  try {
+    const {
+      direction,
+      instrument_type,
+      document_no,
+      company_id,
+      contact_name,
+      bank_name,
+      branch_name,
+      drawer_name,
+      issue_date,
+      due_date,
+      amount,
+      currency,
+      exchange_rate,
+      status,
+      collection_account_id,
+      collection_account_name,
+      collected_at,
+      notes
+    } = req.body;
+
+    const parsedAmount = Number(amount);
+    if (!document_no || isNaN(parsedAmount) || parsedAmount <= 0 || !due_date) {
+      return res.status(400).json({ error: "Evrak numarası, geçerli tutar ve vade tarihi zorunludur." });
+    }
+
+    const curr = (currency || 'TRY').toUpperCase();
+    const rate = Number(exchange_rate || 1) || 1;
+    const finalStatus = status || 'portfolio';
+    const isSettled = finalStatus === 'collected' || finalStatus === 'paid';
+
+    let finalAccId: number | null = null;
+    let finalAccName: string | null = null;
+    if (isSettled) {
+      const resolved = await resolveFinancialAccountInfo(
+        pool,
+        storeId,
+        collection_account_id,
+        collection_account_name,
+        collection_account_id ? 'bank' : 'cash',
+        curr
+      );
+      finalAccId = resolved.accountId;
+      finalAccName = resolved.accountName;
+    }
+
+    const insertRes = await pool.query(
+      `INSERT INTO store_checks_notes (
+         store_id, direction, instrument_type, document_no, company_id, contact_name,
+         bank_name, branch_name, drawer_name, issue_date, due_date, amount, currency,
+         exchange_rate, status, collection_account_id, collection_account_name, collected_at,
+         source_type, notes
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::date, $11::date, $12, $13, $14, $15, $16, $17, $18, 'manual', $19)
+       RETURNING *`,
+      [
+        storeId,
+        direction === 'issued' ? 'issued' : 'received',
+        instrument_type === 'promissory_note' ? 'promissory_note' : 'check',
+        String(document_no).trim(),
+        company_id ? Number(company_id) : null,
+        contact_name ? String(contact_name).trim() : '',
+        bank_name ? String(bank_name).trim() : null,
+        branch_name ? String(branch_name).trim() : null,
+        drawer_name ? String(drawer_name).trim() : (contact_name ? String(contact_name).trim() : null),
+        issue_date || due_date,
+        due_date,
+        parsedAmount,
+        curr,
+        rate,
+        finalStatus,
+        finalAccId,
+        finalAccName,
+        isSettled ? (collected_at ? new Date(collected_at) : new Date()) : null,
+        notes ? String(notes).trim() : null
+      ]
+    );
+
+    const created = insertRes.rows[0];
+    await syncCheckNoteToPortfolio(pool, created);
+    res.json(created);
+  } catch (error: any) {
+    console.error("Create check-note error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put('/checks-notes/:id', authenticate, async (req: any, res) => {
+  await ensurePortfolioTransactionsSchema();
+  const storeId = resolveTransactionStoreId(req);
+  if (!storeId) {
+    return res.status(403).json({ error: "Unauthorized store context." });
+  }
+  const { id } = req.params;
+
+  try {
+    const existingRes = await pool.query(
+      `SELECT * FROM store_checks_notes WHERE id = $1 AND store_id = $2 LIMIT 1`,
+      [Number(id), storeId]
+    );
+    if (existingRes.rows.length === 0) {
+      return res.status(404).json({ error: "Çek/senet kaydı bulunamadı." });
+    }
+    const existing = existingRes.rows[0];
+    const {
+      direction,
+      instrument_type,
+      document_no,
+      company_id,
+      contact_name,
+      bank_name,
+      branch_name,
+      drawer_name,
+      issue_date,
+      due_date,
+      amount,
+      currency,
+      exchange_rate,
+      status,
+      collection_account_id,
+      collection_account_name,
+      collected_at,
+      notes
+    } = req.body;
+
+    const parsedAmount = amount !== undefined ? Number(amount) : Number(existing.amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      return res.status(400).json({ error: "Geçerli pozitif bir tutar girilmelidir." });
+    }
+
+    const nextCurr = (currency || existing.currency || 'TRY').toUpperCase();
+    const nextStatus = status || existing.status || 'portfolio';
+    const isSettled = nextStatus === 'collected' || nextStatus === 'paid';
+
+    let finalAccId: number | null = null;
+    let finalAccName: string | null = null;
+    let finalCollectedAt: any = null;
+
+    if (isSettled) {
+      const reqAccId = collection_account_id !== undefined ? collection_account_id : existing.collection_account_id;
+      const reqAccName = collection_account_name !== undefined ? collection_account_name : existing.collection_account_name;
+      const resolved = await resolveFinancialAccountInfo(
+        pool,
+        storeId,
+        reqAccId,
+        reqAccName,
+        reqAccId ? 'bank' : 'cash',
+        nextCurr
+      );
+      finalAccId = resolved.accountId;
+      finalAccName = resolved.accountName;
+      finalCollectedAt = collected_at ? new Date(collected_at) : (existing.collected_at || new Date());
+    }
+
+    const updRes = await pool.query(
+      `UPDATE store_checks_notes
+       SET direction = $1,
+           instrument_type = $2,
+           document_no = $3,
+           company_id = $4,
+           contact_name = $5,
+           bank_name = $6,
+           branch_name = $7,
+           drawer_name = $8,
+           issue_date = COALESCE($9::date, issue_date),
+           due_date = COALESCE($10::date, due_date),
+           amount = $11,
+           currency = $12,
+           exchange_rate = $13,
+           status = $14,
+           collection_account_id = $15,
+           collection_account_name = $16,
+           collected_at = $17,
+           notes = $18,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $19 AND store_id = $20
+       RETURNING *`,
+      [
+        direction !== undefined ? (direction === 'issued' ? 'issued' : 'received') : existing.direction,
+        instrument_type !== undefined ? (instrument_type === 'promissory_note' ? 'promissory_note' : 'check') : existing.instrument_type,
+        document_no !== undefined ? String(document_no).trim() : existing.document_no,
+        company_id !== undefined ? (company_id ? Number(company_id) : null) : existing.company_id,
+        contact_name !== undefined ? String(contact_name).trim() : existing.contact_name,
+        bank_name !== undefined ? (bank_name ? String(bank_name).trim() : null) : existing.bank_name,
+        branch_name !== undefined ? (branch_name ? String(branch_name).trim() : null) : existing.branch_name,
+        drawer_name !== undefined ? (drawer_name ? String(drawer_name).trim() : null) : existing.drawer_name,
+        issue_date || null,
+        due_date || null,
+        parsedAmount,
+        nextCurr,
+        exchange_rate !== undefined ? (Number(exchange_rate) || 1) : Number(existing.exchange_rate || 1),
+        nextStatus,
+        finalAccId,
+        finalAccName,
+        finalCollectedAt,
+        notes !== undefined ? (notes ? String(notes).trim() : null) : existing.notes,
+        Number(id),
+        storeId
+      ]
+    );
+
+    const updated = updRes.rows[0];
+    await syncCheckNoteToPortfolio(pool, updated);
+    res.json(updated);
+  } catch (error: any) {
+    console.error("Update check-note error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.patch('/checks-notes/:id/status', authenticate, async (req: any, res) => {
+  await ensurePortfolioTransactionsSchema();
+  const storeId = resolveTransactionStoreId(req);
+  if (!storeId) {
+    return res.status(403).json({ error: "Unauthorized store context." });
+  }
+  const { id } = req.params;
+
+  try {
+    const existingRes = await pool.query(
+      `SELECT * FROM store_checks_notes WHERE id = $1 AND store_id = $2 LIMIT 1`,
+      [Number(id), storeId]
+    );
+    if (existingRes.rows.length === 0) {
+      return res.status(404).json({ error: "Çek/senet kaydı bulunamadı." });
+    }
+    const existing = existingRes.rows[0];
+    const { status, collection_account_id, collection_account_name, collected_at, notes } = req.body;
+
+    if (!status) {
+      return res.status(400).json({ error: "Durum bilgisi zorunludur." });
+    }
+
+    const isSettled = status === 'collected' || status === 'paid';
+    const curr = (existing.currency || 'TRY').toUpperCase();
+
+    let finalAccId: number | null = null;
+    let finalAccName: string | null = null;
+    let finalCollectedAt: any = null;
+
+    if (isSettled) {
+      const resolved = await resolveFinancialAccountInfo(
+        pool,
+        storeId,
+        collection_account_id,
+        collection_account_name,
+        collection_account_id ? 'bank' : 'cash',
+        curr
+      );
+      finalAccId = resolved.accountId;
+      finalAccName = resolved.accountName;
+      finalCollectedAt = collected_at ? new Date(collected_at) : new Date();
+    }
+
+    const updRes = await pool.query(
+      `UPDATE store_checks_notes
+       SET status = $1,
+           collection_account_id = $2,
+           collection_account_name = $3,
+           collected_at = $4,
+           notes = COALESCE($5, notes),
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $6 AND store_id = $7
+       RETURNING *`,
+      [
+        status,
+        finalAccId,
+        finalAccName,
+        finalCollectedAt,
+        notes !== undefined ? (notes ? String(notes).trim() : null) : null,
+        Number(id),
+        storeId
+      ]
+    );
+
+    const updated = updRes.rows[0];
+    await syncCheckNoteToPortfolio(pool, updated);
+    res.json(updated);
+  } catch (error: any) {
+    console.error("Patch check-note status error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete('/checks-notes/:id', authenticate, async (req: any, res) => {
+  await ensurePortfolioTransactionsSchema();
+  const storeId = resolveTransactionStoreId(req);
+  if (!storeId) {
+    return res.status(403).json({ error: "Unauthorized store context." });
+  }
+  const { id } = req.params;
+  const checkId = Number(id);
+
+  try {
+    await deletePortfolioTxForSource(pool, storeId, 'check_note', checkId);
+    try {
+      await pool.query(`UPDATE purchase_invoices SET check_note_id = NULL WHERE store_id = $1 AND check_note_id = $2`, [storeId, checkId]);
+      await pool.query(`UPDATE sales_invoices SET check_note_id = NULL WHERE store_id = $1 AND check_note_id = $2`, [storeId, checkId]);
+      await pool.query(`UPDATE current_account_transactions SET check_note_id = NULL WHERE store_id = $1 AND check_note_id = $2`, [storeId, checkId]);
+    } catch {}
+
+    const delRes = await pool.query(
+      `DELETE FROM store_checks_notes WHERE id = $1 AND store_id = $2 RETURNING *`,
+      [checkId, storeId]
+    );
+    if (delRes.rowCount === 0) {
+      return res.status(404).json({ error: "Çek/senet kaydı bulunamadı." });
+    }
+    res.json({ success: true, deleted: delRes.rows[0] });
+  } catch (error: any) {
+    console.error("Delete check-note error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // POST /transactions - Record financial transaction (income/expense)
 router.post('/transactions', authenticate, async (req: any, res) => {
   await ensurePortfolioTransactionsSchema();
   const storeId = resolveTransactionStoreId(req);
-  const { type, category, title, amount, currency, date, property_id, description, payment_method, reference_no, contact_name, account_id, account_name } = req.body;
+  const { type, category, title, amount, currency, exchange_rate, date, property_id, company_id, description, payment_method, reference_no, contact_name, account_id, account_name } = req.body;
 
   if (!storeId) {
     return res.status(400).json({ error: "Store ID is required." });
@@ -1964,13 +2492,22 @@ router.post('/transactions', authenticate, async (req: any, res) => {
   }
 
   const parsedPropertyId = property_id ? (Number(property_id) || null) : null;
+  const parsedCompanyId = company_id ? (Number(company_id) || null) : null;
   const parsedAccountId = account_id ? (Number(account_id) || null) : null;
+  const txCurr = (currency || 'TRY').toUpperCase();
+  const txRate = Number(exchange_rate || 1) || 1;
   const txDate = date ? new Date(date).toISOString() : new Date().toISOString();
+
+  let resolvedAccName = account_name ? String(account_name).trim() : null;
+  if (parsedAccountId && !resolvedAccName) {
+    const accInfo = await resolveFinancialAccountInfo(pool, storeId, parsedAccountId, null, payment_method || 'cash', txCurr);
+    resolvedAccName = accInfo.accountName;
+  }
 
   try {
     const result = await pool.query(
-      `INSERT INTO portfolio_transactions (store_id, type, category, title, amount, currency, date, property_id, description, payment_method, reference_no, contact_name, account_id, account_name)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      `INSERT INTO portfolio_transactions (store_id, type, category, title, amount, currency, exchange_rate, date, property_id, company_id, description, payment_method, reference_no, contact_name, account_id, account_name)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
        RETURNING *`,
       [
         storeId, 
@@ -1978,15 +2515,17 @@ router.post('/transactions', authenticate, async (req: any, res) => {
         category, 
         String(title).trim(), 
         parsedAmount, 
-        currency || 'TRY', 
+        txCurr, 
+        txRate,
         txDate, 
         parsedPropertyId, 
+        parsedCompanyId,
         description || '',
         payment_method || 'cash',
         reference_no || '',
         contact_name || '',
         parsedAccountId,
-        account_name ? String(account_name).trim() : null
+        resolvedAccName
       ]
     );
     
@@ -2002,7 +2541,7 @@ router.post('/transactions', authenticate, async (req: any, res) => {
             parsedPropertyId, 
             'FINANCIAL_RECORD', 
             req.user?.id || null, 
-            `Created financial entry: ${type === 'income' ? 'Gelir' : 'Gider'} - ${title} (${parsedAmount} ${currency || 'TRY'})`
+            `Created financial entry: ${type === 'income' ? 'Gelir' : 'Gider'} - ${title} (${parsedAmount} ${txCurr})`
           ]
         );
       } catch (e) {}
@@ -2023,7 +2562,7 @@ router.put('/transactions/:id', authenticate, async (req: any, res) => {
     return res.status(403).json({ error: "Unauthorized store context." });
   }
   const { id } = req.params;
-  const { type, category, title, amount, currency, date, property_id, description, payment_method, reference_no, contact_name, account_id, account_name } = req.body;
+  const { type, category, title, amount, currency, exchange_rate, date, property_id, company_id, description, payment_method, reference_no, contact_name, account_id, account_name } = req.body;
 
   if (!type || !category || !title || amount === undefined || amount === null) {
     return res.status(400).json({ error: "Type, category, title, and amount are required." });
@@ -2034,8 +2573,17 @@ router.put('/transactions/:id', authenticate, async (req: any, res) => {
     return res.status(400).json({ error: "Valid positive amount is required." });
   }
   const parsedPropertyId = property_id ? (Number(property_id) || null) : null;
+  const parsedCompanyId = company_id ? (Number(company_id) || null) : null;
   const parsedAccountId = account_id ? (Number(account_id) || null) : null;
+  const txCurr = (currency || 'TRY').toUpperCase();
+  const txRate = Number(exchange_rate || 1) || 1;
   const txDate = date ? new Date(date).toISOString() : new Date().toISOString();
+
+  let resolvedAccName = account_name ? String(account_name).trim() : null;
+  if (parsedAccountId && !resolvedAccName) {
+    const accInfo = await resolveFinancialAccountInfo(pool, storeId, parsedAccountId, null, payment_method || 'cash', txCurr);
+    resolvedAccName = accInfo.accountName;
+  }
 
   try {
     const result = await pool.query(
@@ -2045,31 +2593,35 @@ router.put('/transactions/:id', authenticate, async (req: any, res) => {
            title = $3,
            amount = $4,
            currency = $5,
-           date = $6,
-           property_id = $7,
-           description = $8,
-           payment_method = $9,
-           reference_no = $10,
-           contact_name = $11,
-           account_id = $12,
-           account_name = $13,
+           exchange_rate = $6,
+           date = $7,
+           property_id = $8,
+           company_id = $9,
+           description = $10,
+           payment_method = $11,
+           reference_no = $12,
+           contact_name = $13,
+           account_id = $14,
+           account_name = $15,
            updated_at = CURRENT_TIMESTAMP
-       WHERE id = $14 AND store_id = $15
+       WHERE id = $16 AND store_id = $17
        RETURNING *`,
       [
         type,
         category,
         String(title).trim(),
         parsedAmount,
-        currency || 'TRY',
+        txCurr,
+        txRate,
         txDate,
         parsedPropertyId,
+        parsedCompanyId,
         description || '',
         payment_method || 'cash',
         reference_no || '',
         contact_name || '',
         parsedAccountId,
-        account_name ? String(account_name).trim() : null,
+        resolvedAccName,
         Number(id),
         storeId
       ]
@@ -2106,6 +2658,20 @@ router.delete('/transactions/:id', authenticate, async (req: any, res) => {
     }
 
     const deleted = result.rows[0];
+    if (deleted.source_type === 'check_note' && deleted.source_id) {
+      try {
+        await pool.query(
+          `UPDATE store_checks_notes
+           SET status = 'portfolio',
+               collection_account_id = NULL,
+               collection_account_name = NULL,
+               collected_at = NULL,
+               updated_at = CURRENT_TIMESTAMP
+           WHERE id = $1 AND store_id = $2`,
+          [Number(deleted.source_id), storeId]
+        );
+      } catch (e) {}
+    }
     if (deleted.property_id) {
       try {
         await pool.query(

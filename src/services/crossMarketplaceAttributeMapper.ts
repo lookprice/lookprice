@@ -80,11 +80,23 @@ const CANONICAL_ATTRIBUTE_ALIASES: Record<string, string> = {
   "ramkapasitesi": "ram_capacity",
   "isletimsistemi": "operating_system",
 
-  // Clothing / Apparel
+  // Clothing / Apparel & Common Attributes
   "beden": "size",
   "size": "size",
   "cinsiyet": "gender",
   "materyal": "material",
+  "garantitipi": "warranty_type",
+  "garanti_tipi": "warranty_type",
+  "yasgrubu": "age_group",
+  "yas_grubu": "age_group",
+  "ortam": "occasion",
+  "desen": "pattern",
+  "kumasozelligi": "fabric_feature",
+  "kalip": "fit",
+  "koltipi": "sleeve_type",
+  "yakatipi": "collar_type",
+  "kapatma": "closure_type",
+  "sezon": "season",
 
   // Camera & Security
   "kameracozunurluk": "camera_resolution",
@@ -125,13 +137,65 @@ const CANONICAL_ATTRIBUTE_ALIASES: Record<string, string> = {
   "stil": "theme_style"
 };
 
+function transliterateTurkish(str: string): string {
+  return String(str)
+    .replace(/Ğ/g, "g").replace(/ğ/g, "g")
+    .replace(/Ü/g, "u").replace(/ü/g, "u")
+    .replace(/Ş/g, "s").replace(/ş/g, "s")
+    .replace(/İ/g, "i").replace(/I/g, "i").replace(/ı/g, "i")
+    .replace(/Ö/g, "o").replace(/ö/g, "o")
+    .replace(/Ç/g, "c").replace(/ç/g, "c");
+}
+
 /**
  * Normalizes any attribute ID or label to its canonical master key
  */
 export function getCanonicalKey(rawKey: string): string {
   if (!rawKey) return "";
-  const clean = String(rawKey).trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+  const transliterated = transliterateTurkish(String(rawKey).trim()).toLowerCase();
+  const clean = transliterated.replace(/[^a-z0-9]/g, "");
   return CANONICAL_ATTRIBUTE_ALIASES[clean] || clean;
+}
+
+/**
+ * Unwraps stored attribute entries whether plain scalar or { mode, value } objects
+ */
+export function unwrapMarketplaceAttrValue(raw: any): string {
+  if (raw === undefined || raw === null) return "";
+  if (typeof raw === "object") {
+    if (Array.isArray(raw)) return raw.filter(Boolean).join(", ");
+    const v = raw.value !== undefined ? raw.value : raw.label;
+    if (v === undefined || v === null) return "";
+    const str = String(v).trim();
+    if (str.startsWith("$product.")) return "";
+    return str;
+  }
+  const str = String(raw).trim();
+  if (str.startsWith("$product.")) return "";
+  return str;
+}
+
+/**
+ * Removes sibling keys that map to the same canonical attribute key as keepKey
+ */
+export function pruneCanonicalAliases(attrs: Record<string, any> | undefined | null, keepKey: string): Record<string, any> {
+  if (!attrs || typeof attrs !== "object") return {};
+  const result: Record<string, any> = { ...attrs };
+  const targetCanonical = getCanonicalKey(keepKey);
+  if (!targetCanonical) return result;
+  const isPureNumericTarget = /^\d+$/.test(String(keepKey).trim());
+
+  Object.keys(result).forEach((k) => {
+    if (k === keepKey) return;
+    if (k.toLowerCase() === keepKey.toLowerCase()) {
+      delete result[k];
+      return;
+    }
+    if (!isPureNumericTarget && !/^\d+$/.test(k.trim()) && getCanonicalKey(k) === targetCanonical) {
+      delete result[k];
+    }
+  });
+  return result;
 }
 
 /**
@@ -159,7 +223,8 @@ export function extractMasterAttributePool(product: any): Record<string, { value
     pool["origin_country"] = { value: String(product.origin_country).trim(), source: "Stok Kartı (Menşei)" };
   }
 
-  // 2. Extract from `marketplace_data` (Hepsiburada, Trendyol, Amazon, N11, Pazarama)
+  // 2. Extract from `marketplace_data` in strict lowest-to-highest priority order
+  // so primary explicit attributes ('attributes', 'hepsiburada') are never overwritten by stale secondary slices.
   let mpData = product.marketplace_data;
   if (typeof mpData === "string") {
     try {
@@ -170,25 +235,28 @@ export function extractMasterAttributePool(product: any): Record<string, { value
   }
 
   if (mpData && typeof mpData === "object") {
-    // Loop over each marketplace's stored attributes (hepsiburada, trendyol, amazon, n11, etc.)
-    Object.keys(mpData).forEach((mpKey) => {
+    const orderedKeys = ["pazarama", "amazon", "n11", "trendyol", "hepsiburada", "attributes"];
+    const remainingKeys = Object.keys(mpData).filter((k) => !orderedKeys.includes(k));
+    const scanOrder = [...remainingKeys, ...orderedKeys.filter((k) => k in mpData)];
+
+    scanOrder.forEach((mpKey) => {
       const mpSlice = mpData[mpKey];
       const attrs = mpSlice?.attributes || (mpKey === "attributes" ? mpSlice : null);
 
       if (attrs && typeof attrs === "object") {
         Object.keys(attrs).forEach((attrId) => {
-          const val = attrs[attrId];
-          if (val && String(val).trim() !== "") {
+          const cleanVal = unwrapMarketplaceAttrValue(attrs[attrId]);
+          if (cleanVal !== "") {
             const canonicalKey = getCanonicalKey(attrId);
-            const sourceLabel = mpKey === "hepsiburada" ? "Hepsiburada" 
-              : mpKey === "trendyol" ? "Trendyol" 
-              : mpKey === "amazon" ? "Amazon" 
-              : mpKey === "n11" ? "N11" 
-              : "Diğer Pazaryeri";
+            const sourceLabel = mpKey === "hepsiburada" ? "Hepsiburada"
+              : mpKey === "trendyol" ? "Trendyol"
+              : mpKey === "amazon" ? "Amazon"
+              : mpKey === "n11" ? "N11"
+              : mpKey === "pazarama" ? "Pazarama"
+              : "Ürün Nitelikleri";
 
-            // Save to pool if not present or replace with explicit marketplace entry
             pool[canonicalKey] = {
-              value: String(val).trim(),
+              value: cleanVal,
               source: `${sourceLabel} (${attrId})`
             };
           }
@@ -222,10 +290,16 @@ export function autoHydrateTargetAttributes(
 
   targetSchemaAttributes.forEach((attr) => {
     const attrId = attr.id || attr.name;
-    const existingVal = hydratedAttributes[attrId];
+    const rawExisting = hydratedAttributes[attrId];
 
-    // If already explicitly filled for this marketplace, keep it
-    if (existingVal && String(existingVal).trim() !== "") {
+    // Respect deliberate empty clear ("") as an explicit user override
+    if (rawExisting === "") {
+      return;
+    }
+
+    const existingVal = unwrapMarketplaceAttrValue(rawExisting);
+    if (existingVal !== "") {
+      hydratedAttributes[attrId] = existingVal;
       return;
     }
 
@@ -236,7 +310,6 @@ export function autoHydrateTargetAttributes(
       hydratedAttributes[attrId] = poolEntry.value;
       autoFilledFields[attrId] = poolEntry.source;
     } else if (attr.defaultValue && typeof attr.defaultValue === "string") {
-      // Dynamic $product template replacement if provided
       let def = attr.defaultValue;
       if (def.startsWith("$product.")) {
         const prop = def.replace("$product.", "");
@@ -245,7 +318,6 @@ export function autoHydrateTargetAttributes(
           autoFilledFields[attrId] = "Stok Kartı";
         }
       } else if (!def.startsWith("$")) {
-        // Safe default value fallback
         hydratedAttributes[attrId] = def;
       }
     }

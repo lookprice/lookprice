@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Search, ChevronDown, CheckCircle2, Layers, Sparkles, SlidersHorizontal, Info, X, Loader2, Zap, ExternalLink, Lock, Check } from "lucide-react";
 import { getAttributesForCategory, suggestMarketplaceCategory, HEPSIBURADA_DEFAULT_CATEGORIES, MarketplaceAttribute } from "@/data/marketplaceCategoriesData";
-import { autoHydrateTargetAttributes } from "@/services/crossMarketplaceAttributeMapper";
+import { autoHydrateTargetAttributes, getCanonicalKey, unwrapMarketplaceAttrValue, pruneCanonicalAliases } from "@/services/crossMarketplaceAttributeMapper";
 import { api } from "@/services/api";
 import { getMarketplaceListingUrl, slugifyText } from "@/utils/marketplaceUrls";
 import { getConnectedMarketplaces, ConnectedMarketplaces } from "@/utils/marketplaceEStores";
@@ -36,7 +36,11 @@ export const MarketplaceProductFields = ({
     }
     const hb = mp?.hepsiburada || {};
     const universalAttrs = mp?.attributes || {};
-    const mergedAttributes = { ...universalAttrs, ...(hb.attributes || {}) };
+    let mergedAttributes: Record<string, any> = { ...universalAttrs };
+    Object.entries(hb.attributes || {}).forEach(([k, v]) => {
+      mergedAttributes = pruneCanonicalAliases(mergedAttributes, k);
+      mergedAttributes[k] = v;
+    });
 
     return {
       categoryId: String(hb.categoryId || mp?.categoryId || ""),
@@ -63,6 +67,8 @@ export const MarketplaceProductFields = ({
   const [amzData, setAmzData] = useState(() => getAmzData(product));
   const [hbSkuInput, setHbSkuInput] = useState(product?.hepsiburada_sku || marketData.hepsiburadaSku || "");
   const [amzAsinInput, setAmzAsinInput] = useState(product?.amazon_asin || amzData.asin || "");
+  const lastEmittedMpRef = useRef<string>("");
+  const lastProductIdRef = useRef<any>(product?.id);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
@@ -73,15 +79,23 @@ export const MarketplaceProductFields = ({
   const [searchingCategories, setSearchingCategories] = useState(false);
   const [selectedCategoryCache, setSelectedCategoryCache] = useState<any>(null);
 
-  // Sync state if product changes
+  // Sync state ONLY if switching product or external marketplace_data genuinely differs from our last emission
   useEffect(() => {
+    const incomingMpJson = JSON.stringify(product?.marketplace_data || {});
+    const isSameProduct = lastProductIdRef.current === product?.id;
+    lastProductIdRef.current = product?.id;
+
+    if (isSameProduct && lastEmittedMpRef.current && incomingMpJson === lastEmittedMpRef.current) {
+      return;
+    }
+
     const currentHb = getHbData(product);
     const currentAmz = getAmzData(product);
     setMarketData(currentHb);
     setAmzData(currentAmz);
     setHbSkuInput(product?.hepsiburada_sku || currentHb.hepsiburadaSku || "");
     setAmzAsinInput(product?.amazon_asin || currentAmz.asin || "");
-  }, [product?.id, product?.hepsiburada_sku, product?.amazon_asin, JSON.stringify(product?.marketplace_data), product?.category, product?.sub_category]);
+  }, [product?.id, product?.hepsiburada_sku, product?.amazon_asin, JSON.stringify(product?.marketplace_data)]);
 
   // Check store-level category mapping across all marketplace settings
   const catKey = product?.category ? String(product.category).trim() : "";
@@ -289,7 +303,29 @@ export const MarketplaceProductFields = ({
     ? dynamicAttributes 
     : (activeCategory ? getAttributesForCategory(activeCategory.name || activeCategory.displayName || "", activeCategory.paths || [], effectiveCatId) : []);
 
-  const storeCategoryAttrs = storeSettings?.categoryAttributes?.[String(effectiveCatId)] || {};
+  const storeCategoryAttrs: Record<string, any> = {
+    ...(branding?.pazarama_settings?.categoryAttributes?.[String(effectiveCatId)] || {}),
+    ...(branding?.amazon_settings?.categoryAttributes?.[String(effectiveCatId)] || {}),
+    ...(branding?.n11_settings?.categoryAttributes?.[String(effectiveCatId)] || {}),
+    ...(branding?.trendyol_settings?.categoryAttributes?.[String(effectiveCatId)] || {}),
+    ...(branding?.hepsiburada_settings?.categoryAttributes?.[String(effectiveCatId)] || {}),
+    ...(storeSettings?.categoryAttributes?.[String(effectiveCatId)] || {}),
+  };
+
+  const findStoreCategoryAttrConfig = (attr: any): any => {
+    if (!storeCategoryAttrs || typeof storeCategoryAttrs !== "object") return undefined;
+    if (storeCategoryAttrs[attr.id] !== undefined) return storeCategoryAttrs[attr.id];
+    if (attr.name && storeCategoryAttrs[attr.name] !== undefined) return storeCategoryAttrs[attr.name];
+    const targetCanonical = getCanonicalKey(attr.id || attr.name || "");
+    const targetNameCanonical = getCanonicalKey(attr.name || attr.id || "");
+    for (const [k, v] of Object.entries(storeCategoryAttrs)) {
+      if (k.toLowerCase() === String(attr.id).toLowerCase()) return v;
+      if (attr.name && k.toLowerCase() === String(attr.name).toLowerCase()) return v;
+      const kCanon = getCanonicalKey(k);
+      if (kCanon && (kCanon === targetCanonical || kCanon === targetNameCanonical)) return v;
+    }
+    return undefined;
+  };
 
   const displayCategories = searchResults.length > 0 
     ? searchResults 
@@ -299,6 +335,14 @@ export const MarketplaceProductFields = ({
         const id = String(c.id || c.categoryId || "").toLowerCase();
         return name.includes(searchTerm.toLowerCase()) || id.includes(searchTerm.toLowerCase());
       });
+
+  const cleanSiblingAttributesForTarget = (existingMpAttrs: Record<string, any> | undefined, sharedAttributes: Record<string, any>) => {
+    let cleaned: Record<string, any> = { ...(existingMpAttrs || {}) };
+    Object.keys(sharedAttributes).forEach((key) => {
+      cleaned = pruneCanonicalAliases(cleaned, key);
+    });
+    return { ...cleaned, ...sharedAttributes };
+  };
 
   const getFullMarketplacePayload = (hbSlice: any, amzSlice?: any) => {
     let existingMp = product?.marketplace_data;
@@ -318,22 +362,32 @@ export const MarketplaceProductFields = ({
       },
       trendyol: {
         ...(existingMp.trendyol || {}),
-        attributes: { ...(existingMp.trendyol?.attributes || {}), ...sharedAttributes }
+        attributes: cleanSiblingAttributesForTarget(existingMp.trendyol?.attributes, sharedAttributes)
       },
       n11: {
         ...(existingMp.n11 || {}),
-        attributes: { ...(existingMp.n11?.attributes || {}), ...sharedAttributes }
+        attributes: cleanSiblingAttributesForTarget(existingMp.n11?.attributes, sharedAttributes)
       },
       amazon: {
         ...(existingMp.amazon || {}),
-        attributes: { ...(existingMp.amazon?.attributes || {}), ...sharedAttributes },
+        attributes: cleanSiblingAttributesForTarget(existingMp.amazon?.attributes, sharedAttributes),
         ...(amzSlice || amzData)
       },
       pazarama: {
         ...(existingMp.pazarama || {}),
-        attributes: { ...(existingMp.pazarama?.attributes || {}), ...sharedAttributes }
+        attributes: cleanSiblingAttributesForTarget(existingMp.pazarama?.attributes, sharedAttributes)
       }
     };
+  };
+
+  const emitProductUpdate = (nextMarketData: any, extraFields?: Record<string, any>) => {
+    const fullMp = getFullMarketplacePayload(nextMarketData);
+    lastEmittedMpRef.current = JSON.stringify(fullMp);
+    onUpdate({
+      ...product,
+      ...(extraFields || {}),
+      marketplace_data: fullMp
+    });
   };
 
   const handleCategorySelect = (categoryId: string) => {
@@ -374,33 +428,21 @@ export const MarketplaceProductFields = ({
     setMarketData(updated);
     setShowCategoryDropdown(false);
     setSearchTerm("");
-    const fullMp = getFullMarketplacePayload(updated);
-    onUpdate({
-      ...product,
-      marketplace_data: fullMp
-    });
+    emitProductUpdate(updated);
   };
 
   const handleClearOverride = () => {
     const updated = { ...marketData, categoryId: "" };
     setMarketData(updated);
-    const fullMp = getFullMarketplacePayload(updated);
-    onUpdate({
-      ...product,
-      marketplace_data: fullMp
-    });
+    emitProductUpdate(updated);
   };
 
   const handleAttributeChange = (attrId: string, value: string) => {
-    const currentAttrs = marketData.attributes || {};
-    const updatedAttrs = { ...currentAttrs, [attrId]: value };
+    const cleanedBase = pruneCanonicalAliases(marketData.attributes || {}, attrId);
+    const updatedAttrs = { ...cleanedBase, [attrId]: value };
     const updated = { ...marketData, attributes: updatedAttrs };
     setMarketData(updated);
-    const fullMp = getFullMarketplacePayload(updated);
-    onUpdate({
-      ...product,
-      marketplace_data: fullMp
-    });
+    emitProductUpdate(updated);
   };
 
   // Helper parser for Hepsiburada SKU / URL input
@@ -860,37 +902,76 @@ export const MarketplaceProductFields = ({
                     );
 
                     return categoryAttributes.map((attr) => {
-                      const inheritedStoreVal = storeCategoryAttrs[attr.id]?.value;
-                      const currentProductVal = marketData.attributes?.[attr.id];
-                      const autoSource = autoFilledFields[attr.id];
+                      const storeAttrCfg = findStoreCategoryAttrConfig(attr);
+                      const inheritedStoreRaw = typeof storeAttrCfg === "object" && storeAttrCfg !== null
+                        ? storeAttrCfg.value
+                        : storeAttrCfg;
 
-                      const resolveDynamicValue = (valOrVar: string | undefined): string => {
-                        if (!valOrVar) return "";
-                        if (valOrVar === "$product.brand") return product?.brand || product?.brand_name || "";
-                        if (valOrVar === "$product.name") return product?.name || "";
-                        if (valOrVar === "$product.barcode") return product?.barcode || "";
-                        if (valOrVar === "$product.model") return product?.model || "";
-                        if (valOrVar === "$product.tax_rate" || valOrVar === "$product.kdv") return String(product?.tax_rate || 20);
-                        return valOrVar;
+                      // Locate explicit product-level override by exact ID or canonical sibling
+                      const attrsMap = marketData.attributes || {};
+                      let rawCurrentVal: any = attrsMap[attr.id];
+                      if (rawCurrentVal === undefined) {
+                        const targetCanon = getCanonicalKey(attr.id);
+                        const matchKey = Object.keys(attrsMap).find(
+                          (k) => k.toLowerCase() === String(attr.id).toLowerCase() || (targetCanon && getCanonicalKey(k) === targetCanon)
+                        );
+                        if (matchKey !== undefined) rawCurrentVal = attrsMap[matchKey];
+                      }
+
+                      const isExplicitClear = rawCurrentVal === "";
+                      const currentProductVal = isExplicitClear ? "" : unwrapMarketplaceAttrValue(rawCurrentVal);
+                      const autoSource = !isExplicitClear && !currentProductVal ? autoFilledFields[attr.id] : undefined;
+
+                      const resolveDynamicValue = (valOrVar: any): string => {
+                        const unwrapped = typeof valOrVar === "object" && valOrVar !== null
+                          ? (valOrVar.value !== undefined ? String(valOrVar.value) : "")
+                          : String(valOrVar || "");
+                        if (!unwrapped) return "";
+                        const firstVar = Array.isArray(product?.variants) && product.variants.length > 0 ? product.variants[0] : null;
+                        switch (unwrapped) {
+                          case "$product.brand": return product?.brand || product?.brand_name || "";
+                          case "$product.name": return product?.name || "";
+                          case "$product.barcode": return product?.barcode || "";
+                          case "$product.model": return product?.model || "";
+                          case "$product.tax_rate":
+                          case "$product.kdv": return String(product?.tax_rate ?? product?.vat_rate ?? 20);
+                          case "$product.sku":
+                          case "$product.product_code": return product?.sku || product?.product_code || product?.barcode || "";
+                          case "$product.description": return product?.description || product?.name || "";
+                          case "$product.category": return product?.category || "";
+                          case "$product.sub_category": return product?.sub_category || "";
+                          case "$product.price": return product?.price !== undefined && product?.price !== null ? String(product.price) : "";
+                          case "$product.variant_color": return product?.color || product?.sector_data?.color || firstVar?.color || "";
+                          case "$product.variant_size": return product?.size || product?.sector_data?.size || firstVar?.size || "";
+                          default: return unwrapped;
+                        }
                       };
 
-                      const isCurrentValValidForSelect = !attr.values || attr.values.length === 0 || !currentProductVal
-                        ? Boolean(currentProductVal !== undefined && currentProductVal !== "")
-                        : attr.values.some((v: string) => v.toLowerCase() === String(currentProductVal).toLowerCase());
-
-                      let effectiveVal = isCurrentValValidForSelect
-                        ? currentProductVal 
-                        : (hydratedAttributes[attr.id] || "");
-
-                      if (!effectiveVal && inheritedStoreVal) {
-                        effectiveVal = resolveDynamicValue(inheritedStoreVal);
+                      let effectiveVal = "";
+                      if (isExplicitClear) {
+                        effectiveVal = "";
+                      } else if (currentProductVal !== "") {
+                        // Never drop saved/edited product value: match case-insensitively to select options if available
+                        if (attr.values && attr.values.length > 0) {
+                          const matchedOpt = attr.values.find(
+                            (v: string) => String(v).toLowerCase() === currentProductVal.toLowerCase()
+                          );
+                          effectiveVal = matchedOpt !== undefined ? matchedOpt : currentProductVal;
+                        } else {
+                          effectiveVal = currentProductVal;
+                        }
+                      } else {
+                        effectiveVal = hydratedAttributes[attr.id] || "";
+                        if (!effectiveVal && inheritedStoreRaw) {
+                          effectiveVal = resolveDynamicValue(inheritedStoreRaw);
+                        }
                       }
 
                       const prodName = String(product?.name || "").trim();
 
-                      // Brand fallback
+                      // Brand fallback only when not explicitly cleared
                       const isBrandAttr = attr.id.toLowerCase() === "marka" || attr.id.toLowerCase().includes("brand");
-                      if (!effectiveVal && isBrandAttr) {
+                      if (!isExplicitClear && !effectiveVal && isBrandAttr) {
                         effectiveVal = product?.brand || product?.brand_name || "";
                         if (!effectiveVal && prodName) {
                           const knownBrands = ["Kingston", "SanDisk", "Samsung", "Toshiba", "Kioxia", "Philips", "Hikvision", "Lexar", "Sony", "Adata", "Western Digital", "WD", "Seagate", "Apple", "Xiaomi", "Logitech", "HP", "Lenovo", "Asus", "Dell", "TP-Link", "Baseus", "Anker", "Ugreen", "Digitus", "Targus", "Bory", "SBS"];
@@ -904,8 +985,14 @@ export const MarketplaceProductFields = ({
                         }
                       }
 
-                      if (!effectiveVal && attr.defaultValue) {
+                      if (!isExplicitClear && !effectiveVal && attr.defaultValue) {
                         effectiveVal = resolveDynamicValue(attr.defaultValue);
+                      }
+
+                      const hasSelectOptions = Array.isArray(attr.values) && attr.values.length > 0;
+                      const optionValues: string[] = hasSelectOptions ? [...attr.values] : [];
+                      if (hasSelectOptions && effectiveVal && !optionValues.some((v) => String(v) === String(effectiveVal))) {
+                        optionValues.unshift(String(effectiveVal));
                       }
 
                       return (
@@ -928,14 +1015,14 @@ export const MarketplaceProductFields = ({
                             {attr.mandatory && <span className="text-rose-600 font-black">*</span>}
                           </div>
 
-                          {attr.values && attr.values.length > 0 ? (
+                          {hasSelectOptions ? (
                             <select
                               value={effectiveVal}
                               onChange={(e) => handleAttributeChange(attr.id, e.target.value)}
                               className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-100 focus:bg-white outline-none"
                             >
                               <option value="">{isTr ? "-- Seçin --" : "-- Select --"}</option>
-                              {attr.values.map((v) => (
+                              {optionValues.map((v) => (
                                 <option key={v} value={v}>{v}</option>
                               ))}
                             </select>

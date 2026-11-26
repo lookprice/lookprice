@@ -1116,14 +1116,15 @@ export const ProductModal = ({
                         sub_category: selectedSubCategory || editingProduct?.sub_category,
                       }}
                       onUpdate={(updated) => {
-                        if (editingProduct) {
-                          setEditingProduct({
-                            ...editingProduct,
+                        setEditingProduct((prev: any) => {
+                          if (!prev) return prev;
+                          return {
+                            ...prev,
                             ...updated,
-                            category: selectedCategory || updated.category || editingProduct.category,
-                            sub_category: selectedSubCategory || updated.sub_category || editingProduct.sub_category,
-                          });
-                        }
+                            category: selectedCategory || updated.category || prev.category,
+                            sub_category: selectedSubCategory || updated.sub_category || prev.sub_category,
+                          };
+                        });
                       }}
                       isTr={isTr}
                       categories={hbCategories}

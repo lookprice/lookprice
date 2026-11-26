@@ -178,7 +178,13 @@ export const useCompanyActions = (
         exchange_rate: parsedRate,
         cross_currency: payload?.cross_currency !== undefined ? payload.cross_currency : null,
         cross_rate: payload?.cross_rate !== undefined ? payload.cross_rate : null,
-        cross_amount: payload?.cross_amount !== undefined ? payload.cross_amount : null
+        cross_amount: payload?.cross_amount !== undefined ? payload.cross_amount : null,
+        financial_account_id: payload?.financial_account_id ?? null,
+        financial_account_name: payload?.financial_account_name ?? null,
+        check_note_no: payload?.check_note_no ?? null,
+        check_due_date: payload?.check_due_date ?? null,
+        check_instrument_type: payload?.check_instrument_type ?? null,
+        check_bank_name: payload?.check_bank_name ?? null
       }, targetStoreId);
       
       handleFetchTransactions(effectiveCompanyId, targetStoreId);

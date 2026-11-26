@@ -1,6 +1,12 @@
 import express from "express";
 import { pool } from "../../models/db";
 import { getAuthorizedStoreId } from "../../middleware/auth";
+import {
+  ensureTreasurySchema,
+  syncCompanyTransactionTreasury,
+  deletePortfolioTxForSource,
+  deleteCheckNoteForSource
+} from "./treasurySync";
 
 const router = express.Router();
 
@@ -45,11 +51,14 @@ function cleanNumber(val: any): number | null {
 
 // PUT /api/store/transactions/:id - Update transaction
 router.put("/:id", async (req: any, res) => {
+  await ensureTreasurySchema(pool);
   const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
   const { id } = req.params;
   const { 
     type, amount, description, transaction_date, payment_method, currency, exchange_rate, company_id,
-    cross_currency, cross_rate, cross_amount 
+    cross_currency, cross_rate, cross_amount,
+    financial_account_id, financial_account_name,
+    check_note_no, check_due_date, check_instrument_type, check_bank_name
   } = req.body;
 
   try {
@@ -98,7 +107,43 @@ router.put("/:id", async (req: any, res) => {
       [newType, newAmount, newDescription, newDate, newPaymentMethod, newCurrency, newExchangeRate, newCompanyId, newCrossCurrency, newCrossRate, newCrossAmount, id]
     );
 
-    res.json({ success: true, transaction: updateRes.rows[0], message: "İşlem başarıyla güncellendi" });
+    let updatedTx = updateRes.rows[0];
+    const effectiveStoreId = Number(updatedTx.store_id || storeId);
+    const treasuryRes = await syncCompanyTransactionTreasury(pool, {
+      storeId: effectiveStoreId,
+      transactionId: Number(updatedTx.id),
+      companyId: Number(newCompanyId),
+      type: newType === 'debt' ? 'debt' : 'credit',
+      amount: Number(newAmount),
+      currency: newCurrency || 'TRY',
+      exchangeRate: Number(newExchangeRate || 1),
+      crossCurrency: newCrossCurrency,
+      crossRate: newCrossRate,
+      crossAmount: newCrossAmount,
+      paymentMethod: newPaymentMethod,
+      description: newDescription,
+      transactionDate: newDate,
+      purchaseInvoiceId: updatedTx.purchase_invoice_id || null,
+      salesInvoiceId: updatedTx.sales_invoice_id || null,
+      financialAccountId: financial_account_id !== undefined ? (financial_account_id ? Number(financial_account_id) : null) : currentTx.financial_account_id,
+      financialAccountName: financial_account_name !== undefined ? financial_account_name : currentTx.financial_account_name,
+      checkNoteNo: check_note_no || null,
+      checkDueDate: check_due_date || null,
+      checkInstrumentType: check_instrument_type || null,
+      checkBankName: check_bank_name || null
+    });
+
+    if (!updatedTx.purchase_invoice_id && !updatedTx.sales_invoice_id) {
+      const finalUpd = await pool.query(
+        `UPDATE current_account_transactions
+         SET financial_account_id = $1, financial_account_name = $2, check_note_id = $3
+         WHERE id = $4 RETURNING *`,
+        [treasuryRes.financialAccountId, treasuryRes.financialAccountName, treasuryRes.checkNoteId, updatedTx.id]
+      );
+      if (finalUpd.rows.length > 0) updatedTx = finalUpd.rows[0];
+    }
+
+    res.json({ success: true, transaction: updatedTx, message: "İşlem başarıyla güncellendi" });
   } catch (err: any) {
     console.error("Error updating transaction:", err);
     res.status(500).json({ error: err.message });
@@ -107,11 +152,14 @@ router.put("/:id", async (req: any, res) => {
 
 // PATCH /api/store/transactions/:id - Alias to PUT
 router.patch("/:id", async (req: any, res) => {
+  await ensureTreasurySchema(pool);
   const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
   const { id } = req.params;
   const { 
     type, amount, description, transaction_date, payment_method, currency, exchange_rate, company_id,
-    cross_currency, cross_rate, cross_amount 
+    cross_currency, cross_rate, cross_amount,
+    financial_account_id, financial_account_name,
+    check_note_no, check_due_date, check_instrument_type, check_bank_name
   } = req.body;
 
   try {
@@ -160,7 +208,43 @@ router.patch("/:id", async (req: any, res) => {
       [newType, newAmount, newDescription, newDate, newPaymentMethod, newCurrency, newExchangeRate, newCompanyId, newCrossCurrency, newCrossRate, newCrossAmount, id]
     );
 
-    res.json({ success: true, transaction: updateRes.rows[0], message: "İşlem başarıyla güncellendi" });
+    let updatedTx = updateRes.rows[0];
+    const effectiveStoreId = Number(updatedTx.store_id || storeId);
+    const treasuryRes = await syncCompanyTransactionTreasury(pool, {
+      storeId: effectiveStoreId,
+      transactionId: Number(updatedTx.id),
+      companyId: Number(newCompanyId),
+      type: newType === 'debt' ? 'debt' : 'credit',
+      amount: Number(newAmount),
+      currency: newCurrency || 'TRY',
+      exchangeRate: Number(newExchangeRate || 1),
+      crossCurrency: newCrossCurrency,
+      crossRate: newCrossRate,
+      crossAmount: newCrossAmount,
+      paymentMethod: newPaymentMethod,
+      description: newDescription,
+      transactionDate: newDate,
+      purchaseInvoiceId: updatedTx.purchase_invoice_id || null,
+      salesInvoiceId: updatedTx.sales_invoice_id || null,
+      financialAccountId: financial_account_id !== undefined ? (financial_account_id ? Number(financial_account_id) : null) : currentTx.financial_account_id,
+      financialAccountName: financial_account_name !== undefined ? financial_account_name : currentTx.financial_account_name,
+      checkNoteNo: check_note_no || null,
+      checkDueDate: check_due_date || null,
+      checkInstrumentType: check_instrument_type || null,
+      checkBankName: check_bank_name || null
+    });
+
+    if (!updatedTx.purchase_invoice_id && !updatedTx.sales_invoice_id) {
+      const finalUpd = await pool.query(
+        `UPDATE current_account_transactions
+         SET financial_account_id = $1, financial_account_name = $2, check_note_id = $3
+         WHERE id = $4 RETURNING *`,
+        [treasuryRes.financialAccountId, treasuryRes.financialAccountName, treasuryRes.checkNoteId, updatedTx.id]
+      );
+      if (finalUpd.rows.length > 0) updatedTx = finalUpd.rows[0];
+    }
+
+    res.json({ success: true, transaction: updatedTx, message: "İşlem başarıyla güncellendi" });
   } catch (err: any) {
     console.error("Error updating transaction:", err);
     res.status(500).json({ error: err.message });
@@ -169,6 +253,7 @@ router.patch("/:id", async (req: any, res) => {
 
 // DELETE /api/store/transactions/:id - Delete transaction
 router.delete("/:id", async (req: any, res) => {
+  await ensureTreasurySchema(pool);
   const storeId = getAuthorizedStoreId(req, req.query.storeId);
   const { id } = req.params;
 
@@ -186,7 +271,14 @@ router.delete("/:id", async (req: any, res) => {
       return res.status(404).json({ error: "İşlem bulunamadı veya silinemedi" });
     }
 
-    res.json({ success: true, message: "İşlem başarıyla silindi", deleted: result.rows[0] });
+    const deletedRow = result.rows[0];
+    const effectiveStoreId = Number(deletedRow.store_id || storeId);
+    if (effectiveStoreId) {
+      await deletePortfolioTxForSource(pool, effectiveStoreId, 'company_transaction', Number(deletedRow.id));
+      await deleteCheckNoteForSource(pool, effectiveStoreId, 'company_transaction', Number(deletedRow.id));
+    }
+
+    res.json({ success: true, message: "İşlem başarıyla silindi", deleted: deletedRow });
   } catch (err: any) {
     console.error("Error deleting transaction:", err);
     res.status(500).json({ error: err.message });

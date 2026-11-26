@@ -96,8 +96,26 @@ export const CategoryAttributeModal: React.FC<CategoryAttributeModalProps> = ({
           ) : (
             currentCategoryAttributes.map((attr) => {
               const catId = String(attributeModalCategory.marketCatId);
-              const existingSetting = (attributesConfig[activeMarketplace]?.[catId] || {})[attr.id] || {};
-              const currentMode = existingSetting.mode || 'fixed';
+              const catCfg = attributesConfig[activeMarketplace]?.[catId] || {};
+              const rawSetting = catCfg[attr.id] !== undefined ? catCfg[attr.id] : (attr.name ? catCfg[attr.name] : undefined);
+              const existingSetting = typeof rawSetting === 'object' && rawSetting !== null
+                ? rawSetting
+                : (rawSetting !== undefined ? { mode: String(rawSetting).startsWith('$product.') ? 'field' : 'fixed', value: String(rawSetting) } : {});
+              const currentMode = existingSetting.mode || (String(existingSetting.value || '').startsWith('$product.') ? 'field' : 'fixed');
+              const savedVal = String(existingSetting.value || '');
+
+              const optionValues: string[] = Array.isArray(attr.values) ? [...attr.values] : [];
+              let matchedSelectVal = savedVal;
+              if (currentMode === 'fixed' && optionValues.length > 0 && savedVal) {
+                const exact = optionValues.find((v) => String(v).toLowerCase() === savedVal.toLowerCase());
+                const prefixed = exact || optionValues.find((v) => String(v).startsWith(`${savedVal}:`) || String(v).split(':')[0].trim() === savedVal);
+                if (prefixed) {
+                  matchedSelectVal = prefixed;
+                } else {
+                  optionValues.unshift(savedVal);
+                  matchedSelectVal = savedVal;
+                }
+              }
 
               return (
                 <div key={attr.id} className="p-3 sm:p-3.5 bg-slate-50/80 rounded-xl border border-slate-200/80 space-y-2">
@@ -115,7 +133,7 @@ export const CategoryAttributeModal: React.FC<CategoryAttributeModalProps> = ({
                     <div className="flex items-center space-x-1 bg-white p-0.5 rounded-lg border border-slate-200">
                       <button
                         type="button"
-                        onClick={() => onUpdateAttributeValue(attr.id, 'fixed', existingSetting.value || '')}
+                        onClick={() => onUpdateAttributeValue(attr.id, 'fixed', currentMode === 'fixed' ? savedVal : '')}
                         className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
                           currentMode === 'fixed' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
                         }`}
@@ -124,7 +142,7 @@ export const CategoryAttributeModal: React.FC<CategoryAttributeModalProps> = ({
                       </button>
                       <button
                         type="button"
-                        onClick={() => onUpdateAttributeValue(attr.id, 'field', existingSetting.value || '$product.brand')}
+                        onClick={() => onUpdateAttributeValue(attr.id, 'field', currentMode === 'field' && savedVal ? savedVal : '$product.brand')}
                         className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
                           currentMode === 'field' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
                         }`}
@@ -141,7 +159,7 @@ export const CategoryAttributeModal: React.FC<CategoryAttributeModalProps> = ({
                   {/* Input Based on Mode & Type */}
                   {currentMode === 'field' ? (
                     <select
-                      value={existingSetting.value || ''}
+                      value={savedVal}
                       onChange={(e) => onUpdateAttributeValue(attr.id, 'field', e.target.value)}
                       className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500/20"
                     >
@@ -150,14 +168,20 @@ export const CategoryAttributeModal: React.FC<CategoryAttributeModalProps> = ({
                         <option key={opt.value} value={opt.value}>{opt.label}</option>
                       ))}
                     </select>
-                  ) : attr.values && attr.values.length > 0 ? (
+                  ) : optionValues.length > 0 ? (
                     <select
-                      value={existingSetting.value || ''}
-                      onChange={(e) => onUpdateAttributeValue(attr.id, 'fixed', e.target.value)}
+                      value={matchedSelectVal}
+                      onChange={(e) => {
+                        const rawSelected = e.target.value;
+                        const finalVal = activeMarketplace === 'trendyol' && /^\d+:\s/.test(rawSelected)
+                          ? rawSelected.split(':')[0].trim()
+                          : rawSelected;
+                        onUpdateAttributeValue(attr.id, 'fixed', finalVal);
+                      }}
                       className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500/20"
                     >
                       <option value="">{lang === 'tr' ? '-- Değer Seçin --' : '-- Select Value --'}</option>
-                      {attr.values.map((v) => (
+                      {optionValues.map((v) => (
                         <option key={v} value={v}>{v}</option>
                       ))}
                     </select>
@@ -165,7 +189,7 @@ export const CategoryAttributeModal: React.FC<CategoryAttributeModalProps> = ({
                     <input
                       type={attr.type === 'number' ? 'number' : 'text'}
                       placeholder={attr.placeholder || (lang === 'tr' ? 'Varsayılan değer yazın...' : 'Enter default value...')}
-                      value={existingSetting.value || ''}
+                      value={savedVal}
                       onChange={(e) => onUpdateAttributeValue(attr.id, 'fixed', e.target.value)}
                       className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500/20"
                     />

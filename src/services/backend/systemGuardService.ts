@@ -76,6 +76,108 @@ export function sanitizeCategoryMappings(rawMappings: any): Record<string, any> 
   return cleaned;
 }
 
+/**
+ * Recursively removes or resolves any poisoned placeholder category ID ("2147483647")
+ * from arbitrary nested objects, arrays, JSON strings, categoryAttributes keys, or category_specs.
+ */
+export function deepScrubPoisonedCategoryIds(node: any, hintName?: string): any {
+  if (node === null || node === undefined) return node;
+
+  if (typeof node === "string") {
+    const trimmed = node.trim();
+    if (trimmed === "2147483647") {
+      return undefined;
+    }
+    if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+      if (trimmed.includes("2147483647")) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          const scrubbed = deepScrubPoisonedCategoryIds(parsed, hintName);
+          return JSON.stringify(scrubbed);
+        } catch {
+          return node;
+        }
+      }
+    }
+    return node;
+  }
+
+  if (typeof node === "number") {
+    return node === 2147483647 ? undefined : node;
+  }
+
+  if (Array.isArray(node)) {
+    return node
+      .map((item) => deepScrubPoisonedCategoryIds(item, hintName))
+      .filter((item) => item !== undefined);
+  }
+
+  if (typeof node === "object") {
+    const out: Record<string, any> = {};
+    const nodeLabelHint =
+      (typeof node.category === "string" && node.category.trim()) ||
+      (typeof node.name === "string" && node.name.trim()) ||
+      (typeof node.title === "string" && node.title.trim()) ||
+      hintName ||
+      "";
+
+    const structuralKeys = new Set([
+      "hb_category_id",
+      "hepsiburada_category_id",
+      "hepsiburada",
+      "categoryId",
+      "category_id",
+      "defaultCategoryId",
+      "default_category_id",
+      "id",
+      "categoryMappings",
+      "category_mappings",
+      "categoryAttributes",
+      "category_attributes",
+      "categoryMarkups",
+      "category_markups",
+      "marketplace_category_specs",
+      "category_specs",
+      "hepsiburada_settings"
+    ]);
+
+    for (const [key, val] of Object.entries(node)) {
+      if (String(key).trim() === "2147483647") {
+        continue;
+      }
+
+      if (val === 2147483647 || (typeof val === "string" && val.trim() === "2147483647")) {
+        const lookupHint = structuralKeys.has(key) ? nodeLabelHint : key;
+        let replacement: string | undefined;
+        if (lookupHint) {
+          const resolvedLeaf = resolveSubCategoryLeafHbId(lookupHint, "__UNRESOLVED__");
+          if (resolvedLeaf && resolvedLeaf !== "__UNRESOLVED__" && resolvedLeaf !== "2147483647") {
+            replacement = resolvedLeaf;
+          } else {
+            const suggested = suggestMarketplaceCategory(lookupHint, HEPSIBURADA_DEFAULT_CATEGORIES);
+            if (suggested?.bestMatch?.categoryId && String(suggested.bestMatch.categoryId) !== "2147483647") {
+              replacement = String(suggested.bestMatch.categoryId);
+            }
+          }
+        }
+        if (replacement) {
+          out[key] = typeof val === "number" && /^\d+$/.test(replacement) ? Number(replacement) : replacement;
+        }
+        continue;
+      }
+
+      const childHint = structuralKeys.has(key) ? nodeLabelHint : key;
+      const scrubbedChild = deepScrubPoisonedCategoryIds(val, childHint);
+      if (scrubbedChild !== undefined) {
+        out[key] = scrubbedChild;
+      }
+    }
+    return out;
+  }
+
+  return node;
+}
+
 export interface InvariantCheckResult {
   name: string;
   passed: boolean;
@@ -274,34 +376,50 @@ export async function runStartupSystemGuards(): Promise<void> {
     for (const row of storesRes.rows) {
       let hbSettings = typeof row.hepsiburada_settings === "string" ? JSON.parse(row.hepsiburada_settings || "{}") : (row.hepsiburada_settings || {});
       let branding = typeof row.branding === "string" ? JSON.parse(row.branding || "{}") : (row.branding || {});
-      let changed = false;
+      const origHbJson = JSON.stringify(hbSettings);
+      const origBrandingJson = JSON.stringify(branding);
 
       if (hbSettings?.categoryMappings) {
-        const before = JSON.stringify(hbSettings.categoryMappings);
         hbSettings.categoryMappings = sanitizeCategoryMappings(hbSettings.categoryMappings);
-        if (JSON.stringify(hbSettings.categoryMappings) !== before) changed = true;
+      }
+      if (hbSettings?.category_mappings) {
+        hbSettings.category_mappings = sanitizeCategoryMappings(hbSettings.category_mappings);
       }
 
+      if (typeof branding?.hepsiburada_settings === "string") {
+        try { branding.hepsiburada_settings = JSON.parse(branding.hepsiburada_settings); } catch {}
+      }
       if (branding?.hepsiburada_settings?.categoryMappings) {
-        const before = JSON.stringify(branding.hepsiburada_settings.categoryMappings);
         branding.hepsiburada_settings.categoryMappings = sanitizeCategoryMappings(branding.hepsiburada_settings.categoryMappings);
-        if (JSON.stringify(branding.hepsiburada_settings.categoryMappings) !== before) changed = true;
+      }
+      if (branding?.hepsiburada_settings?.category_mappings) {
+        branding.hepsiburada_settings.category_mappings = sanitizeCategoryMappings(branding.hepsiburada_settings.category_mappings);
       }
 
-      const specsObj = branding?.marketplace_category_specs || branding?.category_specs;
-      if (specsObj && typeof specsObj === "object") {
-        for (const [catName, spec] of Object.entries(specsObj)) {
-          if (spec && typeof spec === "object" && String((spec as any).hb_category_id) === "2147483647") {
-            (spec as any).hb_category_id = Number(resolveSubCategoryLeafHbId(catName, 676));
-            changed = true;
+      for (const specsKey of ["marketplace_category_specs", "category_specs"]) {
+        const specsObj = branding?.[specsKey];
+        if (specsObj && typeof specsObj === "object") {
+          for (const [catName, spec] of Object.entries(specsObj)) {
+            if (spec && typeof spec === "object" && String((spec as any).hb_category_id) === "2147483647") {
+              (spec as any).hb_category_id = Number(resolveSubCategoryLeafHbId(catName, 676));
+            }
           }
         }
       }
 
-      if (changed) {
+      if (JSON.stringify(hbSettings).includes("2147483647")) {
+        hbSettings = deepScrubPoisonedCategoryIds(hbSettings) || {};
+      }
+      if (JSON.stringify(branding).includes("2147483647")) {
+        branding = deepScrubPoisonedCategoryIds(branding) || {};
+      }
+
+      const nextHbJson = JSON.stringify(hbSettings);
+      const nextBrandingJson = JSON.stringify(branding);
+      if (nextHbJson !== origHbJson || nextBrandingJson !== origBrandingJson) {
         await pool.query(
           "UPDATE stores SET hepsiburada_settings = $1, branding = $2 WHERE id = $3",
-          [JSON.stringify(hbSettings), JSON.stringify(branding), row.id]
+          [nextHbJson, nextBrandingJson, row.id]
         );
         healedStores++;
       }

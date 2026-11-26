@@ -149,6 +149,19 @@ interface SalesInvoiceFormModalProps {
   // Payment & Currency
   paymentMethod: string;
   setPaymentMethod: (val: string) => void;
+  financialAccounts?: any[];
+  financialAccountId?: string;
+  setFinancialAccountId?: (val: string) => void;
+  financialAccountName?: string;
+  setFinancialAccountName?: (val: string) => void;
+  checkInstrumentType?: 'check' | 'promissory_note';
+  setCheckInstrumentType?: (val: 'check' | 'promissory_note') => void;
+  checkNoteNo?: string;
+  setCheckNoteNo?: (val: string) => void;
+  checkDueDate?: string;
+  setCheckDueDate?: (val: string) => void;
+  checkBankName?: string;
+  setCheckBankName?: (val: string) => void;
   dueDate?: string;
   setDueDate: (val: string) => void;
   dueDays?: number;
@@ -247,6 +260,19 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
   setQuickProductForm,
   paymentMethod,
   setPaymentMethod,
+  financialAccounts = [],
+  financialAccountId = "",
+  setFinancialAccountId,
+  financialAccountName = "",
+  setFinancialAccountName,
+  checkInstrumentType = 'check',
+  setCheckInstrumentType,
+  checkNoteNo = "",
+  setCheckNoteNo,
+  checkDueDate = "",
+  setCheckDueDate,
+  checkBankName = "",
+  setCheckBankName,
   dueDate,
   setDueDate,
   dueDays,
@@ -877,15 +903,87 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                   {/* Inline Payment & Term controls */}
                   <div className="flex-1 flex flex-wrap items-center gap-1.5">
                     <select 
-                      className="w-28 px-2 py-2 bg-slate-800 border border-slate-700 text-white rounded-lg text-xs font-medium focus:border-indigo-400 focus:outline-none"
+                      className="w-32 px-2 py-2 bg-slate-800 border border-slate-700 text-white rounded-lg text-xs font-medium focus:border-indigo-400 focus:outline-none"
                       value={paymentMethod}
                       onChange={(e: any) => setPaymentMethod(e.target.value)}
                     >
                       <option value="cash">{isTr ? 'Nakit' : 'Cash'}</option>
                       <option value="credit_card">{isTr ? 'Kredi Kartı' : 'Credit Card'}</option>
                       <option value="bank">{isTr ? 'Banka' : 'Bank Transfer'}</option>
+                      <option value="check_promissory">{isTr ? 'Çek / Senet' : 'Check / Note'}</option>
                       <option value="term">{isTr ? 'Vadeli' : 'Term'}</option>
                     </select>
+
+                    {(paymentMethod === 'cash' || paymentMethod === 'bank' || paymentMethod === 'credit_card') && (
+                      <select
+                        value={financialAccountId}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setFinancialAccountId?.(val);
+                          if (!val) {
+                            setFinancialAccountName?.(paymentMethod === 'cash' ? `${currency} Nakit Kasa` : "");
+                          } else {
+                            const acc = financialAccounts.find((a: any) => String(a.id) === val);
+                            if (acc) setFinancialAccountName?.(acc.account_name);
+                          }
+                        }}
+                        className="max-w-[200px] px-2 py-2 bg-slate-800 border border-slate-700 text-white rounded-lg text-xs font-medium focus:border-indigo-400 focus:outline-none"
+                        title={isTr ? "Kasa / Banka Hesabı Seçimi" : "Vault / Account"}
+                      >
+                        {paymentMethod === 'cash' ? (
+                          <option value="">{currency} Nakit Kasa</option>
+                        ) : (
+                          <option value="">{isTr ? '— Hesap Seçin —' : '— Select Account —'}</option>
+                        )}
+                        {financialAccounts
+                          .filter((a: any) =>
+                            paymentMethod === 'cash'
+                              ? a.account_type === 'cash'
+                              : paymentMethod === 'bank'
+                                ? a.account_type === 'bank'
+                                : a.account_type === 'credit_card'
+                          )
+                          .map((acc: any) => (
+                            <option key={acc.id} value={acc.id}>
+                              {acc.account_name} ({acc.currency})
+                            </option>
+                          ))}
+                      </select>
+                    )}
+
+                    {paymentMethod === 'check_promissory' && (
+                      <div className="flex flex-wrap items-center gap-1 bg-indigo-950/80 border border-indigo-800/80 px-2 py-1 rounded-lg">
+                        <select
+                          value={checkInstrumentType}
+                          onChange={(e) => setCheckInstrumentType?.(e.target.value as 'check' | 'promissory_note')}
+                          className="px-1.5 py-0.5 bg-slate-900 border border-indigo-700 text-white rounded text-[11px] font-medium focus:outline-none"
+                        >
+                          <option value="check">{isTr ? 'Alınan Çek' : 'Check'}</option>
+                          <option value="promissory_note">{isTr ? 'Alacak Senedi' : 'Note'}</option>
+                        </select>
+                        <input
+                          type="text"
+                          value={checkNoteNo}
+                          onChange={(e) => setCheckNoteNo?.(e.target.value)}
+                          placeholder={isTr ? 'Evrak No' : 'Doc No'}
+                          className="w-24 px-1.5 py-0.5 bg-slate-900 border border-indigo-700 text-white rounded text-[11px] font-medium focus:outline-none"
+                        />
+                        <input
+                          type="date"
+                          value={checkDueDate}
+                          onChange={(e) => setCheckDueDate?.(e.target.value)}
+                          className="w-28 px-1.5 py-0.5 bg-slate-900 border border-indigo-700 text-white rounded text-[11px] font-medium focus:outline-none"
+                          title={isTr ? 'Vade Tarihi' : 'Due Date'}
+                        />
+                        <input
+                          type="text"
+                          value={checkBankName}
+                          onChange={(e) => setCheckBankName?.(e.target.value)}
+                          placeholder={isTr ? 'Banka' : 'Bank'}
+                          className="w-24 px-1.5 py-0.5 bg-slate-900 border border-indigo-700 text-white rounded text-[11px] font-medium focus:outline-none"
+                        />
+                      </div>
+                    )}
 
                     {paymentMethod === 'term' && (
                       <div className="flex items-center gap-1.5 bg-indigo-950/80 border border-indigo-800/80 px-2 py-1 rounded-lg">

@@ -2798,6 +2798,7 @@ router.put("/:id", async (req: any, res) => {
       if ((parsedIncomingMp.categoryId !== undefined || parsedIncomingMp.attributes !== undefined) && !parsedIncomingMp.hepsiburada) {
         finalMarketplaceData = {
           ...finalMarketplaceData,
+          ...(parsedIncomingMp.attributes !== undefined ? { attributes: parsedIncomingMp.attributes } : {}),
           hepsiburada: {
             ...(finalMarketplaceData.hepsiburada || {}),
             ...parsedIncomingMp
@@ -2810,7 +2811,11 @@ router.put("/:id", async (req: any, res) => {
           hepsiburada: {
             ...(finalMarketplaceData.hepsiburada || {}),
             ...(parsedIncomingMp.hepsiburada || {})
-          }
+          },
+          ...(parsedIncomingMp.trendyol ? { trendyol: { ...(finalMarketplaceData.trendyol || {}), ...parsedIncomingMp.trendyol } } : {}),
+          ...(parsedIncomingMp.n11 ? { n11: { ...(finalMarketplaceData.n11 || {}), ...parsedIncomingMp.n11 } } : {}),
+          ...(parsedIncomingMp.amazon ? { amazon: { ...(finalMarketplaceData.amazon || {}), ...parsedIncomingMp.amazon } } : {}),
+          ...(parsedIncomingMp.pazarama ? { pazarama: { ...(finalMarketplaceData.pazarama || {}), ...parsedIncomingMp.pazarama } } : {}),
         };
       }
     }

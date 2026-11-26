@@ -330,6 +330,31 @@ export const api = {
   addFinancialAccount: (data: any, storeId?: number) => api.post(`/api/real-estate/financial-accounts${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   updateFinancialAccount: (id: number, data: any, storeId?: number) => api.put(`/api/real-estate/financial-accounts/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   deleteFinancialAccount: (id: number, storeId?: number) => api.delete(`/api/real-estate/financial-accounts/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  getFinancialAccountStatement: (params: { accountId?: number; cashCurrency?: string; startDate?: string; endDate?: string }, storeId?: number) => {
+    const qs = new URLSearchParams();
+    if (storeId !== undefined && storeId !== null) qs.set("storeId", String(storeId));
+    if (params.accountId) qs.set("accountId", String(params.accountId));
+    if (params.cashCurrency) qs.set("cashCurrency", params.cashCurrency);
+    if (params.startDate) qs.set("startDate", params.startDate);
+    if (params.endDate) qs.set("endDate", params.endDate);
+    return api.get(`/api/real-estate/financial-accounts/statement?${qs.toString()}`);
+  },
+  getChecksNotes: (filters?: { direction?: string; status?: string; instrument_type?: string; startDate?: string; endDate?: string; search?: string }, storeId?: number) => {
+    const qs = new URLSearchParams();
+    if (storeId !== undefined && storeId !== null) qs.set("storeId", String(storeId));
+    if (filters?.direction && filters.direction !== 'all') qs.set("direction", filters.direction);
+    if (filters?.status && filters.status !== 'all') qs.set("status", filters.status);
+    if (filters?.instrument_type && filters.instrument_type !== 'all') qs.set("instrument_type", filters.instrument_type);
+    if (filters?.startDate) qs.set("startDate", filters.startDate);
+    if (filters?.endDate) qs.set("endDate", filters.endDate);
+    if (filters?.search) qs.set("search", filters.search);
+    const queryStr = qs.toString();
+    return api.get(`/api/real-estate/checks-notes${queryStr ? `?${queryStr}` : ""}`);
+  },
+  addCheckNote: (data: any, storeId?: number) => api.post(`/api/real-estate/checks-notes${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  updateCheckNote: (id: number, data: any, storeId?: number) => api.put(`/api/real-estate/checks-notes/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  updateCheckNoteStatus: (id: number, data: any, storeId?: number) => api.patch(`/api/real-estate/checks-notes/${id}/status${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  deleteCheckNote: (id: number, storeId?: number) => api.delete(`/api/real-estate/checks-notes/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   getAcquisitionLeads: (source: string = "101evler", filter: string = "individual", keywords?: string) => api.post(`/api/real-estate/acquisition-radar`, { source, filter, keywords }),
   getSalesInvoiceHtml: (id: number, storeId?: number) => api.get(`/api/einvoice/${id}/html?type=sales${(storeId !== undefined && storeId !== null) ? `&storeId=${storeId}` : ""}`),
   addSalesInvoice: (data: any, storeId?: number) => api.post(`/api/store/sales-invoices${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
@@ -350,7 +375,23 @@ export const api = {
   deletePurchaseInvoice: (id: number, storeId?: number) => api.delete(`/api/store/purchase-invoices/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   updatePurchaseInvoiceTicariStatus: (id: number, status: 'APPROVED' | 'REJECTED', storeId?: number) => api.post(`/api/store/purchase-invoices/${id}/status${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { status }),
   markPurchaseInvoiceRead: (id: number, storeId?: number) => api.patch(`/api/store/purchase-invoices/${id}/read${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
-  updatePurchaseInvoicePaymentStatus: (id: number, status: 'paid' | 'unpaid') => api.patch(`/api/store/purchase-invoices/${id}/payment-status`, { status }),
+  updatePurchaseInvoicePaymentStatus: (
+    id: number,
+    statusOrData: 'paid' | 'unpaid' | {
+      status: 'paid' | 'unpaid';
+      payment_method?: string;
+      financial_account_id?: number | null;
+      financial_account_name?: string | null;
+      check_note_no?: string | null;
+      check_due_date?: string | null;
+      check_instrument_type?: string | null;
+      check_bank_name?: string | null;
+    },
+    storeId?: number
+  ) => api.patch(
+    `/api/store/purchase-invoices/${id}/payment-status${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`,
+    typeof statusOrData === 'string' ? { status: statusOrData } : statusOrData
+  ),
   convertPurchaseInvoiceToStock: (id: number, storeId?: number) => api.post(`/api/store/purchase-invoices/${id}/convert-to-stock${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
   convertPurchaseInvoiceToExpense: (id: number, data?: { expense_category?: string; expense_center?: string }, storeId?: number) => api.post(`/api/store/purchase-invoices/${id}/convert-to-expense${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data || {}),
   autoRepairPurchaseExpenses: (storeId?: number) => api.post(`/api/store/purchase-invoices/auto-repair-expenses${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),

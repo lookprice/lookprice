@@ -1906,6 +1906,13 @@ function sanitizeFilename(originalName: string): string {
         }
         await initDb();
         console.log("initDb finished.");
+        // Run SystemGuard store category self-healing immediately after core DB tables exist
+        try {
+          const { runStartupSystemGuards } = await import("./src/services/backend/systemGuardService");
+          await runStartupSystemGuards();
+        } catch (err: any) {
+          console.warn("[SYSTEM-GUARD] Failed to run startup guards:", err?.message || err);
+        }
         console.log("Running self-healing module schemas sequentially in background...");
         try { await initProductSchema(); } catch (e) { console.error("Error in initProductSchema:", e); }
         try { await initPurchaseInvoiceSchema(); } catch (e) { console.error("Error in initPurchaseInvoiceSchema:", e); }
@@ -1921,14 +1928,6 @@ function sanitizeFilename(originalName: string): string {
         } else {
           startCronJobs();
           aiWorkerService.startWorker();
-
-          // Initialize Startup Self-Healing & Critical Invariant Guards
-          try {
-            const { runStartupSystemGuards } = await import("./src/services/backend/systemGuardService");
-            runStartupSystemGuards();
-          } catch (err: any) {
-            console.warn("[SYSTEM-GUARD] Failed to run startup guards:", err?.message || err);
-          }
 
           // Initialize GİB / MySoft Background Sync Cron
           try {

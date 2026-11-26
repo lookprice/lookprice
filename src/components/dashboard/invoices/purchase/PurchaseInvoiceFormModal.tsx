@@ -52,8 +52,21 @@ interface PurchaseInvoiceFormModalProps {
   filteredProducts: any[];
   handleAddProduct: (product: any, variant?: any) => void;
   setShowQuickProductModal: (val: boolean) => void;
-  paymentMethod: 'term' | 'cash' | 'credit_card' | 'bank';
+  paymentMethod: 'term' | 'cash' | 'credit_card' | 'bank' | 'check_promissory';
   setPaymentMethod: (val: any) => void;
+  financialAccounts?: any[];
+  financialAccountId?: string;
+  setFinancialAccountId?: (val: string) => void;
+  financialAccountName?: string;
+  setFinancialAccountName?: (val: string) => void;
+  checkInstrumentType?: 'check' | 'promissory_note';
+  setCheckInstrumentType?: (val: 'check' | 'promissory_note') => void;
+  checkNoteNo?: string;
+  setCheckNoteNo?: (val: string) => void;
+  checkDueDate?: string;
+  setCheckDueDate?: (val: string) => void;
+  checkBankName?: string;
+  setCheckBankName?: (val: string) => void;
   currency: string;
   setCurrency: (val: string) => void;
   exchangeRate: string;
@@ -106,6 +119,19 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
   setShowQuickProductModal,
   paymentMethod,
   setPaymentMethod,
+  financialAccounts = [],
+  financialAccountId = "",
+  setFinancialAccountId,
+  financialAccountName = "",
+  setFinancialAccountName,
+  checkInstrumentType = 'check',
+  setCheckInstrumentType,
+  checkNoteNo = "",
+  setCheckNoteNo,
+  checkDueDate = "",
+  setCheckDueDate,
+  checkBankName = "",
+  setCheckBankName,
   currency,
   setCurrency,
   exchangeRate,
@@ -664,13 +690,27 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                   </label>
                   <select
                     value={paymentMethod}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setPaymentMethod(val);
+                      if (val === 'cash') {
+                        setFinancialAccountId?.("");
+                        setFinancialAccountName?.(`${currency} Nakit Kasa`);
+                      } else if (val === 'term' || val === 'check_promissory') {
+                        setFinancialAccountId?.("");
+                        setFinancialAccountName?.("");
+                      } else {
+                        setFinancialAccountId?.("");
+                        setFinancialAccountName?.("");
+                      }
+                    }}
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none"
                   >
-                    <option value="term">{isTr ? "Açık Hesap (Vadeli)" : "Term / Account"}</option>
+                    <option value="term">{isTr ? "Açık Hesap (Vadeli)" : "Term / Open Account"}</option>
                     <option value="cash">{isTr ? "Nakit" : "Cash"}</option>
                     <option value="bank">{isTr ? "Banka Havalesi / EFT" : "Bank Transfer"}</option>
                     <option value="credit_card">{isTr ? "Kredi Kartı" : "Credit Card"}</option>
+                    <option value="check_promissory">{isTr ? "Çek / Senet (Kambiyo)" : "Check / Promissory Note"}</option>
                   </select>
                 </div>
                  <div className="grid grid-cols-2 gap-2">
@@ -724,6 +764,98 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                   </div>
                 </div>
               </div>
+
+              {(paymentMethod === 'cash' || paymentMethod === 'bank' || paymentMethod === 'credit_card') && (
+                <div className="bg-indigo-50/70 border border-indigo-200/80 rounded-2xl p-3 space-y-1.5">
+                  <label className="text-[10px] font-semibold text-indigo-800 uppercase tracking-wider flex items-center gap-1.5">
+                    {paymentMethod === 'cash'
+                      ? (isTr ? "KASA SEÇİMİ (GELİR-GİDER KASA ENTEGRASYONU)" : "CASH VAULT")
+                      : paymentMethod === 'bank'
+                        ? (isTr ? "BANKA HESABI SEÇİMİ" : "BANK ACCOUNT")
+                        : (isTr ? "KREDİ KARTI HESABI SEÇİMİ" : "CREDIT CARD ACCOUNT")}
+                  </label>
+                  <select
+                    value={financialAccountId}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFinancialAccountId?.(val);
+                      if (!val) {
+                        setFinancialAccountName?.(paymentMethod === 'cash' ? `${currency} Nakit Kasa` : "");
+                      } else {
+                        const acc = financialAccounts.find((a: any) => String(a.id) === val);
+                        if (acc) {
+                          setFinancialAccountName?.(acc.account_name);
+                        }
+                      }
+                    }}
+                    className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  >
+                    {paymentMethod === 'cash' ? (
+                      <option value="">{currency} Nakit Kasa ({isTr ? "Standart Döviz Kasası" : "Default Currency Cash"})</option>
+                    ) : (
+                      <option value="">{isTr ? `— ${currency} Nakit / Genel Hesap —` : "— General Account —"}</option>
+                    )}
+                    {financialAccounts
+                      .filter((a: any) =>
+                        paymentMethod === 'cash'
+                          ? a.account_type === 'cash'
+                          : paymentMethod === 'bank'
+                            ? a.account_type === 'bank'
+                            : a.account_type === 'credit_card'
+                      )
+                      .map((acc: any) => (
+                        <option key={acc.id} value={acc.id}>
+                          {acc.account_name} {acc.bank_name ? `(${acc.bank_name})` : ""} — {acc.currency}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              )}
+
+              {paymentMethod === 'check_promissory' && (
+                <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div>
+                    <label className="text-[10px] font-semibold text-amber-800 uppercase block mb-0.5">{isTr ? "Evrak Türü" : "Type"}</label>
+                    <select
+                      value={checkInstrumentType}
+                      onChange={(e) => setCheckInstrumentType?.(e.target.value as 'check' | 'promissory_note')}
+                      className="w-full px-2.5 py-1.5 bg-white border border-amber-200 rounded-lg text-xs font-medium text-slate-800"
+                    >
+                      <option value="check">{isTr ? "Verilen Çek" : "Issued Check"}</option>
+                      <option value="promissory_note">{isTr ? "Borç Senedi" : "Promissory Note"}</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-amber-800 uppercase block mb-0.5">{isTr ? "Çek / Senet No" : "Doc No"}</label>
+                    <input
+                      type="text"
+                      value={checkNoteNo}
+                      onChange={(e) => setCheckNoteNo?.(e.target.value)}
+                      placeholder={isTr ? "Örn: CK-1024" : "No"}
+                      className="w-full px-2.5 py-1.5 bg-white border border-amber-200 rounded-lg text-xs font-medium text-slate-800"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-amber-800 uppercase block mb-0.5">{isTr ? "Vade Tarihi" : "Due Date"}</label>
+                    <input
+                      type="date"
+                      value={checkDueDate}
+                      onChange={(e) => setCheckDueDate?.(e.target.value)}
+                      className="w-full px-2.5 py-1.5 bg-white border border-amber-200 rounded-lg text-xs font-medium text-slate-800"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-amber-800 uppercase block mb-0.5">{isTr ? "Banka / Şube" : "Bank"}</label>
+                    <input
+                      type="text"
+                      value={checkBankName}
+                      onChange={(e) => setCheckBankName?.(e.target.value)}
+                      placeholder={isTr ? "Örn: İş Bankası" : "Bank name"}
+                      className="w-full px-2.5 py-1.5 bg-white border border-amber-200 rounded-lg text-xs font-medium text-slate-800"
+                    />
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-1.5">
                 <label className="text-[10px] font-medium text-slate-500 uppercase tracking-widest ml-1">{isTr ? "FATURA NOTLARI" : "INVOICE NOTES"}</label>

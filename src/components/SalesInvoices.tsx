@@ -344,7 +344,14 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
   const [productSearch, setProductSearch] = useState("");
   const deferredProductSearch = useDeferredValue(productSearch);
   const [showProductDropdown, setShowProductDropdown] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'term' | 'cash' | 'credit_card' | 'bank'>('term');
+  const [paymentMethod, setPaymentMethod] = useState<'term' | 'cash' | 'credit_card' | 'bank' | 'check_promissory'>('term');
+  const [financialAccounts, setFinancialAccounts] = useState<any[]>([]);
+  const [financialAccountId, setFinancialAccountId] = useState<string>("");
+  const [financialAccountName, setFinancialAccountName] = useState<string>("");
+  const [checkInstrumentType, setCheckInstrumentType] = useState<'check' | 'promissory_note'>('check');
+  const [checkNoteNo, setCheckNoteNo] = useState<string>("");
+  const [checkDueDate, setCheckDueDate] = useState<string>("");
+  const [checkBankName, setCheckBankName] = useState<string>("");
   const [currency, setCurrency] = useState(branding?.default_currency || 'TRY');
   const [exchangeRate, setExchangeRate] = useState("1");
   const [status, setStatus] = useState<'draft' | 'approved' | 'cancelled'>('draft');
@@ -481,16 +488,18 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
     if (!silent) setLoading(true);
     try {
       const effectiveSearch = searchStr !== undefined ? searchStr : (activeSearch || search || "");
-      const [invRes, custRes, compRes, prodRes] = await Promise.all([
+      const [invRes, custRes, compRes, prodRes, accRes] = await Promise.all([
         api.getSalesInvoices(role === 'superadmin' ? storeId : undefined, effectiveSearch, sDate || startDate, eDate || endDate),
         api.getCustomers(role === 'superadmin' ? storeId : undefined),
         api.getCompanies(true, role === 'superadmin' ? storeId : undefined),
-        api.getProducts("", role === 'superadmin' ? storeId : undefined)
+        api.getProducts("", role === 'superadmin' ? storeId : undefined),
+        api.getFinancialAccounts(role === 'superadmin' ? storeId : undefined).catch(() => [])
       ]);
       setInvoices(Array.isArray(invRes) ? invRes : []);
       setCustomers(Array.isArray(custRes) ? custRes : []);
       setCompanies(Array.isArray(compRes) ? compRes : []);
       setProducts(Array.isArray(prodRes) ? prodRes : []);
+      setFinancialAccounts(Array.isArray(accRes) ? accRes : []);
     } catch (error) {
       console.error("Error fetching sales invoices data:", error);
     } finally {
@@ -805,6 +814,12 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
     setItems([]);
     setProductSearch("");
     setPaymentMethod('term');
+    setFinancialAccountId("");
+    setFinancialAccountName("");
+    setCheckInstrumentType('check');
+    setCheckNoteNo("");
+    setCheckDueDate("");
+    setCheckBankName("");
     setCurrency(branding?.default_currency || 'TRY');
     setExchangeRate("1");
     setStatus('draft');
@@ -899,6 +914,14 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
         tax_rate: Number(String(item.tax_rate).replace(',', '.')) || 0
       })),
       payment_method: paymentMethod,
+      financial_account_id: (paymentMethod === 'cash' || paymentMethod === 'bank' || paymentMethod === 'credit_card') && financialAccountId ? Number(financialAccountId) : null,
+      financial_account_name: (paymentMethod === 'cash' || paymentMethod === 'bank' || paymentMethod === 'credit_card')
+        ? (financialAccountName || (paymentMethod === 'cash' ? `${currency} Nakit Kasa` : null))
+        : null,
+      check_instrument_type: paymentMethod === 'check_promissory' ? checkInstrumentType : null,
+      check_note_no: paymentMethod === 'check_promissory' ? (checkNoteNo.trim() || null) : null,
+      check_due_date: paymentMethod === 'check_promissory' ? (checkDueDate || null) : null,
+      check_bank_name: paymentMethod === 'check_promissory' ? (checkBankName.trim() || null) : null,
       currency,
       exchange_rate: Number(exchangeRate) || 1,
       status,
@@ -980,7 +1003,13 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
       setDueDays(Number(data.due_days || 0));
       setLateInterestRate(Number(data.late_interest_rate || 0));
       setNotes(data.notes || "");
-      setPaymentMethod(data.payment_method);
+      setPaymentMethod((data.payment_method as any) || 'term');
+      setFinancialAccountId(data.financial_account_id ? String(data.financial_account_id) : "");
+      setFinancialAccountName(data.financial_account_name || "");
+      setCheckInstrumentType(data.check_instrument_type === 'promissory_note' ? 'promissory_note' : 'check');
+      setCheckNoteNo(data.check_note_no || "");
+      setCheckDueDate(data.check_due_date ? String(data.check_due_date).split('T')[0] : "");
+      setCheckBankName(data.check_bank_name || "");
       setCurrency(data.currency);
       setExchangeRate(String(data.exchange_rate || 1));
       const rawSt = (data.status || '').toLowerCase().trim();
@@ -1768,6 +1797,13 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
         paymentMethod={paymentMethod}
         setPaymentMethod={(val: any) => {
           setPaymentMethod(val);
+          if (val === 'cash') {
+            setFinancialAccountId("");
+            setFinancialAccountName(`${currency} Nakit Kasa`);
+          } else {
+            setFinancialAccountId("");
+            setFinancialAccountName("");
+          }
           if (val === 'term' && dueDays > 0 && dueDate) {
             setNotes(prev => buildFullNotesWithTerms(prev, dueDate, dueDays, lateInterestRate));
           } else if (val !== 'term') {
@@ -1777,6 +1813,19 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
             });
           }
         }}
+        financialAccounts={financialAccounts}
+        financialAccountId={financialAccountId}
+        setFinancialAccountId={setFinancialAccountId}
+        financialAccountName={financialAccountName}
+        setFinancialAccountName={setFinancialAccountName}
+        checkInstrumentType={checkInstrumentType}
+        setCheckInstrumentType={setCheckInstrumentType}
+        checkNoteNo={checkNoteNo}
+        setCheckNoteNo={setCheckNoteNo}
+        checkDueDate={checkDueDate}
+        setCheckDueDate={setCheckDueDate}
+        checkBankName={checkBankName}
+        setCheckBankName={setCheckBankName}
         dueDate={dueDate}
         setDueDate={setDueDate}
         dueDays={dueDays}

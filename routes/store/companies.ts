@@ -1,5 +1,11 @@
 import express from "express";
 import { pool } from "../../models/db";
+import {
+  ensureTreasurySchema,
+  syncCompanyTransactionTreasury,
+  deletePortfolioTxForSource,
+  deleteCheckNoteForSource
+} from "./treasurySync";
 
 const router = express.Router();
 
@@ -900,9 +906,12 @@ router.get("/:id/transactions", async (req: any, res) => {
 
 // Create Company Transaction
 router.post("/:id/transactions", async (req: any, res) => {
+  await ensureTreasurySchema(pool);
   const { 
     type, amount, description, transaction_date, payment_method, currency, exchange_rate,
-    cross_currency, cross_rate, cross_amount 
+    cross_currency, cross_rate, cross_amount,
+    financial_account_id, financial_account_name,
+    check_note_no, check_due_date, check_instrument_type, check_bank_name
   } = req.body;
   let storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
   if (storeId === "undefined" || storeId === "null") storeId = req.user.store_id;
@@ -982,7 +991,37 @@ router.post("/:id/transactions", async (req: any, res) => {
         finalPaymentMethod, finalCurrency, cleanExchangeRate, cleanCrossCurrency, cleanCrossRate, cleanCrossAmount
       ]
     );
-    res.json(result.rows[0]);
+    let inserted = result.rows[0];
+    const treasuryRes = await syncCompanyTransactionTreasury(pool, {
+      storeId: Number(storeId),
+      transactionId: Number(inserted.id),
+      companyId: Number(req.params.id),
+      type: finalType,
+      amount: cleanAmount,
+      currency: finalCurrency,
+      exchangeRate: cleanExchangeRate,
+      crossCurrency: cleanCrossCurrency,
+      crossRate: cleanCrossRate,
+      crossAmount: cleanCrossAmount,
+      paymentMethod: finalPaymentMethod,
+      description: description || '',
+      transactionDate: finalDate,
+      financialAccountId: financial_account_id ? Number(financial_account_id) : null,
+      financialAccountName: financial_account_name || null,
+      checkNoteNo: check_note_no || null,
+      checkDueDate: check_due_date || null,
+      checkInstrumentType: check_instrument_type || null,
+      checkBankName: check_bank_name || null
+    });
+    const updRes = await pool.query(
+      `UPDATE current_account_transactions
+       SET financial_account_id = $1, financial_account_name = $2, check_note_id = $3
+       WHERE id = $4 RETURNING *`,
+      [treasuryRes.financialAccountId, treasuryRes.financialAccountName, treasuryRes.checkNoteId, inserted.id]
+    );
+    if (updRes.rows.length > 0) inserted = updRes.rows[0];
+
+    res.json(inserted);
   } catch (err: any) {
     console.error("Error creating company transaction:", err);
     res.status(500).json({ error: err.message });
@@ -991,12 +1030,15 @@ router.post("/:id/transactions", async (req: any, res) => {
 
 // Update Company Transaction
 router.put("/:companyId/transactions/:id", async (req: any, res) => {
+  await ensureTreasurySchema(pool);
   let storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
   if (storeId === "undefined" || storeId === "null") storeId = req.user.store_id;
   const { companyId, id } = req.params;
   const { 
     type, amount, description, transaction_date, payment_method, currency, exchange_rate, new_company_id,
-    cross_currency, cross_rate, cross_amount 
+    cross_currency, cross_rate, cross_amount,
+    financial_account_id, financial_account_name,
+    check_note_no, check_due_date, check_instrument_type, check_bank_name
   } = req.body;
 
   try {
@@ -1081,7 +1123,43 @@ router.put("/:companyId/transactions/:id", async (req: any, res) => {
       [newType, newAmount, newDescription, newDate, newPaymentMethod, newCurrency, newExchangeRate, targetCompanyId, newCrossCurrency, newCrossRate, newCrossAmount, id]
     );
 
-    res.json({ success: true, transaction: updateRes.rows[0] });
+    let updatedTx = updateRes.rows[0];
+    const effectiveStoreId = Number(updatedTx.store_id || storeId);
+    const treasuryRes = await syncCompanyTransactionTreasury(pool, {
+      storeId: effectiveStoreId,
+      transactionId: Number(updatedTx.id),
+      companyId: Number(targetCompanyId),
+      type: newType === 'debt' ? 'debt' : 'credit',
+      amount: Number(newAmount),
+      currency: newCurrency || 'TRY',
+      exchangeRate: Number(newExchangeRate || 1),
+      crossCurrency: newCrossCurrency,
+      crossRate: newCrossRate,
+      crossAmount: newCrossAmount,
+      paymentMethod: newPaymentMethod,
+      description: newDescription,
+      transactionDate: newDate,
+      purchaseInvoiceId: updatedTx.purchase_invoice_id || null,
+      salesInvoiceId: updatedTx.sales_invoice_id || null,
+      financialAccountId: financial_account_id !== undefined ? (financial_account_id ? Number(financial_account_id) : null) : currentTx.financial_account_id,
+      financialAccountName: financial_account_name !== undefined ? financial_account_name : currentTx.financial_account_name,
+      checkNoteNo: check_note_no || null,
+      checkDueDate: check_due_date || null,
+      checkInstrumentType: check_instrument_type || null,
+      checkBankName: check_bank_name || null
+    });
+
+    if (!updatedTx.purchase_invoice_id && !updatedTx.sales_invoice_id) {
+      const finalUpd = await pool.query(
+        `UPDATE current_account_transactions
+         SET financial_account_id = $1, financial_account_name = $2, check_note_id = $3
+         WHERE id = $4 RETURNING *`,
+        [treasuryRes.financialAccountId, treasuryRes.financialAccountName, treasuryRes.checkNoteId, updatedTx.id]
+      );
+      if (finalUpd.rows.length > 0) updatedTx = finalUpd.rows[0];
+    }
+
+    res.json({ success: true, transaction: updatedTx });
   } catch (err: any) {
     console.error("Error updating company transaction:", err);
     res.status(500).json({ error: err.message });
@@ -1090,6 +1168,7 @@ router.put("/:companyId/transactions/:id", async (req: any, res) => {
 
 // Delete Company Transaction
 router.delete("/:companyId/transactions/:id", async (req: any, res) => {
+  await ensureTreasurySchema(pool);
   let storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
   if (storeId === "undefined" || storeId === "null") storeId = req.user.store_id;
   try {
@@ -1105,7 +1184,13 @@ router.delete("/:companyId/transactions/:id", async (req: any, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "İşlem bulunamadı veya silinemedi" });
     }
-    res.json({ success: true, message: "İşlem başarıyla silindi", deleted: result.rows[0] });
+    const deletedRow = result.rows[0];
+    const effectiveStoreId = Number(deletedRow.store_id || storeId);
+    if (effectiveStoreId) {
+      await deletePortfolioTxForSource(pool, effectiveStoreId, 'company_transaction', Number(deletedRow.id));
+      await deleteCheckNoteForSource(pool, effectiveStoreId, 'company_transaction', Number(deletedRow.id));
+    }
+    res.json({ success: true, message: "İşlem başarıyla silindi", deleted: deletedRow });
   } catch (err: any) {
     console.error("Error deleting company transaction:", err);
     res.status(500).json({ error: err.message });

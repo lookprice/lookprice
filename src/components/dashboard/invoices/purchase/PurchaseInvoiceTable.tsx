@@ -507,22 +507,26 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                         )}
                       </td>
                       <td className="px-3 py-2.5 text-center whitespace-nowrap">
-                        {invoice.payment_method && invoice.payment_method !== 'term' && invoice.payment_method !== 'vadeli' ? (
-                          <span className="px-2 py-0.5 rounded text-[9px] font-medium uppercase tracking-wider border bg-emerald-50 text-emerald-700 border-emerald-100">
-                            {isTr ? 'Ödendi' : 'Paid'}
-                          </span>
-                        ) : (
+                        <div className="inline-flex flex-col items-center gap-0.5">
                           <button
                             onClick={() => handleUpdatePaymentStatus(invoice.id, invoice.payment_status === 'paid' ? 'unpaid' : 'paid')}
-                            className={`px-2 py-0.5 rounded text-[9px] font-medium uppercase tracking-wider transition-all border ${
-                              invoice.payment_status === 'paid' 
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-100' 
-                                : 'bg-rose-50 text-rose-700 border-rose-100'
+                            className={`px-2 py-0.5 rounded text-[9px] font-medium uppercase tracking-wider transition-all border cursor-pointer ${
+                              invoice.payment_status === 'paid' && !['term', 'vadeli', 'open_account', 'acik_hesap', 'açık hesap', 'açık hesap-cari'].includes(String(invoice.payment_method || '').toLowerCase())
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-100'
+                                : invoice.payment_status === 'paid'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-100'
+                                : 'bg-rose-50 text-rose-700 border-rose-100 hover:bg-rose-100'
                             }`}
+                            title={invoice.payment_status === 'paid' ? (isTr ? 'Açık hesaba / Ödenmedi durumuna çevir' : 'Mark unpaid') : (isTr ? 'Ödendi olarak işaretle' : 'Mark paid')}
                           >
                             {invoice.payment_status === 'paid' ? (isTr ? 'Ödendi' : 'Paid') : (isTr ? 'Ödenmedi' : 'Unpaid')}
                           </button>
-                        )}
+                          {(invoice.financial_account_name || invoice.check_note_no) && (
+                            <span className="text-[9px] text-slate-500 max-w-[110px] truncate" title={invoice.financial_account_name || invoice.check_note_no}>
+                              {invoice.check_note_no ? `${invoice.check_instrument_type === 'promissory_note' ? 'Senet' : 'Çek'}: ${invoice.check_note_no}` : invoice.financial_account_name}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-3 py-2.5 text-right whitespace-nowrap relative">
                         <div className="flex justify-end items-center gap-1">

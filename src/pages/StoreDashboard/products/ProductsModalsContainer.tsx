@@ -37,6 +37,7 @@ interface ProductsModalsContainerProps {
   setMarketplaceModalTab?: (tab: MarketplaceModalTab) => void;
   marketplaceModalStatus: MarketplaceModalStatus;
   branding?: any;
+  setBranding?: (updater: any) => void;
   currentStoreId?: number;
   onRefresh?: () => void;
   onEdit: (product: any) => void;
@@ -68,6 +69,7 @@ export const ProductsModalsContainer: React.FC<ProductsModalsContainerProps> = (
   setMarketplaceModalTab,
   marketplaceModalStatus,
   branding,
+  setBranding,
   currentStoreId,
   onRefresh,
   onEdit,
@@ -170,6 +172,11 @@ export const ProductsModalsContainer: React.FC<ProductsModalsContainerProps> = (
           initialStatus={marketplaceModalStatus as any}
           onMarketplaceChange={(tab) => {
             if (setMarketplaceModalTab) setMarketplaceModalTab(tab);
+          }}
+          onBrandingChange={(key, val) => {
+            if (setBranding) {
+              setBranding((prev: any) => ({ ...(prev || {}), [key]: val }));
+            }
           }}
           onRefresh={() => {
             if (onRefresh) onRefresh();

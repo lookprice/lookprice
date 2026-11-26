@@ -106,22 +106,27 @@ export const useProductActions = (
     }
     existingMp = (typeof existingMp === 'object' && existingMp !== null) ? existingMp : {};
 
-    // Combine marketplace data with editingProduct's data
+    // Combine marketplace data cleanly: incoming attributes map is authoritative when submitted
+    const incomingAttrs = marketplaceData?.attributes && typeof marketplaceData.attributes === 'object'
+      ? marketplaceData.attributes
+      : null;
+    const incomingHbAttrs = marketplaceData?.hepsiburada?.attributes && typeof marketplaceData.hepsiburada.attributes === 'object'
+      ? marketplaceData.hepsiburada.attributes
+      : incomingAttrs;
+
     marketplaceData = {
       ...existingMp,
       ...marketplaceData,
-      attributes: {
-        ...(existingMp.attributes || {}),
-        ...(marketplaceData.attributes || {})
-      },
+      attributes: incomingAttrs !== null ? incomingAttrs : (existingMp.attributes || {}),
       hepsiburada: {
         ...(existingMp.hepsiburada || {}),
         ...(marketplaceData?.hepsiburada || {}),
-        attributes: {
-          ...(existingMp.hepsiburada?.attributes || {}),
-          ...(marketplaceData?.hepsiburada?.attributes || {})
-        }
-      }
+        attributes: incomingHbAttrs !== null ? incomingHbAttrs : (existingMp.hepsiburada?.attributes || {})
+      },
+      ...(marketplaceData?.trendyol ? { trendyol: { ...(existingMp.trendyol || {}), ...marketplaceData.trendyol } } : {}),
+      ...(marketplaceData?.n11 ? { n11: { ...(existingMp.n11 || {}), ...marketplaceData.n11 } } : {}),
+      ...(marketplaceData?.amazon ? { amazon: { ...(existingMp.amazon || {}), ...marketplaceData.amazon } } : {}),
+      ...(marketplaceData?.pazarama ? { pazarama: { ...(existingMp.pazarama || {}), ...marketplaceData.pazarama } } : {}),
     };
 
     // Parse product images list (main + extra gallery images)

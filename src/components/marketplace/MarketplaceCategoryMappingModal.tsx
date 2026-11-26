@@ -512,7 +512,7 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
     setLoadingAttributes(true);
     try {
       if (activeMarketplace === 'hepsiburada') {
-        const res = await api.getHepsiburadaCategoryAttributes(marketCatId, currentStoreId);
+        const res = await api.getHepsiburadaCategoryAttributes(marketCatId, currentStoreId, matched?.paths?.[0] || catName, matched?.name || catName);
         const attrs = res.data?.attributes || res.data || res.attributes;
         if (Array.isArray(attrs) && attrs.length > 0) {
           setCurrentCategoryAttributes(attrs.map((a: any) => ({
@@ -711,7 +711,7 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
         const payload = {
           clientId: prevAmz.clientId || '',
           clientSecret: prevAmz.clientSecret || '',
-          refreshToken: prevAmz.refresh_token || '',
+          refreshToken: prevAmz.refreshToken || prevAmz.refresh_token || '',
           sellerId: prevAmz.sellerId || '',
           defaultCommissionRate: activeDefComm,
           defaultFixedFee: activeDefFee,
@@ -731,6 +731,7 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
           commissionRate: activeDefComm,
           defaultFixedFee: activeDefFee,
           categoryMappings: activeMappings,
+          categoryAttributes: activeAttrs,
           categoryMarkups: activeMarkups,
           brandMappings: prevPz.brandMappings || {},
           storeId: currentStoreId

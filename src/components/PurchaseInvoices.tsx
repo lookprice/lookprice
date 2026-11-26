@@ -314,8 +314,15 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
   const [productSearch, setProductSearch] = useState("");
   const deferredProductSearch = useDeferredValue(productSearch);
   const [showProductDropdown, setShowProductDropdown] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'term' | 'cash' | 'credit_card' | 'bank'>('term');
+  const [paymentMethod, setPaymentMethod] = useState<'term' | 'cash' | 'credit_card' | 'bank' | 'check_promissory'>('term');
   const [paymentStatus, setPaymentStatus] = useState<'paid' | 'unpaid'>('unpaid');
+  const [financialAccounts, setFinancialAccounts] = useState<any[]>([]);
+  const [financialAccountId, setFinancialAccountId] = useState<string>("");
+  const [financialAccountName, setFinancialAccountName] = useState<string>("");
+  const [checkInstrumentType, setCheckInstrumentType] = useState<'check' | 'promissory_note'>('check');
+  const [checkNoteNo, setCheckNoteNo] = useState<string>("");
+  const [checkDueDate, setCheckDueDate] = useState<string>("");
+  const [checkBankName, setCheckBankName] = useState<string>("");
   const [currency, setCurrency] = useState(branding?.default_currency || 'TRY');
   const [exchangeRate, setExchangeRate] = useState("1");
   const [companySearch, setCompanySearch] = useState("");
@@ -424,15 +431,17 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
     try {
       const targetStoreId = role === 'superadmin' ? storeId : undefined;
       const effectiveSearch = searchStr !== undefined ? searchStr : (activeSearch || search || "");
-      const [invRes, compRes, prodRes, centersRes] = await Promise.all([
+      const [invRes, compRes, prodRes, centersRes, accountsRes] = await Promise.all([
         api.getPurchaseInvoices(targetStoreId, effectiveSearch, sDate || startDate, eDate || endDate),
         api.getCompanies(false, targetStoreId),
         api.getProducts("", targetStoreId),
         api.getExpenseCenters(targetStoreId).catch(() => null),
+        api.getFinancialAccounts(targetStoreId).catch(() => [])
       ]);
       setInvoices(Array.isArray(invRes) ? invRes : []);
       setCompanies(Array.isArray(compRes) ? compRes : []);
       setProducts(Array.isArray(prodRes) ? prodRes : []);
+      setFinancialAccounts(Array.isArray(accountsRes) ? accountsRes : []);
       if (Array.isArray(centersRes) && centersRes.length > 0) {
         setExpenseCenters(centersRes);
       }
@@ -572,6 +581,12 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
     setProductSearch("");
     setPaymentMethod('term');
     setPaymentStatus('unpaid');
+    setFinancialAccountId("");
+    setFinancialAccountName("");
+    setCheckInstrumentType('check');
+    setCheckNoteNo("");
+    setCheckDueDate("");
+    setCheckBankName("");
     setCurrency(branding?.default_currency || 'TRY');
     setExchangeRate("1");
     setIsTaxInclusive(false);
@@ -644,7 +659,15 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
             tax_rate: Number(String(item.tax_rate).replace(',', '.')) || 0
           })),
           payment_method: paymentMethod,
-          payment_status: paymentMethod !== 'term' ? 'paid' : paymentStatus,
+          payment_status: paymentMethod === 'term' ? 'unpaid' : 'paid',
+          financial_account_id: (paymentMethod === 'cash' || paymentMethod === 'bank' || paymentMethod === 'credit_card') && financialAccountId ? Number(financialAccountId) : null,
+          financial_account_name: (paymentMethod === 'cash' || paymentMethod === 'bank' || paymentMethod === 'credit_card')
+            ? (financialAccountName || (paymentMethod === 'cash' ? `${currency} Nakit Kasa` : null))
+            : null,
+          check_instrument_type: paymentMethod === 'check_promissory' ? checkInstrumentType : null,
+          check_note_no: paymentMethod === 'check_promissory' ? (checkNoteNo.trim() || null) : null,
+          check_due_date: paymentMethod === 'check_promissory' ? (checkDueDate || null) : null,
+          check_bank_name: paymentMethod === 'check_promissory' ? (checkBankName.trim() || null) : null,
           currency,
           exchange_rate: (() => {
             const parsed = parseFloat(String(exchangeRate).replace(',', '.').trim());
@@ -731,8 +754,14 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
       setWaybillNumber(data.waybill_number || "");
       setInvoiceDate(new Date(data.invoice_date).toISOString().split('T')[0]);
       setNotes(data.notes || "");
-      setPaymentMethod(data.payment_method || 'term');
-      setPaymentStatus(data.payment_status || 'unpaid');
+      setPaymentMethod((data.payment_method as any) || 'term');
+      setPaymentStatus(data.payment_method === 'term' ? 'unpaid' : (data.payment_status || 'unpaid'));
+      setFinancialAccountId(data.financial_account_id ? String(data.financial_account_id) : "");
+      setFinancialAccountName(data.financial_account_name || "");
+      setCheckInstrumentType(data.check_instrument_type === 'promissory_note' ? 'promissory_note' : 'check');
+      setCheckNoteNo(data.check_note_no || "");
+      setCheckDueDate(data.check_due_date ? String(data.check_due_date).split('T')[0] : "");
+      setCheckBankName(data.check_bank_name || "");
       setCurrency(data.currency || 'TRY');
       setExchangeRate(String(data.exchange_rate || 1));
       const editIsTaxIncl = data.is_tax_inclusive !== undefined ? data.is_tax_inclusive : false;
@@ -776,10 +805,11 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
 
   const handleUpdatePaymentStatus = async (id: number, status: 'paid' | 'unpaid') => {
     try {
-      const res = await api.updatePurchaseInvoicePaymentStatus(id, status);
+      const targetStoreId = role === 'superadmin' ? storeId : undefined;
+      const res = await api.updatePurchaseInvoicePaymentStatus(id, status, targetStoreId);
       if (res.error) throw new Error(res.error);
       toast.success(isTr ? "Ödeme durumu güncellendi" : "Payment status updated");
-      await fetchInvoicesData();
+      await fetchInvoicesData(activeSearch || search || "", undefined, undefined, true);
     } catch (error: any) {
       toast.error(error.message);
     }
@@ -1364,6 +1394,19 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
         setShowQuickProductModal={setShowQuickProductModal}
         paymentMethod={paymentMethod}
         setPaymentMethod={setPaymentMethod}
+        financialAccounts={financialAccounts}
+        financialAccountId={financialAccountId}
+        setFinancialAccountId={setFinancialAccountId}
+        financialAccountName={financialAccountName}
+        setFinancialAccountName={setFinancialAccountName}
+        checkInstrumentType={checkInstrumentType}
+        setCheckInstrumentType={setCheckInstrumentType}
+        checkNoteNo={checkNoteNo}
+        setCheckNoteNo={setCheckNoteNo}
+        checkDueDate={checkDueDate}
+        setCheckDueDate={setCheckDueDate}
+        checkBankName={checkBankName}
+        setCheckBankName={setCheckBankName}
         currency={currency}
         setCurrency={setCurrency}
         exchangeRate={exchangeRate}
