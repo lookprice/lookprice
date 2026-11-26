@@ -1,6 +1,7 @@
 import axios from "axios";
 import zlib from "zlib";
 import { pool } from "../../../models/db";
+import { syncMarketplaceOrderTreasury } from "../../../routes/store/treasurySync";
 
 export interface AmazonSettings {
   connected?: boolean;
@@ -1497,6 +1498,21 @@ export class AmazonService {
             const prevStatus = String(exRow.status || '').trim();
             const wasAlreadyCanceled = prevStatus === 'Canceled' || prevStatus === 'Cancelled' || prevStatus === 'Unfulfillable';
             if (wasAlreadyCanceled) {
+              if (exRow.sale_id || exRow.sales_invoice_id) {
+                try {
+                  await syncMarketplaceOrderTreasury(pool, {
+                    storeId: this.storeId,
+                    platform: "amazon",
+                    salesInvoiceId: exRow.sales_invoice_id,
+                    saleId: exRow.sale_id,
+                    invoiceNumber: `AMZ-${amazonOrderId}`,
+                    orderReference: amazonOrderId,
+                    amount: totalAmountFloat,
+                    currency: order.OrderTotal?.CurrencyCode || "TRY",
+                    status: "cancelled",
+                  });
+                } catch {}
+              }
               continue;
             }
             await pool.query(
@@ -1532,6 +1548,21 @@ export class AmazonService {
                   );
                 }
               }
+              try {
+                await syncMarketplaceOrderTreasury(pool, {
+                  storeId: this.storeId,
+                  platform: "amazon",
+                  salesInvoiceId: exRow.sales_invoice_id,
+                  saleId: exRow.sale_id,
+                  invoiceNumber: `AMZ-${amazonOrderId}`,
+                  orderReference: amazonOrderId,
+                  amount: totalAmountFloat,
+                  currency: order.OrderTotal?.CurrencyCode || "TRY",
+                  status: "cancelled",
+                });
+              } catch (trErr: any) {
+                console.warn(`[Amazon Sync] Treasury cancel sync warning for #${amazonOrderId}:`, trErr?.message || trErr);
+              }
             } else if (isCanceled && (exRow.sale_id || exRow.sales_invoice_id)) {
               if (exRow.sales_invoice_id) {
                 await pool.query("UPDATE sales_invoices SET status = 'cancelled' WHERE id = $1 AND store_id = $2 AND COALESCE(status, '') != 'cancelled'", [exRow.sales_invoice_id, this.storeId]);
@@ -1543,6 +1574,19 @@ export class AmazonService {
                 "DELETE FROM stock_movements WHERE store_id = $1 AND (sale_id = $2 OR (invoice_id IS NOT NULL AND invoice_id = $3) OR invoice_number = $4)",
                 [this.storeId, exRow.sale_id || -1, exRow.sales_invoice_id || -1, `AMZ-${amazonOrderId}`]
               );
+              try {
+                await syncMarketplaceOrderTreasury(pool, {
+                  storeId: this.storeId,
+                  platform: "amazon",
+                  salesInvoiceId: exRow.sales_invoice_id,
+                  saleId: exRow.sale_id,
+                  invoiceNumber: `AMZ-${amazonOrderId}`,
+                  orderReference: amazonOrderId,
+                  amount: totalAmountFloat,
+                  currency: order.OrderTotal?.CurrencyCode || "TRY",
+                  status: "cancelled",
+                });
+              } catch {}
             }
           }
         } catch (e: any) {
@@ -1946,6 +1990,24 @@ export class AmazonService {
         }
 
         await client.query("COMMIT");
+        try {
+          await syncMarketplaceOrderTreasury(pool, {
+            storeId: this.storeId,
+            platform: "amazon",
+            salesInvoiceId: invoiceId,
+            saleId,
+            invoiceNumber,
+            orderReference: amazonOrderId,
+            amount: grandTotal,
+            currency: order.OrderTotal?.CurrencyCode || "TRY",
+            customerName: rawBuyerName,
+            transactionDate: order.PurchaseDate ? new Date(order.PurchaseDate) : new Date(),
+            status: "approved",
+            notes: orderNotes,
+          });
+        } catch (trErr: any) {
+          console.warn(`[Amazon Sync] Treasury sync warning for #${amazonOrderId}:`, trErr?.message || trErr);
+        }
         syncedCount++;
         console.log(`[Amazon Sync] #${amazonOrderId} siparişi (${rawBuyerName} - ${grandTotal} TRY) başarıyla sisteme işlendi.`);
       } catch (err: any) {

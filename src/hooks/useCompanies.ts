@@ -8,7 +8,7 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
   const data = useCompanyData(currentStoreId, ui.includeZeroBalance, ui.transactionStartDate, ui.transactionEndDate);
   const actions = useCompanyActions(
       user, currentStoreId, data.fetchCompanies, 
-      (cid, tsid) => data.handleFetchTransactions(cid, tsid),
+      (cid, tsid, cStart, cEnd) => data.handleFetchTransactions(cid, tsid, cStart, cEnd),
       ui.selectedCompany, ui.setEditingCompany, ui.setShowCompanyModal,
       ui.setShowAddTransactionModal, ui.setNewTransactionAmount, ui.setNewTransactionDescription,
       ui.setNewTransactionCurrency, ui.setNewTransactionExchangeRate, branding, lang
@@ -26,7 +26,12 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
         eOrData, ui.newTransactionType, ui.newTransactionAmount, ui.newTransactionDescription,
         ui.newTransactionDate, ui.newTransactionPaymentMethod, ui.newTransactionCurrency, ui.newTransactionExchangeRate
     ),
-    handleFetchTransactions: (companyId: number) => 
-        data.handleFetchTransactions(companyId, user.role === 'superadmin' ? currentStoreId : undefined)
+    handleFetchTransactions: (companyId: number, targetStoreId?: number, customStart?: string, customEnd?: string) => 
+        data.handleFetchTransactions(
+          companyId,
+          targetStoreId !== undefined ? targetStoreId : (user.role === 'superadmin' ? currentStoreId : undefined),
+          customStart,
+          customEnd
+        )
   };
 };

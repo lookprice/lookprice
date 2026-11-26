@@ -339,6 +339,21 @@ export const api = {
     if (params.endDate) qs.set("endDate", params.endDate);
     return api.get(`/api/real-estate/financial-accounts/statement?${qs.toString()}`);
   },
+  syncMarketplaceVaults: (storeId?: number) =>
+    api.post(`/api/real-estate/financial-accounts/sync-marketplaces${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
+  transferFinancialAccounts: (data: {
+    from_account_id?: number | null;
+    from_cash_currency?: string | null;
+    to_account_id?: number | null;
+    to_cash_currency?: string | null;
+    amount: number;
+    currency?: string;
+    date?: string;
+    title?: string;
+    reference_no?: string;
+    description?: string;
+  }, storeId?: number) =>
+    api.post(`/api/real-estate/financial-accounts/transfer${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   getChecksNotes: (filters?: { direction?: string; status?: string; instrument_type?: string; startDate?: string; endDate?: string; search?: string }, storeId?: number) => {
     const qs = new URLSearchParams();
     if (storeId !== undefined && storeId !== null) qs.set("storeId", String(storeId));

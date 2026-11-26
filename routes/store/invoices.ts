@@ -2596,11 +2596,26 @@ router.post("/purchase", async (req: any, res) => {
       checkBankName: check_bank_name || null
     });
 
+    const effectiveSyncedPayMethod = purchTreasuryRes.marketplacePlatform
+      ? (purchTreasuryRes.resolvedPaymentMethod || 'marketplace_vault')
+      : effectivePaymentMethod;
+    const effectiveSyncedPayStatus = purchTreasuryRes.marketplacePlatform
+      ? 'paid'
+      : effectivePaymentStatus;
+
     const updInvTreasury = await pool.query(
       `UPDATE purchase_invoices
-       SET financial_account_id = $1, financial_account_name = $2, check_note_id = $3
-       WHERE id = $4 RETURNING *`,
-      [purchTreasuryRes.financialAccountId, purchTreasuryRes.financialAccountName, purchTreasuryRes.checkNoteId, invoice.id]
+       SET financial_account_id = $1, financial_account_name = $2, check_note_id = $3,
+           payment_method = $4, payment_status = $5
+       WHERE id = $6 RETURNING *`,
+      [
+        purchTreasuryRes.financialAccountId,
+        purchTreasuryRes.financialAccountName,
+        purchTreasuryRes.checkNoteId,
+        effectiveSyncedPayMethod,
+        effectiveSyncedPayStatus,
+        invoice.id
+      ]
     );
     if (updInvTreasury.rows.length > 0) invoice = updInvTreasury.rows[0];
 
@@ -2620,7 +2635,10 @@ router.post("/purchase", async (req: any, res) => {
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
           [
             storeId, finalCompanyId, invoice.id, 'debt', calculatedGrandTotal, finalCurrency, cleanExchangeRate,
-            `Alış Faturası Ödemesi: ${invoice_number || invoice.invoice_number}${effectivePaymentMethod ? ` (${effectivePaymentMethod})` : ''}`, effectivePaymentMethod, invoice_date || new Date(),
+            purchTreasuryRes.marketplacePlatform
+              ? `Pazaryeri Hakediş Mahsubu: ${invoice_number || invoice.invoice_number}`
+              : `Alış Faturası Ödemesi: ${invoice_number || invoice.invoice_number}${effectiveSyncedPayMethod ? ` (${effectiveSyncedPayMethod})` : ''}`,
+            effectiveSyncedPayMethod, invoice_date || new Date(),
             purchTreasuryRes.financialAccountId, purchTreasuryRes.financialAccountName, purchTreasuryRes.checkNoteId
           ]
         );
@@ -3102,11 +3120,26 @@ router.put("/purchase/:id", async (req: any, res) => {
       checkBankName: check_bank_name || null
     });
 
+    const updSyncedPayMethod = purchUpdTreasuryRes.marketplacePlatform
+      ? (purchUpdTreasuryRes.resolvedPaymentMethod || 'marketplace_vault')
+      : effectivePaymentMethod;
+    const updSyncedPayStatus = purchUpdTreasuryRes.marketplacePlatform
+      ? 'paid'
+      : effectivePaymentStatus;
+
     const updInvTreasury2 = await pool.query(
       `UPDATE purchase_invoices
-       SET financial_account_id = $1, financial_account_name = $2, check_note_id = $3
-       WHERE id = $4 RETURNING *`,
-      [purchUpdTreasuryRes.financialAccountId, purchUpdTreasuryRes.financialAccountName, purchUpdTreasuryRes.checkNoteId, invoice.id]
+       SET financial_account_id = $1, financial_account_name = $2, check_note_id = $3,
+           payment_method = $4, payment_status = $5
+       WHERE id = $6 RETURNING *`,
+      [
+        purchUpdTreasuryRes.financialAccountId,
+        purchUpdTreasuryRes.financialAccountName,
+        purchUpdTreasuryRes.checkNoteId,
+        updSyncedPayMethod,
+        updSyncedPayStatus,
+        invoice.id
+      ]
     );
     if (updInvTreasury2.rows.length > 0) invoice = updInvTreasury2.rows[0];
     
@@ -3125,7 +3158,10 @@ router.put("/purchase/:id", async (req: any, res) => {
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
           [
             targetStoreId, finalCompanyId, invoice.id, 'debt', calculatedGrandTotal, finalCurrency, cleanExchangeRate,
-            `Alış Faturası Ödemesi: ${invoice_number}${effectivePaymentMethod ? ` (${effectivePaymentMethod})` : ''}`, effectivePaymentMethod, invoice_date || new Date(),
+            purchUpdTreasuryRes.marketplacePlatform
+              ? `Pazaryeri Hakediş Mahsubu: ${invoice_number}`
+              : `Alış Faturası Ödemesi: ${invoice_number}${updSyncedPayMethod ? ` (${updSyncedPayMethod})` : ''}`,
+            updSyncedPayMethod, invoice_date || new Date(),
             purchUpdTreasuryRes.financialAccountId, purchUpdTreasuryRes.financialAccountName, purchUpdTreasuryRes.checkNoteId
           ]
         );
@@ -3702,14 +3738,69 @@ router.post("/purchase/:id/convert-to-expense", async (req: any, res) => {
       );
     }
 
+    // 5. Auto-deduct from Marketplace Vault if this expense invoice belongs to a marketplace on shopLP
+    const convInvNo = inv.invoice_number || inv.document_number || `PI-${inv.id}`;
+    const convGrandTotal = Number(inv.grand_total || inv.total_amount || 0);
+    const convTreasury = await syncPurchaseInvoiceTreasury(pool, {
+      storeId: Number(storeId),
+      invoiceId: Number(inv.id),
+      invoiceNumber: convInvNo,
+      invoiceDate: inv.invoice_date || inv.created_at || new Date(),
+      grandTotal: convGrandTotal,
+      currency: inv.currency || 'TRY',
+      exchangeRate: Number(inv.exchange_rate || 1) || 1,
+      paymentMethod: inv.payment_method || 'term',
+      paymentStatus: inv.payment_status || 'unpaid',
+      status: inv.status || 'approved',
+      isExpense: true,
+      companyId: inv.company_id ? Number(inv.company_id) : null,
+      supplierName: inv.supplier_name || null,
+      taxNumber: inv.tax_number || null,
+      financialAccountId: inv.financial_account_id ? Number(inv.financial_account_id) : null,
+      financialAccountName: inv.financial_account_name || null,
+    });
+    if (convTreasury.marketplacePlatform && convTreasury.isPaid && convTreasury.financialAccountId) {
+      await pool.query(
+        `UPDATE purchase_invoices
+         SET payment_method = 'marketplace_vault',
+             payment_status = 'paid',
+             financial_account_id = $1,
+             financial_account_name = $2
+         WHERE id = $3 AND store_id = $4`,
+        [convTreasury.financialAccountId, convTreasury.financialAccountName, Number(inv.id), storeId]
+      );
+      if (inv.company_id && !isCancelledOrDraftStatus(inv.status)) {
+        const exDebt = await pool.query(
+          "SELECT id FROM current_account_transactions WHERE store_id = $1 AND purchase_invoice_id = $2 AND type = 'debt' LIMIT 1",
+          [storeId, Number(inv.id)]
+        );
+        if (exDebt.rows.length === 0) {
+          await pool.query(
+            `INSERT INTO current_account_transactions
+              (store_id, company_id, purchase_invoice_id, type, amount, currency, exchange_rate, description, payment_method, transaction_date, financial_account_id, financial_account_name)
+             VALUES ($1, $2, $3, 'debt', $4, $5, $6, $7, 'marketplace_vault', $8, $9, $10)`,
+            [
+              storeId, Number(inv.company_id), Number(inv.id), convGrandTotal,
+              (inv.currency || 'TRY').toUpperCase(), Number(inv.exchange_rate || 1) || 1,
+              `Pazaryeri Hakediş Mahsubu: ${convInvNo}`, inv.invoice_date || new Date(),
+              convTreasury.financialAccountId, convTreasury.financialAccountName
+            ]
+          );
+        }
+      }
+    }
+
     res.json({
       success: true,
-      message: "Fatura başarıyla gidere dönüştürüldü, açılan stoklar iptal edildi ve tedarikçi gider olarak sabitlendi.",
+      message: convTreasury.marketplacePlatform
+        ? `Fatura gidere dönüştürüldü ve ${convTreasury.financialAccountName} bakiyesinden düşüldü.`
+        : "Fatura başarıyla gidere dönüştürüldü, açılan stoklar iptal edildi ve tedarikçi gider olarak sabitlendi.",
       revertedStockMovements: revertedCount,
       deletedProductsCount: deletedProductsCount,
       is_expense: true,
       expense_category: finalCategory,
-      expense_center: finalCenter
+      expense_center: finalCenter,
+      marketplace_vault_name: convTreasury.marketplacePlatform ? convTreasury.financialAccountName : null
     });
   } catch (err: any) {
     console.error("Error converting invoice to expense:", err);
@@ -3856,11 +3947,26 @@ router.post("/purchase/:id/convert-to-stock", async (req: any, res) => {
     if (invRes.rows.length === 0) return res.status(404).json({ error: "Fatura bulunamadı." });
     const inv = invRes.rows[0];
 
-    // 1. Mark invoice as NOT expense
+    // 1. Mark invoice as NOT expense (if previously auto-settled via marketplace_vault, revert to term/unpaid and clean up vault deduction)
+    const wasMpVault = String(inv.payment_method || '').toLowerCase() === 'marketplace_vault';
     await pool.query(
-      "UPDATE purchase_invoices SET is_expense = false, expense_category = NULL, expense_center = NULL, operator_status = 'completed', operator_processed_at = COALESCE(operator_processed_at, NOW()) WHERE id = $1",
+      wasMpVault
+        ? `UPDATE purchase_invoices
+           SET is_expense = false, expense_category = NULL, expense_center = NULL,
+               payment_method = 'term', payment_status = 'unpaid',
+               financial_account_id = NULL, financial_account_name = NULL,
+               operator_status = 'completed', operator_processed_at = COALESCE(operator_processed_at, NOW())
+           WHERE id = $1`
+        : "UPDATE purchase_invoices SET is_expense = false, expense_category = NULL, expense_center = NULL, operator_status = 'completed', operator_processed_at = COALESCE(operator_processed_at, NOW()) WHERE id = $1",
       [id]
     );
+    if (wasMpVault) {
+      await deletePortfolioTxForSource(pool, Number(storeId), 'purchase_invoice', Number(id));
+      await pool.query(
+        "DELETE FROM current_account_transactions WHERE store_id = $1 AND purchase_invoice_id = $2 AND type = 'debt' AND LOWER(COALESCE(payment_method, '')) = 'marketplace_vault'",
+        [storeId, Number(id)]
+      );
+    }
 
     // 2. Unpin company from being expense so future syncs/queries treat it as stock supplier
     if (inv.company_id) {
@@ -4818,18 +4924,103 @@ router.post("/purchase/:id/operator-approve", async (req: any, res) => {
       );
     }
 
-    const refreshed = await pool.query(
-      `SELECT pi.*, COALESCE(pi.operator_status, 'completed') as operator_status, c.title as company_name
+    let refreshed = await pool.query(
+      `SELECT pi.*, COALESCE(pi.operator_status, 'completed') as operator_status, c.title as company_name, c.tax_number as company_tax_number
        FROM purchase_invoices pi
        LEFT JOIN companies c ON pi.company_id = c.id
        WHERE pi.id = $1`,
       [id]
     );
 
+    let mpVaultLabel: string | null = null;
+    if (refreshed.rows.length > 0) {
+      const rInv = refreshed.rows[0];
+      if (mode === 'expense') {
+        const opInvNo = rInv.invoice_number || rInv.document_number || `PI-${rInv.id}`;
+        const opTotal = Number(rInv.grand_total || rInv.total_amount || 0);
+        const opTreasury = await syncPurchaseInvoiceTreasury(pool, {
+          storeId: Number(storeId),
+          invoiceId: Number(rInv.id),
+          invoiceNumber: opInvNo,
+          invoiceDate: rInv.invoice_date || rInv.created_at || new Date(),
+          grandTotal: opTotal,
+          currency: rInv.currency || 'TRY',
+          exchangeRate: Number(rInv.exchange_rate || 1) || 1,
+          paymentMethod: rInv.payment_method || 'term',
+          paymentStatus: rInv.payment_status || 'unpaid',
+          status: rInv.status || 'approved',
+          isExpense: true,
+          companyId: rInv.company_id ? Number(rInv.company_id) : null,
+          supplierName: rInv.supplier_name || rInv.company_name || null,
+          taxNumber: rInv.tax_number || rInv.company_tax_number || null,
+          financialAccountId: rInv.financial_account_id ? Number(rInv.financial_account_id) : null,
+          financialAccountName: rInv.financial_account_name || null,
+        });
+        if (opTreasury.marketplacePlatform && opTreasury.isPaid && opTreasury.financialAccountId) {
+          mpVaultLabel = opTreasury.financialAccountName;
+          await pool.query(
+            `UPDATE purchase_invoices
+             SET payment_method = 'marketplace_vault',
+                 payment_status = 'paid',
+                 financial_account_id = $1,
+                 financial_account_name = $2
+             WHERE id = $3 AND store_id = $4`,
+            [opTreasury.financialAccountId, opTreasury.financialAccountName, Number(rInv.id), storeId]
+          );
+          if (rInv.company_id && !isCancelledOrDraftStatus(rInv.status)) {
+            const exDebt = await pool.query(
+              "SELECT id FROM current_account_transactions WHERE store_id = $1 AND purchase_invoice_id = $2 AND type = 'debt' LIMIT 1",
+              [storeId, Number(rInv.id)]
+            );
+            if (exDebt.rows.length === 0) {
+              await pool.query(
+                `INSERT INTO current_account_transactions
+                  (store_id, company_id, purchase_invoice_id, type, amount, currency, exchange_rate, description, payment_method, transaction_date, financial_account_id, financial_account_name)
+                 VALUES ($1, $2, $3, 'debt', $4, $5, $6, $7, 'marketplace_vault', $8, $9, $10)`,
+                [
+                  storeId, Number(rInv.company_id), Number(rInv.id), opTotal,
+                  (rInv.currency || 'TRY').toUpperCase(), Number(rInv.exchange_rate || 1) || 1,
+                  `Pazaryeri Hakediş Mahsubu: ${opInvNo}`, rInv.invoice_date || new Date(),
+                  opTreasury.financialAccountId, opTreasury.financialAccountName
+                ]
+              );
+            }
+          }
+          refreshed = await pool.query(
+            `SELECT pi.*, COALESCE(pi.operator_status, 'completed') as operator_status, c.title as company_name
+             FROM purchase_invoices pi
+             LEFT JOIN companies c ON pi.company_id = c.id
+             WHERE pi.id = $1`,
+            [id]
+          );
+        }
+      } else if (String(rInv.payment_method || '').toLowerCase() === 'marketplace_vault') {
+        await pool.query(
+          `UPDATE purchase_invoices
+           SET payment_method = 'term', payment_status = 'unpaid',
+               financial_account_id = NULL, financial_account_name = NULL
+           WHERE id = $1 AND store_id = $2`,
+          [Number(rInv.id), storeId]
+        );
+        await deletePortfolioTxForSource(pool, Number(storeId), 'purchase_invoice', Number(rInv.id));
+        await pool.query(
+          "DELETE FROM current_account_transactions WHERE store_id = $1 AND purchase_invoice_id = $2 AND type = 'debt' AND LOWER(COALESCE(payment_method, '')) = 'marketplace_vault'",
+          [storeId, Number(rInv.id)]
+        );
+        refreshed = await pool.query(
+          `SELECT pi.*, COALESCE(pi.operator_status, 'completed') as operator_status, c.title as company_name
+           FROM purchase_invoices pi
+           LEFT JOIN companies c ON pi.company_id = c.id
+           WHERE pi.id = $1`,
+          [id]
+        );
+      }
+    }
+
     res.json({
       success: true,
       message: mode === 'expense'
-        ? "Fatura gider faturası olarak onaylandı."
+        ? (mpVaultLabel ? `Fatura gider olarak onaylandı ve ${mpVaultLabel} bakiyesinden düşüldü.` : "Fatura gider faturası olarak onaylandı.")
         : "Fatura kalemleri onaylandı, stoklar ve rezerveler işlendi.",
       invoice: refreshed.rows[0]
     });

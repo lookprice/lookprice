@@ -7,8 +7,11 @@ import {
   ensureTreasurySchema,
   syncCheckNoteToPortfolio,
   resolveFinancialAccountInfo,
-  deletePortfolioTxForSource
+  deletePortfolioTxForSource,
+  mapTreasuryMethod,
+  backfillMarketplaceVaults
 } from './store/treasurySync';
+import { isShopLPStore } from './store/invoiceMatching';
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -1845,14 +1848,239 @@ router.get('/financial-accounts', authenticate, async (req: any, res) => {
     return res.json([]);
   }
   try {
+    const shopLp = await isShopLPStore(pool, storeId);
     const result = await pool.query(
-      `SELECT * FROM store_financial_accounts WHERE store_id = $1 ORDER BY account_type ASC, id ASC`,
+      shopLp
+        ? `SELECT * FROM store_financial_accounts WHERE store_id = $1 ORDER BY account_type ASC, id ASC`
+        : `SELECT * FROM store_financial_accounts WHERE store_id = $1 AND LOWER(COALESCE(account_type, '')) <> 'marketplace' ORDER BY account_type ASC, id ASC`,
       [storeId]
     );
     res.json(result.rows);
   } catch (error: any) {
     console.error("Fetch financial accounts error:", error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /financial-accounts/sync-marketplaces - Idempotent backfill & reconciliation of shopLP Marketplace Vaults
+router.post('/financial-accounts/sync-marketplaces', authenticate, async (req: any, res) => {
+  await ensurePortfolioTransactionsSchema();
+  const storeId = resolveTransactionStoreId(req);
+  if (!storeId) {
+    return res.status(403).json({ error: "Unauthorized store context." });
+  }
+  try {
+    const shopLp = await isShopLPStore(pool, storeId);
+    if (!shopLp) {
+      return res.json({
+        success: true,
+        skipped: true,
+        ensuredVaults: [],
+        syncedOrders: 0,
+        removedCancelledOrders: 0,
+        syncedExpenseInvoices: 0
+      });
+    }
+    const summary = await backfillMarketplaceVaults(pool, storeId);
+    res.json({ success: true, ...summary });
+  } catch (error: any) {
+    console.error("Sync marketplace vaults error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /financial-accounts/transfer - Atomic internal transfer / Marketplace Payout Settlement (Hakediş Virmanı)
+router.post('/financial-accounts/transfer', authenticate, async (req: any, res) => {
+  await ensurePortfolioTransactionsSchema();
+  const storeId = resolveTransactionStoreId(req);
+  if (!storeId) {
+    return res.status(403).json({ error: "Unauthorized store context." });
+  }
+
+  const {
+    from_account_id,
+    from_cash_currency,
+    to_account_id,
+    to_cash_currency,
+    amount,
+    date,
+    title,
+    reference_no,
+    notes,
+    description
+  } = req.body || {};
+
+  const parsedAmount = Number(String(amount ?? '').replace(/,/g, '.'));
+  if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+    return res.status(400).json({ error: "Geçerli pozitif bir virman tutarı giriniz." });
+  }
+
+  const fromId = from_account_id ? Number(from_account_id) : null;
+  const cleanFromCashCurr = from_cash_currency ? String(from_cash_currency).trim().toUpperCase() : null;
+  if ((!fromId || !Number.isInteger(fromId) || fromId <= 0) && !cleanFromCashCurr) {
+    return res.status(400).json({ error: "Kaynak kasa/hesap seçilmelidir." });
+  }
+
+  const parsedToId = to_account_id ? Number(to_account_id) : null;
+  const cleanCashCurr = to_cash_currency ? String(to_cash_currency).trim().toUpperCase() : null;
+  if (!parsedToId && !cleanCashCurr) {
+    return res.status(400).json({ error: "Hedef banka hesabı veya nakit kasa seçilmelidir." });
+  }
+  if (parsedToId && fromId && parsedToId === fromId) {
+    return res.status(400).json({ error: "Kaynak ve hedef hesap aynı olamaz." });
+  }
+  if (!fromId && !parsedToId && cleanFromCashCurr && cleanCashCurr && cleanFromCashCurr === cleanCashCurr) {
+    return res.status(400).json({ error: "Kaynak ve hedef nakit kasa aynı olamaz." });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    let fromAcc: any = null;
+    let fromType = 'cash';
+    let fromCurr = cleanFromCashCurr || 'TRY';
+    let fromLabel = `${fromCurr} Nakit Kasa`;
+
+    if (fromId) {
+      const fromRes = await client.query(
+        `SELECT * FROM store_financial_accounts WHERE id = $1 AND store_id = $2 LIMIT 1`,
+        [fromId, storeId]
+      );
+      if (fromRes.rows.length === 0) {
+        await client.query("ROLLBACK");
+        return res.status(404).json({ error: "Kaynak hesap bulunamadı." });
+      }
+      fromAcc = fromRes.rows[0];
+      fromType = String(fromAcc.account_type || 'bank').toLowerCase();
+      fromCurr = String(fromAcc.currency || 'TRY').toUpperCase();
+      fromLabel = fromAcc.account_name;
+    }
+
+    let toAcc: any = null;
+    let toLabel = '';
+    let toPayMethod = 'bank_transfer';
+    let toCurr = fromCurr;
+
+    if (parsedToId) {
+      const toRes = await client.query(
+        `SELECT * FROM store_financial_accounts WHERE id = $1 AND store_id = $2 LIMIT 1`,
+        [parsedToId, storeId]
+      );
+      if (toRes.rows.length === 0) {
+        await client.query("ROLLBACK");
+        return res.status(404).json({ error: "Hedef hesap bulunamadı." });
+      }
+      toAcc = toRes.rows[0];
+      const toType = String(toAcc.account_type || 'bank').toLowerCase();
+      toCurr = String(toAcc.currency || 'TRY').toUpperCase();
+      toLabel = toAcc.account_name;
+      toPayMethod =
+        toType === 'marketplace'
+          ? 'marketplace_vault'
+          : toType === 'credit_card'
+          ? 'credit_card'
+          : toType === 'cash'
+          ? 'cash'
+          : 'bank_transfer';
+    } else if (cleanCashCurr) {
+      toCurr = cleanCashCurr;
+      toLabel = `${cleanCashCurr} Nakit Kasa`;
+      toPayMethod = 'cash';
+    }
+
+    if (fromCurr !== toCurr) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: `Para birimleri eşleşmiyor (${fromCurr} -> ${toCurr}). Aynı para birimli hesap seçiniz.` });
+    }
+
+    const fromPayMethod =
+      fromType === 'marketplace'
+        ? 'marketplace_vault'
+        : fromType === 'credit_card'
+        ? 'credit_card'
+        : fromType === 'cash'
+        ? 'cash'
+        : 'bank_transfer';
+
+    const txDateIso = date ? new Date(date).toISOString() : new Date().toISOString();
+    const isMpTransfer = fromType === 'marketplace' || (toAcc && String(toAcc.account_type).toLowerCase() === 'marketplace');
+    const customTitle = title ? String(title).trim() : '';
+    const outTitle = customTitle
+      ? `${customTitle} (Çıkış)`
+      : isMpTransfer
+        ? `Hakediş Virmanı Çıkışı: ${fromLabel} → ${toLabel}`
+        : `Virman Çıkışı: ${fromLabel} → ${toLabel}`;
+    const inTitle = customTitle
+      ? `${customTitle} (Giriş)`
+      : isMpTransfer
+        ? `Hakediş Tahsilatı (Virman): ${fromLabel} → ${toLabel}`
+        : `Virman Girişi: ${fromLabel} → ${toLabel}`;
+    const cleanRef = reference_no ? String(reference_no).trim() : '';
+    const cleanDesc = (description || notes)
+      ? String(description || notes).trim()
+      : (isMpTransfer ? 'Pazaryeri hakediş banka aktarımı' : 'Hesaplar arası virman');
+
+    const outRes = await client.query(
+      `INSERT INTO portfolio_transactions
+        (store_id, type, category, title, amount, currency, exchange_rate, date, description, payment_method, reference_no, contact_name, account_id, account_name, source_type)
+       VALUES ($1, 'expense', 'transfer', $2, $3, $4, 1, $5, $6, $7, $8, $9, $10, $11, 'internal_transfer')
+       RETURNING *`,
+      [
+        storeId,
+        outTitle,
+        parsedAmount,
+        fromCurr,
+        txDateIso,
+        cleanDesc,
+        fromPayMethod,
+        cleanRef,
+        toLabel,
+        fromAcc ? Number(fromAcc.id) : null,
+        fromLabel
+      ]
+    );
+    const transferGroupId = Number(outRes.rows[0].id);
+
+    await client.query(
+      `UPDATE portfolio_transactions SET source_id = $1 WHERE id = $1 AND store_id = $2`,
+      [transferGroupId, storeId]
+    );
+
+    const inRes = await client.query(
+      `INSERT INTO portfolio_transactions
+        (store_id, type, category, title, amount, currency, exchange_rate, date, description, payment_method, reference_no, contact_name, account_id, account_name, source_type, source_id)
+       VALUES ($1, 'income', 'transfer', $2, $3, $4, 1, $5, $6, $7, $8, $9, $10, $11, 'internal_transfer', $12)
+       RETURNING *`,
+      [
+        storeId,
+        inTitle,
+        parsedAmount,
+        toCurr,
+        txDateIso,
+        cleanDesc,
+        toPayMethod,
+        cleanRef,
+        fromLabel,
+        toAcc ? Number(toAcc.id) : null,
+        toLabel,
+        transferGroupId
+      ]
+    );
+
+    await client.query("COMMIT");
+    res.json({
+      success: true,
+      transferGroupId,
+      outflow: { ...outRes.rows[0], source_id: transferGroupId },
+      inflow: inRes.rows[0]
+    });
+  } catch (error: any) {
+    await client.query("ROLLBACK");
+    console.error("Financial account transfer error:", error);
+    res.status(500).json({ error: error.message || "Virman işlemi başarısız." });
+  } finally {
+    client.release();
   }
 });
 
@@ -1985,7 +2213,12 @@ router.get('/financial-accounts/statement', authenticate, async (req: any, res) 
       accountMeta = accRes.rows[0];
       openingBase = Number(accountMeta.initial_balance || 0);
       baseParams.push(parsedAccountId);
-      scopeSql = `t.store_id = $1 AND t.account_id = $${baseParams.length}`;
+      const accType = String(accountMeta.account_type || '').toLowerCase();
+      if (accType === 'cash') {
+        scopeSql = `t.store_id = $1 AND t.account_id = $${baseParams.length} AND LOWER(COALESCE(t.payment_method, 'cash')) IN ('cash', 'nakit')`;
+      } else {
+        scopeSql = `t.store_id = $1 AND t.account_id = $${baseParams.length} AND LOWER(COALESCE(t.payment_method, 'bank_transfer')) NOT IN ('cash', 'nakit')`;
+      }
     } else if (cleanCurr) {
       baseParams.push(cleanCurr);
       const currParamIdx = baseParams.length;
@@ -2497,12 +2730,11 @@ router.post('/transactions', authenticate, async (req: any, res) => {
   const txCurr = (currency || 'TRY').toUpperCase();
   const txRate = Number(exchange_rate || 1) || 1;
   const txDate = date ? new Date(date).toISOString() : new Date().toISOString();
+  const normalizedMethod = mapTreasuryMethod(payment_method || 'cash');
 
-  let resolvedAccName = account_name ? String(account_name).trim() : null;
-  if (parsedAccountId && !resolvedAccName) {
-    const accInfo = await resolveFinancialAccountInfo(pool, storeId, parsedAccountId, null, payment_method || 'cash', txCurr);
-    resolvedAccName = accInfo.accountName;
-  }
+  const accInfo = await resolveFinancialAccountInfo(pool, storeId, parsedAccountId, account_name, normalizedMethod, txCurr);
+  const finalAccountId = accInfo.accountId;
+  const resolvedAccName = accInfo.accountName;
 
   try {
     const result = await pool.query(
@@ -2521,10 +2753,10 @@ router.post('/transactions', authenticate, async (req: any, res) => {
         parsedPropertyId, 
         parsedCompanyId,
         description || '',
-        payment_method || 'cash',
+        normalizedMethod,
         reference_no || '',
         contact_name || '',
-        parsedAccountId,
+        finalAccountId,
         resolvedAccName
       ]
     );
@@ -2578,12 +2810,11 @@ router.put('/transactions/:id', authenticate, async (req: any, res) => {
   const txCurr = (currency || 'TRY').toUpperCase();
   const txRate = Number(exchange_rate || 1) || 1;
   const txDate = date ? new Date(date).toISOString() : new Date().toISOString();
+  const normalizedMethod = mapTreasuryMethod(payment_method || 'cash');
 
-  let resolvedAccName = account_name ? String(account_name).trim() : null;
-  if (parsedAccountId && !resolvedAccName) {
-    const accInfo = await resolveFinancialAccountInfo(pool, storeId, parsedAccountId, null, payment_method || 'cash', txCurr);
-    resolvedAccName = accInfo.accountName;
-  }
+  const accInfo = await resolveFinancialAccountInfo(pool, storeId, parsedAccountId, account_name, normalizedMethod, txCurr);
+  const finalAccountId = accInfo.accountId;
+  const resolvedAccName = accInfo.accountName;
 
   try {
     const result = await pool.query(
@@ -2617,10 +2848,10 @@ router.put('/transactions/:id', authenticate, async (req: any, res) => {
         parsedPropertyId,
         parsedCompanyId,
         description || '',
-        payment_method || 'cash',
+        normalizedMethod,
         reference_no || '',
         contact_name || '',
-        parsedAccountId,
+        finalAccountId,
         resolvedAccName,
         Number(id),
         storeId
@@ -2658,6 +2889,12 @@ router.delete('/transactions/:id', authenticate, async (req: any, res) => {
     }
 
     const deleted = result.rows[0];
+    if (deleted?.source_type === 'internal_transfer' && deleted?.source_id) {
+      await pool.query(
+        `DELETE FROM portfolio_transactions WHERE store_id = $1 AND source_type = 'internal_transfer' AND source_id = $2`,
+        [storeId, Number(deleted.source_id)]
+      );
+    }
     if (deleted.source_type === 'check_note' && deleted.source_id) {
       try {
         await pool.query(

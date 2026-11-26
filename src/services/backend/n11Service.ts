@@ -2379,13 +2379,15 @@ export class N11Service {
     const localProdRes = await poolInstance.query("SELECT * FROM products WHERE store_id = $1", [storeId]);
     const localProducts = localProdRes.rows || [];
 
-    const storeRes = await poolInstance.query("SELECT n11_settings, currency_rates, branding, default_currency FROM stores WHERE id = $1", [storeId]);
+    const storeRes = await poolInstance.query("SELECT name, n11_settings, currency_rates, branding, default_currency FROM stores WHERE id = $1", [storeId]);
     const storeRow = storeRes.rows[0] || {};
     let n11Settings = storeRow.n11_settings || {};
     if (typeof n11Settings === "string") { try { n11Settings = JSON.parse(n11Settings); } catch { n11Settings = {}; } }
     let branding = storeRow.branding || {};
     if (typeof branding === "string") { try { branding = JSON.parse(branding); } catch { branding = {}; } }
     const rates = { ...(branding?.currency_rates || {}), ...(storeRow.currency_rates || {}) };
+    const storeDisplayName = String(branding?.store_name || storeRow.name || "N11").trim();
+    const configuredN11Nick = String(n11Settings?.sellerNickname || branding?.n11_settings?.sellerNickname || "").trim();
 
     let matchedCount = 0;
     let activeCount = 0;
@@ -2418,7 +2420,7 @@ export class N11Service {
       const rpTitleLower = rpTitle.toLocaleLowerCase("tr-TR");
       const rpGroupId = rp.groupId || rp.n11CatalogGroupId || "";
       const rpCatalogId = rp.catalogId || "";
-      const rpSellerNickname = rp.sellerNickname || "enrakipsiz";
+      const rpSellerNickname = String(rp.sellerNickname || configuredN11Nick || "").trim();
 
       // Extract GTINs and sellerStockCodes from SOAP stockItems if present
       const stockItemsRaw = rp.stockItems?.stockItem || [];
@@ -2546,8 +2548,9 @@ export class N11Service {
           .replace(/-+/g, "-");
 
         // Build public product URL ONLY when N11 listing is approved (Active) and has a valid Catalog Group ID
+        const sellerSuffix = rpSellerNickname ? `?magaza=${encodeURIComponent(rpSellerNickname)}` : "";
         const productUrl = isApprovedOnN11 && publicCatalogId
-          ? `https://www.n11.com/urun/${catalogSlug}-${publicCatalogId}?magaza=${rpSellerNickname}`
+          ? `https://www.n11.com/urun/${catalogSlug}-${publicCatalogId}${sellerSuffix}`
           : undefined;
 
         const pPrice = Number(matchedLocal.price || 0);
@@ -2678,7 +2681,7 @@ export class N11Service {
       rejectedCount,
       importedCount,
       totalRemote: remoteProducts.length,
-      message: `N11 mağazası (enrakipsiz) tarandı: ${matchedCount} ürün eşleştirildi (${activeCount} aktif satışta, ${pendingCount} N11 katalog onayında bekliyor${rejectedCount > 0 ? `, ${rejectedCount} reddedildi` : ""}).`
+      message: `N11 mağazası (${storeDisplayName}) tarandı: ${matchedCount} ürün eşleştirildi (${activeCount} aktif satışta, ${pendingCount} N11 katalog onayında bekliyor${rejectedCount > 0 ? `, ${rejectedCount} reddedildi` : ""}).`
     };
   }
 }

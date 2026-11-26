@@ -6,7 +6,7 @@ import { IntegrationService } from "../src/services/IntegrationService";
 import { HepsiburadaService } from "../src/services/backend/hepsiburadaService";
 import { HepsiburadaServiceV3 } from "../src/services/backend/HepsiburadaServiceV3";
 import { AmazonService } from "../src/services/backend/amazonService";
-import { isHepsiburadaMasterCatalogId, slugifyText } from "../src/utils/marketplaceUrls";
+import { isHepsiburadaMasterCatalogId, slugifyText, buildHepsiburadaProductUrl } from "../src/utils/marketplaceUrls";
 import { 
   processMarketplaceOrderLines, 
   syncN11Orders, 
@@ -20,6 +20,7 @@ import {
   testPazaramaConnection,
   computeSellableStock
 } from "../src/services/marketplaceSync";
+import { syncMarketplaceOrderTreasury } from "./store/treasurySync";
 
 const router = express.Router();
 
@@ -1719,7 +1720,7 @@ router.post("/n11/publish", authenticate, async (req: any, res) => {
       n11Id = String(saveRes.n11Id);
       groupId = saveRes.groupId;
       catalogId = saveRes.catalogId;
-      sellerNickname = saveRes.sellerNickname || "enrakipsiz";
+      sellerNickname = String(saveRes.sellerNickname || settings?.sellerNickname || "").trim();
       resolvedSellerStockCode = saveRes.sellerStockCode || sellerCode;
       resolvedTitle = saveRes.title || product.name;
       isLive = Boolean(saveRes.isLive);
@@ -1742,10 +1743,12 @@ router.post("/n11/publish", authenticate, async (req: any, res) => {
       .trim()
       .replace(/[^a-z0-9 -]/g, "")
       .replace(/\s+/g, "-")
-      .replace(/-+/g, "-");
+      .replace(/-+/g, "-")
+      .replace(/^-+|-+$/g, "");
 
+    const n11SellerSuffix = sellerNickname ? `?magaza=${encodeURIComponent(sellerNickname)}` : "";
     const computedProductUrl = isLive && publicCatalogId
-      ? `https://www.n11.com/urun/${n11Slug}-${publicCatalogId}?magaza=${sellerNickname || "enrakipsiz"}`
+      ? `https://www.n11.com/urun/${n11Slug}-${publicCatalogId}${n11SellerSuffix}`
       : null;
 
     mpData.n11 = {
@@ -2715,6 +2718,16 @@ router.post("/hepsiburada/check-product-status", authenticate, async (req: any, 
       const pid = matched.productId || hbData.productId || null;
       const isSalable = matched.isSalable !== false && matched.status === 'ACTIVE';
 
+      const ownHbSeller = String(settings?.merchantName || settings?.storeName || "").trim();
+      const canonicalHbUrl = buildHepsiburadaProductUrl({
+        name: name || "urun",
+        hepsiburadaSku: hbSku,
+        productId: pid,
+        barcode,
+        sellerName: ownHbSeller || null,
+        fallbackToSearch: true,
+      });
+
       mpData.hepsiburada = {
         ...hbData,
         hepsiburadaSku: hbSku,
@@ -2723,13 +2736,7 @@ router.post("/hepsiburada/check-product-status", authenticate, async (req: any, 
         status: matched.status || 'ACTIVE',
         isSalable,
         error: null,
-        productUrl: pid 
-          ? `https://www.hepsiburada.com/${slugifyText(name || 'urun')}-pm-${String(pid).trim().toLowerCase()}` 
-          : (hbSku && isHepsiburadaMasterCatalogId(hbSku) 
-            ? `https://www.hepsiburada.com/${slugifyText(name || 'urun')}-pm-${String(hbSku).trim().toLowerCase()}` 
-            : (barcode 
-              ? `https://www.hepsiburada.com/ara?q=${encodeURIComponent(barcode)}` 
-              : (name ? `https://www.hepsiburada.com/ara?q=${encodeURIComponent(name)}` : null))),
+        productUrl: canonicalHbUrl,
         lastChecked: new Date().toISOString()
       };
 
@@ -2737,11 +2744,12 @@ router.post("/hepsiburada/check-product-status", authenticate, async (req: any, 
         `UPDATE products 
          SET is_hepsiburada_active = $1,
              hepsiburada_sku = COALESCE(NULLIF($2, ''), hepsiburada_sku),
+             hepsiburada_url = COALESCE(NULLIF($3, ''), hepsiburada_url),
              hepsiburada_last_sync = NOW(),
              hepsiburada_last_error = NULL,
-             marketplace_data = $3
-         WHERE id = $4`,
-        [isSalable, hbSku, JSON.stringify(mpData), productId]
+             marketplace_data = $4
+         WHERE id = $5 AND store_id = $6`,
+        [isSalable, hbSku, canonicalHbUrl || null, JSON.stringify(mpData), productId, storeId]
       );
 
       return res.json({
@@ -3242,22 +3250,20 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
       (upperHbSku.startsWith('HBCV') || upperHbSku.startsWith('HBV'))
     );
 
-    const hbSlug = slugifyText(p.name || 'urun');
+    const ownHbSeller = String(settings?.merchantName || settings?.storeName || "").trim();
     let resolvedHbProductUrl: string | undefined = undefined;
     if (isLive) {
-      if (inputHbUrl && !inputHbUrl.includes('/ara?')) {
-        resolvedHbProductUrl = inputHbUrl.includes('magaza=') ? inputHbUrl : (inputHbUrl.includes('?') ? `${inputHbUrl}&magaza=Enrakipsiz` : `${inputHbUrl}?magaza=Enrakipsiz`);
-      } else if (resolvedHbProductId) {
-        resolvedHbProductUrl = `https://www.hepsiburada.com/${hbSlug}-pm-${String(resolvedHbProductId).trim().toLowerCase()}?magaza=Enrakipsiz`;
-      } else if (isMasterHbSku) {
-        resolvedHbProductUrl = `https://www.hepsiburada.com/${hbSlug}-pm-${String(resolvedHbSku).trim().toLowerCase()}?magaza=Enrakipsiz`;
-      } else if (isVariantHbSku) {
-        resolvedHbProductUrl = `https://www.hepsiburada.com/${hbSlug}-p-${String(resolvedHbSku).trim().toUpperCase()}?magaza=Enrakipsiz`;
-      } else if (p.barcode) {
-        resolvedHbProductUrl = `https://www.hepsiburada.com/ara?q=${encodeURIComponent(p.barcode)}`;
-      } else {
-        resolvedHbProductUrl = `https://www.hepsiburada.com/ara?q=${encodeURIComponent(p.name)}`;
-      }
+      resolvedHbProductUrl =
+        buildHepsiburadaProductUrl({
+          name: p.name || "urun",
+          hepsiburadaSku: resolvedHbSku || null,
+          productId: resolvedHbProductId || null,
+          directUrl: inputHbUrl && !String(inputHbUrl).includes("/ara?") ? String(inputHbUrl) : null,
+          fallbackSku: p.sku || p.product_code || null,
+          barcode: p.barcode || null,
+          sellerName: ownHbSeller || null,
+          fallbackToSearch: true,
+        }) || undefined;
     }
 
     // Update product marketplace metadata
@@ -3282,11 +3288,12 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
       `UPDATE products 
        SET is_hepsiburada_active = $1,
            hepsiburada_sku = COALESCE(NULLIF($2, ''), hepsiburada_sku),
+           hepsiburada_url = COALESCE(NULLIF($3, ''), hepsiburada_url),
            hepsiburada_last_sync = NOW(), 
            hepsiburada_last_error = NULL, 
-           marketplace_data = $3 
-       WHERE id = $4 AND store_id = $5`,
-      [isLive, resolvedHbSku || null, JSON.stringify(mpData), productId, storeId]
+           marketplace_data = $4 
+       WHERE id = $5 AND store_id = $6`,
+      [isLive, resolvedHbSku || null, resolvedHbProductUrl || null, JSON.stringify(mpData), productId, storeId]
     );
 
     const message = isLive
@@ -4641,7 +4648,23 @@ router.post("/trendyol/sync", authenticate, async (req: any, res) => {
 
     let syncedCount = 0;
     for (const order of tyOrders) {
-      const existing = await pool.query("SELECT id FROM trendyol_orders WHERE store_id = $1 AND trendyol_order_id = $2", [storeId, order.id]);
+      const tyRawStatus = String(order.status || order.shipmentPackageStatus || "New").trim();
+      const tyStatusLower = tyRawStatus.toLowerCase();
+      const isTyCancelled =
+        tyStatusLower.includes("cancel") ||
+        tyStatusLower.includes("iptal") ||
+        tyStatusLower.includes("return") ||
+        tyStatusLower.includes("iade") ||
+        tyStatusLower.includes("unsupplied") ||
+        tyStatusLower.includes("reject");
+      const invoiceNumber = `TY-${order.id}`;
+      const tyOrderDate = parseMarketplaceOrderDate(order.orderDate || order.createdDate);
+      const totalAmount = parseFloat(order.total) || 0;
+
+      const existing = await pool.query(
+        "SELECT id, sale_id, sales_invoice_id, status FROM trendyol_orders WHERE store_id = $1 AND trendyol_order_id = $2",
+        [storeId, order.id]
+      );
       if (existing.rows.length === 0) {
         const client = await pool.connect();
         try {
@@ -4670,22 +4693,19 @@ router.post("/trendyol/sync", authenticate, async (req: any, res) => {
             customerId = newCust.rows[0]?.id;
           }
 
-          const tyOrderDate = parseMarketplaceOrderDate(order.orderDate || order.createdDate);
           const saleRes = await client.query(
             "INSERT INTO sales (store_id, total_amount, currency, status, customer_name, customer_id, payment_method, notes, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id",
-            [storeId, order.total, 'TRY', 'completed', order.customer, customerId, 'Trendyol Satış', `Trendyol Siparişi: ${order.id}`, tyOrderDate]
+            [storeId, totalAmount, 'TRY', isTyCancelled ? 'cancelled' : 'completed', order.customer, customerId, 'Trendyol Satış', `Trendyol Siparişi: ${order.id}`, tyOrderDate]
           );
           const saleId = saleRes.rows[0].id;
 
-          const invoiceNumber = `TY-${order.id}`;
-          const totalAmount = parseFloat(order.total);
           const grandTotal = totalAmount;
           const subtotal = grandTotal / 1.20;
           const taxAmount = grandTotal - subtotal;
 
           const invoiceRes = await client.query(
             "INSERT INTO sales_invoices (store_id, sale_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, payment_method, notes, invoice_type, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id",
-            [storeId, saleId, customerId, invoiceNumber, tyOrderDate, subtotal, taxAmount, grandTotal, 'TRY', 'Trendyol Satış', `Trendyol Siparişi: ${order.id}`, 'marketplace', 'completed', tyOrderDate]
+            [storeId, saleId, customerId, invoiceNumber, tyOrderDate, subtotal, taxAmount, grandTotal, 'TRY', 'Trendyol Satış', `Trendyol Siparişi: ${order.id}`, 'marketplace', isTyCancelled ? 'cancelled' : 'completed', tyOrderDate]
           );
           const salesInvoiceId = invoiceRes.rows[0].id;
 
@@ -4700,7 +4720,7 @@ router.post("/trendyol/sync", authenticate, async (req: any, res) => {
             taxRate: 20
           }));
 
-          if (mappedLines.length > 0) {
+          if (mappedLines.length > 0 && !isTyCancelled) {
             await processMarketplaceOrderLines(client, storeId, saleId, salesInvoiceId, mappedLines, 'Trendyol', order.id, rawCustName3, invoiceNumber);
           } else {
              await client.query(
@@ -4711,16 +4731,83 @@ router.post("/trendyol/sync", authenticate, async (req: any, res) => {
 
           await client.query(
             "INSERT INTO trendyol_orders (store_id, trendyol_order_id, sale_id, sales_invoice_id, status, order_data) VALUES ($1, $2, $3, $4, $5, $6)",
-            [storeId, order.id, saleId, salesInvoiceId, 'New', order]
+            [storeId, order.id, saleId, salesInvoiceId, tyRawStatus, order]
           );
 
           await client.query("COMMIT");
+          try {
+            await syncMarketplaceOrderTreasury(pool, {
+              storeId,
+              platform: "trendyol",
+              salesInvoiceId,
+              saleId,
+              invoiceNumber,
+              orderReference: String(order.id),
+              amount: grandTotal,
+              currency: "TRY",
+              customerName: rawCustName3 || "Trendyol Müşterisi",
+              transactionDate: tyOrderDate,
+              status: isTyCancelled ? "cancelled" : "completed",
+              notes: `Trendyol Siparişi: ${order.id}`,
+            });
+          } catch (trErr: any) {
+            console.warn(`[Trendyol Sync] Treasury sync warning for #${order.id}:`, trErr?.message || trErr);
+          }
           syncedCount++;
         } catch (e) {
           await client.query("ROLLBACK");
           console.error("Trendyol Order Sync Error:", e);
         } finally {
           client.release();
+        }
+      } else {
+        const exRow = existing.rows[0];
+        await pool.query(
+          "UPDATE trendyol_orders SET status = $1, order_data = $2 WHERE id = $3",
+          [tyRawStatus, order, exRow.id]
+        );
+        if (isTyCancelled) {
+          if (exRow.sales_invoice_id) {
+            await pool.query("UPDATE sales_invoices SET status = 'cancelled' WHERE id = $1 AND store_id = $2", [exRow.sales_invoice_id, storeId]);
+          }
+          if (exRow.sale_id) {
+            const saleCheck = await pool.query("SELECT status FROM sales WHERE id = $1 AND store_id = $2", [exRow.sale_id, storeId]);
+            const wasSaleCancelled = ['cancelled', 'iptal', 'canceled'].includes(String(saleCheck.rows[0]?.status || '').toLowerCase().trim());
+            await pool.query(
+              "UPDATE sales SET status = 'cancelled', cancellation_reason = COALESCE(cancellation_reason, 'Trendyol Sipariş İptali/İadesi') WHERE id = $1 AND store_id = $2",
+              [exRow.sale_id, storeId]
+            );
+            if (!wasSaleCancelled) {
+              const items = await pool.query("SELECT product_id, quantity FROM sale_items WHERE sale_id = $1", [exRow.sale_id]);
+              for (const it of items.rows) {
+                if (it.product_id && it.quantity > 0) {
+                  await pool.query("UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2 AND store_id = $3", [it.quantity, it.product_id, storeId]);
+                }
+              }
+            }
+          }
+          await pool.query(
+            "DELETE FROM stock_movements WHERE store_id = $1 AND (sale_id = $2 OR (invoice_id IS NOT NULL AND invoice_id = $3) OR invoice_number = $4)",
+            [storeId, exRow.sale_id || -1, exRow.sales_invoice_id || -1, invoiceNumber]
+          );
+        }
+        try {
+          await syncMarketplaceOrderTreasury(pool, {
+            storeId,
+            platform: "trendyol",
+            salesInvoiceId: exRow.sales_invoice_id,
+            saleId: exRow.sale_id,
+            invoiceNumber,
+            orderReference: String(order.id),
+            amount: totalAmount,
+            currency: "TRY",
+            customerName: String(order.customer || "Trendyol Müşterisi").trim(),
+            transactionDate: tyOrderDate,
+            status: isTyCancelled ? "cancelled" : "completed",
+            notes: `Trendyol Siparişi: ${order.id}`,
+          });
+        } catch (trErr: any) {
+          console.warn(`[Trendyol Sync] Treasury update sync warning for #${order.id}:`, trErr?.message || trErr);
         }
       }
     }
@@ -5632,7 +5719,24 @@ router.post("/pazarama/sync", authenticate, async (req: any, res) => {
     let syncedCount = 0;
     for (const order of pzOrders) {
       const orderId = order.orderNumber || order.id;
-      const existing = await pool.query("SELECT id FROM pazarama_orders WHERE store_id = $1 AND pazarama_order_id = $2", [storeId, orderId]);
+      const pzRawStatus = String(order.orderStatus || order.statusName || order.status || "New").trim();
+      const pzStatusLower = pzRawStatus.toLowerCase();
+      const isPzCancelled =
+        pzStatusLower.includes("cancel") ||
+        pzStatusLower.includes("iptal") ||
+        pzStatusLower.includes("return") ||
+        pzStatusLower.includes("iade") ||
+        pzStatusLower.includes("reject") ||
+        pzStatusLower.includes("refund");
+      const pzOrderDate = parseMarketplaceOrderDate(order.orderDate || order.createdDate);
+      const totalAmount = parseFloat(order.totalAmount || order.grandTotal || 0) || 0;
+      const invoiceNumber = `PZ-${orderId}`;
+      const customerName = order.customerName || order.recipientName || "Pazarama Müşterisi";
+
+      const existing = await pool.query(
+        "SELECT id, sale_id, sales_invoice_id, status FROM pazarama_orders WHERE store_id = $1 AND pazarama_order_id = $2",
+        [storeId, orderId]
+      );
       if (existing.rows.length === 0) {
         const client = await pool.connect();
         try {
@@ -5640,7 +5744,6 @@ router.post("/pazarama/sync", authenticate, async (req: any, res) => {
 
           let customerId = null;
           const customerEmail = order.customerEmail || `${orderId}@pazarama.com`;
-          const customerName = order.customerName || order.recipientName || "Pazarama Müşterisi";
 
           const rawCustName4 = (customerName || '').trim();
           const nameParts4 = rawCustName4.split(' ');
@@ -5666,22 +5769,19 @@ router.post("/pazarama/sync", authenticate, async (req: any, res) => {
             customerId = newCust.rows[0]?.id;
           }
 
-          const pzOrderDate = parseMarketplaceOrderDate(order.orderDate || order.createdDate);
-          const totalAmount = parseFloat(order.totalAmount || order.grandTotal || 0);
           const saleRes = await client.query(
             "INSERT INTO sales (store_id, total_amount, currency, status, customer_name, customer_id, payment_method, notes, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id",
-            [storeId, totalAmount, 'TRY', 'completed', customerName, customerId, 'Pazarama Satış', `Pazarama Siparişi: ${orderId}`, pzOrderDate]
+            [storeId, totalAmount, 'TRY', isPzCancelled ? 'cancelled' : 'completed', customerName, customerId, 'Pazarama Satış', `Pazarama Siparişi: ${orderId}`, pzOrderDate]
           );
           const saleId = saleRes.rows[0].id;
 
-          const invoiceNumber = `PZ-${orderId}`;
           const grandTotal = totalAmount;
           const subtotal = grandTotal / 1.20;
           const taxAmount = grandTotal - subtotal;
 
           const invoiceRes = await client.query(
             "INSERT INTO sales_invoices (store_id, customer_id, sale_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, payment_method, notes, invoice_type, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id",
-            [storeId, customerId, saleId, invoiceNumber, pzOrderDate, subtotal, taxAmount, grandTotal, 'TRY', 'Pazarama Satış', `Pazarama Siparişi: ${orderId}`, 'marketplace', 'completed', pzOrderDate]
+            [storeId, customerId, saleId, invoiceNumber, pzOrderDate, subtotal, taxAmount, grandTotal, 'TRY', 'Pazarama Satış', `Pazarama Siparişi: ${orderId}`, 'marketplace', isPzCancelled ? 'cancelled' : 'completed', pzOrderDate]
           );
           const salesInvoiceId = invoiceRes.rows[0].id;
 
@@ -5695,7 +5795,7 @@ router.post("/pazarama/sync", authenticate, async (req: any, res) => {
             taxRate: l.taxRate || 20
           }));
 
-          if (mappedLines.length > 0) {
+          if (mappedLines.length > 0 && !isPzCancelled) {
             await processMarketplaceOrderLines(client, storeId, saleId, salesInvoiceId, mappedLines, 'Pazarama', orderId, customerName, invoiceNumber);
           } else {
             await client.query(
@@ -5706,16 +5806,83 @@ router.post("/pazarama/sync", authenticate, async (req: any, res) => {
 
           await client.query(
             "INSERT INTO pazarama_orders (store_id, pazarama_order_id, sale_id, sales_invoice_id, status, order_data) VALUES ($1, $2, $3, $4, $5, $6)",
-            [storeId, orderId, saleId, salesInvoiceId, 'New', order]
+            [storeId, orderId, saleId, salesInvoiceId, pzRawStatus, order]
           );
 
           await client.query("COMMIT");
+          try {
+            await syncMarketplaceOrderTreasury(pool, {
+              storeId,
+              platform: "pazarama",
+              salesInvoiceId,
+              saleId,
+              invoiceNumber,
+              orderReference: String(orderId),
+              amount: grandTotal,
+              currency: "TRY",
+              customerName,
+              transactionDate: pzOrderDate,
+              status: isPzCancelled ? "cancelled" : "completed",
+              notes: `Pazarama Siparişi: ${orderId}`,
+            });
+          } catch (trErr: any) {
+            console.warn(`[Pazarama Sync] Treasury sync warning for #${orderId}:`, trErr?.message || trErr);
+          }
           syncedCount++;
         } catch (e) {
           await client.query("ROLLBACK");
           console.error("Pazarama Order Sync Error:", e);
         } finally {
           client.release();
+        }
+      } else {
+        const exRow = existing.rows[0];
+        await pool.query(
+          "UPDATE pazarama_orders SET status = $1, order_data = $2 WHERE id = $3",
+          [pzRawStatus, order, exRow.id]
+        );
+        if (isPzCancelled) {
+          if (exRow.sales_invoice_id) {
+            await pool.query("UPDATE sales_invoices SET status = 'cancelled' WHERE id = $1 AND store_id = $2", [exRow.sales_invoice_id, storeId]);
+          }
+          if (exRow.sale_id) {
+            const saleCheck = await pool.query("SELECT status FROM sales WHERE id = $1 AND store_id = $2", [exRow.sale_id, storeId]);
+            const wasSaleCancelled = ['cancelled', 'iptal', 'canceled'].includes(String(saleCheck.rows[0]?.status || '').toLowerCase().trim());
+            await pool.query(
+              "UPDATE sales SET status = 'cancelled', cancellation_reason = COALESCE(cancellation_reason, 'Pazarama Sipariş İptali/İadesi') WHERE id = $1 AND store_id = $2",
+              [exRow.sale_id, storeId]
+            );
+            if (!wasSaleCancelled) {
+              const items = await pool.query("SELECT product_id, quantity FROM sale_items WHERE sale_id = $1", [exRow.sale_id]);
+              for (const it of items.rows) {
+                if (it.product_id && it.quantity > 0) {
+                  await pool.query("UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2 AND store_id = $3", [it.quantity, it.product_id, storeId]);
+                }
+              }
+            }
+          }
+          await pool.query(
+            "DELETE FROM stock_movements WHERE store_id = $1 AND (sale_id = $2 OR (invoice_id IS NOT NULL AND invoice_id = $3) OR invoice_number = $4)",
+            [storeId, exRow.sale_id || -1, exRow.sales_invoice_id || -1, invoiceNumber]
+          );
+        }
+        try {
+          await syncMarketplaceOrderTreasury(pool, {
+            storeId,
+            platform: "pazarama",
+            salesInvoiceId: exRow.sales_invoice_id,
+            saleId: exRow.sale_id,
+            invoiceNumber,
+            orderReference: String(orderId),
+            amount: totalAmount,
+            currency: "TRY",
+            customerName,
+            transactionDate: pzOrderDate,
+            status: isPzCancelled ? "cancelled" : "completed",
+            notes: `Pazarama Siparişi: ${orderId}`,
+          });
+        } catch (trErr: any) {
+          console.warn(`[Pazarama Sync] Treasury update sync warning for #${orderId}:`, trErr?.message || trErr);
         }
       }
     }

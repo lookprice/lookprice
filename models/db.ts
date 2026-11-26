@@ -678,6 +678,13 @@ export async function initDb() {
         amount DECIMAL(12,2) NOT NULL,
         currency TEXT DEFAULT 'TRY',
         exchange_rate DECIMAL(12,4) DEFAULT 1,
+        cross_currency TEXT,
+        cross_rate DECIMAL(12,4),
+        cross_amount DECIMAL(12,2),
+        is_manual BOOLEAN DEFAULT FALSE,
+        financial_account_id INTEGER,
+        financial_account_name TEXT,
+        check_note_id INTEGER,
         description TEXT,
         payment_method TEXT,
         transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -696,6 +703,27 @@ export async function initDb() {
         END IF;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='current_account_transactions' AND column_name='due_date') THEN
           ALTER TABLE current_account_transactions ADD COLUMN due_date DATE;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='current_account_transactions' AND column_name='cross_currency') THEN
+          ALTER TABLE current_account_transactions ADD COLUMN cross_currency TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='current_account_transactions' AND column_name='cross_rate') THEN
+          ALTER TABLE current_account_transactions ADD COLUMN cross_rate DECIMAL(12,4);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='current_account_transactions' AND column_name='cross_amount') THEN
+          ALTER TABLE current_account_transactions ADD COLUMN cross_amount DECIMAL(12,2);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='current_account_transactions' AND column_name='is_manual') THEN
+          ALTER TABLE current_account_transactions ADD COLUMN is_manual BOOLEAN DEFAULT FALSE;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='current_account_transactions' AND column_name='financial_account_id') THEN
+          ALTER TABLE current_account_transactions ADD COLUMN financial_account_id INTEGER;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='current_account_transactions' AND column_name='financial_account_name') THEN
+          ALTER TABLE current_account_transactions ADD COLUMN financial_account_name TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='current_account_transactions' AND column_name='check_note_id') THEN
+          ALTER TABLE current_account_transactions ADD COLUMN check_note_id INTEGER;
         END IF;
       END $$;
 

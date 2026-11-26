@@ -503,7 +503,12 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
   // Marketplace helpers
   const getHepsiburadaUrl = (p: any): string | null => {
     if (!p) return null;
-    return getMarketplaceListingUrl('hepsiburada', p);
+    const ownHbSeller = String(
+      branding?.hepsiburada_settings?.merchantName ||
+      branding?.hepsiburada_settings?.storeName ||
+      ""
+    ).trim();
+    return getMarketplaceListingUrl('hepsiburada', p, ownHbSeller ? { sellerName: ownHbSeller } : {});
   };
 
   const isHepsiburadaPending = (p: any): boolean => {
@@ -522,7 +527,8 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
 
   const getN11Url = (p: any): string | null => {
     if (!p) return null;
-    return getMarketplaceListingUrl('n11', p);
+    const ownN11Nick = String(branding?.n11_settings?.sellerNickname || "").trim();
+    return getMarketplaceListingUrl('n11', p, ownN11Nick ? { sellerName: ownN11Nick } : {});
   };
 
   const getAmazonUrl = (p: any): string | null => {

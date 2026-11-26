@@ -82,8 +82,8 @@ export interface DashboardModalsProps {
   openingBalances: Record<string, number>;
   companies: any[];
   setShowAddTransactionModal: (show: boolean) => void;
-  handleEditTransaction: (id: number, data: any) => void;
-  handleDeleteTransaction: (id: number) => void;
+  handleEditTransaction: (id: number, data: any) => Promise<boolean> | void;
+  handleDeleteTransaction: (id: number, skipConfirm?: boolean) => Promise<boolean> | void;
 
   // Add Transaction Modal
   showAddTransactionModal: boolean;
@@ -101,7 +101,7 @@ export interface DashboardModalsProps {
   setNewTransactionDescription: (d: string) => void;
   newTransactionDate: string;
   setNewTransactionDate: (d: string) => void;
-  handleAddTransaction: (eOrData: any) => void;
+  handleAddTransaction: (eOrData: any) => Promise<boolean> | void;
 
   // Sale Modal (Confirm Sale from Quotation)
   showSaleModal: boolean;

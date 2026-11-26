@@ -32,8 +32,8 @@ interface TransactionModalProps {
   openingBalances: Record<string, number>;
   companies: any[];
   setShowAddTransactionModal: (show: boolean) => void;
-  handleEditTransaction: (id: number, data: any) => void;
-  handleDeleteTransaction: (id: number) => void;
+  handleEditTransaction: (id: number, data: any) => Promise<boolean> | void;
+  handleDeleteTransaction: (id: number, skipConfirm?: boolean) => Promise<boolean> | void;
   branding: any;
   translations: any;
   lang: string;
@@ -54,7 +54,7 @@ interface TransactionModalProps {
   setNewTransactionDescription: (d: string) => void;
   newTransactionDate: string;
   setNewTransactionDate: (d: string) => void;
-  handleAddTransaction: (eOrData: any) => void;
+  handleAddTransaction: (eOrData: any) => Promise<boolean> | void;
 }
 
 export const TransactionModal: React.FC<TransactionModalProps> = ({
@@ -100,6 +100,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
 }) => {
   const isTr = lang === 'tr';
   const [editingTransaction, setEditingTransaction] = React.useState<any | null>(null);
+  const [isSubmittingTx, setIsSubmittingTx] = React.useState(false);
 
   // Invoice Direct Access States
   const [loadingInvoiceTxId, setLoadingInvoiceTxId] = React.useState<number | null>(null);
@@ -435,11 +436,12 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
     setShowAddTransactionModal(true);
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingTx) return;
     const parsedAmt = parseAmount(formAmount);
     if (parsedAmt <= 0) {
-      alert(isTr ? "Lütfen geçerli bir işlem tutarı giriniz." : "Please enter a valid amount.");
+      toast.error(isTr ? "Lütfen geçerli bir işlem tutarı giriniz." : "Please enter a valid amount.");
       return;
     }
 
@@ -479,8 +481,6 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
       ? `[Belge: ${formDocumentNo.trim()}] ${cleanDesc}`.trim() 
       : cleanDesc;
 
-    // Do not force change user's active currency tab; multi-currency resolution reflects across all tabs
-
     const effectiveVaultCurrency = (formCurrency === 'TRY' && formTargetCurrency && formTargetCurrency !== 'NONE' && formTargetCurrency !== 'TRY')
       ? 'TRY'
       : finalCurrency;
@@ -509,12 +509,35 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
       check_bank_name: formPaymentMethod === 'check_promissory' ? (formCheckBankName.trim() || null) : null
     };
 
-    if (editingTransaction) {
-      handleEditTransaction(editingTransaction.id, txPayload);
+    setIsSubmittingTx(true);
+    try {
+      const ok = editingTransaction
+        ? await Promise.resolve(handleEditTransaction(editingTransaction.id, txPayload))
+        : await Promise.resolve(handleAddTransaction(txPayload as any));
+
+      if (ok === false) {
+        return;
+      }
+
+      // Ensure the newly saved/updated entry is never hidden by active currency or date filters
+      const savedLedgerCurr = (finalCurrency !== 'TRY')
+        ? finalCurrency
+        : (crossCurrency && crossCurrency !== 'TRY' ? crossCurrency : 'TRY');
+      if (selectedCurrency && selectedCurrency !== 'ALL' && selectedCurrency.toUpperCase() !== savedLedgerCurr) {
+        setSelectedCurrency('ALL');
+      }
+      const isDateOutsideFilter =
+        (transactionStartDate && formDate && formDate < transactionStartDate) ||
+        (transactionEndDate && formDate && formDate > transactionEndDate);
+      if (isDateOutsideFilter && selectedCompany) {
+        setTransactionStartDate('');
+        setTransactionEndDate('');
+        handleFetchTransactions(selectedCompany.id, selectedCompany.store_id, '', '');
+      }
+
       handleCloseAddOrEditModal();
-    } else {
-      handleAddTransaction(txPayload as any);
-      handleCloseAddOrEditModal();
+    } finally {
+      setIsSubmittingTx(false);
     }
   };
 
@@ -574,13 +597,15 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                     className="text-xs font-medium text-slate-800 outline-none bg-transparent cursor-pointer"
                   >
                     <option value="ALL">{isTr ? '🌐 Tüm Para Birimleri' : '🌐 All Currencies'}</option>
-                    {Object.keys(selectedCompany.balances || {}).length > 0 ? (
-                      Object.keys(selectedCompany.balances).map(c => (
-                        <option key={c} value={c}>{c}</option>
-                      ))
-                    ) : (
-                      <option value={branding.default_currency || 'TRY'}>{branding.default_currency || 'TRY'}</option>
-                    )}
+                    {Array.from(new Set([
+                      ...Object.keys(selectedCompany.balances || {}),
+                      ...(Array.isArray(companyTransactions)
+                        ? companyTransactions.map((tx: any) => (tx.currency || '').toUpperCase()).filter(Boolean)
+                        : []),
+                      (branding?.default_currency || 'TRY').toUpperCase()
+                    ])).map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
                   </select>
                 </div>
 
@@ -1603,7 +1628,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                                               <button 
                                                 onClick={() => {
                                                   if (window.confirm(isTr ? "Bu cari hesap hareketini silmek istediğinize emin misiniz?" : "Are you sure you want to delete this transaction?")) {
-                                                    handleDeleteTransaction(tx.id);
+                                                    handleDeleteTransaction(tx.id, true);
                                                   }
                                                 }}
                                                 className="p-1 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors cursor-pointer"
@@ -2130,10 +2155,10 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                 {editingTransaction ? (
                   <button
                     type="button"
-                    onClick={() => {
+                    onClick={async () => {
                       if (window.confirm(isTr ? "Bu cari hesap hareketini silmek istediğinize emin misiniz? Bu işlem geri alınamaz." : "Are you sure you want to delete this transaction?")) {
-                        handleDeleteTransaction(editingTransaction.id);
-                        handleCloseAddOrEditModal();
+                        const ok = await Promise.resolve(handleDeleteTransaction(editingTransaction.id, true));
+                        if (ok !== false) handleCloseAddOrEditModal();
                       }
                     }}
                     className="px-3 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl font-medium text-xs transition-all flex items-center gap-1 cursor-pointer"
@@ -2155,9 +2180,10 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                   </button>
                   <button 
                     type="submit" 
-                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium tracking-wide shadow-md shadow-indigo-100 transition-all text-xs cursor-pointer flex items-center justify-center gap-1.5"
+                    disabled={isSubmittingTx}
+                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white rounded-xl font-medium tracking-wide shadow-md shadow-indigo-100 transition-all text-xs cursor-pointer flex items-center justify-center gap-1.5"
                   >
-                    <FileCheck className="h-4 w-4" />
+                    {isSubmittingTx ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileCheck className="h-4 w-4" />}
                     <span>
                       {editingTransaction 
                         ? (isTr ? "Değişiklikleri Kaydet & Revize Et" : "Save Changes") 

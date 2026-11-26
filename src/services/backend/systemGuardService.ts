@@ -9,6 +9,11 @@ import {
   AMAZON_DEFAULT_CATEGORIES,
   COMMON_MARKETPLACE_ATTRIBUTES
 } from "../../data/marketplaceCategoriesData";
+import {
+  buildHepsiburadaProductUrl,
+  getMarketplaceListingUrl,
+  sanitizeMarketplaceStoreParam,
+} from "../../utils/marketplaceUrls";
 
 /**
  * Write-Time Sanitizer for Marketplace Category Mappings
@@ -356,11 +361,186 @@ export async function verifyCriticalSystemInvariants(): Promise<{
     });
   }
 
+  // CHECK 6: Multi-Tenant Marketplace Product URL Isolation (No cross-store ?magaza=Enrakipsiz leaks & canonical -p-HBCV...)
+  try {
+    // 6a. Deterministic runtime check simulating a non-Enrakipsiz store product (e.g., Hello Home)
+    const testHbUrl = getMarketplaceListingUrl("hepsiburada", {
+      name: "3'lü Pencereli Yastık Hurcu Antrasit",
+      barcode: "8685348800059",
+      hepsiburada_sku: "HBCV0000RXCOFY",
+      hepsiburada_url: "https://www.hepsiburada.com/3-l-pencereli-yast-k-hurcu-antrasit-pm-hbc0000rxcofw?magaza=Enrakipsiz",
+      marketplace_data: {
+        hepsiburada: {
+          hepsiburadaSku: "HBCV0000RXCOFY",
+          productId: "HBC0000RXCOFW",
+          productUrl: "https://www.hepsiburada.com/3-l-pencereli-yast-k-hurcu-antrasit-pm-hbc0000rxcofw?magaza=Enrakipsiz",
+        },
+      },
+    });
+    const runtimeIsolationOk =
+      testHbUrl === "https://www.hepsiburada.com/3lu-pencereli-yastik-hurcu-antrasit-p-HBCV0000RXCOFY";
+
+    // 6b. Database audit: ensure zero non-Enrakipsiz/non-GAP stores have leaked magaza=Enrakipsiz in product URLs
+    const leakRes = await pool.query(`
+      SELECT p.id, p.store_id, s.name AS store_name, s.slug AS store_slug
+      FROM products p
+      JOIN stores s ON s.id = p.store_id
+      WHERE (
+        COALESCE(p.hepsiburada_url, '') ILIKE '%magaza=enrakipsiz%'
+        OR COALESCE(p.marketplace_data->'hepsiburada'->>'productUrl', '') ILIKE '%magaza=enrakipsiz%'
+        OR COALESCE(p.marketplace_data->'n11'->>'productUrl', '') ILIKE '%magaza=enrakipsiz%'
+      )
+      AND COALESCE(s.name, '') || ' ' || COALESCE(s.slug, '') || ' ' || COALESCE(s.branding->>'store_name', '') !~* '(enrakipsiz|gap[\\s_-]*b[iıİ]l|\\bgap\\b)'
+      LIMIT 20
+    `);
+    const leakedCount = leakRes.rows.length;
+    const leakedSummary = leakRes.rows.map((r: any) => `#${r.id}@${r.store_name || r.store_slug}(${r.store_id})`).join(", ");
+    const passed = runtimeIsolationOk && leakedCount === 0;
+    checks.push({
+      name: "marketplace_url_store_isolation",
+      passed,
+      details: passed
+        ? "Tüm mağazalarda pazaryeri ürün linkleri tam izole (çapraz ?magaza=Enrakipsiz sızıntısı yok, HBCV SKU'lar -p-HBCV... formatında)."
+        : `HATA: runtimeIsolationOk=${runtimeIsolationOk} (got=${testHbUrl}), leakedDbRows=${leakedCount} [${leakedSummary}]`
+    });
+  } catch (e: any) {
+    checks.push({
+      name: "marketplace_url_store_isolation",
+      passed: false,
+      details: e.message
+    });
+  }
+
   return {
     healthy: checks.every((c) => c.passed),
     timestamp: new Date().toISOString(),
     checks
   };
+}
+
+/**
+ * Self-heals any existing products in DB that carry legacy hardcoded `?magaza=Enrakipsiz`
+ * (or broken lowercase `-pm-hbc0...` URLs when a live `HBCV`/`HBV` variant SKU exists).
+ * Strictly preserves each store's own explicit merchantName/sellerNickname without cross-store leakage.
+ */
+export async function healPoisonedMarketplaceUrls(): Promise<number> {
+  try {
+    const res = await pool.query(`
+      SELECT p.id, p.store_id, p.name, p.barcode, p.sku, p.product_code,
+             p.hepsiburada_sku, p.hepsiburada_url, p.marketplace_data,
+             s.name AS store_name, s.slug AS store_slug,
+             s.hepsiburada_settings, s.n11_settings, s.branding
+      FROM products p
+      JOIN stores s ON s.id = p.store_id
+      WHERE COALESCE(p.hepsiburada_url, '') ILIKE '%magaza=enrakipsiz%'
+         OR COALESCE(p.hepsiburada_url, '') ~ '-pm-hbc0?[0-9a-z]+'
+         OR COALESCE(p.marketplace_data->'hepsiburada'->>'productUrl', '') ILIKE '%magaza=enrakipsiz%'
+         OR COALESCE(p.marketplace_data->'hepsiburada'->>'productUrl', '') ~ '-pm-hbc0?[0-9a-z]+'
+         OR COALESCE(p.marketplace_data->'n11'->>'productUrl', '') ILIKE '%magaza=enrakipsiz%'
+         OR LOWER(COALESCE(p.marketplace_data->'n11'->>'sellerNickname', '')) = 'enrakipsiz'
+    `);
+
+    let healedProducts = 0;
+    for (const row of res.rows) {
+      let branding: any = row.branding || {};
+      if (typeof branding === "string") { try { branding = JSON.parse(branding); } catch { branding = {}; } }
+      let hbSettings: any = row.hepsiburada_settings || {};
+      if (typeof hbSettings === "string") { try { hbSettings = JSON.parse(hbSettings); } catch { hbSettings = {}; } }
+      let n11Settings: any = row.n11_settings || {};
+      if (typeof n11Settings === "string") { try { n11Settings = JSON.parse(n11Settings); } catch { n11Settings = {}; } }
+      let mpData: any = row.marketplace_data || {};
+      if (typeof mpData === "string") { try { mpData = JSON.parse(mpData); } catch { mpData = {}; } }
+      mpData = mpData && typeof mpData === "object" ? mpData : {};
+
+      const storeIdentity = `${row.store_name || ""} ${row.store_slug || ""} ${branding?.store_name || ""}`;
+      const isEnrakipsizOwner = /(enrakipsiz|gap[\s_-]*b[iıİ]l|\bgap\b)/i.test(storeIdentity);
+
+      const ownHbSeller = String(
+        hbSettings?.merchantName ||
+        hbSettings?.storeName ||
+        branding?.hepsiburada_settings?.merchantName ||
+        branding?.hepsiburada_settings?.storeName ||
+        (isEnrakipsizOwner ? "Enrakipsiz" : "")
+      ).trim();
+
+      const ownN11Nick = String(
+        n11Settings?.sellerNickname ||
+        branding?.n11_settings?.sellerNickname ||
+        (isEnrakipsizOwner ? "enrakipsiz" : "")
+      ).trim();
+
+      let changed = false;
+      let nextHbUrl = row.hepsiburada_url;
+      const hbObj = mpData.hepsiburada && typeof mpData.hepsiburada === "object" ? { ...mpData.hepsiburada } : null;
+
+      const combinedHbUrls = `${row.hepsiburada_url || ""} ${hbObj?.productUrl || ""}`;
+      const primaryHbUrl = row.hepsiburada_url || hbObj?.productUrl || "";
+      const hasVariantSku = /^(HBCV|HBV)/i.test(String(row.hepsiburada_sku || hbObj?.hepsiburadaSku || "").trim());
+      const needsHbHeal =
+        (!isEnrakipsizOwner && /magaza=enrakipsiz/i.test(combinedHbUrls)) ||
+        (hasVariantSku && /-pm-/i.test(combinedHbUrls)) ||
+        /-pm-hbc0?[0-9a-z]+/.test(combinedHbUrls);
+
+      if (needsHbHeal) {
+        const rebuilt =
+          buildHepsiburadaProductUrl({
+            name: row.name,
+            hepsiburadaSku: row.hepsiburada_sku || hbObj?.hepsiburadaSku || hbObj?.hbSku || null,
+            productId: hbObj?.productId || null,
+            directUrl: primaryHbUrl || null,
+            fallbackSku: row.sku || row.product_code || null,
+            barcode: row.barcode || null,
+            sellerName: ownHbSeller || null,
+            fallbackToSearch: false,
+          }) ||
+          (primaryHbUrl ? sanitizeMarketplaceStoreParam(primaryHbUrl, ownHbSeller || null) : null);
+
+        if (rebuilt !== null && rebuilt !== row.hepsiburada_url) {
+          nextHbUrl = rebuilt;
+          changed = true;
+        }
+        if (hbObj && rebuilt !== null && rebuilt !== hbObj.productUrl) {
+          hbObj.productUrl = rebuilt;
+          mpData.hepsiburada = hbObj;
+          changed = true;
+        }
+      }
+
+      if (!isEnrakipsizOwner && mpData.n11 && typeof mpData.n11 === "object") {
+        const n11Obj = { ...mpData.n11 };
+        let n11Changed = false;
+        if (String(n11Obj.sellerNickname || "").trim().toLowerCase() === "enrakipsiz") {
+          if (ownN11Nick) n11Obj.sellerNickname = ownN11Nick;
+          else delete n11Obj.sellerNickname;
+          n11Changed = true;
+        }
+        if (n11Obj.productUrl && /magaza=enrakipsiz/i.test(String(n11Obj.productUrl))) {
+          n11Obj.productUrl = sanitizeMarketplaceStoreParam(String(n11Obj.productUrl), ownN11Nick || null);
+          n11Changed = true;
+        }
+        if (n11Changed) {
+          mpData.n11 = n11Obj;
+          changed = true;
+        }
+      }
+
+      if (changed) {
+        await pool.query(
+          "UPDATE products SET hepsiburada_url = $1, marketplace_data = $2 WHERE id = $3 AND store_id = $4",
+          [nextHbUrl, JSON.stringify(mpData), row.id, row.store_id]
+        );
+        healedProducts++;
+      }
+    }
+
+    if (healedProducts > 0) {
+      console.log(`[SystemGuard] Self-healed cross-tenant/broken marketplace URLs for ${healedProducts} product(s).`);
+    }
+    return healedProducts;
+  } catch (err: any) {
+    console.warn("[SystemGuard] healPoisonedMarketplaceUrls warning:", err?.message || err);
+    return 0;
+  }
 }
 
 /**
@@ -428,6 +608,8 @@ export async function runStartupSystemGuards(): Promise<void> {
     if (healedStores > 0) {
       console.log(`[SystemGuard] Self-healed category mappings for ${healedStores} store(s).`);
     }
+
+    await healPoisonedMarketplaceUrls();
 
     const report = await verifyCriticalSystemInvariants();
     const failed = report.checks.filter((c) => !c.passed);

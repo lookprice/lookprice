@@ -17,6 +17,8 @@
 export interface MarketplaceUrlOptions {
   fallbackToSearch?: boolean; // Default true
   formatForCustomer?: boolean; // Default true
+  /** Optional explicit storefront/seller name belonging strictly to the current store (never hardcoded) */
+  sellerName?: string;
 }
 
 export function slugifyText(text: string): string {
@@ -40,7 +42,8 @@ export function slugifyText(text: string): string {
     .trim()
     .replace(/[^a-z0-9 -]/g, '')
     .replace(/\s+/g, '-')
-    .replace(/-+/g, '-');
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }
 
 export function isValidBarcode(barcode: any): boolean {
@@ -62,6 +65,12 @@ export function cleanHepsiburadaMasterSku(sku: any): string {
   return str.replace(/-(s|v|1|2|3|s1|s2|m)$/i, '');
 }
 
+export function isHepsiburadaVariantSku(code: any): boolean {
+  if (!code) return false;
+  const upper = cleanHepsiburadaMasterSku(code).toUpperCase();
+  return upper.startsWith('HBCV') || upper.startsWith('HBV');
+}
+
 export function isHepsiburadaMasterCatalogId(code: any): boolean {
   if (!code) return false;
   const str = cleanHepsiburadaMasterSku(code).toUpperCase();
@@ -74,6 +83,134 @@ export function isHepsiburadaValidProductUrl(url: any): boolean {
   if (!trimmed.startsWith('http')) return false;
   if (trimmed.includes('/ara?')) return false;
   return trimmed.includes('hepsiburada.com');
+}
+
+/**
+ * Strips any leaked/cross-tenant `?magaza=...` query parameter (such as legacy hardcoded
+ * `magaza=Enrakipsiz`) unless the current store explicitly owns that seller name.
+ */
+export function sanitizeMarketplaceStoreParam(
+  rawUrl: string,
+  ownSellerName?: string | null
+): string {
+  const trimmed = String(rawUrl || '').trim();
+  if (!trimmed) return '';
+  const explicitSeller = String(ownSellerName || '').trim();
+  try {
+    const u = new URL(trimmed);
+    const existingMagaza = u.searchParams.get('magaza');
+    if (existingMagaza) {
+      const existingNorm = existingMagaza.trim().toLowerCase();
+      const ownNorm = explicitSeller.toLowerCase();
+      // Remove legacy hardcoded 'enrakipsiz' unless this store explicitly configures it
+      if (existingNorm === 'enrakipsiz' && ownNorm !== 'enrakipsiz') {
+        u.searchParams.delete('magaza');
+      } else if (ownNorm && existingNorm !== ownNorm) {
+        u.searchParams.set('magaza', explicitSeller);
+      }
+    } else if (explicitSeller) {
+      u.searchParams.set('magaza', explicitSeller);
+    }
+    return u.toString();
+  } catch {
+    // Fallback regex cleanup if URL parsing fails
+    let cleaned = trimmed;
+    if (!explicitSeller || explicitSeller.toLowerCase() !== 'enrakipsiz') {
+      cleaned = cleaned
+        .replace(/([?&])magaza=enrakipsiz(&|$)/i, (_m, sep, tail) => (sep === '?' && tail === '&' ? '?' : tail === '&' ? sep : ''))
+        .replace(/[?&]$/, '');
+    }
+    return cleaned;
+  }
+}
+
+/**
+ * Builds the canonical, multi-tenant-isolated Hepsiburada product URL.
+ * - Always prefers sellable Variant SKUs (HBCV... / HBV...) with `-p-UPPERCASE` (avoids 404 from parent `-pm-hbc0...`).
+ * - Never hardcodes any store's `?magaza=` parameter (multi-tenant isolation).
+ * - Only appends `?magaza=<ownSellerName>` when explicitly configured for the current store.
+ */
+export function buildHepsiburadaProductUrl(params: {
+  name?: string | null;
+  hepsiburadaSku?: string | null;
+  productId?: string | null;
+  directUrl?: string | null;
+  fallbackSku?: string | null;
+  barcode?: string | null;
+  sellerName?: string | null;
+  fallbackToSearch?: boolean;
+}): string | null {
+  const slug = slugifyText(params.name || '') || 'urun';
+  const ownSeller = String(params.sellerName || '').trim();
+  const sellerQuery = ownSeller ? `?magaza=${encodeURIComponent(ownSeller)}` : '';
+
+  const candidateCodes = [
+    params.hepsiburadaSku,
+    params.productId,
+  ]
+    .map((c) => cleanHepsiburadaMasterSku(c).toUpperCase())
+    .filter(Boolean);
+
+  // Also check if directUrl already encodes a variant SKU (HBCV/HBV)
+  const rawDirect = params.directUrl && isHepsiburadaValidProductUrl(params.directUrl)
+    ? String(params.directUrl).trim()
+    : null;
+  const directVariantMatch = rawDirect ? rawDirect.match(/(?:-p-|\/)(HBCV[0-9A-Z]+|HBV[0-9A-Z]+)/i) : null;
+  const variantSku =
+    candidateCodes.find((c) => c.startsWith('HBCV') || c.startsWith('HBV')) ||
+    (directVariantMatch ? directVariantMatch[1].toUpperCase() : null);
+
+  // 1. Highest Priority: Live Variant SKU (HBCV... / HBV...) -> canonical `-p-HBCV...`
+  //    Prevents 404 caused by legacy `-pm-hbc0...` parent IDs or cross-tenant `?magaza=Enrakipsiz` URLs.
+  if (variantSku) {
+    if (
+      rawDirect &&
+      new RegExp(`-p-${variantSku}(?:[/?#]|$)`, 'i').test(rawDirect) &&
+      !/magaza=enrakipsiz/i.test(rawDirect)
+    ) {
+      return sanitizeMarketplaceStoreParam(rawDirect, ownSeller || null);
+    }
+    return `https://www.hepsiburada.com/${slug}-p-${variantSku}${sellerQuery}`;
+  }
+
+  // 2. Second Priority: Valid direct URL (sanitized against cross-tenant `?magaza=Enrakipsiz` and lowercase `-pm-`)
+  if (rawDirect) {
+    const pmMatch = rawDirect.match(/-pm-([a-z0-9]+)/i);
+    if (pmMatch) {
+      const upperPm = pmMatch[1].toUpperCase();
+      if (upperPm.startsWith('HBCV') || upperPm.startsWith('HBV')) {
+        return `https://www.hepsiburada.com/${slug}-p-${upperPm}${sellerQuery}`;
+      }
+      // If direct URL had broken lowercase -pm- or leaked magaza=Enrakipsiz, rebuild cleanly with uppercase -pm-
+      if (/magaza=enrakipsiz/i.test(rawDirect) || pmMatch[1] !== upperPm) {
+        return `https://www.hepsiburada.com/${slug}-pm-${upperPm}${sellerQuery}`;
+      }
+    }
+    return sanitizeMarketplaceStoreParam(rawDirect, ownSeller || null);
+  }
+
+  // 3. Third Priority: Master Catalog ID (HBC..., HB0..., HB..., BS...) -> uppercase `-pm-`
+  const masterSku = candidateCodes.find((c) => isHepsiburadaMasterCatalogId(c));
+  if (masterSku) {
+    return `https://www.hepsiburada.com/${slug}-pm-${masterSku}${sellerQuery}`;
+  }
+
+  // 4. Fourth Priority: BS Master SKU in product.sku or product_code
+  const directBsSku = cleanHepsiburadaMasterSku(params.fallbackSku).toUpperCase();
+  if (directBsSku && directBsSku.startsWith('BS')) {
+    return `https://www.hepsiburada.com/${slug}-pm-${directBsSku}${sellerQuery}`;
+  }
+
+  if (params.fallbackToSearch === false) return null;
+
+  // 5. Search Fallbacks: EAN Barcode -> Product Name
+  if (isValidBarcode(params.barcode)) {
+    return `https://www.hepsiburada.com/ara?q=${encodeURIComponent(String(params.barcode).trim())}`;
+  }
+  if (params.name && String(params.name).trim().length > 1) {
+    return `https://www.hepsiburada.com/ara?q=${encodeURIComponent(String(params.name).trim())}`;
+  }
+  return null;
 }
 
 export function parseMarketplaceData(p: any): any {
@@ -112,7 +249,7 @@ export function getMarketplaceListingUrl(
   }
 
   if (!product) return null;
-  const { fallbackToSearch = true } = options;
+  const { fallbackToSearch = true, sellerName } = options;
   const mpData = parseMarketplaceData(product);
   const slug = slugifyText(product.name || '');
 
@@ -125,53 +262,25 @@ export function getMarketplaceListingUrl(
       const hb = mpData.hepsiburada || {};
       const manualUrl = product.hepsiburada_url;
       const directUrl = hb.productUrl || hb.url;
-      const sellerParam = '?magaza=Enrakipsiz';
-
-      // 1. Highest Priority: Direct full URL (explicitly set by operator or synced from HB)
       const effectiveDirectUrl = (manualUrl && isHepsiburadaValidProductUrl(manualUrl))
         ? manualUrl
         : (directUrl && isHepsiburadaValidProductUrl(directUrl) ? directUrl : null);
 
-      if (effectiveDirectUrl) {
-        let clean = effectiveDirectUrl.trim();
-        if (!clean.includes('magaza=') && clean.includes('hepsiburada.com')) {
-          clean = clean.includes('?') ? `${clean}&magaza=Enrakipsiz` : `${clean}${sellerParam}`;
-        }
-        return clean;
-      }
+      const ownSeller = String(sellerName || hb.merchantName || hb.sellerName || '').trim();
+      const safeOwnSeller = ownSeller && ownSeller.toLowerCase() !== 'enrakipsiz'
+        ? ownSeller
+        : (sellerName && String(sellerName).trim().toLowerCase() === 'enrakipsiz' ? String(sellerName).trim() : '');
 
-      // 2. Second Priority: Explicit Hepsiburada SKU / Product ID (locked by operator or catalog)
-      const hbProductId = product.hepsiburada_sku || hb.productId || hb.hepsiburadaSku;
-      const cleanPid = cleanHepsiburadaMasterSku(hbProductId);
-
-      if (cleanPid) {
-        const upperPid = cleanPid.toUpperCase();
-        // Variant SKUs start with HBCV or HBV -> use -p-
-        if (upperPid.startsWith('HBCV') || upperPid.startsWith('HBV')) {
-          return `https://www.hepsiburada.com/${slug || 'urun'}-p-${upperPid}${sellerParam}`;
-        }
-        // Master Catalog IDs (HBC..., HB..., BS...) -> use -pm-
-        return `https://www.hepsiburada.com/${slug || 'urun'}-pm-${upperPid}${sellerParam}`;
-      }
-
-      // 3. Third Priority: BS Master SKU in product.sku or product_code
-      const directBsSku = cleanHepsiburadaMasterSku(product.sku || product.product_code);
-      if (directBsSku && directBsSku.toUpperCase().startsWith('BS')) {
-        return `https://www.hepsiburada.com/${slug || 'urun'}-pm-${directBsSku.toUpperCase()}${sellerParam}`;
-      }
-
-      if (!fallbackToSearch) return null;
-
-      // 4. Search Fallback: EAN Barcode (ONLY if no direct URL or HB SKU exists)
-      if (barcode) {
-        return `https://www.hepsiburada.com/ara?q=${encodeURIComponent(barcode)}`;
-      }
-
-      // 5. Final Search Fallback: Product Name
-      if (name) {
-        return `https://www.hepsiburada.com/ara?q=${encodeURIComponent(name)}`;
-      }
-      return null;
+      return buildHepsiburadaProductUrl({
+        name: product.name,
+        hepsiburadaSku: product.hepsiburada_sku || hb.hepsiburadaSku || hb.hbSku,
+        productId: hb.productId,
+        directUrl: effectiveDirectUrl,
+        fallbackSku: product.sku || product.product_code,
+        barcode: product.barcode,
+        sellerName: safeOwnSeller || null,
+        fallbackToSearch,
+      });
     }
 
     case 'trendyol': {
@@ -237,7 +346,12 @@ export function getMarketplaceListingUrl(
 
     case 'n11': {
       const n11Data = mpData.n11 || {};
-      const sellerNick = n11Data.sellerNickname || 'enrakipsiz';
+      const explicitNick = String(sellerName || '').trim();
+      const rawDataNick = String(n11Data.sellerNickname || '').trim();
+      // Multi-tenant isolation: never fall back to hardcoded 'enrakipsiz' for other stores
+      const sellerNick = explicitNick || (rawDataNick && rawDataNick.toLowerCase() !== 'enrakipsiz' ? rawDataNick : '');
+      const sellerSuffix = sellerNick ? `?magaza=${encodeURIComponent(sellerNick)}` : '';
+
       if (
         !product.is_n11_active ||
         n11Data.status === 'PENDING' ||
@@ -262,8 +376,8 @@ export function getMarketplaceListingUrl(
       if (catalogGroupId && /^\d+$/.test(catalogGroupId) && catalogGroupId !== '0') {
         const n11Slug = slugifyText(n11Data.title || product.name || '');
         return n11Slug
-          ? `https://www.n11.com/urun/${n11Slug}-${catalogGroupId}?magaza=${sellerNick}`
-          : `https://www.n11.com/urun/${catalogGroupId}?magaza=${sellerNick}`;
+          ? `https://www.n11.com/urun/${n11Slug}-${catalogGroupId}${sellerSuffix}`
+          : `https://www.n11.com/urun/${catalogGroupId}${sellerSuffix}`;
       }
 
       const directUrl = n11Data.productUrl || n11Data.url || product.n11_url;
@@ -274,11 +388,7 @@ export function getMarketplaceListingUrl(
         !directUrl.includes('-PUBLISHED') &&
         !directUrl.endsWith('/PUBLISHED')
       ) {
-        let finalUrl = String(directUrl).trim();
-        if (!finalUrl.includes('?magaza=') && !finalUrl.includes('&magaza=')) {
-          finalUrl = `${finalUrl}${finalUrl.includes('?') ? '&' : '?'}magaza=${sellerNick}`;
-        }
-        return finalUrl;
+        return sanitizeMarketplaceStoreParam(String(directUrl).trim(), sellerNick || null);
       }
 
       if (!fallbackToSearch) return null;

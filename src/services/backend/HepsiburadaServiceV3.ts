@@ -2,6 +2,7 @@ import axios from "axios";
 import { pool } from "../../../models/db";
 import PQueue from 'p-queue';
 import { processMarketplaceOrderLines } from "../marketplaceSync";
+import { syncMarketplaceOrderTreasury } from "../../../routes/store/treasurySync";
 
 export class HepsiburadaServiceV3 {
   private queue = new PQueue({ concurrency: 5, interval: 1000, intervalCap: 100 });
@@ -636,6 +637,24 @@ export class HepsiburadaServiceV3 {
       );
 
       await client.query("COMMIT");
+      try {
+        await syncMarketplaceOrderTreasury(pool, {
+          storeId: targetStoreId,
+          platform: "hepsiburada",
+          salesInvoiceId,
+          saleId,
+          invoiceNumber,
+          orderReference: testOrderId,
+          amount: grandTotal,
+          currency: "TRY",
+          customerName,
+          transactionDate: new Date(),
+          status: "completed",
+          notes: `Hepsiburada Test Siparişi: #${testOrderId}`,
+        });
+      } catch (trErr: any) {
+        console.warn(`[HB V3] Treasury sync warning for #${testOrderId}:`, trErr?.message || trErr);
+      }
 
       return {
         success: true,

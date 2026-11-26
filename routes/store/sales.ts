@@ -3,6 +3,7 @@ import { pool, logAction, addStockMovement, convertRecipeAmountToMl } from "../.
 import { getAuthorizedStoreId } from "../../middleware/auth";
 import { getTurkishSearchSnippet, normalizeTurkishParam } from "./utils";
 import { syncProductStockToMarketplaces } from "../../src/services/marketplaceSync";
+import { deletePortfolioTxForSource, deleteCheckNoteForSource } from "./treasurySync";
 import * as XLSX from "xlsx";
 
 const router = express.Router();
@@ -1126,7 +1127,10 @@ router.post("/:id/cancel", async (req: any, res) => {
         "DELETE FROM stock_movements WHERE store_id = $1 AND source = 'sales_invoice' AND (invoice_id = $2 OR ($3::text <> '' AND invoice_number = $3)) AND sale_id IS NULL",
         [storeId, inv.id, cleanInvNo]
       );
+      await deletePortfolioTxForSource(client, Number(storeId), "sales_invoice", Number(inv.id));
+      await deleteCheckNoteForSource(client, Number(storeId), "sales_invoice", Number(inv.id));
     }
+    await deletePortfolioTxForSource(client, Number(storeId), "sale", Number(sale.id));
 
     if (sale.quotation_id) {
       await client.query("UPDATE quotations SET status = 'cancelled', is_sale = FALSE WHERE id = $1", [sale.quotation_id]);
@@ -1198,6 +1202,16 @@ router.delete("/:id", async (req: any, res) => {
 
     // Completely delete all stock movements associated with this sale ID so they disappear from the product's movement history
     await client.query("DELETE FROM stock_movements WHERE sale_id = $1", [sale.id]);
+
+    const linkedInvsToDelete = await client.query(
+      "SELECT id FROM sales_invoices WHERE sale_id = $1 AND store_id = $2",
+      [sale.id, storeId]
+    );
+    for (const inv of linkedInvsToDelete.rows) {
+      await deletePortfolioTxForSource(client, Number(storeId), "sales_invoice", Number(inv.id));
+      await deleteCheckNoteForSource(client, Number(storeId), "sales_invoice", Number(inv.id));
+    }
+    await deletePortfolioTxForSource(client, Number(storeId), "sale", Number(sale.id));
 
     await client.query("DELETE FROM procurements WHERE sale_id = $1", [sale.id]);
     await client.query("DELETE FROM current_account_transactions WHERE sale_id = $1", [sale.id]);

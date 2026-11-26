@@ -1,9 +1,172 @@
 import { Pool, PoolClient } from "pg";
 import { pool } from "../../models/db";
+import { isShopLPStore } from "./invoiceMatching";
 
 type DbConn = Pool | PoolClient;
 
 let treasurySchemaReady = false;
+
+export type MarketplacePlatform =
+  | "hepsiburada"
+  | "trendyol"
+  | "n11"
+  | "amazon"
+  | "pazarama";
+
+export interface MarketplaceVaultDef {
+  key: MarketplacePlatform;
+  code: string;
+  brandLabel: string;
+  accountName: string;
+  bankName: string;
+}
+
+export const MARKETPLACE_VAULT_DEFS: Record<MarketplacePlatform, MarketplaceVaultDef> = {
+  hepsiburada: {
+    key: "hepsiburada",
+    code: "HB",
+    brandLabel: "Hepsiburada",
+    accountName: "Hepsiburada Kasası",
+    bankName: "Hepsiburada (D-Market)",
+  },
+  trendyol: {
+    key: "trendyol",
+    code: "TY",
+    brandLabel: "Trendyol",
+    accountName: "Trendyol Kasası",
+    bankName: "Trendyol (DSM Grup)",
+  },
+  n11: {
+    key: "n11",
+    code: "N11",
+    brandLabel: "N11",
+    accountName: "N11 Kasası",
+    bankName: "N11 (Doğuş Planet)",
+  },
+  amazon: {
+    key: "amazon",
+    code: "AMZ",
+    brandLabel: "Amazon",
+    accountName: "Amazon Kasası",
+    bankName: "Amazon Türkiye",
+  },
+  pazarama: {
+    key: "pazarama",
+    code: "PZR",
+    brandLabel: "Pazarama",
+    accountName: "Pazarama Kasası",
+    bankName: "Pazarama (Topkapı Danışmanlık)",
+  },
+};
+
+export const MARKETPLACE_PLATFORMS: MarketplacePlatform[] = [
+  "hepsiburada",
+  "trendyol",
+  "n11",
+  "amazon",
+  "pazarama",
+];
+
+function foldTurkish(val?: any): string {
+  return String(val ?? "")
+    .trim()
+    .toLocaleLowerCase("tr-TR")
+    .replace(/ı/g, "i")
+    .replace(/ğ/g, "g")
+    .replace(/ü/g, "u")
+    .replace(/ş/g, "s")
+    .replace(/ö/g, "o")
+    .replace(/ç/g, "c");
+}
+
+export function detectMarketplacePlatform(input: {
+  source?: any;
+  paymentMethod?: any;
+  invoiceNumber?: any;
+  supplierName?: any;
+  taxNumber?: any;
+  accountName?: any;
+}): MarketplacePlatform | null {
+  const taxDigits = String(input.taxNumber ?? "").replace(/\D/g, "");
+  if (taxDigits === "2650275912") return "hepsiburada"; // D-Market Elektronik Hizmetler A.Ş.
+  if (taxDigits === "3130557669") return "trendyol"; // DSM Grup Danışmanlık A.Ş.
+  if (taxDigits === "3090386496") return "n11"; // Doğuş Planet Elektronik Ticaret A.Ş.
+  if (taxDigits === "0680899838") return "amazon"; // Amazon Turkey Perakende Hizmetleri Ltd. Şti.
+  if (taxDigits === "8570428629") return "pazarama"; // Topkapı Danışmanlık Elektronik Hizmetler A.Ş.
+
+  const src = foldTurkish(input.source);
+  if (src === "hepsiburada" || src === "hb") return "hepsiburada";
+  if (src === "trendyol" || src === "ty") return "trendyol";
+  if (src === "n11") return "n11";
+  if (src === "amazon" || src === "amz") return "amazon";
+  if (src === "pazarama" || src === "pzr") return "pazarama";
+
+  const inv = foldTurkish(input.invoiceNumber);
+  if (inv.startsWith("hb-") || inv.startsWith("hb_")) return "hepsiburada";
+  if (inv.startsWith("ty-") || inv.startsWith("ty_")) return "trendyol";
+  if (inv.startsWith("n11-") || inv.startsWith("n11_")) return "n11";
+  if (inv.startsWith("amz-") || inv.startsWith("amz_")) return "amazon";
+  if (inv.startsWith("pzr-") || inv.startsWith("pzr_") || inv.startsWith("pz-") || inv.startsWith("pz_")) return "pazarama";
+
+  const combined = [
+    foldTurkish(input.paymentMethod),
+    foldTurkish(input.supplierName),
+    foldTurkish(input.accountName),
+  ]
+    .filter(Boolean)
+    .join(" | ");
+
+  if (!combined) return null;
+
+  if (
+    combined.includes("hepsiburada") ||
+    combined.includes("d-market") ||
+    combined.includes("d market elektronik")
+  ) {
+    return "hepsiburada";
+  }
+  if (
+    combined.includes("trendyol") ||
+    combined.includes("dsm grup")
+  ) {
+    return "trendyol";
+  }
+  if (
+    /\bn11\b/.test(combined) ||
+    combined.includes("n11.com") ||
+    combined.includes("dogus planet")
+  ) {
+    return "n11";
+  }
+  if (
+    combined.includes("amazon")
+  ) {
+    return "amazon";
+  }
+  if (
+    combined.includes("pazarama") ||
+    combined.includes("topkapi danismanlik")
+  ) {
+    return "pazarama";
+  }
+
+  return null;
+}
+
+export function isMarketplacePaymentMethod(method?: any): boolean {
+  const token = foldTurkish(method);
+  if (!token) return false;
+  if (
+    token === "marketplace_vault" ||
+    token === "marketplace" ||
+    token === "pazaryeri" ||
+    token === "pazaryeri_kasa" ||
+    token === "pazaryeri kasasi"
+  ) {
+    return true;
+  }
+  return Boolean(detectMarketplacePlatform({ paymentMethod: token }));
+}
 
 export const NON_PAID_METHODS = new Set([
   "",
@@ -51,7 +214,11 @@ export function isCancelledOrDraftStatus(status?: any): boolean {
     token === "cancelled" ||
     token === "canceled" ||
     token === "iptal" ||
-    token === "iptal edildi"
+    token === "iptal edildi" ||
+    token === "returned" ||
+    token === "iade" ||
+    token === "rejected" ||
+    token === "unsupplied"
   );
 }
 
@@ -84,7 +251,8 @@ export function isSettlementPaid(
       methodToken === "kredi_karti" ||
       methodToken === "kredi kartı" ||
       methodToken === "pos" ||
-      isCheckPromissoryMethod(methodToken))
+      isCheckPromissoryMethod(methodToken) ||
+      isMarketplacePaymentMethod(methodToken))
   ) {
     return true;
   }
@@ -98,8 +266,9 @@ export function isSettlementPaid(
 
 export function mapTreasuryMethod(
   paymentMethod?: any
-): "cash" | "bank_transfer" | "credit_card" | "check_promissory" {
+): "cash" | "bank_transfer" | "credit_card" | "check_promissory" | "marketplace_vault" {
   const token = normalizePaymentToken(paymentMethod);
+  if (isMarketplacePaymentMethod(token)) return "marketplace_vault";
   if (isCheckPromissoryMethod(token)) return "check_promissory";
   if (
     token === "credit_card" ||
@@ -234,11 +403,72 @@ export async function ensureTreasurySchema(db: DbConn = pool) {
     await db.query(`ALTER TABLE current_account_transactions ADD COLUMN IF NOT EXISTS financial_account_id INTEGER;`);
     await db.query(`ALTER TABLE current_account_transactions ADD COLUMN IF NOT EXISTS financial_account_name TEXT;`);
     await db.query(`ALTER TABLE current_account_transactions ADD COLUMN IF NOT EXISTS check_note_id INTEGER;`);
+    await db.query(`ALTER TABLE current_account_transactions ADD COLUMN IF NOT EXISTS cross_currency TEXT;`);
+    await db.query(`ALTER TABLE current_account_transactions ADD COLUMN IF NOT EXISTS cross_rate DECIMAL(12,4);`);
+    await db.query(`ALTER TABLE current_account_transactions ADD COLUMN IF NOT EXISTS cross_amount DECIMAL(12,2);`);
+    await db.query(`ALTER TABLE current_account_transactions ADD COLUMN IF NOT EXISTS is_manual BOOLEAN DEFAULT FALSE;`);
 
     if (db === pool) treasurySchemaReady = true;
   } catch (err) {
     console.warn("ensureTreasurySchema warning:", err);
   }
+}
+
+export async function ensureMarketplaceVaultAccount(
+  db: DbConn,
+  storeId: number,
+  platform: MarketplacePlatform
+): Promise<{
+  id: number;
+  account_name: string;
+  currency: string;
+  platform: MarketplacePlatform;
+} | null> {
+  if (!storeId) return null;
+  const shopLp = await isShopLPStore(db, storeId);
+  if (!shopLp) return null;
+
+  await ensureTreasurySchema(db);
+  const def = MARKETPLACE_VAULT_DEFS[platform];
+  if (!def) return null;
+
+  const existing = await db.query(
+    `SELECT id, account_name, currency
+     FROM store_financial_accounts
+     WHERE store_id = $1
+       AND LOWER(account_type) = 'marketplace'
+       AND (
+         LOWER(COALESCE(account_number, '')) IN ($2, $3)
+         OR LOWER(account_name) = LOWER($4)
+       )
+     ORDER BY id ASC
+     LIMIT 1`,
+    [storeId, def.key, def.code.toLowerCase(), def.accountName]
+  );
+
+  if (existing.rows.length > 0) {
+    return {
+      id: Number(existing.rows[0].id),
+      account_name: existing.rows[0].account_name,
+      currency: (existing.rows[0].currency || "TRY").toUpperCase(),
+      platform,
+    };
+  }
+
+  const ins = await db.query(
+    `INSERT INTO store_financial_accounts
+      (store_id, account_type, account_name, bank_name, account_number, currency, initial_balance)
+     VALUES ($1, 'marketplace', $2, $3, $4, 'TRY', 0)
+     RETURNING id, account_name, currency`,
+    [storeId, def.accountName, def.bankName, def.key]
+  );
+
+  return {
+    id: Number(ins.rows[0].id),
+    account_name: ins.rows[0].account_name,
+    currency: (ins.rows[0].currency || "TRY").toUpperCase(),
+    platform,
+  };
 }
 
 export async function resolveFinancialAccountInfo(
@@ -249,37 +479,74 @@ export async function resolveFinancialAccountInfo(
   paymentMethod: any,
   currency: string
 ): Promise<{ accountId: number | null; accountName: string | null }> {
+  const mappedMethod = mapTreasuryMethod(paymentMethod);
+  const curr = (currency || "TRY").toUpperCase();
+
+  if (mappedMethod === "check_promissory") {
+    return { accountId: null, accountName: "Çek / Senet Portföyü" };
+  }
+
   const parsedId = accountId ? Number(accountId) : null;
   if (parsedId && !isNaN(parsedId)) {
     try {
       const res = await db.query(
-        "SELECT id, account_name FROM store_financial_accounts WHERE id = $1 AND store_id = $2 LIMIT 1",
+        "SELECT id, account_name, account_type FROM store_financial_accounts WHERE id = $1 AND store_id = $2 LIMIT 1",
         [parsedId, storeId]
       );
       if (res.rows.length > 0) {
-        return {
-          accountId: Number(res.rows[0].id),
-          accountName: res.rows[0].account_name,
-        };
+        const acc = res.rows[0];
+        const accType = String(acc.account_type || "").toLowerCase();
+        const isCompatible =
+          (mappedMethod === "cash" && accType === "cash") ||
+          (mappedMethod === "bank_transfer" && accType === "bank") ||
+          (mappedMethod === "credit_card" && accType === "credit_card") ||
+          (mappedMethod === "marketplace_vault" && accType === "marketplace");
+        if (isCompatible) {
+          return {
+            accountId: Number(acc.id),
+            accountName: acc.account_name,
+          };
+        }
       }
     } catch {
       // fall through
     }
   }
 
-  const trimmedName = accountName ? String(accountName).trim() : "";
-  if (trimmedName) {
-    return { accountId: null, accountName: trimmedName };
+  if (mappedMethod === "marketplace_vault") {
+    const detected = detectMarketplacePlatform({
+      paymentMethod,
+      accountName,
+    });
+    if (detected) {
+      const vault = await ensureMarketplaceVaultAccount(db, storeId, detected);
+      if (vault) {
+        return { accountId: vault.id, accountName: vault.account_name };
+      }
+    }
+    const trimmedMp = accountName ? String(accountName).trim() : "";
+    return {
+      accountId: null,
+      accountName: trimmedMp || "Pazaryeri Kasası",
+    };
   }
 
-  const mappedMethod = mapTreasuryMethod(paymentMethod);
   if (mappedMethod === "cash") {
     return {
       accountId: null,
-      accountName: `${(currency || "TRY").toUpperCase()} Nakit Kasa`,
+      accountName: `${curr} Nakit Kasa`,
     };
   }
-  return { accountId: null, accountName: null };
+
+  const trimmedName = accountName ? String(accountName).trim() : "";
+  if (trimmedName && !/^(GBP|EUR|USD|TRY)?\s*(Nakit\s+Kasa|Cash\s*Vault|Cash)$/i.test(trimmedName)) {
+    return { accountId: null, accountName: trimmedName };
+  }
+
+  return {
+    accountId: null,
+    accountName: mappedMethod === "credit_card" ? "Kredi Kartı" : mappedMethod === "bank_transfer" ? "Banka Hesabı" : null,
+  };
 }
 
 export async function deletePortfolioTxForSource(
@@ -427,14 +694,36 @@ export async function syncCheckNoteToPortfolio(db: DbConn, checkRow: any) {
       checkRow.instrument_type === "promissory_note" ? "Senet" : "Çek";
     const title = `${label} ${isReceived ? "Tahsilatı" : "Ödemesi"}: ${checkRow.document_no}`;
     const curr = (checkRow.currency || "TRY").toUpperCase();
-    const accId = checkRow.collection_account_id
+    let accId = checkRow.collection_account_id
       ? Number(checkRow.collection_account_id)
       : null;
     let accName = checkRow.collection_account_name || null;
-    if (!accName) {
-      accName = accId ? null : `${curr} Nakit Kasa`;
+    let payMethod: "cash" | "bank_transfer" | "credit_card" | "check_promissory" = "cash";
+
+    if (accId) {
+      try {
+        const accRes = await db.query(
+          "SELECT id, account_name, account_type FROM store_financial_accounts WHERE id = $1 AND store_id = $2 LIMIT 1",
+          [accId, storeId]
+        );
+        if (accRes.rows.length > 0) {
+          const accRow = accRes.rows[0];
+          const accType = String(accRow.account_type || "").toLowerCase();
+          if (!accName) accName = accRow.account_name;
+          if (accType === "cash") payMethod = "cash";
+          else if (accType === "credit_card") payMethod = "credit_card";
+          else if (accType === "check") payMethod = "check_promissory";
+          else payMethod = "bank_transfer";
+        } else {
+          payMethod = "bank_transfer";
+        }
+      } catch {
+        payMethod = "bank_transfer";
+      }
+    } else if (!accName) {
+      accName = `${curr} Nakit Kasa`;
+      payMethod = "cash";
     }
-    const payMethod = accId ? "bank_transfer" : "cash";
 
     await upsertPortfolioTxForSource(db, {
       storeId,
@@ -619,6 +908,106 @@ export async function syncCheckNoteForSource(
   return savedRow;
 }
 
+export async function syncMarketplaceOrderTreasury(
+  db: DbConn,
+  params: {
+    storeId: number;
+    platform: MarketplacePlatform;
+    orderNumber: string;
+    salesInvoiceId?: number | null;
+    saleId?: number | null;
+    amount: number;
+    currency?: string | null;
+    date?: any;
+    customerName?: string | null;
+    status?: string | null;
+  }
+): Promise<{
+  synced: boolean;
+  deleted?: boolean;
+  accountId: number | null;
+  accountName: string | null;
+}> {
+  if (!params.storeId) {
+    return { synced: false, accountId: null, accountName: null };
+  }
+  const shopLp = await isShopLPStore(db, params.storeId);
+  if (!shopLp) {
+    return { synced: false, accountId: null, accountName: null };
+  }
+
+  await ensureTreasurySchema(db);
+  const grandTotal = Number(params.amount || 0);
+  const cancelled = isCancelledOrDraftStatus(params.status);
+
+  if (cancelled || grandTotal <= 0) {
+    if (params.salesInvoiceId) {
+      await deletePortfolioTxForSource(db, params.storeId, "sales_invoice", Number(params.salesInvoiceId));
+      await deleteCheckNoteForSource(db, params.storeId, "sales_invoice", Number(params.salesInvoiceId));
+    }
+    if (params.saleId) {
+      await deletePortfolioTxForSource(db, params.storeId, "sale", Number(params.saleId));
+    }
+    return { synced: false, deleted: true, accountId: null, accountName: null };
+  }
+
+  const vault = await ensureMarketplaceVaultAccount(db, params.storeId, params.platform);
+  if (!vault) {
+    return { synced: false, accountId: null, accountName: null };
+  }
+
+  const def = MARKETPLACE_VAULT_DEFS[params.platform];
+  const curr = (params.currency || vault.currency || "TRY").toUpperCase();
+  const orderRef = String(params.orderNumber || "").trim() || `${def.code}-${params.salesInvoiceId || params.saleId || ""}`;
+
+  // Canonical source: prefer sales_invoice when linked to prevent duplicate posting
+  const sourceType = params.salesInvoiceId ? "sales_invoice" : "sale";
+  const sourceId = Number(params.salesInvoiceId || params.saleId);
+
+  if (!sourceId || isNaN(sourceId)) {
+    return { synced: false, accountId: vault.id, accountName: vault.account_name };
+  }
+
+  if (params.salesInvoiceId && params.saleId) {
+    await deletePortfolioTxForSource(db, params.storeId, "sale", Number(params.saleId));
+  }
+
+  await upsertPortfolioTxForSource(db, {
+    storeId: params.storeId,
+    sourceType,
+    sourceId,
+    type: "income",
+    category: "online_marketplace",
+    title: `${def.brandLabel} Siparişi: #${orderRef}`,
+    amount: grandTotal,
+    currency: curr,
+    exchangeRate: 1,
+    date: params.date || new Date(),
+    paymentMethod: "marketplace_vault",
+    accountId: vault.id,
+    accountName: vault.account_name,
+    referenceNo: orderRef,
+    contactName: (params.customerName || def.brandLabel).trim(),
+    description: `${def.brandLabel} Pazaryeri Sipariş Alacağı (#${orderRef})`,
+    companyId: null,
+  });
+
+  if (params.salesInvoiceId) {
+    try {
+      await db.query(
+        `UPDATE sales_invoices
+         SET financial_account_id = $1, financial_account_name = $2
+         WHERE id = $3 AND store_id = $4`,
+        [vault.id, vault.account_name, Number(params.salesInvoiceId), params.storeId]
+      );
+    } catch {
+      // non-fatal
+    }
+  }
+
+  return { synced: true, accountId: vault.id, accountName: vault.account_name };
+}
+
 export async function syncPurchaseInvoiceTreasury(
   db: DbConn,
   params: {
@@ -635,6 +1024,7 @@ export async function syncPurchaseInvoiceTreasury(
     isExpense?: boolean;
     companyId?: number | null;
     supplierName?: string | null;
+    taxNumber?: string | null;
     financialAccountId?: number | null;
     financialAccountName?: string | null;
     checkNoteNo?: string | null;
@@ -644,13 +1034,87 @@ export async function syncPurchaseInvoiceTreasury(
   }
 ) {
   await ensureTreasurySchema(db);
+  const grandTotal = Number(params.grandTotal || 0);
+  const curr = (params.currency || "TRY").toUpperCase();
+  const isDocCancelledOrDraft = isCancelledOrDraftStatus(params.status);
+
+  // Resolve supplier name & VKN if companyId is given so marketplace detection is exact
+  let resolvedSupplierName = (params.supplierName || "").trim();
+  let resolvedTaxNumber = (params.taxNumber || "").trim();
+  if (params.companyId && (!resolvedSupplierName || !resolvedTaxNumber)) {
+    try {
+      const compRes = await db.query(
+        "SELECT title, tax_number FROM companies WHERE id = $1 LIMIT 1",
+        [params.companyId]
+      );
+      if (compRes.rows.length > 0) {
+        if (!resolvedSupplierName) resolvedSupplierName = String(compRes.rows[0].title || "").trim();
+        if (!resolvedTaxNumber) resolvedTaxNumber = String(compRes.rows[0].tax_number || "").trim();
+      }
+    } catch {
+      // non-fatal
+    }
+  }
+
+  const rawMappedMethod = mapTreasuryMethod(params.paymentMethod);
+  const isExplicitNonMpPaid =
+    !isTermOrUnpaidMethod(params.paymentMethod) &&
+    rawMappedMethod !== "marketplace_vault";
+
+  // STRICT RULE: Marketplace expense invoices (commission, cargo, ads, service) on shopLP
+  // automatically deduct (-) from that marketplace's vault.
+  // Stock / product purchase invoices (isExpense === false) from HB/Amazon are EXPLICITLY EXCLUDED!
+  if (!isDocCancelledOrDraft && params.isExpense === true && grandTotal > 0 && !isExplicitNonMpPaid) {
+    const detectedMp = detectMarketplacePlatform({
+      supplierName: resolvedSupplierName,
+      taxNumber: resolvedTaxNumber,
+      invoiceNumber: params.invoiceNumber,
+      accountName: params.financialAccountName,
+      paymentMethod: params.paymentMethod,
+    });
+    if (detectedMp && (await isShopLPStore(db, params.storeId))) {
+      await deleteCheckNoteForSource(db, params.storeId, "purchase_invoice", params.invoiceId);
+      const vault = await ensureMarketplaceVaultAccount(db, params.storeId, detectedMp);
+      if (vault) {
+        const def = MARKETPLACE_VAULT_DEFS[detectedMp];
+        await upsertPortfolioTxForSource(db, {
+          storeId: params.storeId,
+          sourceType: "purchase_invoice",
+          sourceId: params.invoiceId,
+          type: "expense",
+          category: "marketplace_commission",
+          title: `${def.brandLabel} Masraf / Gider Faturası: ${params.invoiceNumber}`,
+          amount: grandTotal,
+          currency: curr,
+          exchangeRate: params.exchangeRate || 1,
+          date: params.invoiceDate || new Date(),
+          paymentMethod: "marketplace_vault",
+          accountId: vault.id,
+          accountName: vault.account_name,
+          referenceNo: params.invoiceNumber,
+          contactName: resolvedSupplierName || def.brandLabel,
+          description: `${def.brandLabel} Hakediş Mahsubu / Gider Faturası (#${params.invoiceNumber})`,
+          companyId: params.companyId || null,
+        });
+
+        return {
+          isPaid: true,
+          financialAccountId: vault.id,
+          financialAccountName: vault.account_name,
+          checkNoteId: null,
+          resolvedPaymentMethod: "marketplace_vault",
+          resolvedPaymentStatus: "paid",
+          marketplacePlatform: detectedMp,
+        };
+      }
+    }
+  }
+
   const isPaid = isSettlementPaid(
     params.paymentMethod,
     params.paymentStatus,
     params.status
   );
-  const grandTotal = Number(params.grandTotal || 0);
-  const curr = (params.currency || "TRY").toUpperCase();
 
   if (!isPaid || grandTotal <= 0) {
     await deletePortfolioTxForSource(
@@ -670,10 +1134,13 @@ export async function syncPurchaseInvoiceTreasury(
       financialAccountId: null,
       financialAccountName: null,
       checkNoteId: null,
+      resolvedPaymentMethod: params.paymentMethod || "term",
+      resolvedPaymentStatus: "unpaid",
+      marketplacePlatform: null as MarketplacePlatform | null,
     };
   }
 
-  const mappedMethod = mapTreasuryMethod(params.paymentMethod);
+  const mappedMethod = rawMappedMethod;
 
   if (mappedMethod === "check_promissory") {
     await deletePortfolioTxForSource(
@@ -690,7 +1157,7 @@ export async function syncPurchaseInvoiceTreasury(
       instrumentType: params.checkInstrumentType || "check",
       documentNo: params.checkNoteNo || params.invoiceNumber,
       companyId: params.companyId || null,
-      contactName: params.supplierName || "",
+      contactName: resolvedSupplierName || "",
       bankName: params.checkBankName || null,
       issueDate: params.invoiceDate,
       dueDate: params.checkDueDate || params.invoiceDate,
@@ -704,6 +1171,9 @@ export async function syncPurchaseInvoiceTreasury(
       financialAccountId: null,
       financialAccountName: null,
       checkNoteId: checkRow?.id ? Number(checkRow.id) : null,
+      resolvedPaymentMethod: "check_promissory",
+      resolvedPaymentStatus: "paid",
+      marketplacePlatform: null as MarketplacePlatform | null,
     };
   }
 
@@ -728,8 +1198,16 @@ export async function syncPurchaseInvoiceTreasury(
     sourceType: "purchase_invoice",
     sourceId: params.invoiceId,
     type: "expense",
-    category: params.isExpense ? "rent_utilities" : "supplier_payment",
-    title: `Alış Faturası Ödemesi: ${params.invoiceNumber}`,
+    category:
+      mappedMethod === "marketplace_vault"
+        ? "marketplace_commission"
+        : params.isExpense
+        ? "rent_utilities"
+        : "supplier_payment",
+    title:
+      mappedMethod === "marketplace_vault"
+        ? `Pazaryeri Gider Mahsubu: ${params.invoiceNumber}`
+        : `Alış Faturası Ödemesi: ${params.invoiceNumber}`,
     amount: grandTotal,
     currency: curr,
     exchangeRate: params.exchangeRate || 1,
@@ -738,10 +1216,13 @@ export async function syncPurchaseInvoiceTreasury(
     accountId: acctInfo.accountId,
     accountName: acctInfo.accountName,
     referenceNo: params.invoiceNumber,
-    contactName: params.supplierName || "",
-    description: params.isExpense
-      ? `Gider Faturası (#${params.invoiceNumber})`
-      : `Alış Faturası Ödemesi (#${params.invoiceNumber})`,
+    contactName: resolvedSupplierName || "",
+    description:
+      mappedMethod === "marketplace_vault"
+        ? `Pazaryeri Kasa Mahsubu (#${params.invoiceNumber})`
+        : params.isExpense
+        ? `Gider Faturası (#${params.invoiceNumber})`
+        : `Alış Faturası Ödemesi (#${params.invoiceNumber})`,
     companyId: params.companyId || null,
   });
 
@@ -750,6 +1231,9 @@ export async function syncPurchaseInvoiceTreasury(
     financialAccountId: acctInfo.accountId,
     financialAccountName: acctInfo.accountName,
     checkNoteId: null,
+    resolvedPaymentMethod: mappedMethod,
+    resolvedPaymentStatus: "paid",
+    marketplacePlatform: null as MarketplacePlatform | null,
   };
 }
 
@@ -802,6 +1286,71 @@ export async function syncSalesInvoiceTreasury(
   }
 
   const mappedMethod = mapTreasuryMethod(params.paymentMethod);
+
+  // If this sales invoice belongs to a marketplace on a shopLP store, route to its dedicated Marketplace Vault
+  const detectedMp =
+    mappedMethod === "marketplace_vault"
+      ? detectMarketplacePlatform({
+          paymentMethod: params.paymentMethod,
+          invoiceNumber: params.invoiceNumber,
+          accountName: params.financialAccountName,
+        })
+      : null;
+
+  if (mappedMethod === "marketplace_vault" && (await isShopLPStore(db, params.storeId))) {
+    await deleteCheckNoteForSource(db, params.storeId, "sales_invoice", params.invoiceId);
+    let resolvedAccountId: number | null = null;
+    let resolvedAccountName: string | null = null;
+
+    if (params.financialAccountId) {
+      const explicitAcct = await resolveFinancialAccountInfo(
+        db,
+        params.storeId,
+        params.financialAccountId,
+        params.financialAccountName,
+        "marketplace_vault",
+        curr
+      );
+      resolvedAccountId = explicitAcct.accountId;
+      resolvedAccountName = explicitAcct.accountName;
+    }
+
+    if (!resolvedAccountId && detectedMp) {
+      const vault = await ensureMarketplaceVaultAccount(db, params.storeId, detectedMp);
+      if (vault) {
+        resolvedAccountId = vault.id;
+        resolvedAccountName = vault.account_name;
+      }
+    }
+
+    const brandLabel = detectedMp ? MARKETPLACE_VAULT_DEFS[detectedMp].brandLabel : "Pazaryeri";
+    await upsertPortfolioTxForSource(db, {
+      storeId: params.storeId,
+      sourceType: "sales_invoice",
+      sourceId: params.invoiceId,
+      type: "income",
+      category: "online_marketplace",
+      title: `${brandLabel} Siparişi: #${params.invoiceNumber}`,
+      amount: grandTotal,
+      currency: curr,
+      exchangeRate: params.exchangeRate || 1,
+      date: params.invoiceDate || new Date(),
+      paymentMethod: "marketplace_vault",
+      accountId: resolvedAccountId,
+      accountName: resolvedAccountName || `${brandLabel} Kasası`,
+      referenceNo: params.invoiceNumber,
+      contactName: params.customerName || brandLabel,
+      description: `${brandLabel} Pazaryeri Sipariş Alacağı (#${params.invoiceNumber})`,
+      companyId: params.companyId || null,
+    });
+
+    return {
+      isPaid: true,
+      financialAccountId: resolvedAccountId,
+      financialAccountName: resolvedAccountName || `${brandLabel} Kasası`,
+      checkNoteId: null,
+    };
+  }
 
   if (mappedMethod === "check_promissory") {
     await deletePortfolioTxForSource(
@@ -876,6 +1425,276 @@ export async function syncSalesInvoiceTreasury(
     financialAccountId: acctInfo.accountId,
     financialAccountName: acctInfo.accountName,
     checkNoteId: null,
+  };
+}
+
+/**
+ * Idempotently ensures marketplace vaults for configured/transacted e-markets
+ * on shopLP stores and reconciles historical marketplace orders (+) and
+ * marketplace expense purchase invoices (-).
+ */
+export async function backfillMarketplaceVaults(
+  db: DbConn,
+  storeId: number
+): Promise<{
+  skipped?: boolean;
+  ensuredVaults: string[];
+  syncedOrders: number;
+  removedCancelledOrders: number;
+  syncedExpenseInvoices: number;
+}> {
+  if (!storeId) {
+    return { skipped: true, ensuredVaults: [], syncedOrders: 0, removedCancelledOrders: 0, syncedExpenseInvoices: 0 };
+  }
+  const shopLp = await isShopLPStore(db, storeId);
+  if (!shopLp) {
+    return { skipped: true, ensuredVaults: [], syncedOrders: 0, removedCancelledOrders: 0, syncedExpenseInvoices: 0 };
+  }
+
+  await ensureTreasurySchema(db);
+  const ensuredVaults = new Set<string>();
+  let syncedOrders = 0;
+  let removedCancelledOrders = 0;
+  let syncedExpenseInvoices = 0;
+
+  // 1. Auto-create vaults for any marketplace configured in store settings columns or branding JSON
+  try {
+    const storeRes = await db.query(
+      `SELECT branding, hepsiburada_settings, trendyol_settings, n11_settings, amazon_settings, pazarama_settings
+       FROM stores WHERE id = $1 LIMIT 1`,
+      [storeId]
+    );
+    const stRow = storeRes.rows[0] || {};
+    const branding = stRow.branding || {};
+    const mergeCfg = (a: any, b: any) => ({
+      ...(a && typeof a === "object" ? a : {}),
+      ...(b && typeof b === "object" ? b : {}),
+    });
+    const configCheck: Array<[MarketplacePlatform, any]> = [
+      ["hepsiburada", mergeCfg(branding.hepsiburada_settings, stRow.hepsiburada_settings)],
+      ["trendyol", mergeCfg(branding.trendyol_settings, stRow.trendyol_settings)],
+      ["n11", mergeCfg(branding.n11_settings, stRow.n11_settings)],
+      ["amazon", mergeCfg(branding.amazon_settings, stRow.amazon_settings)],
+      ["pazarama", mergeCfg(branding.pazarama_settings, stRow.pazarama_settings)],
+    ];
+    for (const [platform, cfg] of configCheck) {
+      if (
+        cfg &&
+        typeof cfg === "object" &&
+        (cfg.is_active ||
+          cfg.enabled ||
+          cfg.merchantId ||
+          cfg.merchant_id ||
+          cfg.supplierId ||
+          cfg.supplier_id ||
+          cfg.apiKey ||
+          cfg.api_key ||
+          cfg.sellerId ||
+          cfg.seller_id ||
+          cfg.clientId ||
+          cfg.client_id)
+      ) {
+        const v = await ensureMarketplaceVaultAccount(db, storeId, platform);
+        if (v) ensuredVaults.add(v.account_name);
+      }
+    }
+  } catch (err) {
+    console.warn("[backfillMarketplaceVaults] branding scan warning:", err);
+  }
+
+  // 2. Reconcile marketplace sales_invoices (+ orders & cancel cleanup)
+  try {
+    const siRes = await db.query(
+      `SELECT si.id, si.sale_id, si.invoice_number, si.invoice_date, si.grand_total, si.total_amount,
+              si.currency, si.status, si.payment_method, si.customer_name,
+              s.source AS sale_source, s.status AS sale_status
+       FROM sales_invoices si
+       LEFT JOIN sales s ON s.id = si.sale_id AND s.store_id = si.store_id
+       WHERE si.store_id = $1`,
+      [storeId]
+    );
+
+    for (const row of siRes.rows) {
+      const mp = detectMarketplacePlatform({
+        source: row.sale_source,
+        paymentMethod: row.payment_method,
+        invoiceNumber: row.invoice_number,
+      });
+      if (!mp) continue;
+
+      const isCancelled = isCancelledOrDraftStatus(row.status) || isCancelledOrDraftStatus(row.sale_status);
+      const amt = Number(row.grand_total || row.total_amount || 0);
+      const res = await syncMarketplaceOrderTreasury(db, {
+        storeId,
+        platform: mp,
+        orderNumber: String(row.invoice_number || `INV-${row.id}`),
+        salesInvoiceId: Number(row.id),
+        saleId: row.sale_id ? Number(row.sale_id) : null,
+        amount: amt,
+        currency: row.currency || "TRY",
+        date: row.invoice_date || new Date(),
+        customerName: row.customer_name || MARKETPLACE_VAULT_DEFS[mp].brandLabel,
+        status: isCancelled ? "cancelled" : "approved",
+      });
+      if (res.deleted) removedCancelledOrders++;
+      else if (res.synced) {
+        syncedOrders++;
+        if (res.accountName) ensuredVaults.add(res.accountName);
+      }
+    }
+  } catch (err) {
+    console.warn("[backfillMarketplaceVaults] sales_invoices scan warning:", err);
+  }
+
+  // 3. Reconcile standalone marketplace sales (that have no sales_invoice row)
+  try {
+    const saleRes = await db.query(
+      `SELECT s.id, s.total_amount, s.currency, s.status, s.customer_name, s.payment_method, s.source, s.created_at
+       FROM sales s
+       WHERE s.store_id = $1
+         AND NOT EXISTS (
+           SELECT 1 FROM sales_invoices si WHERE si.sale_id = s.id AND si.store_id = s.store_id
+         )`,
+      [storeId]
+    );
+
+    for (const s of saleRes.rows) {
+      const mp = detectMarketplacePlatform({
+        source: s.source,
+        paymentMethod: s.payment_method,
+      });
+      if (!mp) continue;
+
+      const res = await syncMarketplaceOrderTreasury(db, {
+        storeId,
+        platform: mp,
+        orderNumber: `${MARKETPLACE_VAULT_DEFS[mp].code}-${s.id}`,
+        saleId: Number(s.id),
+        amount: Number(s.total_amount || 0),
+        currency: s.currency || "TRY",
+        date: s.created_at || new Date(),
+        customerName: s.customer_name || MARKETPLACE_VAULT_DEFS[mp].brandLabel,
+        status: s.status || "completed",
+      });
+      if (res.deleted) removedCancelledOrders++;
+      else if (res.synced) {
+        syncedOrders++;
+        if (res.accountName) ensuredVaults.add(res.accountName);
+      }
+    }
+  } catch (err) {
+    console.warn("[backfillMarketplaceVaults] standalone sales scan warning:", err);
+  }
+
+  // 4. Reconcile marketplace EXPENSE purchase invoices (is_expense = TRUE ONLY; inventory stock purchases excluded!)
+  try {
+    const piRes = await db.query(
+      `SELECT pi.id, pi.invoice_number, pi.document_number, pi.invoice_date, pi.grand_total, pi.total_amount,
+              pi.currency, pi.exchange_rate, pi.payment_method, pi.payment_status, pi.status,
+              pi.is_expense, pi.company_id, pi.supplier_name, pi.financial_account_id, pi.financial_account_name,
+              c.title AS company_title, c.tax_number AS company_tax_number
+       FROM purchase_invoices pi
+       LEFT JOIN companies c ON c.id = pi.company_id
+       WHERE pi.store_id = $1
+         AND COALESCE(pi.is_expense, FALSE) = TRUE`,
+      [storeId]
+    );
+
+    for (const pi of piRes.rows) {
+      const supplierLabel = pi.supplier_name || pi.company_title || "";
+      const detectedMp = detectMarketplacePlatform({
+        supplierName: supplierLabel,
+        taxNumber: pi.company_tax_number,
+        invoiceNumber: pi.invoice_number || pi.document_number,
+        accountName: pi.financial_account_name,
+      });
+      if (!detectedMp) continue;
+
+      const isExplicitNonMpPaid =
+        !isTermOrUnpaidMethod(pi.payment_method) &&
+        mapTreasuryMethod(pi.payment_method) !== "marketplace_vault";
+      if (isExplicitNonMpPaid) continue;
+
+      const invNo = pi.invoice_number || pi.document_number || `PI-${pi.id}`;
+      const amt = Number(pi.grand_total || pi.total_amount || 0);
+      const syncRes = await syncPurchaseInvoiceTreasury(db, {
+        storeId,
+        invoiceId: Number(pi.id),
+        invoiceNumber: invNo,
+        invoiceDate: pi.invoice_date || new Date(),
+        grandTotal: amt,
+        currency: pi.currency || "TRY",
+        exchangeRate: Number(pi.exchange_rate || 1) || 1,
+        paymentMethod: pi.payment_method || "term",
+        paymentStatus: pi.payment_status || "unpaid",
+        status: pi.status || "approved",
+        isExpense: true,
+        companyId: pi.company_id ? Number(pi.company_id) : null,
+        supplierName: supplierLabel,
+        taxNumber: pi.company_tax_number || null,
+        financialAccountId: pi.financial_account_id ? Number(pi.financial_account_id) : null,
+        financialAccountName: pi.financial_account_name || null,
+      });
+
+      if (syncRes.isPaid && syncRes.financialAccountId) {
+        syncedExpenseInvoices++;
+        if (syncRes.financialAccountName) ensuredVaults.add(syncRes.financialAccountName);
+
+        if (
+          pi.payment_method !== "marketplace_vault" ||
+          pi.payment_status !== "paid" ||
+          Number(pi.financial_account_id || 0) !== Number(syncRes.financialAccountId)
+        ) {
+          await db.query(
+            `UPDATE purchase_invoices
+             SET payment_method = 'marketplace_vault',
+                 payment_status = 'paid',
+                 financial_account_id = $1,
+                 financial_account_name = $2
+             WHERE id = $3 AND store_id = $4`,
+            [syncRes.financialAccountId, syncRes.financialAccountName, Number(pi.id), storeId]
+          );
+        }
+
+        // Ensure supplier cari mahsup (debt) row exists so open balance nets to 0
+        if (pi.company_id && !isCancelledOrDraftStatus(pi.status)) {
+          const existingDebt = await db.query(
+            `SELECT id FROM current_account_transactions
+             WHERE store_id = $1 AND purchase_invoice_id = $2 AND type = 'debt'
+             LIMIT 1`,
+            [storeId, Number(pi.id)]
+          );
+          if (existingDebt.rows.length === 0) {
+            await db.query(
+              `INSERT INTO current_account_transactions
+                (store_id, company_id, purchase_invoice_id, type, amount, currency, exchange_rate, description, payment_method, transaction_date, financial_account_id, financial_account_name)
+               VALUES ($1, $2, $3, 'debt', $4, $5, $6, $7, 'marketplace_vault', $8, $9, $10)`,
+              [
+                storeId,
+                Number(pi.company_id),
+                Number(pi.id),
+                amt,
+                (pi.currency || "TRY").toUpperCase(),
+                Number(pi.exchange_rate || 1) || 1,
+                `Pazaryeri Hakediş Mahsubu: ${invNo}`,
+                pi.invoice_date || new Date(),
+                syncRes.financialAccountId,
+                syncRes.financialAccountName,
+              ]
+            );
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("[backfillMarketplaceVaults] purchase_invoices scan warning:", err);
+  }
+
+  return {
+    ensuredVaults: Array.from(ensuredVaults),
+    syncedOrders,
+    removedCancelledOrders,
+    syncedExpenseInvoices,
   };
 }
 
@@ -1073,11 +1892,14 @@ export async function healInvoicePaymentTransactions(db: DbConn = pool) {
     `);
 
     // 3. Delete orphan duplicate 'debt' (Ödeme) rows (where purchase_invoice_id IS NULL, e.g. legacy sync bug like ARC2026000206845)
-    // matching an open-account purchase invoice of the same store, company, amount, and invoice/document number
+    // Never delete explicitly manual entries or entries linked to a financial account / check-note
     await db.query(`
       DELETE FROM current_account_transactions cat
       USING purchase_invoices pi
       WHERE cat.purchase_invoice_id IS NULL
+        AND COALESCE(cat.is_manual, FALSE) = FALSE
+        AND cat.financial_account_id IS NULL
+        AND cat.check_note_id IS NULL
         AND cat.type = 'debt'
         AND cat.company_id = pi.company_id
         AND cat.store_id = pi.store_id

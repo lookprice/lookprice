@@ -450,6 +450,18 @@ router.get("/:id/transactions", async (req: any, res) => {
   const { startDate, endDate } = req.query;
   
   try {
+    const compLookup = await pool.query("SELECT id, store_id, title, due_days, late_interest_rate FROM companies WHERE id = $1 LIMIT 1", [req.params.id]);
+    if (compLookup.rows.length === 0) {
+      return res.status(404).json({ error: "Cari hesap bulunamadı", transactions: [], opening_balances: {} });
+    }
+    const compRow = compLookup.rows[0];
+    if (req.user.role !== "superadmin" && Number(compRow.store_id) !== Number(storeId)) {
+      return res.status(403).json({ error: "Bu cari hesaba erişim yetkiniz yok", transactions: [], opening_balances: {} });
+    }
+    if (!storeId || Number(storeId) !== Number(compRow.store_id)) {
+      storeId = compRow.store_id;
+    }
+
     // Fetch store currency rates (TCMB rates relative to TRY) and default currency
     let storeRates: Record<string, number> = { USD: 34.50, EUR: 37.80, GBP: 45.20, TRY: 1 };
     let defaultCurrency = 'TRY';
@@ -567,7 +579,7 @@ router.get("/:id/transactions", async (req: any, res) => {
               AND ABS(COALESCE(NULLIF(si_m.grand_total, 0), si_m.total_amount, 0) - c.amount) < 0.5
             )
           )
-        ORDER BY ABS(EXTRACT(EPOCH FROM (COALESCE(si_m.invoice_date::timestamp, si_m.created_at) - c.transaction_date))) ASC, id DESC
+        ORDER BY ABS(EXTRACT(EPOCH FROM (COALESCE(NULLIF(TRIM(COALESCE(si_m.invoice_date::text, '')), '')::timestamp, si_m.created_at) - c.transaction_date))) ASC, id DESC
         LIMIT 1
       ) si_fallback ON c.sales_invoice_id IS NULL
       LEFT JOIN LATERAL (
@@ -577,7 +589,7 @@ router.get("/:id/transactions", async (req: any, res) => {
           AND c.purchase_invoice_id IS NULL
           AND c.sales_invoice_id IS NULL
           AND ABS(COALESCE(NULLIF(pi_m.grand_total, 0), pi_m.total_amount, 0) - c.amount) < 0.5
-        ORDER BY ABS(EXTRACT(EPOCH FROM (COALESCE(pi_m.invoice_date::timestamp, pi_m.created_at) - c.transaction_date))) ASC, id DESC
+        ORDER BY ABS(EXTRACT(EPOCH FROM (COALESCE(NULLIF(TRIM(COALESCE(pi_m.invoice_date::text, '')), '')::timestamp, pi_m.created_at) - c.transaction_date))) ASC, id DESC
         LIMIT 1
       ) pi_fallback ON c.purchase_invoice_id IS NULL
       WHERE c.company_id = $1 AND (c.store_id = $2 OR c.store_id IS NULL)
@@ -603,22 +615,22 @@ router.get("/:id/transactions", async (req: any, res) => {
     const compSalesInvoicesRes = await pool.query(
       `SELECT id, COALESCE(NULLIF(invoice_number, ''), NULLIF(document_number, ''), 'Fatura #' || id) as invoice_number, 
               COALESCE(NULLIF(grand_total, 0), total_amount, 0)::FLOAT as total_amount,
-              currency, COALESCE(invoice_date::timestamp, created_at) as invoice_date,
+              currency, COALESCE(NULLIF(TRIM(COALESCE(invoice_date::text, '')), '')::timestamp, created_at) as invoice_date,
               due_date, due_days, late_interest_rate
        FROM sales_invoices 
        WHERE company_id = $1 AND (store_id = $2 OR store_id IS NULL)
-       ORDER BY COALESCE(invoice_date::timestamp, created_at) ASC, id ASC`,
+       ORDER BY COALESCE(NULLIF(TRIM(COALESCE(invoice_date::text, '')), '')::timestamp, created_at) ASC, id ASC`,
       [req.params.id, storeId]
     );
 
     const compPurchaseInvoicesRes = await pool.query(
       `SELECT id, COALESCE(NULLIF(invoice_number, ''), NULLIF(document_number, ''), 'Alış #' || id) as invoice_number, 
               COALESCE(NULLIF(grand_total, 0), total_amount, 0)::FLOAT as total_amount,
-              currency, COALESCE(invoice_date::timestamp, created_at) as invoice_date,
+              currency, COALESCE(NULLIF(TRIM(COALESCE(invoice_date::text, '')), '')::timestamp, created_at) as invoice_date,
               due_date
        FROM purchase_invoices 
        WHERE company_id = $1 AND (store_id = $2 OR store_id IS NULL)
-       ORDER BY COALESCE(invoice_date::timestamp, created_at) ASC, id ASC`,
+       ORDER BY COALESCE(NULLIF(TRIM(COALESCE(invoice_date::text, '')), '')::timestamp, created_at) ASC, id ASC`,
       [req.params.id, storeId]
     );
 
@@ -917,6 +929,17 @@ router.post("/:id/transactions", async (req: any, res) => {
   if (storeId === "undefined" || storeId === "null") storeId = req.user.store_id;
   
   try {
+    const compCheck = await pool.query("SELECT id, store_id FROM companies WHERE id = $1 LIMIT 1", [req.params.id]);
+    if (compCheck.rows.length === 0) {
+      return res.status(404).json({ error: "Cari hesap bulunamadı." });
+    }
+    const compRow = compCheck.rows[0];
+    if (req.user.role !== "superadmin" && Number(compRow.store_id) !== Number(req.user.store_id)) {
+      return res.status(403).json({ error: "Bu cari hesaba işlem ekleme yetkiniz yok." });
+    }
+    const effectiveStoreId = Number(compRow.store_id || storeId);
+    storeId = effectiveStoreId;
+
     const storeRes = await pool.query("SELECT branding FROM stores WHERE id = $1", [storeId]);
     const branding = storeRes.rows[0]?.branding || {};
     
@@ -984,16 +1007,16 @@ router.post("/:id/transactions", async (req: any, res) => {
     const result = await pool.query(
       `INSERT INTO current_account_transactions (
         store_id, company_id, type, amount, description, transaction_date, 
-        payment_method, currency, exchange_rate, cross_currency, cross_rate, cross_amount
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+        payment_method, currency, exchange_rate, cross_currency, cross_rate, cross_amount, is_manual
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, TRUE) RETURNING *`,
       [
-        storeId, req.params.id, finalType, cleanAmount, description || '', finalDate, 
+        effectiveStoreId, req.params.id, finalType, cleanAmount, description || '', finalDate, 
         finalPaymentMethod, finalCurrency, cleanExchangeRate, cleanCrossCurrency, cleanCrossRate, cleanCrossAmount
       ]
     );
     let inserted = result.rows[0];
     const treasuryRes = await syncCompanyTransactionTreasury(pool, {
-      storeId: Number(storeId),
+      storeId: effectiveStoreId,
       transactionId: Number(inserted.id),
       companyId: Number(req.params.id),
       type: finalType,
@@ -1105,7 +1128,16 @@ router.put("/:companyId/transactions/:id", async (req: any, res) => {
 
     const newCrossCurrency = cross_currency !== undefined ? (cross_currency ? String(cross_currency).toUpperCase() : null) : currentTx.cross_currency;
 
-    const targetCompanyId = (new_company_id !== undefined && new_company_id !== null && new_company_id !== '') ? Number(new_company_id) : companyId;
+    const targetCompanyId = (new_company_id !== undefined && new_company_id !== null && new_company_id !== '') ? Number(new_company_id) : Number(companyId);
+    if (Number(targetCompanyId) !== Number(companyId)) {
+      const targetCompRes = await pool.query("SELECT id, store_id FROM companies WHERE id = $1 LIMIT 1", [targetCompanyId]);
+      if (targetCompRes.rows.length === 0) {
+        return res.status(404).json({ error: "Hedef cari hesap bulunamadı" });
+      }
+      if (req.user.role !== "superadmin" && Number(targetCompRes.rows[0].store_id) !== Number(storeId)) {
+        return res.status(403).json({ error: "Hedef cari hesaba erişim yetkiniz yok" });
+      }
+    }
 
     let newDate = currentTx.transaction_date;
     if (transaction_date) {

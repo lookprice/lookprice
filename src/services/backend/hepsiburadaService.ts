@@ -3,11 +3,15 @@ import FormData from "form-data";
 import { pool, logAction } from "../../../models/db";
 import { IntegrationService } from "../IntegrationService";
 import { processMarketplaceOrderLines, computeSellableStock } from "../marketplaceSync";
+import { syncMarketplaceOrderTreasury } from "../../../routes/store/treasurySync";
+import { buildHepsiburadaProductUrl } from "../../utils/marketplaceUrls";
 
 export interface HepsiburadaConfig {
   merchantId: string;
   apiKey: string;
   apiSecret: string;
+  merchantName?: string;
+  storeName?: string;
   isTestMode?: boolean;
   userAgent?: string;
   authUsername?: string;
@@ -987,6 +991,24 @@ export class HepsiburadaService {
           );
 
           await client.query("COMMIT");
+          try {
+            await syncMarketplaceOrderTreasury(pool, {
+              storeId: this.storeId,
+              platform: "hepsiburada",
+              salesInvoiceId,
+              saleId,
+              invoiceNumber,
+              orderReference: orderNumber || orderId,
+              amount: grandTotal,
+              currency: order.currency || "TRY",
+              customerName,
+              transactionDate: new Date(order.orderDate || order.created_at || Date.now()),
+              status: isHbCancelled ? "cancelled" : "approved",
+              notes: `Hepsiburada Siparişi: #${orderNumber || orderId}`,
+            });
+          } catch (trErr: any) {
+            console.warn(`[HB Sync] Treasury sync warning for #${orderId}:`, trErr?.message || trErr);
+          }
           syncedCount++;
         } catch (err: any) {
           await client.query("ROLLBACK");
@@ -1025,6 +1047,22 @@ export class HepsiburadaService {
             "DELETE FROM stock_movements WHERE store_id = $1 AND (sale_id = $2 OR (invoice_id IS NOT NULL AND invoice_id = $3) OR invoice_number = $4)",
             [this.storeId, existingSaleId || -1, existingInvoiceId || -1, invoiceNumber]
           );
+          try {
+            await syncMarketplaceOrderTreasury(pool, {
+              storeId: this.storeId,
+              platform: "hepsiburada",
+              salesInvoiceId: existingInvoiceId,
+              saleId: existingSaleId,
+              invoiceNumber,
+              orderReference: orderNumber || orderId,
+              amount: grandTotal,
+              currency: order.currency || "TRY",
+              customerName: order.customerName || "Hepsiburada Müşterisi",
+              status: "cancelled",
+            });
+          } catch (trErr: any) {
+            console.warn(`[HB Sync] Treasury cancel sync warning for #${orderId}:`, trErr?.message || trErr);
+          }
         }
 
         if (existingInvoiceId && mappedLines.length > 0) {
@@ -1095,6 +1133,24 @@ export class HepsiburadaService {
             }
 
             await client.query("COMMIT");
+            try {
+              await syncMarketplaceOrderTreasury(pool, {
+                storeId: this.storeId,
+                platform: "hepsiburada",
+                salesInvoiceId: existingInvoiceId,
+                saleId: existingSaleId,
+                invoiceNumber,
+                orderReference: orderNumber || orderId,
+                amount: grandTotal,
+                currency: order.currency || "TRY",
+                customerName: order.customerName || "Hepsiburada Müşterisi",
+                transactionDate: new Date(order.orderDate || order.created_at || Date.now()),
+                status: isHbCancelled ? "cancelled" : "approved",
+                notes: `Hepsiburada Siparişi: #${orderNumber || orderId}`,
+              });
+            } catch (trErr: any) {
+              console.warn(`[HB Sync] Treasury update sync warning for #${orderId}:`, trErr?.message || trErr);
+            }
             syncedCount++;
           } catch (updateErr: any) {
             await client.query("ROLLBACK");
@@ -2115,7 +2171,7 @@ export class HepsiburadaService {
     }
 
     const storeRateRes = await pool.query(
-      "SELECT currency_rates, branding->'currency_rates' as branding_currency_rates FROM stores WHERE id = $1",
+      "SELECT currency_rates, hepsiburada_settings, branding->'currency_rates' as branding_currency_rates, branding->'hepsiburada_settings' as branding_hb_settings FROM stores WHERE id = $1",
       [this.storeId]
     );
     const storeRow = storeRateRes.rows[0] || {};
@@ -2127,13 +2183,30 @@ export class HepsiburadaService {
     if (typeof dbRates === "string") {
       try { dbRates = JSON.parse(dbRates); } catch (e) { dbRates = {}; }
     }
+    let hbDbCfg: any = storeRow.hepsiburada_settings || {};
+    if (typeof hbDbCfg === "string") {
+      try { hbDbCfg = JSON.parse(hbDbCfg); } catch { hbDbCfg = {}; }
+    }
+    let hbBrCfg: any = storeRow.branding_hb_settings || {};
+    if (typeof hbBrCfg === "string") {
+      try { hbBrCfg = JSON.parse(hbBrCfg); } catch { hbBrCfg = {}; }
+    }
+    const ownHbSellerName = String(
+      this.config?.merchantName ||
+      this.config?.storeName ||
+      hbDbCfg?.merchantName ||
+      hbDbCfg?.storeName ||
+      hbBrCfg?.merchantName ||
+      hbBrCfg?.storeName ||
+      ""
+    ).trim();
     const effectiveRates: Record<string, number> = {
       ...(brRates || {}),
       ...(dbRates || {})
     };
 
     const prodRes = await pool.query(
-      "SELECT id, name, barcode, sku, product_code, brand, price, currency, category, sub_category, stock_quantity, hepsiburada_sku, is_hepsiburada_active, hepsiburada_last_error, marketplace_data, sector_data->'alternate_barcodes' as alternate_barcodes FROM products WHERE store_id = $1",
+      "SELECT id, name, barcode, sku, product_code, brand, price, currency, category, sub_category, stock_quantity, hepsiburada_sku, hepsiburada_url, is_hepsiburada_active, hepsiburada_last_error, marketplace_data, sector_data->'alternate_barcodes' as alternate_barcodes FROM products WHERE store_id = $1",
       [this.storeId]
     );
     const storeProducts = prodRes.rows;
@@ -2297,23 +2370,16 @@ export class HepsiburadaService {
         }
         mpData = mpData || {};
         const resolvedPid = lPid || hbSku || mpData?.hepsiburada?.productId || matchedProd.hepsiburada_sku || '';
-        const upperPid = String(resolvedPid || '').toUpperCase();
-        const isMasterPid = Boolean(
-          resolvedPid && 
-          (upperPid.startsWith('HBC') || upperPid.startsWith('HB0') || upperPid.startsWith('HB') || upperPid.startsWith('BS')) && 
-          !upperPid.startsWith('HBCV') && 
-          !upperPid.startsWith('HBV')
-        );
-        const isVariantPid = Boolean(
-          resolvedPid && 
-          (upperPid.startsWith('HBCV') || upperPid.startsWith('HBV'))
-        );
-        const pSlug = matchedProd.name ? matchedProd.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') : 'urun';
-        const resolvedUrl = isMasterPid 
-          ? `https://www.hepsiburada.com/${pSlug || 'urun'}-pm-${String(resolvedPid).trim().toLowerCase()}?magaza=Enrakipsiz` 
-          : (isVariantPid 
-            ? `https://www.hepsiburada.com/${pSlug || 'urun'}-p-${String(resolvedPid).trim().toUpperCase()}?magaza=Enrakipsiz`
-            : (matchedProd.barcode ? `https://www.hepsiburada.com/ara?q=${encodeURIComponent(matchedProd.barcode)}` : `https://www.hepsiburada.com/ara?q=${encodeURIComponent(matchedProd.name || '')}`));
+        const resolvedUrl =
+          buildHepsiburadaProductUrl({
+            name: matchedProd.name || pName || 'urun',
+            hepsiburadaSku: hbSku || matchedProd.hepsiburada_sku || mpData?.hepsiburada?.hepsiburadaSku || null,
+            productId: lPid || mpData?.hepsiburada?.productId || null,
+            fallbackSku: matchedProd.sku || matchedProd.product_code || null,
+            barcode: matchedProd.barcode || null,
+            sellerName: ownHbSellerName || null,
+            fallbackToSearch: true,
+          }) || undefined;
 
         const pPrice = Number(matchedProd.price || listing.price || 0);
         const pStock = Number(matchedProd.stock_quantity !== undefined ? matchedProd.stock_quantity : (listing.availableStock || 0));
@@ -2380,6 +2446,8 @@ export class HepsiburadaService {
           (hbSku && matchedProd.hepsiburada_sku !== hbSku) ||
           (mSku && prevHb.merchantSku !== mSku) ||
           (resolvedPid && prevHb.productId !== resolvedPid) ||
+          (resolvedUrl && prevHb.productUrl !== resolvedUrl) ||
+          (resolvedUrl && matchedProd.hepsiburada_url !== resolvedUrl) ||
           (matchedProd.hepsiburada_last_error || null) !== (hbErrorMsg || null) ||
           prevHb.status !== newStatus ||
           Boolean(prevHb.priceAlert) !== Boolean(hbPriceAlert) ||
@@ -2426,13 +2494,15 @@ export class HepsiburadaService {
             text: `UPDATE products 
                    SET is_hepsiburada_active = $1,
                        hepsiburada_sku = COALESCE(NULLIF($2, ''), hepsiburada_sku),
+                       hepsiburada_url = COALESCE(NULLIF($3, ''), hepsiburada_url),
                        hepsiburada_last_sync = NOW(),
-                       hepsiburada_last_error = $3,
-                       marketplace_data = $4
-                   WHERE id = $5 AND store_id = $6`,
+                       hepsiburada_last_error = $4,
+                       marketplace_data = $5
+                   WHERE id = $6 AND store_id = $7`,
             values: [
               isValidForListing,
               hbSku || null,
+              resolvedUrl || null,
               hbErrorMsg,
               JSON.stringify(mpData),
               matchedProd.id,

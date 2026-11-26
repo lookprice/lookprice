@@ -1,6 +1,7 @@
 import { pool, logAction, addStockMovement } from "../../models/db";
 import axios, { AxiosError } from "axios";
 import { parseStringPromise } from 'xml2js';
+import { syncMarketplaceOrderTreasury } from "../../routes/store/treasurySync";
 
 /**
  * Computes net sellable stock for e-marketplaces by subtracting customer-reserved stock
@@ -627,6 +628,18 @@ export async function syncStoreN11OrdersToDatabase(storeId: number, settings: an
             shippingTrackingNumber ? `Kargo / Sevkiyat: ${shippingCarrier} - Takip No: ${shippingTrackingNumber} ${campaignNumber ? `(Kampanya No: ${campaignNumber})` : ''}` : ''
         ].filter(Boolean).join('\n');
 
+        const rawN11Status = String(order.status || order.statusName || 'New').trim();
+        const rawN11StatusLower = rawN11Status.toLowerCase();
+        const isN11Cancelled =
+            rawN11StatusLower.includes('cancel') ||
+            rawN11StatusLower.includes('reject') ||
+            rawN11StatusLower.includes('return') ||
+            rawN11StatusLower.includes('denied') ||
+            rawN11StatusLower.includes('iptal') ||
+            rawN11StatusLower.includes('iade') ||
+            rawN11Status === '4' ||
+            rawN11Status === '7';
+
         if (existing.rows.length > 0) {
             const existingRow = existing.rows[0];
             const client = await pool.connect();
@@ -679,6 +692,8 @@ export async function syncStoreN11OrdersToDatabase(storeId: number, settings: an
                 const salesInvoiceId = existingRow.sales_invoice_id;
 
                 if (saleId) {
+                    const prevSaleRes = await client.query("SELECT status FROM sales WHERE id = $1 AND store_id = $2", [saleId, storeId]);
+                    const wasSaleCancelled = ['cancelled', 'iptal', 'canceled'].includes(String(prevSaleRes.rows[0]?.status || '').toLowerCase().trim());
                     await client.query(
                         `UPDATE sales SET 
                            total_amount = $1, 
@@ -689,10 +704,24 @@ export async function syncStoreN11OrdersToDatabase(storeId: number, settings: an
                            shipping_carrier = $6,
                            tracking_number = $7,
                            notes = $8, 
-                           created_at = $9 
+                           created_at = $9,
+                           status = CASE WHEN $11 THEN 'cancelled' ELSE status END,
+                           cancellation_reason = CASE WHEN $11 THEN COALESCE(cancellation_reason, 'N11 Sipariş İptali/İadesi') ELSE cancellation_reason END
                          WHERE id = $10`,
-                        [grandTotal, fullCustomerName, customerId, customerPhone, fullShippingAddressStr, shippingCarrier, shippingTrackingNumber, orderNotes, n11OrderDate, saleId]
+                        [grandTotal, fullCustomerName, customerId, customerPhone, fullShippingAddressStr, shippingCarrier, shippingTrackingNumber, orderNotes, n11OrderDate, saleId, isN11Cancelled]
                     );
+                    if (isN11Cancelled && !wasSaleCancelled) {
+                        const items = await client.query("SELECT product_id, quantity FROM sale_items WHERE sale_id = $1", [saleId]);
+                        for (const it of items.rows) {
+                            if (it.product_id && it.quantity > 0) {
+                                await client.query("UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2 AND store_id = $3", [it.quantity, it.product_id, storeId]);
+                            }
+                        }
+                        await client.query(
+                            "DELETE FROM stock_movements WHERE store_id = $1 AND (sale_id = $2 OR (invoice_id IS NOT NULL AND invoice_id = $3) OR invoice_number = $4)",
+                            [storeId, saleId, salesInvoiceId || -1, invoiceNumber]
+                        );
+                    }
                 }
 
                 if (salesInvoiceId) {
@@ -712,9 +741,10 @@ export async function syncStoreN11OrdersToDatabase(storeId: number, settings: an
                            notes = $11, 
                            waybill_carrier_name = $12,
                            waybill_tracking_number = $13,
-                           created_at = $7 
+                           created_at = $7,
+                           status = CASE WHEN $15 THEN 'cancelled' ELSE status END
                          WHERE id = $14`,
-                        [customerId, fullCustomerName, taxNumber, taxOffice, fullBillingAddressStr, customerEmail, n11OrderDate, subtotal, taxAmount, grandTotal, orderNotes, shippingCarrier, shippingTrackingNumber, salesInvoiceId]
+                        [customerId, fullCustomerName, taxNumber, taxOffice, fullBillingAddressStr, customerEmail, n11OrderDate, subtotal, taxAmount, grandTotal, orderNotes, shippingCarrier, shippingTrackingNumber, salesInvoiceId, isN11Cancelled]
                     );
 
                     const existingItemsCheck = await client.query(
@@ -724,7 +754,7 @@ export async function syncStoreN11OrdersToDatabase(storeId: number, settings: an
                     const totalItems = parseInt(String(existingItemsCheck.rows[0]?.total || 0), 10);
                     const linkedItems = parseInt(String(existingItemsCheck.rows[0]?.linked || 0), 10);
 
-                    if (totalItems === 0 || linkedItems < totalItems) {
+                    if (!isN11Cancelled && (totalItems === 0 || linkedItems < totalItems)) {
                         await client.query("DELETE FROM sales_invoice_items WHERE sales_invoice_id = $1", [salesInvoiceId]);
                         if (saleId) {
                             await client.query("DELETE FROM sale_items WHERE sale_id = $1", [saleId]);
@@ -736,11 +766,29 @@ export async function syncStoreN11OrdersToDatabase(storeId: number, settings: an
                 }
 
                 await client.query(
-                    "UPDATE n11_orders SET created_at = $1, order_data = $2 WHERE id = $3",
-                    [n11OrderDate, order, existingRow.id]
+                    "UPDATE n11_orders SET created_at = $1, order_data = $2, status = $3 WHERE id = $4",
+                    [n11OrderDate, order, rawN11Status, existingRow.id]
                 );
 
                 await client.query("COMMIT");
+                try {
+                    await syncMarketplaceOrderTreasury(pool, {
+                        storeId,
+                        platform: "n11",
+                        salesInvoiceId,
+                        saleId,
+                        invoiceNumber,
+                        orderReference: order.orderNumber || orderId,
+                        amount: grandTotal,
+                        currency: "TRY",
+                        customerName: fullCustomerName,
+                        transactionDate: n11OrderDate,
+                        status: isN11Cancelled ? "cancelled" : "completed",
+                        notes: `N11 Sipariş No: ${order.orderNumber || orderId}`,
+                    });
+                } catch (trErr: any) {
+                    console.warn(`[N11 Sync] Treasury update sync warning for #${orderId}:`, trErr?.message || trErr);
+                }
                 syncedCount++;
             } catch (e) {
                 await client.query("ROLLBACK");
@@ -797,27 +845,44 @@ export async function syncStoreN11OrdersToDatabase(storeId: number, settings: an
 
                 const saleRes = await client.query(
                     "INSERT INTO sales (store_id, total_amount, currency, status, customer_name, customer_id, customer_phone, customer_address, shipping_carrier, tracking_number, payment_method, notes, created_at, source) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id",
-                    [storeId, grandTotal, 'TRY', 'completed', fullCustomerName, customerId, customerPhone, fullShippingAddressStr, shippingCarrier, shippingTrackingNumber, 'N11 Satış', orderNotes, n11OrderDate, 'n11']
+                    [storeId, grandTotal, 'TRY', isN11Cancelled ? 'cancelled' : 'completed', fullCustomerName, customerId, customerPhone, fullShippingAddressStr, shippingCarrier, shippingTrackingNumber, 'N11 Satış', orderNotes, n11OrderDate, 'n11']
                 );
                 const saleId = saleRes.rows[0].id;
 
                 const invoiceRes = await client.query(
                     "INSERT INTO sales_invoices (store_id, sale_id, customer_id, customer_name, company_title, tax_number, tax_office, address, customer_email, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, payment_method, notes, invoice_type, status, waybill_carrier_name, waybill_tracking_number, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) RETURNING id",
-                    [storeId, saleId, customerId, fullCustomerName, fullCustomerName, taxNumber, taxOffice, fullBillingAddressStr, customerEmail, invoiceNumber, n11OrderDate, subtotal, taxAmount, grandTotal, 'TRY', 'N11 Satış', orderNotes, 'marketplace', 'completed', shippingCarrier, shippingTrackingNumber, n11OrderDate]
+                    [storeId, saleId, customerId, fullCustomerName, fullCustomerName, taxNumber, taxOffice, fullBillingAddressStr, customerEmail, invoiceNumber, n11OrderDate, subtotal, taxAmount, grandTotal, 'TRY', 'N11 Satış', orderNotes, 'marketplace', isN11Cancelled ? 'cancelled' : 'completed', shippingCarrier, shippingTrackingNumber, n11OrderDate]
                 );
                 const salesInvoiceId = invoiceRes.rows[0].id;
 
-                if (mappedLines.length > 0) {
+                if (mappedLines.length > 0 && !isN11Cancelled) {
                     await processMarketplaceOrderLines(client, storeId, saleId, salesInvoiceId, mappedLines, 'N11', orderId, fullCustomerName, invoiceNumber);
                 }
 
-                const orderStatus = String(order.status || order.statusName || 'New');
                 await client.query(
                     "INSERT INTO n11_orders (store_id, n11_order_id, sale_id, sales_invoice_id, status, order_data, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-                    [storeId, orderId, saleId, salesInvoiceId, orderStatus, order, n11OrderDate]
+                    [storeId, orderId, saleId, salesInvoiceId, rawN11Status, order, n11OrderDate]
                 );
 
                 await client.query("COMMIT");
+                try {
+                    await syncMarketplaceOrderTreasury(pool, {
+                        storeId,
+                        platform: "n11",
+                        salesInvoiceId,
+                        saleId,
+                        invoiceNumber,
+                        orderReference: order.orderNumber || orderId,
+                        amount: grandTotal,
+                        currency: "TRY",
+                        customerName: fullCustomerName,
+                        transactionDate: n11OrderDate,
+                        status: isN11Cancelled ? "cancelled" : "completed",
+                        notes: `N11 Sipariş No: ${order.orderNumber || orderId}`,
+                    });
+                } catch (trErr: any) {
+                    console.warn(`[N11 Sync] Treasury sync warning for #${orderId}:`, trErr?.message || trErr);
+                }
                 syncedCount++;
                 newOrdersCount++;
             } catch (e) {

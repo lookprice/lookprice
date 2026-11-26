@@ -314,7 +314,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
   const [productSearch, setProductSearch] = useState("");
   const deferredProductSearch = useDeferredValue(productSearch);
   const [showProductDropdown, setShowProductDropdown] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'term' | 'cash' | 'credit_card' | 'bank' | 'check_promissory'>('term');
+  const [paymentMethod, setPaymentMethod] = useState<'term' | 'cash' | 'credit_card' | 'bank' | 'check_promissory' | 'marketplace_vault'>('term');
   const [paymentStatus, setPaymentStatus] = useState<'paid' | 'unpaid'>('unpaid');
   const [financialAccounts, setFinancialAccounts] = useState<any[]>([]);
   const [financialAccountId, setFinancialAccountId] = useState<string>("");
@@ -660,8 +660,8 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
           })),
           payment_method: paymentMethod,
           payment_status: paymentMethod === 'term' ? 'unpaid' : 'paid',
-          financial_account_id: (paymentMethod === 'cash' || paymentMethod === 'bank' || paymentMethod === 'credit_card') && financialAccountId ? Number(financialAccountId) : null,
-          financial_account_name: (paymentMethod === 'cash' || paymentMethod === 'bank' || paymentMethod === 'credit_card')
+          financial_account_id: (paymentMethod === 'cash' || paymentMethod === 'bank' || paymentMethod === 'credit_card' || paymentMethod === 'marketplace_vault') && financialAccountId ? Number(financialAccountId) : null,
+          financial_account_name: (paymentMethod === 'cash' || paymentMethod === 'bank' || paymentMethod === 'credit_card' || paymentMethod === 'marketplace_vault')
             ? (financialAccountName || (paymentMethod === 'cash' ? `${currency} Nakit Kasa` : null))
             : null,
           check_instrument_type: paymentMethod === 'check_promissory' ? checkInstrumentType : null,
@@ -1637,7 +1637,14 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
                 <div className="text-right">
                   <p className="font-medium text-slate-400 uppercase tracking-widest mb-1">{isTr ? 'FATURA DETAYI' : 'DETAILS'}</p>
                   <p className="text-slate-600"><span className="font-medium">{isTr ? 'Para Birimi:' : 'Currency:'}</span> {invoice.currency}</p>
-                  <p className="text-slate-600"><span className="font-medium">{isTr ? 'Ödeme Yöntemi:' : 'Payment:'}</span> {invoice.payment_method === 'cash' ? (isTr ? 'Nakit' : 'Cash') : (isTr ? 'Vadeli' : 'Term')}</p>
+                  <p className="text-slate-600"><span className="font-medium">{isTr ? 'Ödeme Yöntemi:' : 'Payment:'}</span> {
+                    invoice.payment_method === 'cash' ? (isTr ? 'Nakit' : 'Cash')
+                    : invoice.payment_method === 'bank' ? (isTr ? 'Banka Havalesi / EFT' : 'Bank Transfer')
+                    : invoice.payment_method === 'credit_card' ? (isTr ? 'Kredi Kartı' : 'Credit Card')
+                    : invoice.payment_method === 'check_promissory' ? (isTr ? 'Çek / Senet' : 'Check / Note')
+                    : invoice.payment_method === 'marketplace_vault' ? (isTr ? 'Pazaryeri Kasası (Mahsup)' : 'Marketplace Vault')
+                    : (isTr ? 'Vadeli' : 'Term')
+                  }</p>
                 </div>
               </div>
 

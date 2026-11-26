@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AutocompleteSelect } from '../../../AutocompleteSelect';
+import { resolveDomainId } from '../../../../utils/sectorCapability';
 
 interface PurchaseInvoiceFormModalProps {
   isOpen: boolean;
@@ -52,7 +53,7 @@ interface PurchaseInvoiceFormModalProps {
   filteredProducts: any[];
   handleAddProduct: (product: any, variant?: any) => void;
   setShowQuickProductModal: (val: boolean) => void;
-  paymentMethod: 'term' | 'cash' | 'credit_card' | 'bank' | 'check_promissory';
+  paymentMethod: 'term' | 'cash' | 'credit_card' | 'bank' | 'check_promissory' | 'marketplace_vault';
   setPaymentMethod: (val: any) => void;
   financialAccounts?: any[];
   financialAccountId?: string;
@@ -711,6 +712,9 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                     <option value="bank">{isTr ? "Banka Havalesi / EFT" : "Bank Transfer"}</option>
                     <option value="credit_card">{isTr ? "Kredi Kartı" : "Credit Card"}</option>
                     <option value="check_promissory">{isTr ? "Çek / Senet (Kambiyo)" : "Check / Promissory Note"}</option>
+                    {(resolveDomainId(branding) === 'RETAIL' || paymentMethod === 'marketplace_vault') && (
+                      <option value="marketplace_vault">{isTr ? "Pazaryeri Kasası (Hakediş Mahsup)" : "Marketplace Vault (Settlement)"}</option>
+                    )}
                   </select>
                 </div>
                  <div className="grid grid-cols-2 gap-2">
@@ -765,14 +769,16 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                 </div>
               </div>
 
-              {(paymentMethod === 'cash' || paymentMethod === 'bank' || paymentMethod === 'credit_card') && (
+              {(paymentMethod === 'cash' || paymentMethod === 'bank' || paymentMethod === 'credit_card' || paymentMethod === 'marketplace_vault') && (
                 <div className="bg-indigo-50/70 border border-indigo-200/80 rounded-2xl p-3 space-y-1.5">
                   <label className="text-[10px] font-semibold text-indigo-800 uppercase tracking-wider flex items-center gap-1.5">
                     {paymentMethod === 'cash'
                       ? (isTr ? "KASA SEÇİMİ (GELİR-GİDER KASA ENTEGRASYONU)" : "CASH VAULT")
                       : paymentMethod === 'bank'
                         ? (isTr ? "BANKA HESABI SEÇİMİ" : "BANK ACCOUNT")
-                        : (isTr ? "KREDİ KARTI HESABI SEÇİMİ" : "CREDIT CARD ACCOUNT")}
+                        : paymentMethod === 'marketplace_vault'
+                          ? (isTr ? "PAZARYERİ KASASI SEÇİMİ (HAKEDİŞ MAHSUP)" : "MARKETPLACE VAULT")
+                          : (isTr ? "KREDİ KARTI HESABI SEÇİMİ" : "CREDIT CARD ACCOUNT")}
                   </label>
                   <select
                     value={financialAccountId}
@@ -792,6 +798,8 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                   >
                     {paymentMethod === 'cash' ? (
                       <option value="">{currency} Nakit Kasa ({isTr ? "Standart Döviz Kasası" : "Default Currency Cash"})</option>
+                    ) : paymentMethod === 'marketplace_vault' ? (
+                      <option value="">{isTr ? "— Tedariğe Göre Otomatik Pazaryeri Kasası —" : "— Auto-Match Marketplace Vault —"}</option>
                     ) : (
                       <option value="">{isTr ? `— ${currency} Nakit / Genel Hesap —` : "— General Account —"}</option>
                     )}
@@ -801,7 +809,9 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                           ? a.account_type === 'cash'
                           : paymentMethod === 'bank'
                             ? a.account_type === 'bank'
-                            : a.account_type === 'credit_card'
+                            : paymentMethod === 'marketplace_vault'
+                              ? a.account_type === 'marketplace'
+                              : a.account_type === 'credit_card'
                       )
                       .map((acc: any) => (
                         <option key={acc.id} value={acc.id}>

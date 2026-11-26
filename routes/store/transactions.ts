@@ -83,6 +83,15 @@ router.put("/:id", async (req: any, res) => {
     const parsedExchangeRate = cleanNumber(exchange_rate);
     const newExchangeRate = parsedExchangeRate !== null ? parsedExchangeRate : currentTx.exchange_rate;
     const newCompanyId = (company_id !== undefined && company_id !== null && company_id !== '') ? Number(company_id) : currentTx.company_id;
+    if (Number(newCompanyId) !== Number(currentTx.company_id)) {
+      const targetComp = await pool.query("SELECT id, store_id FROM companies WHERE id = $1 LIMIT 1", [newCompanyId]);
+      if (targetComp.rows.length === 0) {
+        return res.status(404).json({ error: "Hedef cari hesap bulunamadı" });
+      }
+      if (req.user.role !== "superadmin" && Number(targetComp.rows[0].store_id) !== Number(storeId)) {
+        return res.status(403).json({ error: "Hedef cari hesaba erişim yetkiniz yok" });
+      }
+    }
     
     const parsedCrossRate = cleanNumber(cross_rate);
     const newCrossRate = parsedCrossRate !== null ? parsedCrossRate : (cross_rate === null || cross_rate === '' ? null : currentTx.cross_rate);
@@ -184,6 +193,15 @@ router.patch("/:id", async (req: any, res) => {
     const parsedExchangeRate = cleanNumber(exchange_rate);
     const newExchangeRate = parsedExchangeRate !== null ? parsedExchangeRate : currentTx.exchange_rate;
     const newCompanyId = (company_id !== undefined && company_id !== null && company_id !== '') ? Number(company_id) : currentTx.company_id;
+    if (Number(newCompanyId) !== Number(currentTx.company_id)) {
+      const targetComp = await pool.query("SELECT id, store_id FROM companies WHERE id = $1 LIMIT 1", [newCompanyId]);
+      if (targetComp.rows.length === 0) {
+        return res.status(404).json({ error: "Hedef cari hesap bulunamadı" });
+      }
+      if (req.user.role !== "superadmin" && Number(targetComp.rows[0].store_id) !== Number(storeId)) {
+        return res.status(403).json({ error: "Hedef cari hesaba erişim yetkiniz yok" });
+      }
+    }
 
     const parsedCrossRate = cleanNumber(cross_rate);
     const newCrossRate = parsedCrossRate !== null ? parsedCrossRate : (cross_rate === null || cross_rate === '' ? null : currentTx.cross_rate);

@@ -33,7 +33,9 @@ import {
   CheckCircle2,
   AlertTriangle,
   RefreshCw,
-  Banknote
+  Banknote,
+  Store,
+  ArrowLeftRight
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { useLanguage } from "../../contexts/LanguageContext";
@@ -58,7 +60,7 @@ interface PortfolioFinancesTabProps {
 export interface FinancialAccount {
   id: number;
   store_id: number;
-  account_type: "bank" | "credit_card" | "check" | "cash";
+  account_type: "bank" | "credit_card" | "check" | "cash" | "marketplace";
   account_name: string;
   bank_name?: string;
   account_number?: string;
@@ -90,6 +92,7 @@ export default function PortfolioFinancesTab({
   const isHotelSector = resolvedDomain === "HOTEL";
   const isCorporateSector = resolvedDomain === "CORPORATE";
   const isBookstoreSector = resolvedDomain === "BOOKSTORE";
+  const isShopLPSector = resolvedDomain === "RETAIL";
   const defaultSectorCurrency = activeRealEstate ? "GBP" : "TRY";
 
   const { properties } = useRealEstate(activeRealEstate ? storeId : undefined);
@@ -215,6 +218,53 @@ export default function PortfolioFinancesTab({
     fetchAccounts();
   }, [fetchAccounts]);
 
+  // shopLP Marketplace Vaults Sync & Hakediş Virmanı States
+  const [syncingMarketplaces, setSyncingMarketplaces] = useState(false);
+  const marketplaceSyncedStoreRef = React.useRef<number | null>(null);
+  const [transferModalOpen, setTransferModalOpen] = useState(false);
+  const [transferSubmitting, setTransferSubmitting] = useState(false);
+  const [transferForm, setTransferForm] = useState({
+    from_key: "", // "acc:<id>" | "cash:<CUR>"
+    to_key: "",   // "acc:<id>" | "cash:<CUR>"
+    amount: "",
+    date: new Date().toISOString().split("T")[0],
+    reference_no: "",
+    title: "",
+    description: ""
+  });
+
+  const handleSyncMarketplaces = useCallback(async (silent = false) => {
+    if (!storeId || !isShopLPSector) return;
+    setSyncingMarketplaces(true);
+    try {
+      const res = await api.syncMarketplaceVaults(storeId);
+      await Promise.all([fetchAccounts(), fetchTransactions()]);
+      if (!silent) {
+        const orderSynced = Number(res?.ordersSynced || 0);
+        const expSynced = Number(res?.expensesSynced || 0);
+        const vaultsCreated = Number(res?.vaultsCreated || 0);
+        toast.success(
+          isTr
+            ? `Pazaryeri kasaları güncellendi (${vaultsCreated} yeni kasa, ${orderSynced} sipariş, ${expSynced} gider faturası).`
+            : `Marketplace vaults synced (${vaultsCreated} vaults, ${orderSynced} orders, ${expSynced} expenses).`
+        );
+      }
+    } catch (err: any) {
+      if (!silent) {
+        toast.error(err?.message || (isTr ? "Pazaryeri kasaları senkronize edilemedi." : "Failed to sync marketplace vaults."));
+      }
+    } finally {
+      setSyncingMarketplaces(false);
+    }
+  }, [storeId, isShopLPSector, fetchAccounts, fetchTransactions, isTr]);
+
+  useEffect(() => {
+    if (!storeId || !isShopLPSector) return;
+    if (marketplaceSyncedStoreRef.current === storeId) return;
+    marketplaceSyncedStoreRef.current = storeId;
+    handleSyncMarketplaces(true);
+  }, [storeId, isShopLPSector, handleSyncMarketplaces]);
+
   // Modal & Edit States
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingTx, setEditingTx] = useState<PortfolioTransaction | null>(null);
@@ -241,7 +291,7 @@ export default function PortfolioFinancesTab({
   // Account modal states
   const [editingAccount, setEditingAccount] = useState<FinancialAccount | null>(null);
   const [accountFormData, setAccountFormData] = useState({
-    account_type: "bank" as "bank" | "credit_card" | "check" | "cash",
+    account_type: "bank" as "bank" | "credit_card" | "check" | "cash" | "marketplace",
     account_name: "",
     bank_name: "",
     account_number: "",
@@ -326,6 +376,7 @@ export default function PortfolioFinancesTab({
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [currencyFilter, setCurrencyFilter] = useState<string>("all");
   const [methodFilter, setMethodFilter] = useState<string>("all");
+  const [cashVaultFilter, setCashVaultFilter] = useState<string>("all");
   const [selectedAccountId, setSelectedAccountId] = useState<string>("all");
   const [selectedPropertyFilter, setSelectedPropertyFilter] = useState<string>("all");
   const [portfolioProfitFilter, setPortfolioProfitFilter] = useState<"all" | "profit" | "loss" | "no_activity">("all");
@@ -434,6 +485,7 @@ export default function PortfolioFinancesTab({
       ],
       expense: [
         { id: "supplier_payment", label: isBookstoreSector ? (isTr ? "Yayınevi & Tedarikçi Ödemesi" : "Publisher & Supplier Payment") : (isTr ? "Mal Alımı & Tedarikçi Ödemesi" : "Inventory & Supplier Payment") },
+        ...(isShopLPSector ? [{ id: "marketplace_commission", label: isTr ? "Pazaryeri Komisyon & Hizmet Gideri" : "Marketplace Commission & Fees" }] : []),
         { id: "rent_utilities", label: isTr ? "Mağaza Kirası, Elektrik & İnternet" : "Store Rent & Utilities" },
         { id: "staff_payroll", label: isTr ? "Personel Maaş, SGK & Prim" : "Staff Payroll & Benefits" },
         { id: "shipping_logistics", label: isTr ? "Kargo, Lojistik & Paketleme" : "Shipping & Packaging" },
@@ -443,7 +495,7 @@ export default function PortfolioFinancesTab({
         { id: "other", label: isTr ? "Diğer Giderler" : "Other Expenses" }
       ]
     };
-  }, [activeAutomotive, activeRealEstate, isHorecaSector, isHotelSector, isCorporateSector, isBookstoreSector, isTr]);
+  }, [activeAutomotive, activeRealEstate, isHorecaSector, isHotelSector, isCorporateSector, isBookstoreSector, isShopLPSector, isTr]);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -466,7 +518,8 @@ export default function PortfolioFinancesTab({
     { id: "cash", label: isTr ? "Nakit Kasa" : "Cash" },
     { id: "bank_transfer", label: isTr ? "Banka Havale / EFT" : "Bank Transfer" },
     { id: "credit_card", label: isTr ? "Kredi Kartı" : "Credit Card" },
-    { id: "check_promissory", label: isTr ? "Çek / Senet" : "Check / Note" }
+    { id: "check_promissory", label: isTr ? "Çek / Senet" : "Check / Note" },
+    ...(isShopLPSector ? [{ id: "marketplace_vault", label: isTr ? "Pazaryeri Kasası" : "Marketplace Vault" }] : [])
   ];
 
   // Apply Date Preset
@@ -509,6 +562,32 @@ export default function PortfolioFinancesTab({
     }
   };
 
+  const normalizePaymentMethod = useCallback((method?: string | null): "cash" | "bank_transfer" | "credit_card" | "check_promissory" | "marketplace_vault" => {
+    const token = String(method || "cash").toLowerCase().trim();
+    if (
+      token === "marketplace_vault" ||
+      token === "marketplace" ||
+      token.includes("pazaryeri") ||
+      token.includes("hepsiburada") ||
+      token.includes("trendyol") ||
+      token.includes("n11") ||
+      token.includes("amazon") ||
+      token.includes("pazarama")
+    ) {
+      return "marketplace_vault";
+    }
+    if (token === "bank" || token === "bank_transfer" || token === "havale" || token === "eft" || token === "fast" || token === "wire" || token === "transfer") {
+      return "bank_transfer";
+    }
+    if (token === "credit_card" || token === "card" || token === "pos" || token === "kredi_karti" || token === "kredi kartı") {
+      return "credit_card";
+    }
+    if (token === "check_promissory" || token === "check" || token === "promissory_note" || token === "cek" || token === "çek" || token === "senet" || token === "çek/senet") {
+      return "check_promissory";
+    }
+    return "cash";
+  }, []);
+
   // Open modal for New Record (optionally pre-selecting a property)
   const handleOpenCreateModal = (preselectedPropertyId?: string | number) => {
     setEditingTx(null);
@@ -538,7 +617,7 @@ export default function PortfolioFinancesTab({
     setPortfolioSearch("");
     const txDateStr = tx.date ? new Date(tx.date).toISOString().split("T")[0] : new Date().toISOString().split("T")[0];
     const txCurr = tx.currency || storeDefaultCurrency || defaultSectorCurrency;
-    const txMethod = tx.payment_method || "cash";
+    const txMethod = normalizePaymentMethod(tx.payment_method);
     const resolvedAccName = (txMethod === "cash" && !tx.account_id)
       ? `${txCurr} Nakit Kasa`
       : (tx.account_name || "");
@@ -591,20 +670,62 @@ export default function PortfolioFinancesTab({
       return;
     }
 
-    let resolvedAccountName = formData.account_name;
-    if (formData.payment_method === "cash" && !formData.account_id) {
-      resolvedAccountName = `${formData.currency} Nakit Kasa`;
-    } else if (!resolvedAccountName || /^(GBP|EUR|USD|TRY)\s+Nakit\s+Kasa$/i.test(resolvedAccountName.trim())) {
-      if (formData.payment_method === "cash") {
+    const normMethod = normalizePaymentMethod(formData.payment_method);
+    let resolvedAccountId: number | null = formData.account_id ? (Number(formData.account_id) || null) : null;
+    let resolvedAccountName = (formData.account_name || "").trim();
+
+    if (normMethod === "cash") {
+      const matchedCashAcc = resolvedAccountId
+        ? accounts.find(a => Number(a.id) === resolvedAccountId && a.account_type === "cash")
+        : null;
+      if (matchedCashAcc) {
+        resolvedAccountId = matchedCashAcc.id;
+        resolvedAccountName = matchedCashAcc.account_name;
+      } else {
+        resolvedAccountId = null;
         resolvedAccountName = `${formData.currency} Nakit Kasa`;
-      } else if (formData.payment_method === "bank_transfer") {
-        const foundAcc = accounts.find(a => String(a.id) === String(formData.account_id));
-        resolvedAccountName = foundAcc ? foundAcc.account_name : (isTr ? "Banka Hesabı" : "Bank Account");
-      } else if (formData.payment_method === "credit_card") {
-        const foundCard = accounts.find(a => String(a.id) === String(formData.account_id));
-        resolvedAccountName = foundCard ? foundCard.account_name : (isTr ? "Kredi Kartı" : "Credit Card");
-      } else if (formData.payment_method === "check_promissory") {
-        resolvedAccountName = isTr ? "Çek / Senet Portföyü" : "Check / Note Portfolio";
+      }
+    } else if (normMethod === "bank_transfer") {
+      const foundAcc = resolvedAccountId
+        ? accounts.find(a => Number(a.id) === resolvedAccountId && a.account_type === "bank")
+        : null;
+      if (foundAcc) {
+        resolvedAccountId = foundAcc.id;
+        resolvedAccountName = foundAcc.account_name;
+      } else {
+        resolvedAccountId = null;
+        if (!resolvedAccountName || /^(GBP|EUR|USD|TRY)?\s*(Nakit\s+Kasa|Cash\s*Vault|Cash)$/i.test(resolvedAccountName)) {
+          resolvedAccountName = isTr ? "Banka Hesabı" : "Bank Account";
+        }
+      }
+    } else if (normMethod === "credit_card") {
+      const foundCard = resolvedAccountId
+        ? accounts.find(a => Number(a.id) === resolvedAccountId && a.account_type === "credit_card")
+        : null;
+      if (foundCard) {
+        resolvedAccountId = foundCard.id;
+        resolvedAccountName = foundCard.account_name;
+      } else {
+        resolvedAccountId = null;
+        if (!resolvedAccountName || /^(GBP|EUR|USD|TRY)?\s*(Nakit\s+Kasa|Cash\s*Vault|Cash)$/i.test(resolvedAccountName)) {
+          resolvedAccountName = isTr ? "Kredi Kartı" : "Credit Card";
+        }
+      }
+    } else if (normMethod === "check_promissory") {
+      resolvedAccountId = null;
+      resolvedAccountName = isTr ? "Çek / Senet Portföyü" : "Check / Note Portfolio";
+    } else if (normMethod === "marketplace_vault") {
+      const foundMp = resolvedAccountId
+        ? accounts.find(a => Number(a.id) === resolvedAccountId && a.account_type === "marketplace")
+        : null;
+      if (foundMp) {
+        resolvedAccountId = foundMp.id;
+        resolvedAccountName = foundMp.account_name;
+      } else {
+        resolvedAccountId = null;
+        if (!resolvedAccountName || /^(GBP|EUR|USD|TRY)?\s*(Nakit\s+Kasa|Cash\s*Vault|Cash)$/i.test(resolvedAccountName)) {
+          resolvedAccountName = isTr ? "Pazaryeri Kasası" : "Marketplace Vault";
+        }
       }
     }
 
@@ -616,8 +737,8 @@ export default function PortfolioFinancesTab({
       currency: formData.currency,
       date: new Date(formData.date).toISOString(),
       property_id: formData.property_id ? Number(formData.property_id) : null,
-      payment_method: formData.payment_method,
-      account_id: formData.account_id ? Number(formData.account_id) : null,
+      payment_method: normMethod,
+      account_id: resolvedAccountId,
       account_name: resolvedAccountName,
       reference_no: formData.reference_no.trim(),
       contact_name: formData.contact_name.trim(),
@@ -846,6 +967,8 @@ export default function PortfolioFinancesTab({
     vehicle: { tr: "Ulaşım & Yakıt Gideri", en: "Transportation & Fuel" },
     tax_official: { tr: "Vergi & Resmi Harçlar", en: "Tax & Official Fees" },
     office_supplies: { tr: "Sarf & Kırtasiye Gideri", en: "Office & Store Supplies" },
+    marketplace_commission: { tr: "Pazaryeri Komisyon & Masraf", en: "Marketplace Commission & Fees" },
+    transfer: { tr: "Hesaplar Arası Virman / Hakediş", en: "Internal Transfer / Payout" },
     other: { tr: "Diğer", en: "Other" }
   };
 
@@ -858,7 +981,8 @@ export default function PortfolioFinancesTab({
   };
 
   const getPaymentMethodLabel = (method?: string) => {
-    const found = paymentMethods.find(m => m.id === (method || "cash"));
+    const norm = normalizePaymentMethod(method);
+    const found = paymentMethods.find(m => m.id === norm);
     return found ? found.label : (isTr ? "Nakit Kasa" : "Cash");
   };
 
@@ -881,17 +1005,37 @@ export default function PortfolioFinancesTab({
     return `${getCurrencySymbol(cur)}${formatted}`;
   };
 
+  const accountTypeMap = useMemo(() => {
+    const m = new Map<string, FinancialAccount["account_type"]>();
+    accounts.forEach(a => m.set(String(a.id), a.account_type));
+    return m;
+  }, [accounts]);
+
+  const isCashVaultTx = useCallback((t: PortfolioTransaction) => {
+    const normMethod = normalizePaymentMethod(t.payment_method);
+    const accKey = t.account_id ? String(t.account_id) : "";
+    const accType = accKey ? accountTypeMap.get(accKey) : undefined;
+    if (accType && accType !== "cash") return false;
+    return normMethod === "cash";
+  }, [accountTypeMap, normalizePaymentMethod]);
+
   const getResolvedAccountName = useCallback((t: PortfolioTransaction) => {
-    const method = t.payment_method || "cash";
+    const method = normalizePaymentMethod(t.payment_method);
     const cur = (t.currency || storeDefaultCurrency || "GBP").toUpperCase();
     const rawName = (t.account_name || "").trim();
-    if (method === "cash" && !t.account_id) {
+    const matchedAcc = t.account_id ? accounts.find(a => String(a.id) === String(t.account_id)) : undefined;
+    if (matchedAcc) return matchedAcc.account_name;
+    if (method === "cash") {
       if (!rawName || /^(GBP|EUR|USD|TRY)\s+(Nakit\s+Kasa|Cash)$/i.test(rawName) || rawName === "Nakit Kasa" || rawName === "Cash") {
         return `${cur} ${isTr ? "Nakit Kasa" : "Cash"}`;
       }
+      return rawName;
     }
-    return rawName || getPaymentMethodLabel(method);
-  }, [storeDefaultCurrency, isTr]);
+    if (rawName && !/^(GBP|EUR|USD|TRY)?\s*(Nakit\s+Kasa|Cash\s*Vault|Cash)$/i.test(rawName)) {
+      return rawName;
+    }
+    return getPaymentMethodLabel(method);
+  }, [accounts, storeDefaultCurrency, isTr, normalizePaymentMethod]);
 
   // Comprehensive Real Estate / Vehicle Portfolio Profit & Loss Analysis Engine (With Cross-Currency Conversion)
   const portfolioAnalysis = useMemo(() => {
@@ -1074,7 +1218,16 @@ export default function PortfolioFinancesTab({
       };
     });
 
-    const runningTracker: Record<string, number> = { GBP: 0, EUR: 0, USD: 0, TRY: 0 };
+    const cashRunningTracker: Record<string, number> = {};
+    SUPPORTED_CURRENCIES.forEach(cur => {
+      cashRunningTracker[cur] = summaryByCurrency[cur]?.openingBalance || 0;
+    });
+    const accountRunningTracker: Record<string, number> = {};
+    accounts.forEach(acc => {
+      accountRunningTracker[String(acc.id)] = Number(acc.initial_balance || 0);
+    });
+    const unlinkedMethodTracker: Record<string, number> = {};
+
     const enrichedWithRunning: Array<PortfolioTransaction & { runningBalance: number }> = [];
 
     for (const tx of chronological) {
@@ -1092,7 +1245,7 @@ export default function PortfolioFinancesTab({
           txCount: 0
         };
       }
-      if (runningTracker[cur] === undefined) runningTracker[cur] = 0;
+      if (cashRunningTracker[cur] === undefined) cashRunningTracker[cur] = 0;
 
       const amt = Number(tx.amount) || 0;
       const delta = tx.type === "income" ? amt : -amt;
@@ -1101,11 +1254,10 @@ export default function PortfolioFinancesTab({
       const isAfterEnd = endTs !== null && txTime > endTs;
 
       const accKey = tx.account_id ? String(tx.account_id) : "";
-      const isCashVaultTx =
-        (!tx.account_id && (!tx.payment_method || tx.payment_method === "cash")) ||
-        (accKey !== "" && cashAccountIds.has(accKey));
+      const normMethod = normalizePaymentMethod(tx.payment_method);
+      const isCashTx = isCashVaultTx(tx);
 
-      if (isCashVaultTx) {
+      if (isCashTx) {
         if (tx.type === "income") summaryByCurrency[cur].allTimeIncome += amt;
         else summaryByCurrency[cur].allTimeExpense += amt;
         summaryByCurrency[cur].allTimeNet = summaryByCurrency[cur].allTimeIncome - summaryByCurrency[cur].allTimeExpense;
@@ -1120,22 +1272,43 @@ export default function PortfolioFinancesTab({
       }
 
       if (accKey && summaryByAccount[accKey]) {
-        if (isBeforeStart) {
-          summaryByAccount[accKey].openingBalance += delta;
-        } else if (!isAfterEnd) {
-          if (tx.type === "income") summaryByAccount[accKey].periodIncome += amt;
-          else summaryByAccount[accKey].periodExpense += amt;
-          summaryByAccount[accKey].txCount += 1;
+        const accType = String(summaryByAccount[accKey].account_type || "").toLowerCase();
+        const isCompatibleWithAccount = accType === "cash" ? isCashTx : !isCashTx;
+        if (isCompatibleWithAccount) {
+          if (isBeforeStart) {
+            summaryByAccount[accKey].openingBalance += delta;
+          } else if (!isAfterEnd) {
+            if (tx.type === "income") summaryByAccount[accKey].periodIncome += amt;
+            else summaryByAccount[accKey].periodExpense += amt;
+            summaryByAccount[accKey].txCount += 1;
+          }
         }
       }
 
-      if (isBeforeStart) {
-        runningTracker[cur] += delta;
-      } else if (!isAfterEnd) {
-        runningTracker[cur] += delta;
+      let instrumentRunning = 0;
+      if (isCashTx) {
+        if (!isAfterEnd) {
+          cashRunningTracker[cur] += delta;
+          instrumentRunning = cashRunningTracker[cur];
+        }
+      } else if (accKey && accountRunningTracker[accKey] !== undefined) {
+        if (!isAfterEnd) {
+          accountRunningTracker[accKey] += delta;
+          instrumentRunning = accountRunningTracker[accKey];
+        }
+      } else {
+        const methodKey = `${normMethod}:${cur}`;
+        if (unlinkedMethodTracker[methodKey] === undefined) unlinkedMethodTracker[methodKey] = 0;
+        if (!isAfterEnd) {
+          unlinkedMethodTracker[methodKey] += delta;
+          instrumentRunning = unlinkedMethodTracker[methodKey];
+        }
+      }
+
+      if (!isBeforeStart && !isAfterEnd) {
         enrichedWithRunning.push({
           ...tx,
-          runningBalance: runningTracker[cur]
+          runningBalance: instrumentRunning
         });
       }
     }
@@ -1159,16 +1332,19 @@ export default function PortfolioFinancesTab({
       periodTransactionsDesc,
       periodTransactionsAsc: enrichedWithRunning
     };
-  }, [transactions, startDate, endDate, accounts]);
+  }, [transactions, startDate, endDate, accounts, isCashVaultTx, normalizePaymentMethod]);
 
-  // Apply Search, Type, Category, Currency, Method, and Property filters on statement
+  // Apply Search, Type, Category, Currency, Method, Cash Vault, Account, and Property filters on statement
   const filteredTransactions = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     return statementAnalysis.periodTransactionsDesc.filter(t => {
+      const normMethod = normalizePaymentMethod(t.payment_method);
+      const txCurr = (t.currency || "TRY").toUpperCase();
       const matchesType = typeFilter === "all" || t.type === typeFilter;
       const matchesCategory = categoryFilter === "all" || t.category === categoryFilter;
-      const matchesCurrency = currencyFilter === "all" || t.currency === currencyFilter;
-      const matchesMethod = methodFilter === "all" || (t.payment_method || "cash") === methodFilter;
+      const matchesCurrency = currencyFilter === "all" || txCurr === currencyFilter;
+      const matchesMethod = methodFilter === "all" || (methodFilter === "cash" ? isCashVaultTx(t) : normMethod === methodFilter);
+      const matchesCashVault = cashVaultFilter === "all" || (isCashVaultTx(t) && txCurr === cashVaultFilter);
       const matchesAccount = selectedAccountId === "all" || String(t.account_id) === selectedAccountId;
       const matchesProperty = selectedPropertyFilter === "all" || String(t.property_id) === selectedPropertyFilter;
       const matchesSearch = !q || 
@@ -1180,9 +1356,9 @@ export default function PortfolioFinancesTab({
         (t.reference_no && t.reference_no.toLowerCase().includes(q)) ||
         getCategoryLabel(t.type, t.category).toLowerCase().includes(q);
 
-      return matchesType && matchesCategory && matchesCurrency && matchesMethod && matchesAccount && matchesProperty && matchesSearch;
+      return matchesType && matchesCategory && matchesCurrency && matchesMethod && matchesCashVault && matchesAccount && matchesProperty && matchesSearch;
     });
-  }, [statementAnalysis.periodTransactionsDesc, typeFilter, categoryFilter, currencyFilter, methodFilter, selectedAccountId, selectedPropertyFilter, searchQuery, categories]);
+  }, [statementAnalysis.periodTransactionsDesc, typeFilter, categoryFilter, currencyFilter, methodFilter, cashVaultFilter, selectedAccountId, selectedPropertyFilter, searchQuery, categories, normalizePaymentMethod, isCashVaultTx]);
 
   // Export Statement to Excel (.xlsx)
   const handleExportExcel = () => {
@@ -1356,20 +1532,94 @@ export default function PortfolioFinancesTab({
     }
   };
 
-  // Filtered table totals per currency
+  // Filtered table totals per currency (excludes internal transfers in consolidated P&L view so payouts don't double-count)
   const filteredTotalsByCurrency = useMemo(() => {
+    const isConsolidatedView = selectedAccountId === "all" && cashVaultFilter === "all" && methodFilter === "all";
     const map: Record<string, { income: number; expense: number; net: number; count: number }> = {};
     filteredTransactions.forEach(t => {
       const cur = t.currency || "GBP";
       if (!map[cur]) map[cur] = { income: 0, expense: 0, net: 0, count: 0 };
+      map[cur].count += 1;
+      if (isConsolidatedView && t.category === "transfer") {
+        return;
+      }
       const amt = Number(t.amount) || 0;
       if (t.type === "income") map[cur].income += amt;
       else map[cur].expense += amt;
       map[cur].net = map[cur].income - map[cur].expense;
-      map[cur].count += 1;
     });
     return map;
-  }, [filteredTransactions]);
+  }, [filteredTransactions, selectedAccountId, cashVaultFilter, methodFilter]);
+
+  const handleOpenTransferModal = (sourceAcc?: FinancialAccount) => {
+    const mpAccounts = accounts.filter(a => a.account_type === "marketplace");
+    const bankAccounts = accounts.filter(a => a.account_type === "bank");
+    const src = sourceAcc || mpAccounts[0] || bankAccounts[0] || null;
+    const srcCurrency = (src?.currency || "TRY").toUpperCase();
+    const matchedBank = bankAccounts.find(b => b.currency.toUpperCase() === srcCurrency && (!src || b.id !== src.id)) || bankAccounts.find(b => !src || b.id !== src.id) || null;
+    const srcBalance = src ? (statementAnalysis.summaryByAccount[String(src.id)]?.closingBalance ?? Number(src.initial_balance || 0)) : 0;
+
+    setTransferForm({
+      from_key: src ? `acc:${src.id}` : `cash:${srcCurrency}`,
+      to_key: matchedBank ? `acc:${matchedBank.id}` : `cash:${srcCurrency}`,
+      amount: srcBalance > 0 ? String(Number(srcBalance.toFixed(2))) : "",
+      date: new Date().toISOString().split("T")[0],
+      reference_no: "",
+      title: src && src.account_type === "marketplace"
+        ? `${src.account_name} Hakediş Aktarımı`
+        : "",
+      description: ""
+    });
+    setTransferModalOpen(true);
+  };
+
+  const handleTransferSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amt = Number(String(transferForm.amount).replace(/,/g, "."));
+    if (!Number.isFinite(amt) || amt <= 0) {
+      toast.error(isTr ? "Lütfen geçerli bir aktarım tutarı girin." : "Please enter a valid transfer amount.");
+      return;
+    }
+    if (!transferForm.from_key || !transferForm.to_key || transferForm.from_key === transferForm.to_key) {
+      toast.error(isTr ? "Kaynak ve hedef hesap farklı olmalıdır." : "Source and destination accounts must differ.");
+      return;
+    }
+    const parseKey = (k: string) => {
+      if (k.startsWith("acc:")) return { accountId: Number(k.slice(4)), cashCurrency: null };
+      if (k.startsWith("cash:")) return { accountId: null, cashCurrency: k.slice(5) };
+      return { accountId: null, cashCurrency: null };
+    };
+    const src = parseKey(transferForm.from_key);
+    const dst = parseKey(transferForm.to_key);
+    const srcAcc = src.accountId ? accounts.find(a => a.id === src.accountId) : null;
+    const currency = (srcAcc?.currency || src.cashCurrency || "TRY").toUpperCase();
+
+    setTransferSubmitting(true);
+    try {
+      await api.transferFinancialAccounts(
+        {
+          from_account_id: src.accountId,
+          from_cash_currency: src.cashCurrency,
+          to_account_id: dst.accountId,
+          to_cash_currency: dst.cashCurrency,
+          amount: amt,
+          currency,
+          date: transferForm.date ? new Date(transferForm.date).toISOString() : new Date().toISOString(),
+          title: transferForm.title.trim() || undefined,
+          reference_no: transferForm.reference_no.trim() || undefined,
+          description: transferForm.description.trim() || undefined
+        },
+        storeId
+      );
+      toast.success(isTr ? "Hakediş / hesap virmanı başarıyla kaydedildi." : "Transfer recorded successfully.");
+      setTransferModalOpen(false);
+      await Promise.all([fetchAccounts(), fetchTransactions()]);
+    } catch (err: any) {
+      toast.error(err?.message || (isTr ? "Virman işlemi başarısız oldu." : "Transfer failed."));
+    } finally {
+      setTransferSubmitting(false);
+    }
+  };
 
   // Account / Cash Vault Statement Helpers
   const loadAccountStatement = useCallback(async (
@@ -2093,12 +2343,13 @@ export default function PortfolioFinancesTab({
               </div>
 
               <div className="flex items-center gap-1 shrink-0">
-                {(startDate || endDate || currencyFilter !== "all" || typeFilter !== "all" || categoryFilter !== "all" || methodFilter !== "all" || selectedAccountId !== "all" || selectedPropertyFilter !== "all" || searchQuery) && (
+                {(startDate || endDate || currencyFilter !== "all" || cashVaultFilter !== "all" || typeFilter !== "all" || categoryFilter !== "all" || methodFilter !== "all" || selectedAccountId !== "all" || selectedPropertyFilter !== "all" || searchQuery) && (
                   <button
                     type="button"
                     onClick={() => {
                       handleSelectDatePreset("all");
                       setCurrencyFilter("all");
+                      setCashVaultFilter("all");
                       setTypeFilter("all");
                       setCategoryFilter("all");
                       setMethodFilter("all");
@@ -2117,7 +2368,7 @@ export default function PortfolioFinancesTab({
                   type="button"
                   onClick={() => setShowAccountsSummary(prev => !prev)}
                   className={`flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-colors cursor-pointer shrink-0 ${
-                    showAccountsSummary || currencyFilter !== "all" || selectedAccountId !== "all"
+                    showAccountsSummary || currencyFilter !== "all" || cashVaultFilter !== "all" || selectedAccountId !== "all"
                       ? "bg-indigo-600 text-white border-indigo-600"
                       : "text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 border-indigo-200 bg-white"
                   }`}
@@ -2143,15 +2394,22 @@ export default function PortfolioFinancesTab({
                     const data = statementAnalysis.summaryByCurrency[cur];
                     const sym = getCurrencySymbol(cur);
                     const isNetNegative = data.closingBalance < 0;
-                    const isSelected = currencyFilter === cur && methodFilter === "all" && selectedAccountId === "all";
+                    const isSelected = cashVaultFilter === cur && selectedAccountId === "all";
 
                     return (
                       <div 
                         key={cur}
                         onClick={() => {
-                          setCurrencyFilter(prev => prev === cur ? "all" : cur);
-                          setMethodFilter("all");
-                          setSelectedAccountId("all");
+                          if (cashVaultFilter === cur && selectedAccountId === "all") {
+                            setCashVaultFilter("all");
+                            setCurrencyFilter("all");
+                            setMethodFilter("all");
+                          } else {
+                            setCashVaultFilter(cur);
+                            setCurrencyFilter(cur);
+                            setMethodFilter("cash");
+                            setSelectedAccountId("all");
+                          }
                         }}
                         className={`cursor-pointer rounded-xl p-2.5 transition-all border ${
                           isSelected
@@ -2210,7 +2468,7 @@ export default function PortfolioFinancesTab({
               </div>
 
               {/* Bank Accounts & Credit Cards */}
-              {accounts.length > 0 && (
+              {accounts.filter(a => a.account_type === "bank" || a.account_type === "credit_card").length > 0 && (
                 <div>
                   <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-tight mb-1.5 flex items-center justify-between">
                     <span>{isTr ? "Tanımlı Banka Hesapları & Kredi Kartları" : "Bank & Card Ledgers"}</span>
@@ -2225,7 +2483,7 @@ export default function PortfolioFinancesTab({
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                    {accounts.map(acc => {
+                    {accounts.filter(a => a.account_type === "bank" || a.account_type === "credit_card").map(acc => {
                       const accSummary = statementAnalysis.summaryByAccount[String(acc.id)] || {
                         closingBalance: Number(acc.initial_balance || 0),
                         periodIncome: 0,
@@ -2235,14 +2493,20 @@ export default function PortfolioFinancesTab({
                       const sym = getCurrencySymbol(acc.currency);
                       const isSelected = selectedAccountId === String(acc.id);
                       const isCard = acc.account_type === "credit_card";
+                      const isAccNegative = accSummary.closingBalance < 0;
 
                       return (
                         <div
                           key={acc.id}
                           onClick={() => {
-                            setSelectedAccountId(prev => prev === String(acc.id) ? "all" : String(acc.id));
-                            setCurrencyFilter("all");
-                            setMethodFilter("all");
+                            if (selectedAccountId === String(acc.id)) {
+                              setSelectedAccountId("all");
+                            } else {
+                              setSelectedAccountId(String(acc.id));
+                              setCashVaultFilter("all");
+                              setCurrencyFilter("all");
+                              setMethodFilter("all");
+                            }
                           }}
                           className={`cursor-pointer rounded-xl p-2.5 transition-all border ${
                             isSelected
@@ -2269,17 +2533,25 @@ export default function PortfolioFinancesTab({
                           </div>
 
                           {acc.bank_name && (
-                            <div className="text-[10px] text-slate-400 truncate mb-1">
+                            <div className={`text-[10px] truncate mb-1 ${isSelected ? "text-slate-300" : "text-slate-400"}`}>
                               {acc.bank_name} {acc.account_number ? `• ${acc.account_number}` : ""}
                             </div>
                           )}
 
                           <div className="flex items-center justify-between mt-1 pt-1 border-t border-slate-200/50 gap-1">
-                            <span className={`text-xs font-semibold ${
-                              isSelected ? "text-emerald-300" : "text-slate-800"
-                            }`}>
-                              {sym}{accSummary.closingBalance.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </span>
+                            <div className="flex flex-col">
+                              <span className={`text-xs font-semibold ${
+                                isSelected
+                                  ? (isAccNegative ? "text-rose-300" : "text-emerald-300")
+                                  : (isAccNegative ? "text-rose-600" : "text-emerald-700")
+                              }`}>
+                                {isAccNegative ? "-" : ""}{sym}{Math.abs(accSummary.closingBalance).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
+                              <div className="flex items-center gap-1.5 text-[10px]">
+                                <span className={isSelected ? "text-emerald-300" : "text-emerald-600"}>+{sym}{accSummary.periodIncome.toLocaleString("tr-TR", { maximumFractionDigits: 0 })}</span>
+                                <span className={isSelected ? "text-rose-300" : "text-rose-500"}>-{sym}{accSummary.periodExpense.toLocaleString("tr-TR", { maximumFractionDigits: 0 })}</span>
+                              </div>
+                            </div>
                             <div className="flex items-center gap-1.5">
                               <span className={`text-[10px] ${isSelected ? "text-slate-300" : "text-slate-400"}`}>
                                 {accSummary.txCount} {isTr ? "kayıt" : "records"}
@@ -2311,6 +2583,182 @@ export default function PortfolioFinancesTab({
                   </div>
                 </div>
               )}
+
+              {/* Pazaryeri Kasaları (E-Market Net Alacaklar) - STRICTLY shopLP ONLY (AGENTS.md Rule 0) */}
+              {isShopLPSector && (() => {
+                const mpVaults = accounts.filter(a => a.account_type === "marketplace");
+                const totalNetReceivable = mpVaults.reduce((sum, acc) => {
+                  const bal = statementAnalysis.summaryByAccount[String(acc.id)]?.closingBalance ?? Number(acc.initial_balance || 0);
+                  return sum + bal;
+                }, 0);
+
+                return (
+                  <div className="pt-2 border-t border-slate-200/70">
+                    <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-tight mb-1.5 flex flex-wrap items-center justify-between gap-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <Store className="w-3.5 h-3.5 text-amber-600" />
+                        <span>{isTr ? "Pazaryeri Kasaları (E-Market Net Alacaklar)" : "Marketplace Vaults (Net Receivables)"}</span>
+                        {mpVaults.length > 0 && (
+                          <span className={`px-1.5 py-0.2 rounded font-semibold ${
+                            totalNetReceivable < 0 ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700"
+                          }`}>
+                            {isTr ? "Toplam Net:" : "Total Net:"} {totalNetReceivable < 0 ? "-" : ""}₺{Math.abs(totalNetReceivable).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {mpVaults.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenTransferModal()}
+                            className="px-2 py-0.5 rounded bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                          >
+                            <ArrowLeftRight className="w-3 h-3" />
+                            <span>{isTr ? "Hakediş Virmanı" : "Payout Transfer"}</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          disabled={syncingMarketplaces}
+                          onClick={() => handleSyncMarketplaces(false)}
+                          className="px-2 py-0.5 rounded bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-[10px] font-semibold flex items-center gap-1 cursor-pointer transition-colors disabled:opacity-50"
+                          title={isTr ? "Siparişleri, iptalleri ve pazaryeri gider faturalarını yeniden eşitle" : "Sync orders, cancellations & marketplace expense invoices"}
+                        >
+                          <RefreshCw className={`w-3 h-3 ${syncingMarketplaces ? "animate-spin" : ""}`} />
+                          <span>{syncingMarketplaces ? (isTr ? "Eşitleniyor..." : "Syncing...") : (isTr ? "Pazaryerlerini Eşitle" : "Sync Marketplaces")}</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {mpVaults.length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-amber-200 bg-amber-50/40 px-3 py-2.5 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600">
+                        <span>
+                          {isTr
+                            ? "Hepsiburada, Trendyol, N11, Amazon veya Pazarama entegrasyonu / siparişi tespit edildiğinde ilgili pazaryeri kasaları otomatik oluşur."
+                            : "Marketplace vaults are created automatically when marketplace integrations or orders exist."}
+                        </span>
+                        <button
+                          type="button"
+                          disabled={syncingMarketplaces}
+                          onClick={() => handleSyncMarketplaces(false)}
+                          className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-semibold cursor-pointer"
+                        >
+                          {isTr ? "Şimdi Tara & Oluştur" : "Scan & Create"}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2">
+                        {mpVaults.map(acc => {
+                          const accSummary = statementAnalysis.summaryByAccount[String(acc.id)] || {
+                            closingBalance: Number(acc.initial_balance || 0),
+                            periodIncome: 0,
+                            periodExpense: 0,
+                            txCount: 0
+                          };
+                          const sym = getCurrencySymbol(acc.currency);
+                          const isSelected = selectedAccountId === String(acc.id);
+                          const isAccNegative = accSummary.closingBalance < 0;
+
+                          return (
+                            <div
+                              key={acc.id}
+                              onClick={() => {
+                                if (selectedAccountId === String(acc.id)) {
+                                  setSelectedAccountId("all");
+                                } else {
+                                  setSelectedAccountId(String(acc.id));
+                                  setCashVaultFilter("all");
+                                  setCurrencyFilter("all");
+                                  setMethodFilter("all");
+                                }
+                              }}
+                              className={`cursor-pointer rounded-xl p-2.5 transition-all border ${
+                                isSelected
+                                  ? "bg-slate-900 text-white border-slate-900 shadow-sm ring-1 ring-amber-400/40"
+                                  : "bg-amber-50/40 hover:bg-amber-50/90 border-amber-200/80"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between mb-1 gap-1">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <Store className={`w-3.5 h-3.5 shrink-0 ${isSelected ? "text-amber-300" : "text-amber-600"}`} />
+                                  <span className={`text-[11px] font-semibold truncate ${isSelected ? "text-white" : "text-slate-900"}`}>
+                                    {acc.account_name}
+                                  </span>
+                                </div>
+                                <span className={`text-[10px] font-medium px-1.5 py-0.2 rounded shrink-0 ${
+                                  isSelected ? "bg-white/10 text-white" : "bg-white text-slate-600 border border-amber-200"
+                                }`}>
+                                  {accSummary.txCount} {isTr ? "hareket" : "tx"}
+                                </span>
+                              </div>
+
+                              <div className="flex items-baseline justify-between gap-1">
+                                <span className={`text-sm font-semibold tracking-tight ${
+                                  isSelected
+                                    ? (isAccNegative ? "text-rose-300" : "text-emerald-300")
+                                    : (isAccNegative ? "text-rose-600" : "text-emerald-700")
+                                }`}>
+                                  {isAccNegative ? "-" : ""}{sym}{Math.abs(accSummary.closingBalance).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
+                                <span className={`text-[9.5px] uppercase font-medium ${isSelected ? "text-slate-300" : "text-slate-500"}`}>
+                                  {isTr ? "Net Alacak" : "Net Bal"}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-1.5 text-[10px] mt-0.5">
+                                <span className={isSelected ? "text-emerald-300" : "text-emerald-700"}>
+                                  +{sym}{accSummary.periodIncome.toLocaleString("tr-TR", { maximumFractionDigits: 0 })}
+                                </span>
+                                <span className={isSelected ? "text-rose-300" : "text-rose-600"}>
+                                  -{sym}{accSummary.periodExpense.toLocaleString("tr-TR", { maximumFractionDigits: 0 })}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-slate-200/50 gap-1">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenTransferModal(acc);
+                                  }}
+                                  className={`px-1.5 py-0.5 rounded text-[10px] font-semibold flex items-center gap-0.5 cursor-pointer transition-colors ${
+                                    isSelected
+                                      ? "bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200"
+                                      : "bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80"
+                                  }`}
+                                  title={isTr ? "Bu pazaryeri hakedişini banka hesabına veya kasaya aktar" : "Transfer payout to bank/cash"}
+                                >
+                                  <ArrowLeftRight className="w-2.5 h-2.5" />
+                                  <span>{isTr ? "Bankaya Aktar" : "Payout"}</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenAccountStatement({
+                                      accountId: acc.id,
+                                      label: acc.account_name
+                                    });
+                                  }}
+                                  className={`px-1.5 py-0.5 rounded text-[10px] font-semibold flex items-center gap-0.5 cursor-pointer transition-colors ${
+                                    isSelected
+                                      ? "bg-white/15 hover:bg-white/25 text-white"
+                                      : "bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/70"
+                                  }`}
+                                  title={isTr ? `${acc.account_name} Ekstresini Gör / İndir` : "Open Marketplace Vault Statement"}
+                                >
+                                  <FileText className="w-2.5 h-2.5" />
+                                  <span>{isTr ? "Ekstre" : "Stmt"}</span>
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           )}
 
@@ -2480,25 +2928,42 @@ export default function PortfolioFinancesTab({
                         ? (isTr ? "Havale/EFT" : "Bank")
                         : methodFilter === "credit_card"
                         ? (isTr ? "Kredi Kartı" : "Card")
+                        : methodFilter === "marketplace_vault"
+                        ? (isTr ? "Pazaryeri" : "Marketplace")
                         : (isTr ? "Çek/Senet" : "Check")}
                     </span>
                     <ChevronDown className="w-3 h-3 shrink-0 opacity-75" />
                   </button>
 
                   {openDropdown === "filter_method" && (
-                    <div className="absolute left-0 top-full mt-1 z-40 w-44 bg-white border border-slate-200 rounded-xl shadow-xl p-1">
+                    <div className="absolute left-0 top-full mt-1 z-40 w-48 bg-white border border-slate-200 rounded-xl shadow-xl p-1">
                       {[
                         { id: "all", label: isTr ? "Ödeme Tipi (Hepsi)" : "Method (All)" },
                         { id: "cash", label: isTr ? "💵 Nakit Kasa" : "Cash" },
                         { id: "bank_transfer", label: isTr ? "🏦 Banka Havale / EFT" : "Bank Transfer" },
                         { id: "credit_card", label: isTr ? "💳 Kredi Kartı" : "Credit Card" },
-                        { id: "check_promissory", label: isTr ? "📝 Çek / Senet" : "Check / Note" }
+                        { id: "check_promissory", label: isTr ? "📝 Çek / Senet" : "Check / Note" },
+                        ...(isShopLPSector ? [{ id: "marketplace_vault", label: isTr ? "🛒 Pazaryeri Kasası" : "Marketplace Vault" }] : [])
                       ].map(opt => (
                         <button
                           key={opt.id}
                           type="button"
                           onClick={() => {
                             setMethodFilter(opt.id);
+                            if (opt.id !== "cash") setCashVaultFilter("all");
+                            if (opt.id !== "all" && selectedAccountId !== "all") {
+                              const acc = accounts.find(a => String(a.id) === selectedAccountId);
+                              if (
+                                !acc ||
+                                (opt.id === "bank_transfer" && acc.account_type !== "bank") ||
+                                (opt.id === "credit_card" && acc.account_type !== "credit_card") ||
+                                (opt.id === "marketplace_vault" && acc.account_type !== "marketplace") ||
+                                opt.id === "cash" ||
+                                opt.id === "check_promissory"
+                              ) {
+                                setSelectedAccountId("all");
+                              }
+                            }
                             setOpenDropdown(null);
                           }}
                           className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] font-medium whitespace-nowrap truncate transition-colors cursor-pointer ${
@@ -2690,7 +3155,15 @@ export default function PortfolioFinancesTab({
                       <th className="py-2 px-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider text-center">{isTr ? "DÖVİZ" : "CUR"}</th>
                       <th className="py-2 px-2.5 text-[10px] font-semibold text-emerald-700 uppercase tracking-wider text-right">{isTr ? "GİRİŞ (GELİR +)" : "CREDIT (+)"}</th>
                       <th className="py-2 px-2.5 text-[10px] font-semibold text-rose-700 uppercase tracking-wider text-right">{isTr ? "ÇIKIŞ (GİDER -)" : "DEBIT (-)"}</th>
-                      <th className="py-2 px-2.5 text-[10px] font-semibold text-slate-700 uppercase tracking-wider text-right">{isTr ? "KASA BAKİYESİ" : "BALANCE"}</th>
+                      <th className="py-2 px-2.5 text-[10px] font-semibold text-slate-700 uppercase tracking-wider text-right">
+                        {selectedAccountId !== "all"
+                          ? (isTr ? "HESAP BAKİYESİ" : "ACCOUNT BALANCE")
+                          : (cashVaultFilter !== "all" || (methodFilter === "cash" && selectedAccountId === "all"))
+                          ? (isTr ? "KASA BAKİYESİ" : "CASH BALANCE")
+                          : (methodFilter !== "all" || typeFilter !== "all" || categoryFilter !== "all" || selectedPropertyFilter !== "all" || searchQuery)
+                          ? (isTr ? "DÖNEM BAKİYESİ" : "NET BALANCE")
+                          : (isTr ? "HESAP / KASA BAKİYESİ" : "BALANCE")}
+                      </th>
                       <th className="py-2 px-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider text-center w-20">{isTr ? "İŞLEM" : "ACTION"}</th>
                     </tr>
                   </thead>
@@ -2747,19 +3220,27 @@ export default function PortfolioFinancesTab({
                           <td className="py-2 px-2.5 align-top whitespace-nowrap">
                             <div className="space-y-0.5">
                               <span className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-medium whitespace-nowrap ${
-                                isIncome ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
+                                t.category === "transfer"
+                                  ? "bg-indigo-50 text-indigo-700"
+                                  : isIncome ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
                               }`}>
-                                <span className={`w-1 h-1 rounded-full shrink-0 ${isIncome ? "bg-emerald-500" : "bg-rose-500"}`}></span>
+                                <span className={`w-1 h-1 rounded-full shrink-0 ${
+                                  t.category === "transfer"
+                                    ? "bg-indigo-500"
+                                    : isIncome ? "bg-emerald-500" : "bg-rose-500"
+                                }`}></span>
                                 {getCategoryLabel(t.type, t.category)}
                               </span>
 
                               <div className="text-[10px] text-slate-500 flex items-center gap-1">
-                                {t.payment_method === "bank_transfer" ? (
+                                {normalizePaymentMethod(t.payment_method) === "bank_transfer" ? (
                                   <Landmark className="w-2.5 h-2.5 text-slate-400" />
-                                ) : t.payment_method === "credit_card" ? (
+                                ) : normalizePaymentMethod(t.payment_method) === "credit_card" ? (
                                   <CreditCard className="w-2.5 h-2.5 text-slate-400" />
-                                ) : t.payment_method === "check_promissory" ? (
+                                ) : normalizePaymentMethod(t.payment_method) === "check_promissory" ? (
                                   <FileCheck2 className="w-2.5 h-2.5 text-slate-400" />
+                                ) : normalizePaymentMethod(t.payment_method) === "marketplace_vault" ? (
+                                  <Store className="w-2.5 h-2.5 text-amber-600" />
                                 ) : (
                                   <Wallet className="w-2.5 h-2.5 text-slate-400" />
                                 )}
@@ -2862,7 +3343,14 @@ export default function PortfolioFinancesTab({
                   <tfoot className="bg-slate-900 text-white">
                     {Object.entries(filteredTotalsByCurrency).map(([cur, tot]) => {
                       const sym = getCurrencySymbol(cur);
-                      const closingBal = statementAnalysis.summaryByCurrency[cur]?.closingBalance ?? tot.net;
+                      const isAccountScope = selectedAccountId !== "all" && Boolean(statementAnalysis.summaryByAccount[selectedAccountId]);
+                      const isCashScope = cashVaultFilter !== "all" || (methodFilter === "cash" && selectedAccountId === "all");
+                      const selectedAccSummary = isAccountScope ? statementAnalysis.summaryByAccount[selectedAccountId] : null;
+                      const closingBal = selectedAccSummary && selectedAccSummary.currency === cur
+                        ? selectedAccSummary.closingBalance
+                        : isCashScope
+                        ? (statementAnalysis.summaryByCurrency[cur]?.closingBalance ?? tot.net)
+                        : tot.net;
                       return (
                         <tr key={`foot-${cur}`} className="border-t border-slate-800 text-[11px]">
                           <td colSpan={3} className="py-2 px-2.5 font-medium text-slate-300">
@@ -3484,6 +3972,9 @@ export default function PortfolioFinancesTab({
                       <option value="credit_card">{isTr ? "Kredi Kartı" : "Credit Card"}</option>
                       <option value="cash">{isTr ? "Nakit Kasa" : "Cash Vault"}</option>
                       <option value="check">{isTr ? "Çek / Senet Portföyü" : "Check / Note"}</option>
+                      {isShopLPSector && (
+                        <option value="marketplace">{isTr ? "Pazaryeri Kasası" : "Marketplace Vault"}</option>
+                      )}
                     </select>
                   </div>
 
@@ -3592,6 +4083,8 @@ export default function PortfolioFinancesTab({
                         <div className="flex items-center gap-2">
                           {acc.account_type === "credit_card" ? (
                             <CreditCard className="w-4 h-4 text-indigo-500 shrink-0" />
+                          ) : acc.account_type === "marketplace" ? (
+                            <Store className="w-4 h-4 text-amber-600 shrink-0" />
                           ) : (
                             <Landmark className="w-4 h-4 text-emerald-600 shrink-0" />
                           )}
@@ -3939,6 +4432,37 @@ export default function PortfolioFinancesTab({
                       {accounts.filter(a => a.account_type === "credit_card").map(acc => (
                         <option key={acc.id} value={acc.id}>
                           {acc.account_name} ({acc.bank_name || ""} {acc.account_number ? `****${acc.account_number}` : ""} - {acc.currency})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {isShopLPSector && formData.payment_method === "marketplace_vault" && (
+                  <div className="bg-amber-50/70 border border-amber-200 rounded-lg p-2 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-medium text-amber-900 uppercase block">
+                        {isTr ? "Pazaryeri Kasası Seçin" : "Select Marketplace Vault"}
+                      </label>
+                    </div>
+                    <select
+                      value={formData.account_id}
+                      onChange={(e) => {
+                        const id = e.target.value;
+                        const acc = accounts.find(a => String(a.id) === id);
+                        setFormData(p => ({
+                          ...p,
+                          account_id: id,
+                          account_name: acc ? acc.account_name : "",
+                          currency: acc ? acc.currency : p.currency
+                        }));
+                      }}
+                      className="w-full px-2.5 py-1.5 bg-white border border-amber-200 rounded-lg font-medium text-xs text-slate-800 cursor-pointer"
+                    >
+                      <option value="">{isTr ? "— Pazaryeri Kasası Seçin —" : "— Select Marketplace Vault —"}</option>
+                      {accounts.filter(a => a.account_type === "marketplace").map(acc => (
+                        <option key={acc.id} value={acc.id}>
+                          {acc.account_name} ({acc.currency})
                         </option>
                       ))}
                     </select>
@@ -4722,6 +5246,221 @@ export default function PortfolioFinancesTab({
                     className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold cursor-pointer disabled:opacity-50"
                   >
                     {settlingSubmitting ? (isTr ? "İşleniyor..." : "Processing...") : (settlingCheck.direction === "received" ? (isTr ? "Tahsil Et & Kasaya İşle" : "Collect") : (isTr ? "Öde & Kasadan Düş" : "Pay"))}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 11. Hakediş Virmanı / Hesaplar Arası Aktarım Modal (shopLP Marketplace Payout -> Bank/Cash) */}
+      <AnimatePresence>
+        {isShopLPSector && transferModalOpen && (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.97 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.97 }}
+              className="bg-white rounded-xl w-full max-w-lg shadow-2xl border border-slate-200 overflow-hidden text-xs max-h-[90dvh] flex flex-col"
+            >
+              <div className="px-4 py-3 bg-slate-900 text-white flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-7 h-7 rounded-lg bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-300 shrink-0">
+                    <ArrowLeftRight className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-semibold text-white truncate">
+                      {isTr ? "Hakediş Virmanı (Pazaryeri → Banka / Kasa)" : "Marketplace Payout Transfer"}
+                    </h3>
+                    <p className="text-[10px] text-slate-300 truncate">
+                      {isTr ? "Çift gelir yazmadan pazaryeri net alacağını bankaya aktarır." : "Moves net receivable to bank/cash without double-counting revenue."}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setTransferModalOpen(false)}
+                  className="p-1 text-slate-300 hover:text-white rounded cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleTransferSubmit} className="p-4 space-y-3 overflow-y-auto">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-600 uppercase block mb-1">
+                      {isTr ? "Kaynak Hesap (Çıkış -)" : "Source Account (-)"}
+                    </label>
+                    <select
+                      required
+                      value={transferForm.from_key}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const accId = val.startsWith("acc:") ? val.slice(4) : "";
+                        const acc = accId ? accounts.find(a => String(a.id) === accId) : null;
+                        const bal = accId ? (statementAnalysis.summaryByAccount[accId]?.closingBalance ?? 0) : 0;
+                        setTransferForm(p => ({
+                          ...p,
+                          from_key: val,
+                          amount: bal > 0 ? String(Number(bal.toFixed(2))) : p.amount,
+                          title: acc && acc.account_type === "marketplace" ? `${acc.account_name} Hakediş Aktarımı` : p.title
+                        }));
+                      }}
+                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800"
+                    >
+                      <option value="">{isTr ? "— Kaynak Seçin —" : "— Select Source —"}</option>
+                      {accounts.filter(a => a.account_type === "marketplace").length > 0 && (
+                        <optgroup label={isTr ? "Pazaryeri Kasaları" : "Marketplace Vaults"}>
+                          {accounts.filter(a => a.account_type === "marketplace").map(acc => {
+                            const bal = statementAnalysis.summaryByAccount[String(acc.id)]?.closingBalance ?? 0;
+                            return (
+                              <option key={acc.id} value={`acc:${acc.id}`}>
+                                {acc.account_name} ({formatMoney(bal, acc.currency)})
+                              </option>
+                            );
+                          })}
+                        </optgroup>
+                      )}
+                      {accounts.filter(a => a.account_type === "bank").length > 0 && (
+                        <optgroup label={isTr ? "Banka Hesapları" : "Bank Accounts"}>
+                          {accounts.filter(a => a.account_type === "bank").map(acc => (
+                            <option key={acc.id} value={`acc:${acc.id}`}>
+                              {acc.account_name} ({acc.currency})
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                      <optgroup label={isTr ? "Nakit Kasalar" : "Cash Vaults"}>
+                        {SUPPORTED_CURRENCIES.map(cur => (
+                          <option key={cur} value={`cash:${cur}`}>{cur} {isTr ? "Nakit Kasa" : "Cash"}</option>
+                        ))}
+                      </optgroup>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-600 uppercase block mb-1">
+                      {isTr ? "Hedef Hesap (Giriş +)" : "Destination Account (+)"}
+                    </label>
+                    <select
+                      required
+                      value={transferForm.to_key}
+                      onChange={(e) => setTransferForm(p => ({ ...p, to_key: e.target.value }))}
+                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800"
+                    >
+                      <option value="">{isTr ? "— Hedef Seçin —" : "— Select Destination —"}</option>
+                      {accounts.filter(a => a.account_type === "bank").length > 0 && (
+                        <optgroup label={isTr ? "Banka Hesapları" : "Bank Accounts"}>
+                          {accounts.filter(a => a.account_type === "bank").map(acc => (
+                            <option key={acc.id} value={`acc:${acc.id}`}>
+                              {acc.account_name} {acc.bank_name ? `(${acc.bank_name})` : ""} — {acc.currency}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                      <optgroup label={isTr ? "Nakit Kasalar" : "Cash Vaults"}>
+                        {SUPPORTED_CURRENCIES.map(cur => (
+                          <option key={cur} value={`cash:${cur}`}>{cur} {isTr ? "Nakit Kasa" : "Cash"}</option>
+                        ))}
+                      </optgroup>
+                      {accounts.filter(a => a.account_type === "marketplace").length > 0 && (
+                        <optgroup label={isTr ? "Pazaryeri Kasaları" : "Marketplace Vaults"}>
+                          {accounts.filter(a => a.account_type === "marketplace").map(acc => (
+                            <option key={acc.id} value={`acc:${acc.id}`}>
+                              {acc.account_name} ({acc.currency})
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                  <div className="sm:col-span-5">
+                    <label className="text-[10px] font-semibold text-slate-600 uppercase block mb-1">
+                      {isTr ? "Aktarılacak Tutar *" : "Amount *"}
+                    </label>
+                    <input
+                      type="number"
+                      step="any"
+                      min="0.01"
+                      required
+                      placeholder="0.00"
+                      value={transferForm.amount}
+                      onChange={(e) => setTransferForm(p => ({ ...p, amount: e.target.value }))}
+                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-semibold text-xs text-slate-900"
+                    />
+                  </div>
+                  <div className="sm:col-span-4">
+                    <label className="text-[10px] font-semibold text-slate-600 uppercase block mb-1">
+                      {isTr ? "Aktarım Tarihi *" : "Date *"}
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={transferForm.date}
+                      onChange={(e) => setTransferForm(p => ({ ...p, date: e.target.value }))}
+                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800"
+                    />
+                  </div>
+                  <div className="sm:col-span-3">
+                    <label className="text-[10px] font-semibold text-slate-600 uppercase block mb-1">
+                      {isTr ? "Dekont No" : "Ref No"}
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="HKD-01"
+                      value={transferForm.reference_no}
+                      onChange={(e) => setTransferForm(p => ({ ...p, reference_no: e.target.value }))}
+                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-600 uppercase block mb-1">
+                    {isTr ? "İşlem Başlığı (Opsiyonel)" : "Title (Optional)"}
+                  </label>
+                  <input
+                    type="text"
+                    placeholder={isTr ? "Örn: N11 Haftalık Hakediş Ödemesi" : "e.g. Weekly Marketplace Payout"}
+                    value={transferForm.title}
+                    onChange={(e) => setTransferForm(p => ({ ...p, title: e.target.value }))}
+                    className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-600 uppercase block mb-1">
+                    {isTr ? "Açıklama / Not" : "Notes"}
+                  </label>
+                  <input
+                    type="text"
+                    placeholder={isTr ? "Banka dekont açıklaması veya mutabakat notu..." : "Reconciliation notes..."}
+                    value={transferForm.description}
+                    onChange={(e) => setTransferForm(p => ({ ...p, description: e.target.value }))}
+                    className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800"
+                  />
+                </div>
+
+                <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setTransferModalOpen(false)}
+                    className="px-3 py-1.5 rounded-lg hover:bg-slate-100 text-slate-600 font-medium cursor-pointer"
+                  >
+                    {isTr ? "Vazgeç" : "Cancel"}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={transferSubmitting}
+                    className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    <ArrowLeftRight className="w-3.5 h-3.5" />
+                    <span>{transferSubmitting ? (isTr ? "Aktarılıyor..." : "Transferring...") : (isTr ? "Virmanı Kaydet" : "Confirm Transfer")}</span>
                   </button>
                 </div>
               </form>
