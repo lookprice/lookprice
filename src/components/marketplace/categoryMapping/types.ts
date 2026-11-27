@@ -10,6 +10,11 @@ export interface LocalCategoryItem {
 
 export const PRODUCT_FIELD_OPTIONS = [
   { value: '$product.brand', label: 'Ürün Markası (Brand / Marka)' },
+  { value: '$product.color', label: 'Ürün Rengi (Color / Renk)' },
+  { value: '$product.warranty_months', label: 'Garanti Süresi (Ay - Örn: 24)' },
+  { value: '$product.warranty_type', label: 'Garanti Tipi (Distribütör / İthalatçı)' },
+  { value: '$product.origin_country', label: 'Menşei Ülke (Origin - Örn: TR, CN)' },
+  { value: '$product.material', label: 'Materyal / Malzeme (Material)' },
   { value: '$product.name', label: 'Ürün Adı (Product Name)' },
   { value: '$product.barcode', label: 'Barkod / SKU (Barcode)' },
   { value: '$product.description', label: 'Ürün Açıklaması (Description)' },
@@ -20,3 +25,4 @@ export const PRODUCT_FIELD_OPTIONS = [
   { value: '$product.tax_rate', label: 'KDV Oranı (%)' },
   { value: '$product.price', label: 'Satış Fiyatı (Price)' }
 ];
+

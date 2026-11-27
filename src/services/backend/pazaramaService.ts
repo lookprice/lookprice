@@ -487,6 +487,8 @@ export class PazaramaService {
 
   /**
    * Searches Pazarama brands (`GET /brand/getBrands?Page=1&Size=100&name=...`)
+   * Supports both flat `data: [...]` and paginated `data: { items: [...] }` response structures,
+   * and passes both `name` and `Name` when filtering.
    */
   public async getBrands(options?: { name?: string; page?: number; size?: number }): Promise<PazaramaBrand[]> {
     const params: Record<string, any> = {
@@ -508,47 +510,192 @@ export class PazaramaService {
       throw new Error(this.extractApiError(res, "Pazarama markaları çekilemedi."));
     }
 
-    const raw = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
-    return raw
+    const rawData = res?.data ?? res;
+    const rawList: any[] = Array.isArray(rawData)
+      ? rawData
+      : (Array.isArray(rawData?.items)
+        ? rawData.items
+        : (Array.isArray(rawData?.brands)
+          ? rawData.brands
+          : (Array.isArray(rawData?.data) ? rawData.data : [])));
+
+    return rawList
       .map((b: any) => ({
         id: String(b?.id ?? b?.brandId ?? "").trim(),
-        name: String(b?.name ?? b?.brandName ?? "").trim(),
+        name: String(b?.name ?? b?.brandName ?? b?.displayName ?? "").trim(),
       }))
       .filter((b: PazaramaBrand) => b.id && b.name);
   }
 
   /**
    * Resolves a human-readable brand name into a real Pazarama Brand GUID.
-   * Checks store `brandMappings` first, then queries live `brand/getBrands?name=...` with caching.
+   * Why multi-case fallback is required: Pazarama's `brand/getBrands?name=` endpoint
+   * performs a CASE-SENSITIVE substring query in SQL (e.g. "Digitus" is stored as Title Case,
+   * so querying `name=DIGITUS` returns `[]`!).
+   * We therefore try:
+   *  1. Store `brandMappings`
+   *  2. In-memory positive cache
+   *  3. Exact input casing, Turkish Title Case ("Digitus"), Standard Title Case, lowercase, and UPPERCASE
+   *  4. First word / cleaned alphanumeric token (e.g. "Digitus Professional" -> "Digitus")
+   *  5. Generic fallback brands ("Diğer", "Markasız") if the brand is a custom/unregistered label
    */
   public async resolveBrandId(brandName?: string | null, brandMappings?: Record<string, any>): Promise<string | null> {
     const clean = String(brandName || "").trim();
-    if (!clean) return null;
     if (isPazaramaUuid(clean)) return clean;
 
-    if (brandMappings && typeof brandMappings === "object") {
-      const direct = brandMappings[clean] || brandMappings[clean.toLowerCase()];
-      if (isPazaramaUuid(direct)) return String(direct).trim();
-      if (direct && typeof direct === "object" && isPazaramaUuid(direct.id)) {
-        return String(direct.id).trim();
+    const normalizeBrandKey = (s: string) =>
+      String(s || "")
+        .toLocaleLowerCase("tr")
+        .replace(/ı/g, "i")
+        .replace(/ğ/g, "g")
+        .replace(/ü/g, "u")
+        .replace(/ş/g, "s")
+        .replace(/ö/g, "o")
+        .replace(/ç/g, "c")
+        .replace(/[^a-z0-9]/g, "");
+
+    if (clean && brandMappings && typeof brandMappings === "object") {
+      const targetNorm = normalizeBrandKey(clean);
+      for (const [k, v] of Object.entries(brandMappings)) {
+        if (k === clean || k.toLowerCase() === clean.toLowerCase() || normalizeBrandKey(k) === targetNorm) {
+          if (isPazaramaUuid(v)) return String(v).trim();
+          if (v && typeof v === "object" && isPazaramaUuid((v as any).id)) {
+            return String((v as any).id).trim();
+          }
+        }
       }
     }
 
-    const cacheKey = clean.toLowerCase();
+    const cacheKey = clean ? normalizeBrandKey(clean) : "__default_fallback__";
     const cached = brandNameCache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < 7_200_000) {
-      return cached.brand?.id || null;
+    // Only return cached hits when a valid brand was actually resolved (never cache transient/null misses!)
+    if (cached && cached.brand?.id && Date.now() - cached.timestamp < 7_200_000) {
+      return cached.brand.id;
     }
 
-    try {
-      const candidates = await this.getBrands({ name: clean, page: 1, size: 25 });
-      const exact = candidates.find((b) => b.name.toLocaleLowerCase("tr") === clean.toLocaleLowerCase("tr"));
-      const winner = exact || candidates[0] || null;
-      brandNameCache.set(cacheKey, { brand: winner, timestamp: Date.now() });
-      return winner?.id || null;
-    } catch {
-      return null;
+    const toTitleCaseTr = (str: string) =>
+      str
+        .split(/(\s+|-|\/)/)
+        .map((part) => {
+          if (!part || /^(\s+|-|\/)$/.test(part)) return part;
+          const first = part.charAt(0).toLocaleUpperCase("tr");
+          const rest = part.slice(1).toLocaleLowerCase("tr");
+          return first + rest;
+        })
+        .join("");
+
+    const toTitleCaseEn = (str: string) =>
+      str
+        .split(/(\s+|-|\/)/)
+        .map((part) => {
+          if (!part || /^(\s+|-|\/)$/.test(part)) return part;
+          const first = part.charAt(0).toUpperCase();
+          const rest = part.slice(1).toLowerCase();
+          return first + rest;
+        })
+        .join("");
+
+    const buildQueryVariants = (raw: string): string[] => {
+      const variants: string[] = [];
+      const add = (v: string) => {
+        const t = v.trim();
+        if (t && !variants.includes(t)) variants.push(t);
+      };
+
+      if (raw) {
+        // Put Title Case first because >95% of Pazarama catalog brands are stored in Title Case (e.g., "Digitus", "Samsung", "Apple", "Tp-Link")
+        add(toTitleCaseTr(raw));
+        add(toTitleCaseEn(raw));
+        add(raw);
+        add(raw.toLocaleLowerCase("tr"));
+        add(raw.toLowerCase());
+        add(raw.toLocaleUpperCase("tr"));
+        add(raw.toUpperCase());
+
+        // If multi-word brand (e.g., "DIGITUS ASSMANN" or "HP INC."), also try the first word in Title Case & original
+        const firstWord = raw.split(/[\s\-/,()]+/).filter(Boolean)[0];
+        if (firstWord && firstWord.length >= 2 && firstWord.toLowerCase() !== raw.toLowerCase()) {
+          add(toTitleCaseTr(firstWord));
+          add(toTitleCaseEn(firstWord));
+          add(firstWord);
+          add(firstWord.toUpperCase());
+        }
+
+        // Also try 3-char prefix in Title Case so substring search on Pazarama returns all brands starting with those letters
+        if (raw.length >= 4) {
+          const prefix3 = raw.slice(0, 3);
+          add(toTitleCaseTr(prefix3));
+          add(toTitleCaseEn(prefix3));
+        }
+      }
+      return variants;
+    };
+
+    const pickBestBrandMatch = (target: string, candidates: PazaramaBrand[]): PazaramaBrand | null => {
+      if (!candidates.length) return null;
+      const targetTr = target.toLocaleLowerCase("tr").trim();
+      const targetNorm = normalizeBrandKey(target);
+
+      // 1. Exact case-insensitive match
+      const exact = candidates.find((b) => b.name.toLocaleLowerCase("tr").trim() === targetTr);
+      if (exact) return exact;
+
+      // 2. Normalized alphanumeric match (e.g. "TP-LINK" === "Tp Link" === "TPLink")
+      if (targetNorm) {
+        const normExact = candidates.find((b) => normalizeBrandKey(b.name) === targetNorm);
+        if (normExact) return normExact;
+
+        // 3. Starts-with or contains normalized match
+        const normPrefix = candidates.find(
+          (b) => normalizeBrandKey(b.name).startsWith(targetNorm) || targetNorm.startsWith(normalizeBrandKey(b.name))
+        );
+        if (normPrefix) return normPrefix;
+      }
+
+      return candidates[0] || null;
+    };
+
+    if (clean) {
+      const variants = buildQueryVariants(clean);
+      for (const queryVariant of variants) {
+        try {
+          const candidates = await this.getBrands({ name: queryVariant, page: 1, size: 100 });
+          if (candidates.length > 0) {
+            const matched = pickBestBrandMatch(clean, candidates);
+            if (matched) {
+              // If we used a short 3-letter prefix query, ensure the matched brand actually relates to `clean`
+              const matchedNorm = normalizeBrandKey(matched.name);
+              const cleanNorm = normalizeBrandKey(clean);
+              const isShortPrefixQuery = queryVariant.length <= 3 && clean.length > 3;
+              if (!isShortPrefixQuery || matchedNorm === cleanNorm || matchedNorm.startsWith(cleanNorm) || cleanNorm.startsWith(matchedNorm)) {
+                brandNameCache.set(cacheKey, { brand: matched, timestamp: Date.now() });
+                return matched.id;
+              }
+            }
+          }
+        } catch {
+          // Continue to next variant
+        }
+      }
     }
+
+    // Fallback to Pazarama's official generic brand ("Diğer" / "Markasız") if the product's brand is not in Pazarama's catalog
+    const fallbackNames = ["Diğer", "Diger", "Markasız", "Markasiz", "Genel"];
+    for (const fb of fallbackNames) {
+      try {
+        const fbCandidates = await this.getBrands({ name: fb, page: 1, size: 25 });
+        if (fbCandidates.length > 0) {
+          const winner = pickBestBrandMatch(fb, fbCandidates) || fbCandidates[0];
+          if (winner?.id) {
+            return winner.id;
+          }
+        }
+      } catch {
+        // Ignore and try next fallback
+      }
+    }
+
+    return null;
   }
 
   /**

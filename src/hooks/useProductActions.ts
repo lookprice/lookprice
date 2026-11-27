@@ -182,6 +182,11 @@ export const useProductActions = (
       fiber: rawData.fiber !== undefined && rawData.fiber !== '' ? Number(String(rawData.fiber).replace(',', '.')) : (sector_data.fiber || null),
       allergen_warning: String(rawData.allergen_warning || sector_data.allergen_warning || '').trim(),
       product_type: rawData.product_type || 'product',
+      color: rawData.color !== undefined ? String(rawData.color).trim() : (editingProduct?.color || ''),
+      warranty_months: rawData.warranty_months !== undefined && String(rawData.warranty_months).trim() !== '' ? String(rawData.warranty_months).trim() : String(editingProduct?.warranty_months || '24'),
+      warranty_type: rawData.warranty_type !== undefined && String(rawData.warranty_type).trim() !== '' ? String(rawData.warranty_type).trim() : (editingProduct?.warranty_type || 'Resmi Distribütör Garantili'),
+      origin_country: rawData.origin_country !== undefined && String(rawData.origin_country).trim() !== '' ? String(rawData.origin_country).trim() : (editingProduct?.origin_country || 'TR'),
+      material: rawData.material !== undefined ? String(rawData.material).trim() : (editingProduct?.material || ''),
       sync_group: rawData.sync_group === 'on',
       marketplace_data: marketplaceData,
       hepsiburada_url: (rawData.hepsiburada_url && rawData.hepsiburada_url !== 'null') ? rawData.hepsiburada_url : (marketplaceData?.hepsiburada?.productUrl || editingProduct?.hepsiburada_url || null),
@@ -196,6 +201,16 @@ export const useProductActions = (
         ? (String(rawData.is_amazon_active) === 'true' || rawData.is_amazon_active === 'on') 
         : Boolean(editingProduct?.is_amazon_active)
     };
+
+    if (!marketplaceData.attributes || typeof marketplaceData.attributes !== 'object') {
+      marketplaceData.attributes = {};
+    }
+    if (data.brand) marketplaceData.attributes.Marka = String(data.brand).trim();
+    if (data.color) marketplaceData.attributes.Renk = data.color;
+    if (data.warranty_months) marketplaceData.attributes.GarantiSuresi = String(data.warranty_months);
+    if (data.warranty_type) marketplaceData.attributes.GarantiTipi = data.warranty_type;
+    if (data.origin_country) marketplaceData.attributes.Mensei = data.origin_country;
+    if (data.material) marketplaceData.attributes.Materyal = data.material;
 
     // Sector Isolation Rule: Book metadata MUST ONLY be synchronized if store is a BOOKSTORE
     const isBookstore = resolveDomainId(branding) === "BOOKSTORE";

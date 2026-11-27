@@ -1,6 +1,7 @@
 import React from 'react';
-import { X, SlidersHorizontal, Sparkles, RefreshCw } from 'lucide-react';
+import { X, SlidersHorizontal, Sparkles, RefreshCw, Zap } from 'lucide-react';
 import { MarketplaceAttribute, resolveScopedCategoryAttributes } from '@/data/marketplaceCategoriesData';
+import { getDefaultProductFieldBindingForAttribute } from '@/services/crossMarketplaceAttributeMapper';
 import { MarketplaceType, PRODUCT_FIELD_OPTIONS } from './types';
 
 interface CategoryAttributeModalProps {
@@ -67,8 +68,8 @@ export const CategoryAttributeModal: React.FC<CategoryAttributeModalProps> = ({
             <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-indigo-600 shrink-0" />
             <span className="text-[11px] sm:text-xs truncate">
               {lang === 'tr' 
-                ? 'Zorunlu alanları sabit değer veya ürün alanıyla bağlayın. Ayarlar yalnızca bu kategoriye özel kaydedilir.' 
-                : 'Map required attributes to static values or product fields. Settings apply only to this category.'}
+                ? 'Ortak zorunlu alanlar (Marka, Renk, Garanti, Menşei, Materyal) otomatik ürün kartıyla bağlıdır.' 
+                : 'Common required attributes (Brand, Color, Warranty, Origin, Material) are linked to product card by default.'}
             </span>
           </div>
           <button
@@ -102,11 +103,17 @@ export const CategoryAttributeModal: React.FC<CategoryAttributeModalProps> = ({
               );
               return currentCategoryAttributes.map((attr) => {
               const rawSetting = catCfg[attr.id] !== undefined ? catCfg[attr.id] : (attr.name ? catCfg[attr.name] : undefined);
+              const defaultFieldBinding = rawSetting === undefined
+                ? getDefaultProductFieldBindingForAttribute(attr.id, attr.name)
+                : null;
               const existingSetting = typeof rawSetting === 'object' && rawSetting !== null
                 ? rawSetting
-                : (rawSetting !== undefined ? { mode: String(rawSetting).startsWith('$product.') ? 'field' : 'fixed', value: String(rawSetting) } : {});
+                : (rawSetting !== undefined
+                  ? { mode: String(rawSetting).startsWith('$product.') ? 'field' : 'fixed', value: String(rawSetting) }
+                  : (defaultFieldBinding || {}));
               const currentMode = existingSetting.mode || (String(existingSetting.value || '').startsWith('$product.') ? 'field' : 'fixed');
               const savedVal = String(existingSetting.value || '');
+              const isAutoProductLinked = Boolean(defaultFieldBinding) || (currentMode === 'field' && savedVal.startsWith('$product.'));
 
               const optionValues: string[] = Array.isArray(attr.values) ? [...attr.values] : [];
               let matchedSelectVal = savedVal;
@@ -124,11 +131,17 @@ export const CategoryAttributeModal: React.FC<CategoryAttributeModalProps> = ({
               return (
                 <div key={attr.id} className="p-3 sm:p-3.5 bg-slate-50/80 rounded-xl border border-slate-200/80 space-y-2">
                   <div className="flex items-center justify-between flex-wrap gap-1">
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                       <span className="text-xs font-bold text-slate-900">{attr.name}</span>
                       {attr.mandatory && (
                         <span className="text-[10px] px-1.5 py-0.2 bg-rose-100 text-rose-700 font-bold rounded">
                           {lang === 'tr' ? 'Zorunlu' : 'Required'}
+                        </span>
+                      )}
+                      {isAutoProductLinked && (
+                        <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.2 bg-emerald-100 text-emerald-800 font-bold rounded border border-emerald-200">
+                          <Zap className="h-2.5 w-2.5 text-emerald-600" />
+                          <span>{lang === 'tr' ? 'Ürün Kartından Otomatik' : 'Auto from Product'}</span>
                         </span>
                       )}
                     </div>
@@ -146,7 +159,10 @@ export const CategoryAttributeModal: React.FC<CategoryAttributeModalProps> = ({
                       </button>
                       <button
                         type="button"
-                        onClick={() => onUpdateAttributeValue(attr.id, 'field', currentMode === 'field' && savedVal ? savedVal : '$product.brand')}
+                        onClick={() => {
+                          const suggestedBinding = getDefaultProductFieldBindingForAttribute(attr.id, attr.name)?.value || '$product.brand';
+                          onUpdateAttributeValue(attr.id, 'field', currentMode === 'field' && savedVal ? savedVal : suggestedBinding);
+                        }}
                         className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
                           currentMode === 'field' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
                         }`}

@@ -49,6 +49,11 @@ export const ImportModal = ({
     sub_category: { label: isTr ? "Alt Kategori" : "Sub Category" },
     brand: { label: isTr ? "Marka / Yayınevi" : "Brand / Publisher" },
     author: { label: isTr ? "Yazar / Model" : "Author / Model" },
+    color: { label: isTr ? "Renk (Pazaryeri Ortak)" : "Color" },
+    warranty_months: { label: isTr ? "Garanti Süresi (Ay - Örn: 24)" : "Warranty Duration (Months)" },
+    warranty_type: { label: isTr ? "Garanti Tipi (Distribütör / İthalatçı)" : "Warranty Type" },
+    origin_country: { label: isTr ? "Menşei Ülke (Örn: TR, CN)" : "Origin Country (e.g. TR, CN)" },
+    material: { label: isTr ? "Materyal / Malzeme" : "Material" },
     unit: { label: isTr ? "Birim (Adet, Kg vb.)" : "Unit" },
     description: { label: isTr ? "Ürün Açıklaması" : "Description" },
     image_url: { label: isTr ? "1. Ana Ürün Resmi (Link)" : "1. Main Image URL", isImage: true },
@@ -75,6 +80,11 @@ export const ImportModal = ({
         "Kategori": "Elektronik",
         "Alt Kategori": "Ses Sistemleri",
         "Marka": "LookTech",
+        "Renk": "Siyah",
+        "Garanti Süresi (Ay)": 24,
+        "Garanti Tipi": "Resmi Distribütör Garantili",
+        "Menşei": "CN",
+        "Materyal": "Plastik",
         "Satış Fiyatı": 1499.90,
         "Para Birimi": "TRY",
         "Stok Miktarı": 25,
@@ -100,6 +110,11 @@ export const ImportModal = ({
         "Kategori": "Giyim",
         "Alt Kategori": "Tişört",
         "Marka": "LookStyle",
+        "Renk": "Siyah",
+        "Garanti Süresi (Ay)": 0,
+        "Garanti Tipi": "Garantisiz",
+        "Menşei": "TR",
+        "Materyal": "Pamuk",
         "Satış Fiyatı": 599.90,
         "Para Birimi": "TRY",
         "Stok Miktarı": 30,
@@ -125,6 +140,11 @@ export const ImportModal = ({
         "Kategori": "Giyim",
         "Alt Kategori": "Tişört",
         "Marka": "LookStyle",
+        "Renk": "Siyah",
+        "Garanti Süresi (Ay)": 0,
+        "Garanti Tipi": "Garantisiz",
+        "Menşei": "TR",
+        "Materyal": "Pamuk",
         "Satış Fiyatı": 599.90,
         "Para Birimi": "TRY",
         "Stok Miktarı": 30,
@@ -150,6 +170,11 @@ export const ImportModal = ({
         "Kategori": "Giyim",
         "Alt Kategori": "Tişört",
         "Marka": "LookStyle",
+        "Renk": "Beyaz",
+        "Garanti Süresi (Ay)": 0,
+        "Garanti Tipi": "Garantisiz",
+        "Menşei": "TR",
+        "Materyal": "Pamuk",
         "Satış Fiyatı": 599.90,
         "Para Birimi": "TRY",
         "Stok Miktarı": 30,
@@ -175,7 +200,7 @@ export const ImportModal = ({
     XLSX.writeFile(wb, isTr ? "Ornek_Toplu_Urun_Sablonu.xlsx" : "Sample_Product_Import_Template.xlsx");
   };
 
-  const standardKeys = ["barcode", "sku", "name", "price", "currency", "stock_quantity", "category", "sub_category", "brand", "author", "unit", "description"];
+  const standardKeys = ["barcode", "sku", "name", "price", "currency", "stock_quantity", "category", "sub_category", "brand", "color", "warranty_months", "warranty_type", "origin_country", "material", "author", "unit", "description"];
   const imageKeys = ["image_url", "image_url_2", "image_url_3", "image_url_4", "image_url_5"];
   const variantKeys = ["variant_name", "variant_barcode", "variant_sku", "variant_price", "variant_stock", "variant_color", "variant_size", "variant_image"];
 

@@ -499,6 +499,23 @@ export class N11Service {
         const categoryAttributes: any[] = attrRes.data?.categoryAttributes || [];
         const normBrand = resolvedBrand.toLocaleLowerCase("tr-TR").trim();
         const titleLower = (product.title || "").toLocaleLowerCase("tr-TR");
+        const namedCallerAttrs = Array.isArray(product.attributes)
+          ? product.attributes.filter((a: any) => a?.name && (a?.customValue || a?.value))
+          : [];
+
+        const findCallerValueForAttr = (attrNameLower: string): string => {
+          for (const ca of namedCallerAttrs) {
+            const cn = String(ca.name || "").toLocaleLowerCase("tr-TR").trim();
+            if (!cn) continue;
+            if (cn === attrNameLower) return String(ca.customValue || ca.value || "").trim();
+            if (attrNameLower.includes("renk") && (cn === "renk" || cn === "color")) return String(ca.customValue || ca.value || "").trim();
+            if (attrNameLower.includes("garanti süresi") && (cn.includes("garanti süresi") || cn === "garantisuresi")) return String(ca.customValue || ca.value || "").trim();
+            if (attrNameLower.includes("garanti tipi") && (cn.includes("garanti tipi") || cn === "garantitipi")) return String(ca.customValue || ca.value || "").trim();
+            if ((attrNameLower.includes("menşei") || attrNameLower.includes("mensei")) && (cn.includes("menşei") || cn === "mensei")) return String(ca.customValue || ca.value || "").trim();
+            if ((attrNameLower.includes("materyal") || attrNameLower.includes("malzeme")) && (cn.includes("materyal") || cn.includes("malzeme"))) return String(ca.customValue || ca.value || "").trim();
+          }
+          return "";
+        };
 
         for (const catAttr of categoryAttributes) {
           const attrId = Number(catAttr.attributeId);
@@ -531,6 +548,43 @@ export class N11Service {
             continue;
           }
 
+          // Match caller-supplied product attributes (Renk, Garanti Süresi, Garanti Tipi, Menşei, Materyal, etc.)
+          const callerVal = findCallerValueForAttr(attrNameLower);
+          if (callerVal) {
+            const callerLower = callerVal.toLocaleLowerCase("tr-TR").trim();
+            let matchedOpt = values.find((v) => String(v.value || "").toLocaleLowerCase("tr-TR").trim() === callerLower);
+            if (!matchedOpt && attrNameLower.includes("garanti süresi")) {
+              const months = parseInt(callerLower.replace(/[^0-9]/g, ""), 10);
+              if (!isNaN(months)) {
+                const years = Math.round(months / 12);
+                matchedOpt = values.find((v) => {
+                  const vl = String(v.value || "").toLocaleLowerCase("tr-TR");
+                  return vl.includes(`${months} ay`) || (years > 0 && vl.includes(`${years} yıl`));
+                });
+              }
+            }
+            if (!matchedOpt && (attrNameLower.includes("menşei") || attrNameLower.includes("mensei"))) {
+              if (callerLower === "tr" || callerLower.includes("türk")) {
+                matchedOpt = values.find((v) => /türkiye|^tr$/i.test(String(v.value || "").trim()));
+              } else if (callerLower === "cn" || callerLower.includes("çin")) {
+                matchedOpt = values.find((v) => /çin|^cn$/i.test(String(v.value || "").trim()));
+              }
+            }
+            if (!matchedOpt) {
+              matchedOpt = values.find((v) => {
+                const vl = String(v.value || "").toLocaleLowerCase("tr-TR").trim();
+                return vl.includes(callerLower) || callerLower.includes(vl);
+              });
+            }
+            if (matchedOpt) {
+              attrMap.set(attrId, { id: attrId, valueId: Number(matchedOpt.id), customValue: null });
+              continue;
+            } else if (isCustomValue) {
+              attrMap.set(attrId, { id: attrId, valueId: null, customValue: callerVal.substring(0, 40) });
+              continue;
+            }
+          }
+
           if (!isMandatory) continue;
 
           // Smart matching for mandatory attributes
@@ -555,7 +609,7 @@ export class N11Service {
               continue;
             }
             if (isCustomValue) {
-              attrMap.set(attrId, { id: attrId, valueId: null, customValue: "Siyah" });
+              attrMap.set(attrId, { id: attrId, valueId: null, customValue: callerVal || "Siyah" });
               continue;
             }
           }

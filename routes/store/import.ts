@@ -338,9 +338,61 @@ router.post("/", upload.single("file"), async (req: any, res) => {
             paramIdx++;
           }
 
+          const extractCol = (mappedKey: string | undefined, fallbackHeaders: string[]): string => {
+            if (mappedKey && item[mappedKey] !== undefined && String(item[mappedKey]).trim() !== "") {
+              return String(item[mappedKey]).trim();
+            }
+            for (const k of Object.keys(item)) {
+              const lowerK = k.trim().toLocaleLowerCase("tr-TR");
+              if (fallbackHeaders.includes(lowerK) && item[k] !== undefined && String(item[k]).trim() !== "") {
+                return String(item[k]).trim();
+              }
+            }
+            return "";
+          };
+
+          const importedColor = extractCol(mapping.color, ["renk", "ürün rengi", "urun rengi", "color", "colour"]);
+          const importedWarrantyMonthsRaw = extractCol(mapping.warranty_months, ["garanti süresi (ay)", "garanti süresi", "garanti suresi", "garanti (ay)", "garanti", "warranty", "warranty_months"]);
+          const importedWarrantyMonths = importedWarrantyMonthsRaw
+            ? (importedWarrantyMonthsRaw.replace(/[^0-9]/g, "") || importedWarrantyMonthsRaw)
+            : "";
+          const importedWarrantyType = extractCol(mapping.warranty_type, ["garanti tipi", "garanti türü", "garanti turu", "warranty type", "warranty_type"]);
+          const importedOriginCountry = extractCol(mapping.origin_country, ["menşei", "mensei", "menşei ülke", "mensei ulke", "üretim yeri", "uretim yeri", "origin", "country of origin"]);
+          const importedMaterial = extractCol(mapping.material, ["materyal", "malzeme", "kumaş", "kumas", "material"]);
+
           if (mapping.author && item[mapping.author] !== undefined && String(item[mapping.author]).trim() !== "") {
             updateQuery += `, author = $${paramIdx}`;
             updateParams.push(String(item[mapping.author]).trim());
+            paramIdx++;
+          }
+
+          if (importedColor) {
+            updateQuery += `, color = $${paramIdx}`;
+            updateParams.push(importedColor);
+            paramIdx++;
+          }
+
+          if (importedWarrantyMonths) {
+            updateQuery += `, warranty_months = $${paramIdx}`;
+            updateParams.push(importedWarrantyMonths);
+            paramIdx++;
+          }
+
+          if (importedWarrantyType) {
+            updateQuery += `, warranty_type = $${paramIdx}`;
+            updateParams.push(importedWarrantyType);
+            paramIdx++;
+          }
+
+          if (importedOriginCountry) {
+            updateQuery += `, origin_country = $${paramIdx}`;
+            updateParams.push(importedOriginCountry);
+            paramIdx++;
+          }
+
+          if (importedMaterial) {
+            updateQuery += `, material = $${paramIdx}`;
+            updateParams.push(importedMaterial);
             paramIdx++;
           }
 
@@ -390,14 +442,52 @@ router.post("/", upload.single("file"), async (req: any, res) => {
           await client.query(updateQuery, updateParams);
           successCount++;
         } else {
+          const extractCol = (mappedKey: string | undefined, fallbackHeaders: string[]): string => {
+            if (mappedKey && item[mappedKey] !== undefined && String(item[mappedKey]).trim() !== "") {
+              return String(item[mappedKey]).trim();
+            }
+            for (const k of Object.keys(item)) {
+              const lowerK = k.trim().toLocaleLowerCase("tr-TR");
+              if (fallbackHeaders.includes(lowerK) && item[k] !== undefined && String(item[k]).trim() !== "") {
+                return String(item[k]).trim();
+              }
+            }
+            return "";
+          };
+
+          const importedColor = extractCol(mapping.color, ["renk", "ürün rengi", "urun rengi", "color", "colour"]);
+          const importedWarrantyMonthsRaw = extractCol(mapping.warranty_months, ["garanti süresi (ay)", "garanti süresi", "garanti suresi", "garanti (ay)", "garanti", "warranty", "warranty_months"]);
+          const importedWarrantyMonths = importedWarrantyMonthsRaw
+            ? (importedWarrantyMonthsRaw.replace(/[^0-9]/g, "") || importedWarrantyMonthsRaw)
+            : "24";
+          const importedWarrantyType = extractCol(mapping.warranty_type, ["garanti tipi", "garanti türü", "garanti turu", "warranty type", "warranty_type"]) || "Resmi Distribütör Garantili";
+          const importedOriginCountry = extractCol(mapping.origin_country, ["menşei", "mensei", "menşei ülke", "mensei ulke", "üretim yeri", "uretim yeri", "origin", "country of origin"]) || "TR";
+          const importedMaterial = extractCol(mapping.material, ["materyal", "malzeme", "kumaş", "kumas", "material"]);
+          const importedBrand = item[mapping.brand] ? String(item[mapping.brand]).trim() : "";
+
+          const initialMpData = {
+            attributes: {
+              ...(importedBrand ? { Marka: importedBrand } : {}),
+              ...(importedColor ? { Renk: importedColor } : {}),
+              ...(importedWarrantyMonths ? { GarantiSuresi: importedWarrantyMonths } : {}),
+              ...(importedWarrantyType ? { GarantiTipi: importedWarrantyType } : {}),
+              ...(importedOriginCountry ? { Mensei: importedOriginCountry } : {}),
+              ...(importedMaterial ? { Materyal: importedMaterial } : {}),
+            }
+          };
+
           const storeRes = await client.query("SELECT default_tax_rate FROM stores WHERE id = $1", [storeId]);
           const storeDefaultTax = storeRes.rows[0]?.default_tax_rate ?? 20;
           const effectiveTaxRate = hasTaxRateUpdate ? taxRate! : storeDefaultTax;
           const price_2 = price / (1 + effectiveTaxRate / 100.0);
 
           await client.query(`
-            INSERT INTO products (store_id, barcode, sku, name, price, currency, description, stock_quantity, min_stock_level, unit, category, sub_category, brand, author, tax_rate, price_2, price_2_currency, image_url, images, has_variants, variants, updated_at) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19::jsonb, $20, $21::jsonb, CURRENT_TIMESTAMP)
+            INSERT INTO products (
+              store_id, barcode, sku, name, price, currency, description, stock_quantity, min_stock_level, unit, category, sub_category, brand, author,
+              tax_rate, price_2, price_2_currency, image_url, images, has_variants, variants,
+              color, warranty_months, warranty_type, origin_country, material, marketplace_data, updated_at
+            ) 
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19::jsonb, $20, $21::jsonb, $22, $23, $24, $25, $26, $27::jsonb, CURRENT_TIMESTAMP)
           `, [
             storeId,
             barcode,
@@ -411,7 +501,7 @@ router.post("/", upload.single("file"), async (req: any, res) => {
             unit,
             category,
             item[mapping.sub_category] || '',
-            item[mapping.brand] || '',
+            importedBrand,
             item[mapping.author] || '',
             hasTaxRateUpdate ? taxRate : null,
             price_2,
@@ -419,7 +509,13 @@ router.post("/", upload.single("file"), async (req: any, res) => {
             primaryImageUrl,
             JSON.stringify(extractedImages),
             hasVariants,
-            JSON.stringify(variantsList)
+            JSON.stringify(variantsList),
+            importedColor,
+            importedWarrantyMonths,
+            importedWarrantyType,
+            importedOriginCountry,
+            importedMaterial,
+            JSON.stringify(initialMpData)
           ]);
           successCount++;
         }

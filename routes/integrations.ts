@@ -1681,6 +1681,56 @@ router.post("/n11/publish", authenticate, async (req: any, res) => {
     let resolvedTitle = product.name;
     let isLive = false;
 
+    // Resolve N11 scoped category attributes + product card common attributes (Renk, Garanti, Menşei, Materyal)
+    const n11ScopedCatAttrs = resolveProductScopedCategoryAttrs(settings.categoryAttributes, product, mappedCatId || 1000212);
+    const n11RawAttrs: Record<string, any> = {
+      ...n11ScopedCatAttrs,
+      ...(mpData?.attributes || {}),
+      ...(mpData?.n11?.attributes || {})
+    };
+    const mergedN11Attributes: Array<{ name?: string; value?: string; id?: number; valueId?: number; customValue?: string }> = Array.isArray(attributes)
+      ? [...attributes]
+      : [];
+    for (const [k, rawV] of Object.entries(n11RawAttrs)) {
+      if (rawV === "") continue;
+      const val = resolveCategoryAttributeValue(rawV, product);
+      if (!val) continue;
+      const numId = parseInt(k, 10);
+      if (!isNaN(numId) && numId > 0) {
+        const cleanVal = val.includes(":") && /^\d+:\s/.test(val) ? val.split(":")[0].trim() : val;
+        const numVal = parseInt(cleanVal, 10);
+        mergedN11Attributes.push({
+          id: numId,
+          ...( !isNaN(numVal) && String(numVal) === cleanVal ? { valueId: numVal } : { customValue: val, value: val } )
+        });
+      } else {
+        mergedN11Attributes.push({ name: k, value: val, customValue: val });
+      }
+    }
+
+    const firstVarN11 = Array.isArray(product?.variants) && product.variants.length > 0 ? product.variants[0] : null;
+    const prodColorN11 = String(product.color || mpData?.attributes?.Renk || firstVarN11?.color_name || firstVarN11?.color || "").trim();
+    const prodWarrantyMonthsN11 = String(product.warranty_months || mpData?.attributes?.GarantiSuresi || "24").trim();
+    const prodWarrantyTypeN11 = String(product.warranty_type || mpData?.attributes?.GarantiTipi || "Resmi Distribütör Garantili").trim();
+    const prodOriginN11 = String(product.origin_country || mpData?.attributes?.Mensei || "TR").trim();
+    const prodMaterialN11 = String(product.material || mpData?.attributes?.Materyal || "").trim();
+
+    if (prodColorN11 && !mergedN11Attributes.some((a) => String(a.name || "").toLowerCase() === "renk")) {
+      mergedN11Attributes.push({ name: "Renk", value: prodColorN11, customValue: prodColorN11 });
+    }
+    if (prodWarrantyMonthsN11 && !mergedN11Attributes.some((a) => String(a.name || "").toLowerCase().includes("garanti süresi"))) {
+      mergedN11Attributes.push({ name: "Garanti Süresi", value: prodWarrantyMonthsN11, customValue: prodWarrantyMonthsN11 });
+    }
+    if (prodWarrantyTypeN11 && !mergedN11Attributes.some((a) => String(a.name || "").toLowerCase().includes("garanti tipi"))) {
+      mergedN11Attributes.push({ name: "Garanti Tipi", value: prodWarrantyTypeN11, customValue: prodWarrantyTypeN11 });
+    }
+    if (prodOriginN11 && !mergedN11Attributes.some((a) => String(a.name || "").toLowerCase().includes("menşei"))) {
+      mergedN11Attributes.push({ name: "Menşei", value: prodOriginN11, customValue: prodOriginN11 });
+    }
+    if (prodMaterialN11 && !mergedN11Attributes.some((a) => String(a.name || "").toLowerCase().includes("materyal"))) {
+      mergedN11Attributes.push({ name: "Materyal", value: prodMaterialN11, customValue: prodMaterialN11 });
+    }
+
     try {
       const saveRes = await N11Service.saveProduct(settings, {
         productSellerCode: sellerCode,
@@ -1695,11 +1745,11 @@ router.post("/n11/publish", authenticate, async (req: any, res) => {
         category: { id: Number(mappedCatId || 1000212) },
         price: finalN11Price,
         currencyType: "TL",
-        vatRate: Number(product.vat_rate ?? 20),
+        vatRate: Number(product.tax_rate ?? product.vat_rate ?? 20),
         images: productImages,
         shipmentTemplate: shipmentTemplate,
         preparingDay: settings.preparingDay ? Number(settings.preparingDay) : 1,
-        attributes: Array.isArray(attributes) ? attributes : undefined,
+        attributes: mergedN11Attributes,
         stockItems: [
           {
             sellerStockCode: sellerCode,
@@ -2463,11 +2513,25 @@ function resolveCategoryAttributeValue(rawVal: any, p: any): string {
   if (!valStr) return "";
   if (valStr.startsWith("$product.")) {
     const firstVar = Array.isArray(p?.variants) && p.variants.length > 0 ? p.variants[0] : null;
+    let mpAttrs: any = {};
+    if (p?.marketplace_data) {
+      try {
+        const mp = typeof p.marketplace_data === "string" ? JSON.parse(p.marketplace_data) : p.marketplace_data;
+        mpAttrs = mp?.attributes || mp?.hepsiburada?.attributes || {};
+      } catch {
+        mpAttrs = {};
+      }
+    }
     switch (valStr) {
-      case "$product.brand": return String(p?.brand || p?.brand_name || "").trim();
+      case "$product.brand": return String(p?.brand || p?.brand_name || mpAttrs?.Marka || "").trim();
+      case "$product.color": return String(p?.color || mpAttrs?.Renk || mpAttrs?.color || p?.sector_data?.color || firstVar?.color_name || firstVar?.color || "").trim();
+      case "$product.warranty_months": return String(p?.warranty_months || p?.warranty || mpAttrs?.GarantiSuresi || "24").trim();
+      case "$product.warranty_type": return String(p?.warranty_type || mpAttrs?.GarantiTipi || "Resmi Distribütör Garantili").trim();
+      case "$product.origin_country": return String(p?.origin_country || mpAttrs?.Mensei || "TR").trim();
+      case "$product.material": return String(p?.material || mpAttrs?.Materyal || mpAttrs?.material || "").trim();
       case "$product.name": return String(p?.name || "").trim();
       case "$product.barcode": return String(p?.barcode || "").trim();
-      case "$product.model": return String(p?.model || "").trim();
+      case "$product.model": return String(p?.model || p?.author || "").trim();
       case "$product.tax_rate":
       case "$product.kdv": return String(p?.tax_rate ?? p?.vat_rate ?? 20);
       case "$product.sku":
@@ -2476,7 +2540,7 @@ function resolveCategoryAttributeValue(rawVal: any, p: any): string {
       case "$product.category": return String(p?.category || "").trim();
       case "$product.sub_category": return String(p?.sub_category || "").trim();
       case "$product.price": return p?.price !== undefined && p?.price !== null ? String(p.price) : "";
-      case "$product.variant_color": return String(p?.color || p?.sector_data?.color || firstVar?.color || "").trim();
+      case "$product.variant_color": return String(p?.color || mpAttrs?.Renk || p?.sector_data?.color || firstVar?.color_name || firstVar?.color || "").trim();
       case "$product.variant_size": return String(p?.size || p?.sector_data?.size || firstVar?.size || "").trim();
       default: return "";
     }
@@ -2686,6 +2750,13 @@ function buildHepsiburadaCatalogAttributes(
     "Diğer"
   ).trim();
 
+  const firstVarHb = Array.isArray(p?.variants) && p.variants.length > 0 ? p.variants[0] : null;
+  const resolvedHbWarranty = parseInt(String(userAttrs.GarantiSuresi || p.warranty_months || 24).replace(/[^0-9]/g, ""), 10);
+  const resolvedHbColor = String(userAttrs.Renk || userAttrs.renk || p.color || firstVarHb?.color_name || firstVarHb?.color || "").trim();
+  const resolvedHbOrigin = String(userAttrs.Mensei || userAttrs.mensei || p.origin_country || "TR").trim();
+  const resolvedHbWarrantyType = String(userAttrs.GarantiTipi || userAttrs.garanti_tipi || p.warranty_type || "Resmi Distribütör Garantili").trim();
+  const resolvedHbMaterial = String(userAttrs.Materyal || userAttrs.materyal || p.material || "").trim();
+
   const barcodeStr = String(p.barcode || p.sku || "").trim();
   const attributes: Record<string, any> = {
     merchantSku: barcodeStr,
@@ -2694,7 +2765,11 @@ function buildHepsiburadaCatalogAttributes(
     UrunAdi: p.name,
     UrunAciklamasi: `<p>${p.description || p.name}</p>`,
     Marka: inferredHbBrand,
-    GarantiSuresi: userAttrs.GarantiSuresi ? parseInt(userAttrs.GarantiSuresi, 10) : 24,
+    GarantiSuresi: !isNaN(resolvedHbWarranty) ? resolvedHbWarranty : 24,
+    GarantiTipi: resolvedHbWarrantyType,
+    Mensei: resolvedHbOrigin,
+    ...(resolvedHbColor ? { Renk: resolvedHbColor, renk_variant_property: resolvedHbColor } : {}),
+    ...(resolvedHbMaterial ? { Materyal: resolvedHbMaterial } : {}),
     tax_vat_rate: String(p.tax_rate || userAttrs.tax_vat_rate || 20),
     price: numericEffectivePrice,
     stock: computeSellableStock(p.stock_quantity, p.reserved_stock),
@@ -5617,6 +5692,41 @@ router.post("/trendyol/publish", authenticate, async (req: any, res) => {
       const pDesc = String(p.description || "").toLowerCase();
       const pText = `${pTitle} ${pDesc}`;
 
+      const firstVarTy = Array.isArray(p?.variants) && p.variants.length > 0 ? p.variants[0] : null;
+      const prodOriginTy = String(p.origin_country || mpData?.attributes?.Mensei || "TR").trim().toUpperCase();
+      const prodWarrantyTypeTy = String(p.warranty_type || mpData?.attributes?.GarantiTipi || "Resmi Distribütör Garantili").trim().toLowerCase();
+      const prodWarrantyMonthsTy = parseInt(String(p.warranty_months || mpData?.attributes?.GarantiSuresi || "24").replace(/[^0-9]/g, ""), 10) || 24;
+      const prodColorTy = String(p.color || mpData?.attributes?.Renk || firstVarTy?.color_name || firstVarTy?.color || "").trim().toLocaleLowerCase("tr-TR");
+      const prodMaterialTy = String(p.material || mpData?.attributes?.Materyal || "").trim().toLocaleLowerCase("tr-TR");
+      const prodSizeTy = String(p.size || firstVarTy?.size || "").trim();
+
+      // Also upgrade any tyAttributes entry that came in as customAttributeValue (e.g. from $product.color / $product.warranty_months)
+      // to the matching Trendyol attributeValueId if the live schema provides enum options!
+      for (let i = 0; i < tyAttributes.length; i++) {
+        const entry = tyAttributes[i];
+        if (entry.attributeValueId || !entry.customAttributeValue) continue;
+        const schemaMatch = (catAttrs || []).find((a: any) => Number(a.attribute?.id) === entry.attributeId);
+        const schemaVals: Array<{ id: number; name: string }> = schemaMatch?.attributeValues || [];
+        if (schemaVals.length > 0) {
+          const rawCustom = entry.customAttributeValue.trim();
+          const lowerCustom = rawCustom.toLocaleLowerCase("tr-TR");
+          let matchedOpt = schemaVals.find((v) => v.name.toLocaleLowerCase("tr-TR") === lowerCustom);
+          if (!matchedOpt && (entry.attributeId === 433 || String(schemaMatch?.attribute?.name || "").toLowerCase().includes("garanti süresi"))) {
+            const months = parseInt(rawCustom.replace(/[^0-9]/g, ""), 10) || 24;
+            const years = Math.round(months / 12);
+            matchedOpt =
+              schemaVals.find((v) => v.name.includes(`${years} Yıl`) || v.name.includes(`${months} Ay`)) ||
+              schemaVals.find((v) => v.name.includes("2 Yıl"));
+          }
+          if (!matchedOpt) {
+            matchedOpt = schemaVals.find((v) => v.name.toLocaleLowerCase("tr-TR").includes(lowerCustom) || lowerCustom.includes(v.name.toLocaleLowerCase("tr-TR")));
+          }
+          if (matchedOpt) {
+            tyAttributes[i] = { attributeId: entry.attributeId, attributeValueId: matchedOpt.id };
+          }
+        }
+      }
+
       for (const reqAttr of requiredAttrs) {
         const attrId = Number(reqAttr.attribute?.id);
         if (!attrId || providedAttrIds.has(attrId)) continue; // already provided
@@ -5626,28 +5736,42 @@ router.post("/trendyol/publish", authenticate, async (req: any, res) => {
         let assignedValueId: number | undefined;
         let assignedCustom: string | undefined;
 
-        // Smart Attribute Matching based on Trendyol requirements:
-        // 1. Menşei (ID 1192)
+        // Smart Attribute Matching based on Product Card fields + Trendyol requirements:
+        // 1. Menşei (ID 1192) -> uses product.origin_country first
         if (attrId === 1192 || attrName.includes("menşei") || attrName.includes("mensei")) {
+          const originVal = values.find(v => {
+            const vu = v.name.toUpperCase();
+            if (prodOriginTy === "TR" || prodOriginTy.includes("TÜRK")) return vu === "TR" || vu === "TÜRKİYE";
+            if (prodOriginTy === "CN" || prodOriginTy.includes("ÇİN")) return vu === "CN" || vu === "ÇİN";
+            return vu === prodOriginTy;
+          });
           const trVal = values.find(v => v.name.toUpperCase() === "TR" || v.name.toUpperCase() === "TÜRKİYE");
           const cnVal = values.find(v => v.name.toUpperCase() === "CN" || v.name.toUpperCase() === "ÇİN");
-          if (trVal) assignedValueId = trVal.id;
+          if (originVal) assignedValueId = originVal.id;
+          else if (trVal) assignedValueId = trVal.id;
           else if (cnVal) assignedValueId = cnVal.id;
           else if (values.length > 0) assignedValueId = values[0].id;
-          else if (reqAttr.allowCustom) assignedCustom = "TR";
+          else if (reqAttr.allowCustom) assignedCustom = prodOriginTy || "TR";
         }
-        // 2. Garanti Tipi (ID 290)
+        // 2. Garanti Tipi (ID 290) -> uses product.warranty_type first
         else if (attrId === 290 || attrName.includes("garanti tipi")) {
+          const wantsIthalat = prodWarrantyTypeTy.includes("ithalat");
+          const wantsGarantisiz = prodWarrantyTypeTy.includes("garantisiz");
           const distVal = values.find(v => v.name.toLowerCase().includes("distribütör") || v.name.toLowerCase().includes("resmi"));
           const ithalatVal = values.find(v => v.name.toLowerCase().includes("ithalatçı"));
-          assignedValueId = distVal?.id || ithalatVal?.id || values[0]?.id;
+          const garantisizVal = values.find(v => v.name.toLowerCase().includes("garantisiz") || v.name.toLowerCase().includes("yok"));
+          if (wantsIthalat && ithalatVal) assignedValueId = ithalatVal.id;
+          else if (wantsGarantisiz && garantisizVal) assignedValueId = garantisizVal.id;
+          else assignedValueId = distVal?.id || ithalatVal?.id || values[0]?.id;
         }
-        // 3. Garanti Süresi (ID 433)
+        // 3. Garanti Süresi (ID 433) -> uses product.warranty_months first
         else if (attrId === 433 || attrName.includes("garanti süresi") || attrName.includes("garanti suresi")) {
+          const years = Math.max(1, Math.round(prodWarrantyMonthsTy / 12));
+          const exactYear = values.find(v => v.name.includes(`${years} Yıl`) || v.name.includes(`${prodWarrantyMonthsTy} Ay`));
           const y2 = values.find(v => v.name.includes("2 Yıl") || v.name.includes("24"));
           const y3 = values.find(v => v.name.includes("3 Yıl"));
           const y5 = values.find(v => v.name.includes("5 Yıl"));
-          assignedValueId = y2?.id || y3?.id || y5?.id || values[0]?.id;
+          assignedValueId = exactYear?.id || y2?.id || y3?.id || y5?.id || values[0]?.id;
         }
         // 4. Cinsiyet (ID 343)
         else if (attrId === 343 || attrName.includes("cinsiyet")) {
@@ -5669,17 +5793,30 @@ router.post("/trendyol/publish", authenticate, async (req: any, res) => {
           const duz = values.find(v => v.name.toLowerCase().includes("düz") || v.name.toLowerCase().includes("duz") || v.name.toLowerCase().includes("belirtilmemiş"));
           assignedValueId = duz?.id || values[0]?.id;
         }
-        // 8. Web Color (ID 348) & Renk (ID 47)
-        else if (attrId === 348 || attrName.includes("web color") || attrId === 47 || attrName === "renk") {
-          const colorKeywords = ["siyah", "beyaz", "gri", "mavi", "kırmızı", "yeşil", "sarı", "lacivert", "antrasit", "gümüş", "silver", "gold", "şeffaf"];
-          let matchedColor = colorKeywords.find(c => pText.includes(c));
-          if (!matchedColor) matchedColor = "siyah";
+        // 8. Web Color (ID 348) & Renk (ID 47) -> uses product.color first, then title scan
+        else if (attrId === 348 || attrName.includes("web color") || attrId === 47 || attrName === "renk" || attrName.includes("renk")) {
+          const colorKeywords = ["siyah", "beyaz", "gri", "mavi", "kırmızı", "yeşil", "sarı", "lacivert", "antrasit", "gümüş", "silver", "gold", "şeffaf", "pembe", "mor", "kahverengi", "bej", "çok renkli"];
+          let matchedColor = prodColorTy || colorKeywords.find(c => pText.includes(c)) || "siyah";
 
           if (values.length > 0) {
-            const foundVal = values.find(v => v.name.toLowerCase().includes(matchedColor!));
+            const foundVal =
+              values.find(v => v.name.toLocaleLowerCase("tr-TR") === matchedColor) ||
+              values.find(v => v.name.toLocaleLowerCase("tr-TR").includes(matchedColor));
             assignedValueId = foundVal?.id || values[0]?.id;
           } else if (reqAttr.allowCustom) {
             assignedCustom = matchedColor.charAt(0).toUpperCase() + matchedColor.slice(1);
+          }
+        }
+        // 8b. Materyal / Malzeme -> uses product.material first
+        else if (attrName.includes("materyal") || attrName.includes("malzeme")) {
+          const targetMat = prodMaterialTy || "standart";
+          if (values.length > 0) {
+            const foundMat =
+              values.find(v => v.name.toLocaleLowerCase("tr-TR") === targetMat) ||
+              values.find(v => v.name.toLocaleLowerCase("tr-TR").includes(targetMat));
+            assignedValueId = foundMat?.id || values[0]?.id;
+          } else if (reqAttr.allowCustom) {
+            assignedCustom = p.material || "Standart";
           }
         }
         // 9. Kapasite (ID 184) / SSD Kapasitesi (ID 249)
@@ -5696,17 +5833,20 @@ router.post("/trendyol/publish", authenticate, async (req: any, res) => {
             assignedCustom = capMatch ? capMatch[1].toUpperCase() : "Standart";
           }
         }
-        // 10. Beden (ID 338 or laptop size)
+        // 10. Beden (ID 338 or laptop size) -> uses product/variant size first
         else if (attrId === 338 || attrName.includes("beden") || attrName.includes("boyut")) {
           const sizeMatch = pText.match(/(17\.3|16|15\.6|14|13\.3)/);
-          if (sizeMatch && values.length > 0) {
-            const foundVal = values.find(v => v.name.includes(sizeMatch[1]));
+          const candidateSize = prodSizeTy || (sizeMatch ? sizeMatch[1] : "");
+          if (candidateSize && values.length > 0) {
+            const foundVal =
+              values.find(v => v.name.toLowerCase() === candidateSize.toLowerCase()) ||
+              values.find(v => v.name.includes(candidateSize));
             if (foundVal) assignedValueId = foundVal.id;
           }
           if (!assignedValueId && values.length > 0) {
             assignedValueId = values[0].id;
           } else if (!assignedValueId && reqAttr.allowCustom) {
-            assignedCustom = sizeMatch ? `${sizeMatch[1]} inç` : "Standart";
+            assignedCustom = candidateSize || "Standart";
           }
         }
         // 11. Bağlantı Tipi (ID 82)
@@ -6578,38 +6718,92 @@ router.post("/pazarama/publish", authenticate, async (req: any, res) => {
 
     // 6. Resolve Category Attributes (Per-Subcategory Isolated Settings + Product Attributes + Live Schema Matching)
     const scopedCatAttrs = resolveProductScopedCategoryAttrs(settings.categoryAttributes, product, pzCategoryId);
-    const mergedAttrInputs: Record<string, any> = { ...scopedCatAttrs, ...pzMpAttrs };
+    const mergedAttrInputs: Record<string, any> = {
+      ...scopedCatAttrs,
+      ...(mpData?.attributes || {}),
+      ...pzMpAttrs
+    };
 
-    const resolveDynamicValue = (rawSetting: any): string => {
-      if (rawSetting === null || rawSetting === undefined) return "";
-      let mode = "fixed";
-      let val = "";
-      if (typeof rawSetting === "object") {
-        mode = rawSetting.mode || "fixed";
-        val = String(rawSetting.value ?? "").trim();
-      } else {
-        val = String(rawSetting).trim();
-        if (val.startsWith("$product.")) mode = "field";
+    const inferPazaramaProductAttrValue = (attrNameRaw: string): string => {
+      const lower = String(attrNameRaw || "").toLocaleLowerCase("tr-TR").trim();
+      const firstVarPz = Array.isArray(product?.variants) && product.variants.length > 0 ? product.variants[0] : null;
+      if (lower.includes("marka") || lower === "brand") {
+        return String(product.brand || mpData?.attributes?.Marka || "").trim();
       }
-      if (!val) return "";
-      if (mode === "field" || val.startsWith("$product.")) {
-        const fieldKey = val.replace("$product.", "");
-        const fieldMap: Record<string, any> = {
-          brand: product.brand,
-          name: product.name,
-          sku: product.sku,
-          barcode: product.barcode,
-          description: product.description,
-          category: product.category,
-          sub_category: product.sub_category,
-          color: product.color || mpData?.color || pzMpAttrs?.color,
-          size: product.size || mpData?.size || pzMpAttrs?.size,
-          weight: product.weight,
-          warranty: product.warranty || "24 Ay"
-        };
-        return String(fieldMap[fieldKey] ?? product[fieldKey] ?? "").trim();
+      if (lower.includes("renk") || lower.includes("color")) {
+        return String(product.color || mpData?.attributes?.Renk || firstVarPz?.color_name || firstVarPz?.color || "").trim();
       }
-      return val;
+      if (lower.includes("garanti süresi") || lower.includes("garanti suresi")) {
+        return String(product.warranty_months || mpData?.attributes?.GarantiSuresi || "24").trim();
+      }
+      if (lower.includes("garanti tipi") || lower.includes("garanti türü")) {
+        return String(product.warranty_type || mpData?.attributes?.GarantiTipi || "Resmi Distribütör Garantili").trim();
+      }
+      if (lower.includes("menşei") || lower.includes("mensei") || lower.includes("üretim yeri")) {
+        return String(product.origin_country || mpData?.attributes?.Mensei || "TR").trim();
+      }
+      if (lower.includes("materyal") || lower.includes("malzeme")) {
+        return String(product.material || mpData?.attributes?.Materyal || "").trim();
+      }
+      if (lower === "beden" || lower.includes("boyut") || lower.includes("ölçü")) {
+        return String(product.size || firstVarPz?.size || "").trim();
+      }
+      return "";
+    };
+
+    const matchPazaramaEnumOptionId = (schemaAttr: { name: string; values: Array<{ id: string; value: string }> }, candidateStr: string): string => {
+      if (!candidateStr) return "";
+      const prefixToken = candidateStr.includes(":") ? candidateStr.split(":")[0].trim() : candidateStr.trim();
+      if (isPazaramaUuid(prefixToken)) {
+        return prefixToken;
+      }
+      const vals = schemaAttr.values || [];
+      if (vals.length === 0) return "";
+      const targetLower = candidateStr.toLocaleLowerCase("tr-TR").trim();
+      const attrLower = String(schemaAttr.name || "").toLocaleLowerCase("tr-TR");
+
+      // 1. Exact case-insensitive match
+      const exactVal = vals.find((v) => v.value.toLocaleLowerCase("tr-TR").trim() === targetLower);
+      if (exactVal) return exactVal.id;
+
+      // 2. Warranty duration synonyms (e.g. "24" <-> "24 Ay" <-> "2 Yıl")
+      if (attrLower.includes("garanti süresi") || attrLower.includes("garanti suresi")) {
+        const months = parseInt(targetLower.replace(/[^0-9]/g, ""), 10);
+        if (!isNaN(months)) {
+          const years = Math.round(months / 12);
+          const warMatch = vals.find((v) => {
+            const vl = v.value.toLocaleLowerCase("tr-TR");
+            return vl.includes(`${months} ay`) || (years > 0 && vl.includes(`${years} yıl`)) || vl === String(months);
+          });
+          if (warMatch) return warMatch.id;
+        }
+      }
+
+      // 3. Origin country synonyms (e.g. "TR" <-> "Türkiye", "CN" <-> "Çin")
+      if (attrLower.includes("menşei") || attrLower.includes("mensei")) {
+        if (targetLower === "tr" || targetLower.includes("türk")) {
+          const trMatch = vals.find((v) => {
+            const vl = v.value.toLocaleLowerCase("tr-TR").trim();
+            return vl === "tr" || vl === "türkiye" || vl.includes("türkiye");
+          });
+          if (trMatch) return trMatch.id;
+        }
+        if (targetLower === "cn" || targetLower.includes("çin")) {
+          const cnMatch = vals.find((v) => {
+            const vl = v.value.toLocaleLowerCase("tr-TR").trim();
+            return vl === "cn" || vl === "çin" || vl.includes("çin");
+          });
+          if (cnMatch) return cnMatch.id;
+        }
+      }
+
+      // 4. Substring match
+      const partialVal = vals.find(
+        (v) => v.value.toLocaleLowerCase("tr-TR").includes(targetLower) || targetLower.includes(v.value.toLocaleLowerCase("tr-TR"))
+      );
+      if (partialVal) return partialVal.id;
+
+      return "";
     };
 
     const liveSchema = await pzService.getCategoryAttributes(pzCategoryId).catch(() => []);
@@ -6621,24 +6815,12 @@ router.post("/pazarama/publish", authenticate, async (req: any, res) => {
         ? mergedAttrInputs[schemaAttr.id]
         : (mergedAttrInputs[schemaAttr.name] !== undefined ? mergedAttrInputs[schemaAttr.name] : undefined);
 
-      const resolvedStr = resolveDynamicValue(rawInput);
-      let matchedValueId = "";
-
-      if (resolvedStr) {
-        // Case A: Saved as exact GUID or `${GUID}: Label`
-        const prefixToken = resolvedStr.includes(":") ? resolvedStr.split(":")[0].trim() : resolvedStr.trim();
-        if (isPazaramaUuid(prefixToken)) {
-          matchedValueId = prefixToken;
-        } else if (schemaAttr.values.length > 0) {
-          // Case B: Match by Turkish case-insensitive value label
-          const targetLower = resolvedStr.toLocaleLowerCase("tr");
-          const exactVal = schemaAttr.values.find((v) => v.value.toLocaleLowerCase("tr") === targetLower);
-          const partialVal = exactVal || schemaAttr.values.find((v) => v.value.toLocaleLowerCase("tr").includes(targetLower));
-          if (partialVal) {
-            matchedValueId = partialVal.id;
-          }
-        }
+      let resolvedStr = resolveCategoryAttributeValue(rawInput, product);
+      if (!resolvedStr) {
+        resolvedStr = inferPazaramaProductAttrValue(schemaAttr.name);
       }
+
+      const matchedValueId = matchPazaramaEnumOptionId(schemaAttr, resolvedStr);
 
       if (matchedValueId) {
         resolvedAttributes.push({ attributeId: schemaAttr.id, attributeValueId: matchedValueId });

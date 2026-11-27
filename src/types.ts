@@ -87,6 +87,11 @@ export interface Product {
   variants?: ProductVariant[];
   brand?: string;
   author?: string;
+  color?: string;
+  warranty_months?: string | number;
+  warranty_type?: string;
+  origin_country?: string;
+  material?: string;
   labels?: string[];
   _purchaseInvoiceItemId?: number | string;
   _purchaseInvoiceId?: number | string;

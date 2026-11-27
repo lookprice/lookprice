@@ -20,6 +20,7 @@ import {
   buildScopedCategoryAttrKey,
   resolveScopedCategoryAttributes
 } from '@/data/marketplaceCategoriesData';
+import { getDefaultProductFieldBindingForAttribute } from '@/services/crossMarketplaceAttributeMapper';
 
 import { MarketplaceType, LocalCategoryItem } from './categoryMapping/types';
 import { CategoryAttributeModal } from './categoryMapping/CategoryAttributeModal';
@@ -749,12 +750,13 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
     });
 
     setLoadingAttributes(true);
+    let loadedAttrs: MarketplaceAttribute[] = [];
     try {
       if (activeMarketplace === 'hepsiburada') {
         const res = await api.getHepsiburadaCategoryAttributes(marketCatId, currentStoreId, catPaths?.[0] || catName, catName);
         const attrs = res.data?.attributes || res.data || res.attributes;
         if (Array.isArray(attrs) && attrs.length > 0) {
-          setCurrentCategoryAttributes(attrs.map((a: any) => ({
+          loadedAttrs = attrs.map((a: any) => ({
             id: a.id || a.attributeId || a.name,
             name: a.name || a.displayName || a.attributeName,
             description: a.description,
@@ -762,15 +764,15 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
             type: a.type === 'enum' || a.values?.length ? 'select' : 'text',
             values: Array.isArray(a.values) ? a.values.map((v: any) => typeof v === 'object' ? (v.value || v.name) : v) : undefined,
             defaultValue: a.defaultValue
-          })));
+          }));
         } else {
-          setCurrentCategoryAttributes(getAttributesForCategory(catName, catPaths, marketCatId));
+          loadedAttrs = getAttributesForCategory(catName, catPaths, marketCatId);
         }
       } else if (activeMarketplace === 'n11') {
         const res = await api.getN11CategoryAttributes(marketCatId, currentStoreId);
         const attrs = res.data?.attributes || res.attributes;
         if (Array.isArray(attrs) && attrs.length > 0) {
-          setCurrentCategoryAttributes(attrs.map((a: any) => ({
+          loadedAttrs = attrs.map((a: any) => ({
             id: String(a.id || a.name),
             name: a.name || a.displayName,
             description: a.description,
@@ -778,15 +780,15 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
             type: a.values?.length ? 'select' : 'text',
             values: a.values || [],
             defaultValue: a.defaultValue
-          })));
+          }));
         } else {
-          setCurrentCategoryAttributes(getAttributesForCategory(catName, catPaths, marketCatId));
+          loadedAttrs = getAttributesForCategory(catName, catPaths, marketCatId);
         }
       } else if (activeMarketplace === 'trendyol') {
         const res = await api.getTrendyolCategoryAttributes(marketCatId, catName, catPaths?.[catPaths.length - 1]);
         const attrs = res.data?.attributes || res.data || res.attributes;
         if (Array.isArray(attrs) && attrs.length > 0) {
-          setCurrentCategoryAttributes(attrs.map((a: any) => ({
+          loadedAttrs = attrs.map((a: any) => ({
             id: String(a.id || a.attribute?.id || a.attributeId || a.name),
             name: a.name || a.attribute?.name || a.displayName || a.attributeName,
             description: a.description,
@@ -796,15 +798,15 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
               ? a.values.map((v: any) => typeof v === 'object' ? `${v.id}: ${v.name}` : String(v))
               : (Array.isArray(a.attributeValues) ? a.attributeValues.map((v: any) => typeof v === 'object' ? `${v.id}: ${v.name}` : String(v)) : undefined),
             defaultValue: a.defaultValue
-          })));
+          }));
         } else {
-          setCurrentCategoryAttributes(getAttributesForCategory(catName, catPaths, marketCatId));
+          loadedAttrs = getAttributesForCategory(catName, catPaths, marketCatId);
         }
       } else if (activeMarketplace === 'pazarama') {
         const res: any = await api.getPazaramaCategoryAttributes(marketCatId, currentStoreId);
         const attrs = res?.data?.attributes || res?.attributes;
         if (Array.isArray(attrs) && attrs.length > 0) {
-          setCurrentCategoryAttributes(attrs.map((a: any) => ({
+          loadedAttrs = attrs.map((a: any) => ({
             id: String(a.id || a.attributeId || a.name),
             name: a.name || a.displayName || a.attributeName,
             description: a.isVariant ? 'Varyant özelliği' : (a.isSlicer ? 'Dilimleyici özellik' : a.description),
@@ -814,19 +816,56 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
               ? a.values.map((v: any) => typeof v === 'object' ? `${v.id}: ${v.value || v.name}` : String(v))
               : undefined,
             defaultValue: a.defaultValue
-          })));
+          }));
         } else {
           if (res?.warning) {
             toast.info(res.warning);
           }
-          setCurrentCategoryAttributes(getAttributesForCategory(catName, catPaths, marketCatId));
+          loadedAttrs = getAttributesForCategory(catName, catPaths, marketCatId);
         }
       } else {
-        setCurrentCategoryAttributes(getAttributesForCategory(catName, catPaths, marketCatId));
+        loadedAttrs = getAttributesForCategory(catName, catPaths, marketCatId);
       }
     } catch {
-      setCurrentCategoryAttributes(getAttributesForCategory(catName, catPaths, marketCatId));
+      loadedAttrs = getAttributesForCategory(catName, catPaths, marketCatId);
     } finally {
+      setCurrentCategoryAttributes(loadedAttrs);
+      // Automatically seed unconfigured common mandatory attributes (Marka, Renk, Garanti, Menşei, Materyal, Beden, KDV)
+      // with their corresponding $product.* binding so operators never have to manually map them one by one!
+      if (loadedAttrs.length > 0) {
+        const scopedKey = buildScopedCategoryAttrKey(localCat, marketCatId);
+        setAttributesConfig((prev) => {
+          const currentMarketAttrs = prev[activeMarketplace] || {};
+          const existingBase = resolveScopedCategoryAttributes(
+            currentMarketAttrs,
+            localCat,
+            marketCatId
+          );
+          const autoSeeded: Record<string, any> = {};
+          let hasNewSeeds = false;
+          for (const attr of loadedAttrs) {
+            const hasExisting = existingBase[attr.id] !== undefined || (attr.name && existingBase[attr.name] !== undefined);
+            if (!hasExisting) {
+              const defBinding = getDefaultProductFieldBindingForAttribute(attr.id, attr.name);
+              if (defBinding) {
+                autoSeeded[attr.id] = defBinding;
+                hasNewSeeds = true;
+              }
+            }
+          }
+          if (!hasNewSeeds) return prev;
+          return {
+            ...prev,
+            [activeMarketplace]: {
+              ...currentMarketAttrs,
+              [scopedKey]: {
+                ...existingBase,
+                ...autoSeeded
+              }
+            }
+          };
+        });
+      }
       setLoadingAttributes(false);
     }
   }, [activeMarketplace, currentStoreId, marketCatById, currentLabels]);
@@ -864,18 +903,16 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
 
     const autoFilled: Record<string, any> = {};
     currentCategoryAttributes.forEach((attr) => {
+      const defProductBinding = getDefaultProductFieldBindingForAttribute(attr.id, attr.name);
+      if (defProductBinding) {
+        autoFilled[attr.id] = defProductBinding;
+        return;
+      }
+
       const lowerId = attr.id.toLowerCase();
       const lowerName = attr.name.toLowerCase();
 
-      if (lowerId === 'marka' || lowerName.includes('marka') || lowerId.includes('brand')) {
-        autoFilled[attr.id] = { mode: 'field', value: '$product.brand' };
-      } else if (lowerId === '1192' || lowerId === 'mensei' || lowerName.includes('menşei') || lowerName.includes('mensei') || lowerId.includes('origin')) {
-        autoFilled[attr.id] = { mode: 'fixed', value: activeMarketplace === 'trendyol' ? '10617344' : 'TR' };
-      } else if (lowerId === '290' || lowerName.includes('garanti tipi')) {
-        autoFilled[attr.id] = { mode: 'fixed', value: activeMarketplace === 'trendyol' ? '4183' : 'Resmi Distribütör Garantili' };
-      } else if (lowerId === '433' || lowerName.includes('garanti süresi') || lowerName.includes('garanti suresi')) {
-        autoFilled[attr.id] = { mode: 'fixed', value: activeMarketplace === 'trendyol' ? '20637' : '24' };
-      } else if (lowerId === '343' || lowerName.includes('cinsiyet')) {
+      if (lowerId === '343' || lowerName.includes('cinsiyet')) {
         autoFilled[attr.id] = { mode: 'fixed', value: activeMarketplace === 'trendyol' ? '4296' : 'Unisex' };
       } else if (lowerId === '346' || lowerName.includes('yaş grubu') || lowerName.includes('yas grubu')) {
         autoFilled[attr.id] = { mode: 'fixed', value: activeMarketplace === 'trendyol' ? '256116' : 'Yetişkin' };
@@ -885,14 +922,6 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
         autoFilled[attr.id] = { mode: 'fixed', value: 'Düz' };
       } else if (lowerId === 'model' || lowerName === 'model') {
         autoFilled[attr.id] = { mode: 'field', value: '$product.model' };
-      } else if (lowerId === 'renk' || lowerName.includes('renk') || lowerId === '47' || lowerId === '348') {
-        autoFilled[attr.id] = { mode: 'field', value: '$product.variant_color' };
-      } else if (lowerId === 'beden' || lowerName.includes('beden') || lowerName.includes('boyut') || lowerId === '338') {
-        autoFilled[attr.id] = { mode: 'field', value: '$product.variant_size' };
-      } else if (lowerId.includes('garanti') || lowerName.includes('garanti')) {
-        autoFilled[attr.id] = { mode: 'fixed', value: '24' };
-      } else if (lowerId.includes('kdv') || lowerName.includes('kdv') || lowerId.includes('tax')) {
-        autoFilled[attr.id] = { mode: 'field', value: '$product.tax_rate' };
       } else if (attr.defaultValue) {
         if (attr.defaultValue.startsWith('$product.')) {
           autoFilled[attr.id] = { mode: 'field', value: attr.defaultValue };
@@ -920,7 +949,7 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
         }
       };
     });
-    toast.success('Önerilen varsayılan alanlar bu kategori için otomatik dolduruldu.');
+    toast.success('Ortak ürün alanları (Marka, Renk, Garanti, Menşei, Materyal) ve önerilen varsayılanlar otomatik bağlandı.');
   };
 
   const handleSaveAll = async () => {

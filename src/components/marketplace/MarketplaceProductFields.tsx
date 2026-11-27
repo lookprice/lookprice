@@ -1018,9 +1018,14 @@ export const MarketplaceProductFields = ({
                         const firstVar = Array.isArray(product?.variants) && product.variants.length > 0 ? product.variants[0] : null;
                         switch (unwrapped) {
                           case "$product.brand": return product?.brand || product?.brand_name || "";
+                          case "$product.color": return product?.color || product?.sector_data?.color || firstVar?.color_name || firstVar?.color || "";
+                          case "$product.warranty_months": return String(product?.warranty_months ?? product?.warranty ?? "24");
+                          case "$product.warranty_type": return product?.warranty_type || "Resmi Distribütör Garantili";
+                          case "$product.origin_country": return product?.origin_country || "TR";
+                          case "$product.material": return product?.material || "";
                           case "$product.name": return product?.name || "";
                           case "$product.barcode": return product?.barcode || "";
-                          case "$product.model": return product?.model || "";
+                          case "$product.model": return product?.model || product?.author || "";
                           case "$product.tax_rate":
                           case "$product.kdv": return String(product?.tax_rate ?? product?.vat_rate ?? 20);
                           case "$product.sku":
@@ -1029,7 +1034,7 @@ export const MarketplaceProductFields = ({
                           case "$product.category": return product?.category || "";
                           case "$product.sub_category": return product?.sub_category || "";
                           case "$product.price": return product?.price !== undefined && product?.price !== null ? String(product.price) : "";
-                          case "$product.variant_color": return product?.color || product?.sector_data?.color || firstVar?.color || "";
+                          case "$product.variant_color": return product?.color || product?.sector_data?.color || firstVar?.color_name || firstVar?.color || "";
                           case "$product.variant_size": return product?.size || product?.sector_data?.size || firstVar?.size || "";
                           default: return unwrapped;
                         }

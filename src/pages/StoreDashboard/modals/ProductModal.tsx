@@ -1044,6 +1044,154 @@ export const ProductModal = ({
                       )}
                     </div>
                   </div>
+
+                  {/* ORTAK ÜRÜN & PAZARYERİ NİTELİKLERİ (Renk, Garanti Süresi, Garanti Tipi, Menşei, Materyal) - Sadece shopLP Fiziksel Ürünler */}
+                  {!isCafeRestaurant && !isPortfolio && !isBookstore && productType !== 'service' && (() => {
+                    const mpRaw = editingProduct?.marketplace_data;
+                    let mpObj: any = {};
+                    if (typeof mpRaw === 'string') {
+                      try { mpObj = JSON.parse(mpRaw); } catch { mpObj = {}; }
+                    } else if (mpRaw && typeof mpRaw === 'object') {
+                      mpObj = mpRaw;
+                    }
+                    const mpAttrs = mpObj?.attributes || mpObj?.hepsiburada?.attributes || {};
+                    const initColor = editingProduct?.color || mpAttrs?.Renk || mpAttrs?.color || '';
+                    const initWarrantyMonths = String(editingProduct?.warranty_months || mpAttrs?.GarantiSuresi || mpAttrs?.warranty_months || '24').replace(/[^0-9]/g, '') || '24';
+                    const initWarrantyType = editingProduct?.warranty_type || mpAttrs?.GarantiTipi || mpAttrs?.warranty_type || 'Resmi Distribütör Garantili';
+                    const initOrigin = editingProduct?.origin_country || mpAttrs?.Mensei || mpAttrs?.origin_country || 'TR';
+                    const initMaterial = editingProduct?.material || mpAttrs?.Materyal || mpAttrs?.material || '';
+
+                    return (
+                      <div className="pt-1.5 mt-1 border-t border-slate-200/80">
+                        <div className="flex flex-wrap items-end gap-2">
+                          {/* Renk */}
+                          <div className="space-y-0.5 w-32 sm:w-36">
+                            <label className="text-[10px] font-medium text-slate-700 uppercase tracking-wider flex items-center gap-1">
+                              <span>{isTr ? "Renk" : "Color"}</span>
+                            </label>
+                            <input
+                              type="text"
+                              name="color"
+                              list="common-product-colors"
+                              placeholder={isTr ? "örn: Siyah, Beyaz" : "e.g. Black"}
+                              defaultValue={initColor}
+                              className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-medium text-slate-900 text-xs h-7.5 shadow-2xs outline-none"
+                            />
+                            <datalist id="common-product-colors">
+                              <option value="Siyah" />
+                              <option value="Beyaz" />
+                              <option value="Gri" />
+                              <option value="Gümüş" />
+                              <option value="Lacivert" />
+                              <option value="Mavi" />
+                              <option value="Kırmızı" />
+                              <option value="Yeşil" />
+                              <option value="Sarı" />
+                              <option value="Pembe" />
+                              <option value="Mor" />
+                              <option value="Kahverengi" />
+                              <option value="Bej" />
+                              <option value="Altın" />
+                              <option value="Antrasit" />
+                              <option value="Şeffaf" />
+                              <option value="Çok Renkli" />
+                            </datalist>
+                          </div>
+
+                          {/* Garanti Süresi (Ay) */}
+                          <div className="space-y-0.5 w-28 sm:w-32">
+                            <label className="text-[10px] font-medium text-slate-700 uppercase tracking-wider">
+                              {isTr ? "Garanti (Ay)" : "Warranty"}
+                            </label>
+                            <select
+                              name="warranty_months"
+                              defaultValue={initWarrantyMonths}
+                              className="w-full px-2 py-0.5 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-medium text-slate-900 text-xs h-7.5 shadow-2xs outline-none cursor-pointer"
+                            >
+                              <option value="24">{isTr ? "24 Ay (2 Yıl)" : "24 Months"}</option>
+                              <option value="12">{isTr ? "12 Ay (1 Yıl)" : "12 Months"}</option>
+                              <option value="36">{isTr ? "36 Ay (3 Yıl)" : "36 Months"}</option>
+                              <option value="48">{isTr ? "48 Ay (4 Yıl)" : "48 Months"}</option>
+                              <option value="60">{isTr ? "60 Ay (5 Yıl)" : "60 Months"}</option>
+                              <option value="6">{isTr ? "6 Ay" : "6 Months"}</option>
+                              <option value="0">{isTr ? "Garantisiz (0)" : "No Warranty"}</option>
+                            </select>
+                          </div>
+
+                          {/* Garanti Tipi */}
+                          <div className="space-y-0.5 w-44 sm:w-48">
+                            <label className="text-[10px] font-medium text-slate-700 uppercase tracking-wider">
+                              {isTr ? "Garanti Tipi" : "Warranty Type"}
+                            </label>
+                            <select
+                              name="warranty_type"
+                              defaultValue={initWarrantyType}
+                              className="w-full px-2 py-0.5 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-medium text-slate-900 text-xs h-7.5 shadow-2xs outline-none cursor-pointer"
+                            >
+                              <option value="Resmi Distribütör Garantili">{isTr ? "Resmi Distribütör Garantili" : "Official Distributor"}</option>
+                              <option value="İthalatçı Garantili">{isTr ? "İthalatçı Garantili" : "Importer Warranty"}</option>
+                              <option value="Üretici Garantili">{isTr ? "Üretici Garantili" : "Manufacturer Warranty"}</option>
+                              <option value="Garantisiz">{isTr ? "Garantisiz" : "No Warranty"}</option>
+                            </select>
+                          </div>
+
+                          {/* Menşei Ülke */}
+                          <div className="space-y-0.5 w-28 sm:w-32">
+                            <label className="text-[10px] font-medium text-slate-700 uppercase tracking-wider">
+                              {isTr ? "Menşei" : "Origin"}
+                            </label>
+                            <select
+                              name="origin_country"
+                              defaultValue={initOrigin}
+                              className="w-full px-2 py-0.5 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-medium text-slate-900 text-xs h-7.5 shadow-2xs outline-none cursor-pointer"
+                            >
+                              <option value="TR">{isTr ? "TR (Türkiye)" : "TR (Turkey)"}</option>
+                              <option value="CN">{isTr ? "CN (Çin)" : "CN (China)"}</option>
+                              <option value="DE">{isTr ? "DE (Almanya)" : "DE (Germany)"}</option>
+                              <option value="US">{isTr ? "US (ABD)" : "US (USA)"}</option>
+                              <option value="KR">{isTr ? "KR (G. Kore)" : "KR (S. Korea)"}</option>
+                              <option value="JP">{isTr ? "JP (Japonya)" : "JP (Japan)"}</option>
+                              <option value="TW">{isTr ? "TW (Tayvan)" : "TW (Taiwan)"}</option>
+                              <option value="VN">{isTr ? "VN (Vietnam)" : "VN (Vietnam)"}</option>
+                              <option value="IT">{isTr ? "IT (İtalya)" : "IT (Italy)"}</option>
+                              <option value="FR">{isTr ? "FR (Fransa)" : "FR (France)"}</option>
+                              <option value="GB">{isTr ? "GB (İngiltere)" : "GB (UK)"}</option>
+                            </select>
+                          </div>
+
+                          {/* Materyal / Malzeme */}
+                          <div className="space-y-0.5 flex-1 min-w-[130px] max-w-[200px]">
+                            <label className="text-[10px] font-medium text-slate-700 uppercase tracking-wider">
+                              {isTr ? "Materyal" : "Material"}
+                            </label>
+                            <input
+                              type="text"
+                              name="material"
+                              list="common-product-materials"
+                              placeholder={isTr ? "örn: Metal, Plastik" : "e.g. Metal"}
+                              defaultValue={initMaterial}
+                              className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-medium text-slate-900 text-xs h-7.5 shadow-2xs outline-none"
+                            />
+                            <datalist id="common-product-materials">
+                              <option value="Plastik" />
+                              <option value="Metal" />
+                              <option value="Alüminyum" />
+                              <option value="Çelik" />
+                              <option value="Paslanmaz Çelik" />
+                              <option value="Ahşap" />
+                              <option value="Cam" />
+                              <option value="Silikon" />
+                              <option value="Deri" />
+                              <option value="Suni Deri" />
+                              <option value="Pamuk" />
+                              <option value="Polyester" />
+                              <option value="Seramik" />
+                            </datalist>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* 2. BOOKSTORE ÖZEL NİTELİKLERİ (HAFTANIN ESERİ + 4x2 SPECS + SPOT/ÖDÜLLER) */}

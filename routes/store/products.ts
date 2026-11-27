@@ -547,6 +547,11 @@ export async function initProductSchema() {
     await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS images JSONB DEFAULT '[]'::jsonb;`);
     await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS reserved_stock NUMERIC DEFAULT 0;`);
     await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS reserved_details JSONB DEFAULT '[]'::jsonb;`);
+    await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS color VARCHAR(100) DEFAULT '';`);
+    await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS warranty_months VARCHAR(50) DEFAULT '24';`);
+    await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS warranty_type VARCHAR(100) DEFAULT 'Resmi Distribütör Garantili';`);
+    await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS origin_country VARCHAR(100) DEFAULT 'TR';`);
+    await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS material VARCHAR(150) DEFAULT '';`);
 
     // Run product name sync in background
     syncProductNamesFromInvoices().catch(e => console.error("Error running syncProductNamesFromInvoices in initProductSchema:", e));
@@ -2078,7 +2083,8 @@ router.post("/", async (req: any, res) => {
     barcode, product_code, sku, name, price, currency, cost_price, cost_currency, description, 
     stock_quantity, min_stock_level, unit, category, sub_category, 
     category_2, sub_category_2, has_variants, variants,
-    brand, author, labels, image_url, images, is_web_sale, is_bestseller, product_type, 
+    brand, author, color, warranty_months, warranty_type, origin_country, material,
+    labels, image_url, images, is_web_sale, is_bestseller, product_type, 
     price_2, price_2_currency, tax_rate, volume_ml, allergens, calories, prep_time_min, portion_size,
     marketplace_data, sector_data
   } = req.body;
@@ -2189,7 +2195,32 @@ router.post("/", async (req: any, res) => {
     const variantsVal = JSON.stringify(parsedVariants);
     const imagesVal = JSON.stringify(parsedImages);
     const allergensVal = JSON.stringify(Array.isArray(allergens) ? allergens : (typeof allergens === 'string' ? JSON.parse(allergens || '[]') : []));
-    const marketplaceDataVal = JSON.stringify(typeof marketplace_data === 'object' && marketplace_data !== null ? marketplace_data : (typeof marketplace_data === 'string' ? JSON.parse(marketplace_data || '{}') : {}));
+    const parsedMpCreate: any = typeof marketplace_data === 'object' && marketplace_data !== null
+      ? { ...marketplace_data }
+      : (typeof marketplace_data === 'string' ? JSON.parse(marketplace_data || '{}') : {});
+    const finalCreateColor = color !== undefined ? String(color || '').trim() : String(parsedMpCreate?.attributes?.Renk || parsedMpCreate?.attributes?.color || '').trim();
+    const finalCreateWarrantyMonths = warranty_months !== undefined && String(warranty_months).trim() !== ''
+      ? String(warranty_months).trim()
+      : String(parsedMpCreate?.attributes?.GarantiSuresi || parsedMpCreate?.attributes?.warranty_months || '24').trim();
+    const finalCreateWarrantyType = warranty_type !== undefined && String(warranty_type).trim() !== ''
+      ? String(warranty_type).trim()
+      : String(parsedMpCreate?.attributes?.GarantiTipi || parsedMpCreate?.attributes?.warranty_type || 'Resmi Distribütör Garantili').trim();
+    const finalCreateOrigin = origin_country !== undefined && String(origin_country).trim() !== ''
+      ? String(origin_country).trim()
+      : String(parsedMpCreate?.attributes?.Mensei || parsedMpCreate?.attributes?.origin_country || 'TR').trim();
+    const finalCreateMaterial = material !== undefined ? String(material || '').trim() : String(parsedMpCreate?.attributes?.Materyal || parsedMpCreate?.attributes?.material || '').trim();
+
+    if (!parsedMpCreate.attributes || typeof parsedMpCreate.attributes !== 'object') {
+      parsedMpCreate.attributes = {};
+    }
+    if (brand) parsedMpCreate.attributes.Marka = String(brand).trim();
+    if (finalCreateColor) parsedMpCreate.attributes.Renk = finalCreateColor;
+    if (finalCreateWarrantyMonths) parsedMpCreate.attributes.GarantiSuresi = finalCreateWarrantyMonths;
+    if (finalCreateWarrantyType) parsedMpCreate.attributes.GarantiTipi = finalCreateWarrantyType;
+    if (finalCreateOrigin) parsedMpCreate.attributes.Mensei = finalCreateOrigin;
+    if (finalCreateMaterial) parsedMpCreate.attributes.Materyal = finalCreateMaterial;
+
+    const marketplaceDataVal = JSON.stringify(parsedMpCreate);
     const sectorDataVal = JSON.stringify(parsedSectorData);
     const finalProductCode = (product_code || sku || '').trim() || null;
 
@@ -2199,9 +2230,10 @@ router.post("/", async (req: any, res) => {
         stock_quantity, min_stock_level, unit, category, sub_category, category_2, sub_category_2,
         has_variants, variants, brand, author, labels, image_url, images, is_web_sale, is_bestseller, 
         product_type, price_2, price_2_currency, tax_rate, shipping_profile_id, volume_ml, is_sellable,
-        allergens, calories, prep_time_min, portion_size, marketplace_data, sector_data, updated_at
+        allergens, calories, prep_time_min, portion_size, marketplace_data, sector_data,
+        color, warranty_months, warranty_type, origin_country, material, updated_at
       ) 
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19::jsonb, $20, $21, $22, $23, $24::jsonb, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34::jsonb, $35, $36, $37, $38::jsonb, $39::jsonb, CURRENT_TIMESTAMP)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19::jsonb, $20, $21, $22, $23, $24::jsonb, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34::jsonb, $35, $36, $37, $38::jsonb, $39::jsonb, $40, $41, $42, $43, $44, CURRENT_TIMESTAMP)
       RETURNING *
     `, [
       storeId, finalBarcode, finalProductCode, finalProductCode, name, finalPrice, currency || 'TRY',  
@@ -2224,7 +2256,12 @@ router.post("/", async (req: any, res) => {
       parseFloat(prep_time_min) || 0,
       portion_size || '',
       marketplaceDataVal,
-      sectorDataVal
+      sectorDataVal,
+      finalCreateColor,
+      finalCreateWarrantyMonths,
+      finalCreateWarrantyType,
+      finalCreateOrigin,
+      finalCreateMaterial
     ]);
 
     const linkedInvoiceItemId = req.body._purchaseInvoiceItemId || req.body.purchase_invoice_item_id;
@@ -2688,7 +2725,8 @@ router.put("/:id", async (req: any, res) => {
     barcode, product_code, sku, name, price, currency, cost_price, cost_currency, description, 
     stock_quantity, min_stock_level, unit, category, sub_category, 
     category_2, sub_category_2, has_variants, variants,
-    brand, author, labels, image_url, images, is_web_sale, is_bestseller, product_type, 
+    brand, author, color, warranty_months, warranty_type, origin_country, material,
+    labels, image_url, images, is_web_sale, is_bestseller, product_type, 
     price_2, price_2_currency, tax_rate, shipping_profile_id, sync_group, volume_ml, is_sellable,
     allergens, calories, prep_time_min, portion_size, marketplace_data, sector_data
   } = req.body;
@@ -3001,6 +3039,52 @@ router.put("/:id", async (req: any, res) => {
     const finalShippingProfileId = shipping_profile_id !== undefined ? (shipping_profile_id || null) : (existing.shipping_profile_id || null);
     const finalVolumeMl = volume_ml !== undefined ? (parseFloat(volume_ml) || 0) : (parseFloat(existing.volume_ml) || 0);
 
+    const finalColor = color !== undefined
+      ? String(color || '').trim()
+      : String(existing.color || finalMarketplaceData?.attributes?.Renk || '').trim();
+    const finalWarrantyMonths = warranty_months !== undefined && String(warranty_months).trim() !== ''
+      ? String(warranty_months).trim()
+      : String(existing.warranty_months || finalMarketplaceData?.attributes?.GarantiSuresi || '24').trim();
+    const finalWarrantyType = warranty_type !== undefined && String(warranty_type).trim() !== ''
+      ? String(warranty_type).trim()
+      : String(existing.warranty_type || finalMarketplaceData?.attributes?.GarantiTipi || 'Resmi Distribütör Garantili').trim();
+    const finalOriginCountry = origin_country !== undefined && String(origin_country).trim() !== ''
+      ? String(origin_country).trim()
+      : String(existing.origin_country || finalMarketplaceData?.attributes?.Mensei || 'TR').trim();
+    const finalMaterial = material !== undefined
+      ? String(material || '').trim()
+      : String(existing.material || finalMarketplaceData?.attributes?.Materyal || '').trim();
+
+    if (!finalMarketplaceData.attributes || typeof finalMarketplaceData.attributes !== 'object') {
+      finalMarketplaceData.attributes = {};
+    }
+    if (finalBrand) finalMarketplaceData.attributes.Marka = finalBrand;
+    if (color !== undefined) {
+      if (finalColor) finalMarketplaceData.attributes.Renk = finalColor;
+    } else if (finalColor && !finalMarketplaceData.attributes.Renk) {
+      finalMarketplaceData.attributes.Renk = finalColor;
+    }
+    if (warranty_months !== undefined && finalWarrantyMonths) {
+      finalMarketplaceData.attributes.GarantiSuresi = finalWarrantyMonths;
+    } else if (finalWarrantyMonths && !finalMarketplaceData.attributes.GarantiSuresi) {
+      finalMarketplaceData.attributes.GarantiSuresi = finalWarrantyMonths;
+    }
+    if (warranty_type !== undefined && finalWarrantyType) {
+      finalMarketplaceData.attributes.GarantiTipi = finalWarrantyType;
+    } else if (finalWarrantyType && !finalMarketplaceData.attributes.GarantiTipi) {
+      finalMarketplaceData.attributes.GarantiTipi = finalWarrantyType;
+    }
+    if (origin_country !== undefined && finalOriginCountry) {
+      finalMarketplaceData.attributes.Mensei = finalOriginCountry;
+    } else if (finalOriginCountry && !finalMarketplaceData.attributes.Mensei) {
+      finalMarketplaceData.attributes.Mensei = finalOriginCountry;
+    }
+    if (material !== undefined) {
+      if (finalMaterial) finalMarketplaceData.attributes.Materyal = finalMaterial;
+    } else if (finalMaterial && !finalMarketplaceData.attributes.Materyal) {
+      finalMarketplaceData.attributes.Materyal = finalMaterial;
+    }
+
     await pool.query(`
       UPDATE products SET 
         barcode = $1, product_code = $2, sku = $2, name = $3, price = $4, currency = $5, 
@@ -3015,8 +3099,9 @@ router.put("/:id", async (req: any, res) => {
         hepsiburada_sku = $38, is_hepsiburada_active = $39,
         amazon_asin = $40, amazon_sku = $41, is_amazon_active = $42,
         hepsiburada_url = $43, amazon_url = $44,
+        color = $45, warranty_months = $46, warranty_type = $47, origin_country = $48, material = $49,
         updated_at = CURRENT_TIMESTAMP 
-      WHERE id = $45 AND store_id = $46
+      WHERE id = $50 AND store_id = $51
     `, [
       finalBarcode, finalProductCode, finalName, finalPrice, currency || existing.currency || 'TRY', 
       finalCostPrice, finalCostCurrency, finalDescription, 
@@ -3042,6 +3127,7 @@ router.put("/:id", async (req: any, res) => {
       finalHbSku, finalIsHbActive,
       cleanValidAmzAsin || null, finalAmzSku, finalIsAmzActive,
       finalHbUrl, finalAmzUrl,
+      finalColor, finalWarrantyMonths, finalWarrantyType, finalOriginCountry, finalMaterial,
       id, storeId
     ]);
 

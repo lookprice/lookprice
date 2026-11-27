@@ -159,12 +159,27 @@ export const useProductUtils = (user: any, currentStoreId: number | undefined, i
       const extra4 = imgs[3] || '';
       const extra5 = imgs[4] || '';
 
+      let mpAttrs: any = {};
+      if (p.marketplace_data) {
+        try {
+          const mpObj = typeof p.marketplace_data === 'string' ? JSON.parse(p.marketplace_data) : p.marketplace_data;
+          mpAttrs = mpObj?.attributes || mpObj?.hepsiburada?.attributes || {};
+        } catch {
+          mpAttrs = {};
+        }
+      }
+
       const baseInfo = {
         [t.barcode]: p.barcode,
         [t.productName]: p.name,
         [isTr ? 'Kategori' : 'Category']: p.category || '',
         [isTr ? 'Alt Kategori' : 'Sub-Category']: p.sub_category || '',
         [isTr ? 'Marka' : 'Brand']: p.brand || '',
+        [isTr ? 'Renk' : 'Color']: p.color || mpAttrs?.Renk || mpAttrs?.color || '',
+        [isTr ? 'Garanti Süresi (Ay)' : 'Warranty (Months)']: p.warranty_months ?? mpAttrs?.GarantiSuresi ?? '24',
+        [isTr ? 'Garanti Tipi' : 'Warranty Type']: p.warranty_type || mpAttrs?.GarantiTipi || 'Resmi Distribütör Garantili',
+        [isTr ? 'Menşei' : 'Origin']: p.origin_country || mpAttrs?.Mensei || 'TR',
+        [isTr ? 'Materyal' : 'Material']: p.material || mpAttrs?.Materyal || '',
         [isTr ? 'Yazar / Model' : 'Author / Model']: p.author || '',
         [t.price]: p.price,
         [isTr ? 'Para Birimi' : 'Currency']: p.currency || 'TRY',

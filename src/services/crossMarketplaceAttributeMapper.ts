@@ -210,17 +210,38 @@ export function extractMasterAttributePool(product: any): Record<string, { value
   if (product.brand) {
     pool["brand"] = { value: String(product.brand).trim(), source: "Stok Kartı (Marka)" };
   }
-  if (product.model) {
-    pool["model"] = { value: String(product.model).trim(), source: "Stok Kartı (Model)" };
+  if (product.model || product.author) {
+    pool["model"] = { value: String(product.model || product.author).trim(), source: "Stok Kartı (Model)" };
   }
-  if (product.vat_rate !== undefined && product.vat_rate !== null) {
+  if (product.tax_rate !== undefined && product.tax_rate !== null) {
+    pool["vat_rate"] = { value: `${product.tax_rate}`, source: "Stok Kartı (KDV)" };
+  } else if (product.vat_rate !== undefined && product.vat_rate !== null) {
     pool["vat_rate"] = { value: `${product.vat_rate}`, source: "Stok Kartı (KDV)" };
   }
-  if (product.color) {
-    pool["color"] = { value: String(product.color).trim(), source: "Stok Kartı (Renk)" };
+  const firstVar = Array.isArray(product.variants) && product.variants.length > 0 ? product.variants[0] : null;
+  const prodColor = String(product.color || product.sector_data?.color || firstVar?.color_name || firstVar?.color || "").trim();
+  if (prodColor) {
+    pool["color"] = { value: prodColor, source: "Stok Kartı (Renk)" };
   }
-  if (product.origin_country) {
-    pool["origin_country"] = { value: String(product.origin_country).trim(), source: "Stok Kartı (Menşei)" };
+  const prodWarrantyMonths = String(product.warranty_months ?? product.warranty ?? "").trim();
+  if (prodWarrantyMonths) {
+    pool["warranty_months"] = { value: prodWarrantyMonths, source: "Stok Kartı (Garanti Süresi)" };
+  }
+  const prodWarrantyType = String(product.warranty_type || "").trim();
+  if (prodWarrantyType) {
+    pool["warranty_type"] = { value: prodWarrantyType, source: "Stok Kartı (Garanti Tipi)" };
+  }
+  const prodOrigin = String(product.origin_country || "").trim();
+  if (prodOrigin) {
+    pool["origin_country"] = { value: prodOrigin, source: "Stok Kartı (Menşei)" };
+  }
+  const prodMaterial = String(product.material || "").trim();
+  if (prodMaterial) {
+    pool["material"] = { value: prodMaterial, source: "Stok Kartı (Materyal)" };
+  }
+  const prodSize = String(product.size || product.sector_data?.size || firstVar?.size || "").trim();
+  if (prodSize) {
+    pool["size"] = { value: prodSize, source: "Stok Kartı (Beden/Ölçü)" };
   }
 
   // 2. Extract from `marketplace_data` in strict lowest-to-highest priority order
@@ -255,17 +276,154 @@ export function extractMasterAttributePool(product: any): Record<string, { value
               : mpKey === "pazarama" ? "Pazarama"
               : "Ürün Nitelikleri";
 
-            pool[canonicalKey] = {
-              value: cleanVal,
-              source: `${sourceLabel} (${attrId})`
-            };
+            // Only override if base product didn't already supply an explicit column value, or if this is a non-base attribute
+            if (!pool[canonicalKey] || !pool[canonicalKey].source.startsWith("Stok Kartı")) {
+              pool[canonicalKey] = {
+                value: cleanVal,
+                source: `${sourceLabel} (${attrId})`
+              };
+            }
           }
         });
       }
     });
   }
 
+  // 3. Sensible defaults for universal mandatory attributes if not yet set on product
+  if (!pool["warranty_months"]) {
+    pool["warranty_months"] = { value: "24", source: "Stok Kartı (Garanti: 24 Ay)" };
+  }
+  if (!pool["warranty_type"]) {
+    pool["warranty_type"] = { value: "Resmi Distribütör Garantili", source: "Stok Kartı (Garanti Tipi)" };
+  }
+  if (!pool["origin_country"]) {
+    pool["origin_country"] = { value: "TR", source: "Stok Kartı (Menşei: TR)" };
+  }
+
   return pool;
+}
+
+/**
+ * Returns the default product field binding (`$product.*`) for common mandatory attributes
+ * across Hepsiburada, Trendyol, N11, Amazon TR, and Pazarama so operators don't have to
+ * manually map Marka, Renk, Garanti Süresi, Garanti Tipi, Menşei, Materyal, Beden, or KDV one by one.
+ */
+export function getDefaultProductFieldBindingForAttribute(
+  attrId?: string | number,
+  attrName?: string
+): { mode: 'field'; value: string } | null {
+  const idStr = String(attrId || "").trim().toLowerCase();
+  const nameStr = String(attrName || "").trim().toLowerCase();
+  const canonId = getCanonicalKey(idStr);
+  const canonName = getCanonicalKey(nameStr);
+
+  // 1. Brand / Marka
+  if (
+    canonId === "brand" ||
+    canonName === "brand" ||
+    idStr === "marka" ||
+    nameStr === "marka" ||
+    nameStr.includes("marka") ||
+    idStr.includes("brand")
+  ) {
+    return { mode: "field", value: "$product.brand" };
+  }
+
+  // 2. Color / Renk (including Trendyol IDs 47 = Renk, 348 = Web Color)
+  if (
+    canonId === "color" ||
+    canonName === "color" ||
+    idStr === "47" ||
+    idStr === "348" ||
+    idStr === "renk" ||
+    nameStr === "renk" ||
+    nameStr === "web color" ||
+    nameStr.includes("ürün rengi") ||
+    nameStr.includes("urun rengi") ||
+    nameStr.includes("kasa rengi")
+  ) {
+    return { mode: "field", value: "$product.color" };
+  }
+
+  // 3. Warranty Duration / Garanti Süresi (including Trendyol ID 433)
+  if (
+    canonId === "warranty_months" ||
+    canonName === "warranty_months" ||
+    idStr === "433" ||
+    idStr === "garantisuresi" ||
+    idStr === "garanti_suresi" ||
+    nameStr.includes("garanti süresi") ||
+    nameStr.includes("garanti suresi")
+  ) {
+    return { mode: "field", value: "$product.warranty_months" };
+  }
+
+  // 4. Warranty Type / Garanti Tipi (including Trendyol ID 290)
+  if (
+    canonId === "warranty_type" ||
+    canonName === "warranty_type" ||
+    idStr === "290" ||
+    idStr === "garantitipi" ||
+    idStr === "garanti_tipi" ||
+    nameStr.includes("garanti tipi") ||
+    nameStr.includes("garanti türü") ||
+    nameStr.includes("garanti turu")
+  ) {
+    return { mode: "field", value: "$product.warranty_type" };
+  }
+
+  // 5. Origin Country / Menşei (including Trendyol ID 1192)
+  if (
+    canonId === "origin_country" ||
+    canonName === "origin_country" ||
+    idStr === "1192" ||
+    idStr === "mensei" ||
+    nameStr.includes("menşei") ||
+    nameStr.includes("mensei") ||
+    nameStr.includes("üretim yeri") ||
+    nameStr.includes("uretim yeri") ||
+    idStr.includes("origin")
+  ) {
+    return { mode: "field", value: "$product.origin_country" };
+  }
+
+  // 6. Material / Materyal / Malzeme
+  if (
+    canonId === "material" ||
+    canonName === "material" ||
+    idStr === "materyal" ||
+    idStr === "malzeme" ||
+    nameStr === "materyal" ||
+    nameStr === "malzeme" ||
+    nameStr.includes("materyal") ||
+    nameStr.includes("malzeme")
+  ) {
+    return { mode: "field", value: "$product.material" };
+  }
+
+  // 7. Size / Beden (including Trendyol ID 338)
+  if (
+    canonId === "size" ||
+    canonName === "size" ||
+    idStr === "338" ||
+    idStr === "beden" ||
+    nameStr === "beden"
+  ) {
+    return { mode: "field", value: "$product.variant_size" };
+  }
+
+  // 8. VAT / KDV Oranı
+  if (
+    canonId === "vat_rate" ||
+    canonName === "vat_rate" ||
+    idStr.includes("kdv") ||
+    nameStr.includes("kdv") ||
+    idStr.includes("tax_vat_rate")
+  ) {
+    return { mode: "field", value: "$product.tax_rate" };
+  }
+
+  return null;
 }
 
 /**
@@ -303,8 +461,9 @@ export function autoHydrateTargetAttributes(
       return;
     }
 
-    const canonicalKey = getCanonicalKey(attrId);
-    const poolEntry = masterPool[canonicalKey];
+    const canonicalKey = getCanonicalKey(attrId) || getCanonicalKey(attr.name || "");
+    const nameCanonicalKey = getCanonicalKey(attr.name || attrId);
+    const poolEntry = masterPool[canonicalKey] || masterPool[nameCanonicalKey];
 
     if (poolEntry && poolEntry.value) {
       hydratedAttributes[attrId] = poolEntry.value;
@@ -325,3 +484,4 @@ export function autoHydrateTargetAttributes(
 
   return { hydratedAttributes, autoFilledFields };
 }
+

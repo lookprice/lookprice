@@ -18,6 +18,11 @@ export const useProductImport = (user: any, currentStoreId: number | undefined, 
     sub_category: "",
     brand: "",
     author: "",
+    color: "",
+    warranty_months: "",
+    warranty_type: "",
+    origin_country: "",
+    material: "",
     price: "",
     currency: "",
     description: "",
@@ -48,6 +53,11 @@ export const useProductImport = (user: any, currentStoreId: number | undefined, 
       sub_category: "",
       brand: "",
       author: "",
+      color: "",
+      warranty_months: "",
+      warranty_type: "",
+      origin_country: "",
+      material: "",
       price: "",
       currency: "",
       description: "",
@@ -90,6 +100,11 @@ export const useProductImport = (user: any, currentStoreId: number | undefined, 
     next.sub_category = findMatch([/^(alt kategori|sub_category|subcategory|alt_kategori)$/i, /alt kategori|sub.?cat/i]);
     next.brand = findMatch([/^(marka|brand|üretici|uretici|yayınevi|yayinevi)$/i, /marka|brand|yayın/i]);
     next.author = findMatch([/^(yazar|author|eser sahibi)$/i, /yazar|author/i]);
+    next.color = findMatch([/^(renk|ürün rengi|urun rengi|color|colour)$/i, /^(?!.*varyant).*(renk|color)/i]);
+    next.warranty_months = findMatch([/^(garanti süresi \(ay\)|garanti süresi|garanti suresi|garanti \(ay\)|garanti|warranty|warranty_months)$/i, /garanti süresi|garanti suresi|garanti \(ay\)/i]);
+    next.warranty_type = findMatch([/^(garanti tipi|garanti türü|garanti turu|warranty type|warranty_type)$/i, /garanti tipi|garanti türü/i]);
+    next.origin_country = findMatch([/^(menşei|mensei|menşei ülke|mensei ulke|üretim yeri|uretim yeri|origin|country of origin)$/i, /menşei|mensei|üretim yeri|origin/i]);
+    next.material = findMatch([/^(materyal|malzeme|kumaş|kumas|material)$/i, /materyal|malzeme|material/i]);
     next.description = findMatch([/^(açıklama|aciklama|description|detay|ürün açıklaması)$/i, /açıklama|aciklama|desc/i]);
     next.unit = findMatch([/^(birim|unit|ölçü birimi)$/i, /birim|unit/i]);
 
@@ -137,8 +152,8 @@ export const useProductImport = (user: any, currentStoreId: number | undefined, 
       /varyant stok|variant stock/i
     ]);
     next.variant_color = findMatch([
-      /^(varyant renk|varyant rengi|renk|color|colour)$/i,
-      /renk|color/i
+      /^(varyant renk|varyant rengi|variant color)$/i,
+      /varyant renk|variant color/i
     ]);
     next.variant_size = findMatch([
       /^(varyant beden|varyant boyutu|beden|size|numara|boyut)$/i,
