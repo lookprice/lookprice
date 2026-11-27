@@ -24,6 +24,8 @@ import {
   Landmark,
   CreditCard,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   FileCheck2,
   PieChart as PieIcon,
   Layers,
@@ -369,6 +371,10 @@ export default function PortfolioFinancesTab({
   }, [fetchChecksNotes, storeId]);
 
   // Filter States
+  const normalizedDefaultCurrency = useMemo(
+    () => (storeDefaultCurrency || defaultSectorCurrency || "TRY").toUpperCase(),
+    [storeDefaultCurrency, defaultSectorCurrency]
+  );
   const [datePreset, setDatePreset] = useState<DatePreset>("all");
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
@@ -376,13 +382,79 @@ export default function PortfolioFinancesTab({
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [currencyFilter, setCurrencyFilter] = useState<string>("all");
   const [methodFilter, setMethodFilter] = useState<string>("all");
-  const [cashVaultFilter, setCashVaultFilter] = useState<string>("all");
-  const [selectedAccountId, setSelectedAccountId] = useState<string>("all");
+  const [selectedCashCurrencies, setSelectedCashCurrencies] = useState<string[]>(() => [
+    (branding?.default_currency || branding?.currency || defaultSectorCurrency || "TRY").toUpperCase()
+  ]);
+  const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
+  const userTouchedVaultSelectionRef = React.useRef<boolean>(false);
+  const [bankSearchQuery, setBankSearchQuery] = useState<string>("");
+  const [showPassiveCashCurrencies, setShowPassiveCashCurrencies] = useState<boolean>(false);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const LEDGER_PAGE_SIZE = 25;
   const [selectedPropertyFilter, setSelectedPropertyFilter] = useState<string>("all");
   const [portfolioProfitFilter, setPortfolioProfitFilter] = useState<"all" | "profit" | "loss" | "no_activity">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [portfolioSearch, setPortfolioSearch] = useState("");
   const [profitTabSearch, setProfitTabSearch] = useState("");
+
+  useEffect(() => {
+    userTouchedVaultSelectionRef.current = false;
+    setSelectedAccountIds([]);
+    setSelectedCashCurrencies([normalizedDefaultCurrency]);
+    setCurrentPage(1);
+  }, [storeId]);
+
+  useEffect(() => {
+    if (!userTouchedVaultSelectionRef.current) {
+      setSelectedCashCurrencies([normalizedDefaultCurrency]);
+      setSelectedAccountIds([]);
+    }
+  }, [normalizedDefaultCurrency]);
+
+  const selectSingleCashVault = useCallback((cur: string) => {
+    userTouchedVaultSelectionRef.current = true;
+    setSelectedCashCurrencies([cur]);
+    setSelectedAccountIds([]);
+    setCurrencyFilter("all");
+    setMethodFilter("all");
+    setOpenDropdown(null);
+  }, []);
+
+  const toggleMultiCashVault = useCallback((cur: string) => {
+    userTouchedVaultSelectionRef.current = true;
+    setSelectedCashCurrencies(prev =>
+      prev.includes(cur) ? prev.filter(c => c !== cur) : [...prev, cur]
+    );
+    setCurrencyFilter("all");
+    setMethodFilter("all");
+  }, []);
+
+  const selectSingleAccountVault = useCallback((accId: string) => {
+    userTouchedVaultSelectionRef.current = true;
+    setSelectedAccountIds([accId]);
+    setSelectedCashCurrencies([]);
+    setCurrencyFilter("all");
+    setMethodFilter("all");
+    setOpenDropdown(null);
+  }, []);
+
+  const toggleMultiAccountVault = useCallback((accId: string) => {
+    userTouchedVaultSelectionRef.current = true;
+    setSelectedAccountIds(prev =>
+      prev.includes(accId) ? prev.filter(id => id !== accId) : [...prev, accId]
+    );
+    setCurrencyFilter("all");
+    setMethodFilter("all");
+  }, []);
+
+  const clearAllVaultSelections = useCallback(() => {
+    userTouchedVaultSelectionRef.current = true;
+    setSelectedCashCurrencies([]);
+    setSelectedAccountIds([]);
+    setCurrencyFilter("all");
+    setMethodFilter("all");
+    setOpenDropdown(null);
+  }, []);
 
   const categories = useMemo(() => {
     if (activeAutomotive) {
@@ -592,7 +664,9 @@ export default function PortfolioFinancesTab({
   const handleOpenCreateModal = (preselectedPropertyId?: string | number) => {
     setEditingTx(null);
     setPortfolioSearch("");
-    const defaultCur = currencyFilter !== "all" ? currencyFilter : (storeDefaultCurrency || defaultSectorCurrency);
+    const defaultCur = currencyFilter !== "all"
+      ? currencyFilter
+      : (selectedCashCurrencies.length === 1 ? selectedCashCurrencies[0] : (storeDefaultCurrency || defaultSectorCurrency));
     setFormData({
       type: "income",
       category: categories.income[0]?.id || "other",
@@ -1352,9 +1426,65 @@ export default function PortfolioFinancesTab({
     };
   }, [transactions, startDate, endDate, accounts, isCashVaultTx, normalizePaymentMethod]);
 
-  // Apply Search, Type, Category, Currency, Method, Cash Vault, Account, and Property filters on statement
+  // Categorized & Active Vault Lists (hide unused passive cash currencies; isolate marketplaces to shopLP)
+  const { activeCashCurrencies, passiveCashCurrencies } = useMemo(() => {
+    const allCurs = new Set<string>([...SUPPORTED_CURRENCIES, normalizedDefaultCurrency]);
+    Object.keys(statementAnalysis.summaryByCurrency).forEach(c => allCurs.add(c.toUpperCase()));
+    const cashAccCurrencies = new Set(
+      accounts.filter(a => a.account_type === "cash").map(a => (a.currency || "TRY").toUpperCase())
+    );
+    const active: string[] = [];
+    const passive: string[] = [];
+    Array.from(allCurs).forEach(cur => {
+      const s = statementAnalysis.summaryByCurrency[cur];
+      const hasActivity = Boolean(
+        cur === normalizedDefaultCurrency ||
+        selectedCashCurrencies.includes(cur) ||
+        cashAccCurrencies.has(cur) ||
+        (s && (
+          s.txCount > 0 ||
+          s.allTimeIncome > 0 ||
+          s.allTimeExpense > 0 ||
+          Math.abs(s.openingBalance) > 0.001 ||
+          Math.abs(s.closingBalance) > 0.001
+        ))
+      );
+      if (hasActivity) active.push(cur);
+      else passive.push(cur);
+    });
+    const orderRank = (c: string) => {
+      if (c === normalizedDefaultCurrency) return -1;
+      const idx = ["TRY", "USD", "EUR", "GBP"].indexOf(c);
+      return idx === -1 ? 99 : idx;
+    };
+    active.sort((a, b) => orderRank(a) - orderRank(b) || a.localeCompare(b));
+    passive.sort((a, b) => orderRank(a) - orderRank(b) || a.localeCompare(b));
+    return { activeCashCurrencies: active, passiveCashCurrencies: passive };
+  }, [statementAnalysis.summaryByCurrency, accounts, normalizedDefaultCurrency, selectedCashCurrencies]);
+
+  const bankCardAccounts = useMemo(
+    () => accounts.filter(a => !isMarketplaceAccount(a) && (a.account_type === "bank" || a.account_type === "credit_card")),
+    [accounts, isMarketplaceAccount]
+  );
+
+  const marketplaceVaultAccounts = useMemo(() => {
+    if (!isShopLPSector) return [];
+    const mpOrder: Record<string, number> = { hepsiburada: 0, trendyol: 1, n11: 2, amazon: 3, pazarama: 4 };
+    return accounts
+      .filter(a => isMarketplaceAccount(a))
+      .sort((a, b) => {
+        const ka = String(a.account_number || a.account_name || "").toLowerCase();
+        const kb = String(b.account_number || b.account_name || "").toLowerCase();
+        const oa = Object.entries(mpOrder).find(([k]) => ka.includes(k))?.[1] ?? 99;
+        const ob = Object.entries(mpOrder).find(([k]) => kb.includes(k))?.[1] ?? 99;
+        return oa !== ob ? oa - ob : a.id - b.id;
+      });
+  }, [accounts, isShopLPSector, isMarketplaceAccount]);
+
+  // Apply Search, Type, Category, Currency, Method, Cash Vault(s), Account(s), and Property filters on statement
   const filteredTransactions = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
+    const hasVaultFilter = selectedCashCurrencies.length > 0 || selectedAccountIds.length > 0;
     return statementAnalysis.periodTransactionsDesc.filter(t => {
       const normMethod = normalizePaymentMethod(t.payment_method);
       const txCurr = (t.currency || "TRY").toUpperCase();
@@ -1362,8 +1492,12 @@ export default function PortfolioFinancesTab({
       const matchesCategory = categoryFilter === "all" || t.category === categoryFilter;
       const matchesCurrency = currencyFilter === "all" || txCurr === currencyFilter;
       const matchesMethod = methodFilter === "all" || (methodFilter === "cash" ? isCashVaultTx(t) : normMethod === methodFilter);
-      const matchesCashVault = cashVaultFilter === "all" || (isCashVaultTx(t) && txCurr === cashVaultFilter);
-      const matchesAccount = selectedAccountId === "all" || (String(t.account_id) === selectedAccountId && (accountTypeMap.get(selectedAccountId) === "cash" ? isCashVaultTx(t) : !isCashVaultTx(t)));
+      const matchesVault = !hasVaultFilter || (
+        (selectedCashCurrencies.length > 0 && isCashVaultTx(t) && selectedCashCurrencies.includes(txCurr)) ||
+        (selectedAccountIds.length > 0 && t.account_id != null && selectedAccountIds.includes(String(t.account_id)) && (
+          accountTypeMap.get(String(t.account_id)) === "cash" ? isCashVaultTx(t) : !isCashVaultTx(t)
+        ))
+      );
       const matchesProperty = selectedPropertyFilter === "all" || String(t.property_id) === selectedPropertyFilter;
       const matchesSearch = !q || 
         (t.title && t.title.toLowerCase().includes(q)) ||
@@ -1374,9 +1508,21 @@ export default function PortfolioFinancesTab({
         (t.reference_no && t.reference_no.toLowerCase().includes(q)) ||
         getCategoryLabel(t.type, t.category).toLowerCase().includes(q);
 
-      return matchesType && matchesCategory && matchesCurrency && matchesMethod && matchesCashVault && matchesAccount && matchesProperty && matchesSearch;
+      return matchesType && matchesCategory && matchesCurrency && matchesMethod && matchesVault && matchesProperty && matchesSearch;
     });
-  }, [statementAnalysis.periodTransactionsDesc, typeFilter, categoryFilter, currencyFilter, methodFilter, cashVaultFilter, selectedAccountId, selectedPropertyFilter, searchQuery, categories, normalizePaymentMethod, isCashVaultTx]);
+  }, [statementAnalysis.periodTransactionsDesc, typeFilter, categoryFilter, currencyFilter, methodFilter, selectedCashCurrencies, selectedAccountIds, selectedPropertyFilter, searchQuery, categories, normalizePaymentMethod, isCashVaultTx, accountTypeMap]);
+
+  // Pagination (max 25 rows per page so the ledger never stretches indefinitely)
+  const totalPages = Math.max(1, Math.ceil(filteredTransactions.length / LEDGER_PAGE_SIZE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedTransactions = useMemo(() => {
+    const startIdx = (safeCurrentPage - 1) * LEDGER_PAGE_SIZE;
+    return filteredTransactions.slice(startIdx, startIdx + LEDGER_PAGE_SIZE);
+  }, [filteredTransactions, safeCurrentPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [startDate, endDate, typeFilter, categoryFilter, currencyFilter, methodFilter, selectedCashCurrencies, selectedAccountIds, selectedPropertyFilter, searchQuery]);
 
   // Export Statement to Excel (.xlsx)
   const handleExportExcel = () => {
@@ -1552,7 +1698,7 @@ export default function PortfolioFinancesTab({
 
   // Filtered table totals per currency (excludes internal transfers in consolidated P&L view so payouts don't double-count)
   const filteredTotalsByCurrency = useMemo(() => {
-    const isConsolidatedView = selectedAccountId === "all" && cashVaultFilter === "all" && methodFilter === "all";
+    const isConsolidatedView = selectedAccountIds.length === 0 && selectedCashCurrencies.length === 0 && methodFilter === "all";
     const map: Record<string, { income: number; expense: number; net: number; count: number }> = {};
     filteredTransactions.forEach(t => {
       const cur = t.currency || "GBP";
@@ -1567,7 +1713,7 @@ export default function PortfolioFinancesTab({
       map[cur].net = map[cur].income - map[cur].expense;
     });
     return map;
-  }, [filteredTransactions, selectedAccountId, cashVaultFilter, methodFilter]);
+  }, [filteredTransactions, selectedAccountIds, selectedCashCurrencies, methodFilter]);
 
   const handleOpenTransferModal = (opts?: FinancialAccount | { account?: FinancialAccount; cashCurrency?: string; preferMarketplace?: boolean }) => {
     const isAccountObj = opts && "id" in opts;
@@ -2424,32 +2570,51 @@ export default function PortfolioFinancesTab({
               </div>
 
               <div className="flex items-center gap-1 shrink-0">
-                {(startDate || endDate || currencyFilter !== "all" || cashVaultFilter !== "all" || typeFilter !== "all" || categoryFilter !== "all" || methodFilter !== "all" || selectedAccountId !== "all" || selectedPropertyFilter !== "all" || searchQuery) && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleSelectDatePreset("all");
-                      setCurrencyFilter("all");
-                      setCashVaultFilter("all");
-                      setTypeFilter("all");
-                      setCategoryFilter("all");
-                      setMethodFilter("all");
-                      setSelectedAccountId("all");
-                      setSelectedPropertyFilter("all");
-                      setSearchQuery("");
-                    }}
-                    className="flex items-center justify-center p-1.5 rounded-lg text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200/70 transition-colors cursor-pointer shrink-0"
-                    title={isTr ? "Filtreleri Sıfırla" : "Reset Filters"}
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                  </button>
-                )}
+                {(() => {
+                  const isDefaultVaultOnly =
+                    selectedAccountIds.length === 0 &&
+                    selectedCashCurrencies.length === 1 &&
+                    selectedCashCurrencies[0] === normalizedDefaultCurrency;
+                  const hasActiveFilter = Boolean(
+                    startDate ||
+                    endDate ||
+                    currencyFilter !== "all" ||
+                    typeFilter !== "all" ||
+                    categoryFilter !== "all" ||
+                    methodFilter !== "all" ||
+                    selectedPropertyFilter !== "all" ||
+                    searchQuery ||
+                    !isDefaultVaultOnly
+                  );
+                  if (!hasActiveFilter) return null;
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleSelectDatePreset("all");
+                        setCurrencyFilter("all");
+                        setTypeFilter("all");
+                        setCategoryFilter("all");
+                        setMethodFilter("all");
+                        setSelectedPropertyFilter("all");
+                        setSearchQuery("");
+                        userTouchedVaultSelectionRef.current = false;
+                        setSelectedAccountIds([]);
+                        setSelectedCashCurrencies([normalizedDefaultCurrency]);
+                      }}
+                      className="flex items-center justify-center p-1.5 rounded-lg text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200/70 transition-colors cursor-pointer shrink-0"
+                      title={isTr ? "Filtreleri Varsayılana Sıfırla" : "Reset Filters"}
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                    </button>
+                  );
+                })()}
 
                 <button
                   type="button"
                   onClick={() => setShowAccountsSummary(prev => !prev)}
                   className={`flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-colors cursor-pointer shrink-0 ${
-                    showAccountsSummary || currencyFilter !== "all" || cashVaultFilter !== "all" || selectedAccountId !== "all"
+                    showAccountsSummary || selectedCashCurrencies.length > 0 || selectedAccountIds.length > 0
                       ? "bg-indigo-600 text-white border-indigo-600"
                       : "text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 border-indigo-200 bg-white"
                   }`}
@@ -2462,486 +2627,778 @@ export default function PortfolioFinancesTab({
             </div>
           </div>
 
-          {/* 3. Kompakt Kasalar, Bankalar, Çek Kasası ve E-Market Kasaları Paneli (High-Density Operator Standard) */}
-          {showAccountsSummary && (
-            <div className="bg-white border border-slate-200/80 rounded-xl p-2 shadow-xs text-xs space-y-2">
-              {/* 3A. Nakit Kasalar (Sadece Fiziki/Elden Nakit İşlemler) */}
-              <div>
-                <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-tight mb-1 flex items-center justify-between gap-2">
-                  <span>{isTr ? "Nakit Kasalar (Sadece Nakit Hareketler)" : "Physical Cash Vaults (Cash Only)"}</span>
-                  <span className="text-[10px] text-slate-400 hidden sm:inline">{isTr ? "Kasa seçmek için karta tıklayın" : "Click card to isolate ledger"}</span>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                  {SUPPORTED_CURRENCIES.map(cur => {
-                    const data = statementAnalysis.summaryByCurrency[cur];
-                    const sym = getCurrencySymbol(cur);
-                    const isNetNegative = data.closingBalance < 0;
-                    const isSelected = cashVaultFilter === cur && selectedAccountId === "all";
+          {/* 3. Minimized Collapsible & Multi-Select Dropdown Treasury Selector Bar */}
+          {showAccountsSummary && (() => {
+            const selectedBankIds = selectedAccountIds.filter(id => bankCardAccounts.some(a => String(a.id) === id));
+            const selectedMpIds = selectedAccountIds.filter(id => marketplaceVaultAccounts.some(a => String(a.id) === id));
+            const totalMpNetReceivable = marketplaceVaultAccounts.reduce((sum, acc) => {
+              const bal = statementAnalysis.summaryByAccount[String(acc.id)]?.closingBalance ?? Number(acc.initial_balance || 0);
+              return sum + bal;
+            }, 0);
+            const bankSearchLower = bankSearchQuery.toLowerCase().trim();
+            const filteredBankCardAccounts = !bankSearchLower
+              ? bankCardAccounts
+              : bankCardAccounts.filter(acc =>
+                  `${acc.account_name || ""} ${acc.bank_name || ""} ${acc.account_number || ""} ${acc.currency || ""}`.toLowerCase().includes(bankSearchLower)
+                );
 
-                    return (
-                      <div
-                        key={cur}
-                        onClick={() => {
-                          if (cashVaultFilter === cur && selectedAccountId === "all") {
-                            setCashVaultFilter("all");
-                            setCurrencyFilter("all");
-                            setMethodFilter("all");
-                          } else {
-                            setCashVaultFilter(cur);
-                            setCurrencyFilter(cur);
-                            setMethodFilter("cash");
-                            setSelectedAccountId("all");
-                          }
-                        }}
-                        className={`cursor-pointer rounded-lg px-2 py-1.5 transition-all border ${
-                          isSelected
-                            ? "bg-slate-900 text-white border-slate-900 shadow-xs ring-1 ring-indigo-500/40"
-                            : "bg-slate-50/70 hover:bg-slate-100/80 border-slate-200"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-1">
-                          <span className={`text-[11px] font-semibold ${isSelected ? "text-indigo-200" : "text-slate-700"}`}>
-                            {cur} {isTr ? "Kasa" : "Cash"}
-                          </span>
-                          <span className={`text-[9.5px] font-medium px-1 py-0.2 rounded ${
-                            isSelected ? "bg-white/15 text-slate-100" : "bg-white text-slate-500 border border-slate-200"
-                          }`}>
-                            {data.txCount} {isTr ? "işlem" : "tx"}
-                          </span>
-                        </div>
+            const totalSelectedCount = selectedCashCurrencies.length + selectedAccountIds.length;
+            const singleSelectedCash = totalSelectedCount === 1 && selectedCashCurrencies.length === 1 ? selectedCashCurrencies[0] : null;
+            const singleSelectedAccount = totalSelectedCount === 1 && selectedAccountIds.length === 1
+              ? accounts.find(a => String(a.id) === selectedAccountIds[0]) || null
+              : null;
 
-                        <div className={`text-xs sm:text-sm font-bold tracking-tight mt-0.5 ${
-                          isSelected
-                            ? (isNetNegative ? "text-rose-300" : "text-emerald-300")
-                            : (isNetNegative ? "text-rose-600" : "text-emerald-700")
-                        }`}>
-                          {isNetNegative ? "-" : ""}{sym}{Math.abs(data.closingBalance).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </div>
-
-                        <div className="flex items-center justify-between text-[9.5px] mt-1 pt-1 border-t border-slate-200/50 gap-1">
-                          <div className="flex items-center gap-1 truncate">
-                            <span className={isSelected ? "text-emerald-300" : "text-emerald-600"}>+{sym}{data.periodIncome.toLocaleString("tr-TR", { maximumFractionDigits: 0 })}</span>
-                            <span className={isSelected ? "text-rose-300" : "text-rose-500"}>-{sym}{data.periodExpense.toLocaleString("tr-TR", { maximumFractionDigits: 0 })}</span>
-                          </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleOpenTransferModal({ cashCurrency: cur });
-                              }}
-                              className={`px-1 py-0.5 rounded text-[9.5px] font-semibold flex items-center gap-0.5 cursor-pointer transition-colors ${
-                                isSelected
-                                  ? "bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200"
-                                  : "bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80"
-                              }`}
-                              title={isTr ? `${cur} Nakit Kasadan Bankaya Virman / Yatır` : `Transfer ${cur} Cash to Bank`}
-                            >
-                              <ArrowLeftRight className="w-2.5 h-2.5" />
-                              <span>{isTr ? "Virman" : "Xfer"}</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleOpenAccountStatement({
-                                  cashCurrency: cur,
-                                  label: `${cur} ${isTr ? "Nakit Kasa" : "Cash Vault"}`
-                                });
-                              }}
-                              className={`px-1 py-0.5 rounded text-[9.5px] font-semibold flex items-center gap-0.5 cursor-pointer transition-colors ${
-                                isSelected
-                                  ? "bg-white/15 hover:bg-white/25 text-white"
-                                  : "bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/70"
-                              }`}
-                              title={isTr ? `${cur} Nakit Kasa Ekstresi` : "Open Statement"}
-                            >
-                              <FileText className="w-2.5 h-2.5" />
-                              <span>{isTr ? "Ekstre" : "Stmt"}</span>
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* 3B. Banka Hesapları, Kredi Kartları & Çek/Senet Kasası (STRICTLY excludes marketplace vaults) */}
-              {(() => {
-                const bankCardAccounts = accounts.filter(a => !isMarketplaceAccount(a) && (a.account_type === "bank" || a.account_type === "credit_card"));
-                if (bankCardAccounts.length === 0 && checksKpis.portfolioCount === 0) return null;
-
-                return (
-                  <div className="pt-1.5 border-t border-slate-200/60">
-                    <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-tight mb-1 flex items-center justify-between gap-2">
-                      <span>{isTr ? "Banka Hesapları, Kredi Kartları & Çek Kasası" : "Banks, Cards & Check Vault"}</span>
+            return (
+              <div className="bg-white border border-slate-200/80 rounded-xl px-2.5 py-2 shadow-xs text-xs space-y-1.5" data-dropdown-root>
+                <div className="flex flex-wrap items-center justify-between gap-1.5">
+                  {/* Left: Categorized Collapsible Multi-Select Dropdown Triggers */}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {/* 3A. Nakit Kasalar Dropdown */}
+                    <div className="relative">
                       <button
                         type="button"
-                        onClick={() => setShowAccountsModal(true)}
-                        className="text-[10px] text-indigo-600 hover:text-indigo-700 flex items-center gap-0.5 cursor-pointer font-medium"
+                        onClick={() => setOpenDropdown(prev => prev === "vault_cash" ? null : "vault_cash")}
+                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold transition-colors cursor-pointer ${
+                          selectedCashCurrencies.length > 0
+                            ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
+                            : "bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200"
+                        }`}
                       >
-                        <Plus className="w-3 h-3" />
-                        <span>{isTr ? "Hesap Ekle / Düzenle" : "Manage Accounts"}</span>
+                        <Wallet className={`w-3.5 h-3.5 shrink-0 ${selectedCashCurrencies.length > 0 ? "text-indigo-300" : "text-indigo-600"}`} />
+                        <span>{isTr ? "Nakit Kasalar" : "Cash Vaults"}</span>
+                        {selectedCashCurrencies.length === 1 ? (() => {
+                          const cur = selectedCashCurrencies[0];
+                          const bal = statementAnalysis.summaryByCurrency[cur]?.closingBalance ?? 0;
+                          const sym = getCurrencySymbol(cur);
+                          return (
+                            <span className={`px-1.5 py-0.2 rounded text-[10px] font-bold ${
+                              bal < 0 ? "bg-rose-500/25 text-rose-200" : "bg-emerald-500/25 text-emerald-200"
+                            }`}>
+                              {cur} {bal < 0 ? "-" : ""}{sym}{Math.abs(bal).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                          );
+                        })() : selectedCashCurrencies.length > 1 ? (
+                          <span className="px-1.5 py-0.2 rounded bg-indigo-500/30 text-indigo-100 text-[10px] font-bold">
+                            {selectedCashCurrencies.length} {isTr ? "seçili" : "selected"}
+                          </span>
+                        ) : (
+                          <span className="px-1.5 py-0.2 rounded bg-white text-slate-600 border border-slate-200 text-[10px] font-semibold">
+                            {activeCashCurrencies.length}
+                          </span>
+                        )}
+                        <ChevronDown className={`w-3 h-3 shrink-0 transition-transform ${openDropdown === "vault_cash" ? "rotate-180" : ""}`} />
                       </button>
-                    </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-1.5">
-                      {bankCardAccounts.map(acc => {
-                        const accSummary = statementAnalysis.summaryByAccount[String(acc.id)] || {
-                          closingBalance: Number(acc.initial_balance || 0),
-                          periodIncome: 0,
-                          periodExpense: 0,
-                          txCount: 0
-                        };
-                        const sym = getCurrencySymbol(acc.currency);
-                        const isSelected = selectedAccountId === String(acc.id);
-                        const isCard = acc.account_type === "credit_card";
-                        const isAccNegative = accSummary.closingBalance < 0;
-
-                        return (
-                          <div
-                            key={acc.id}
-                            onClick={() => {
-                              if (selectedAccountId === String(acc.id)) {
-                                setSelectedAccountId("all");
-                              } else {
-                                setSelectedAccountId(String(acc.id));
-                                setCashVaultFilter("all");
-                                setCurrencyFilter("all");
-                                setMethodFilter("all");
-                              }
-                            }}
-                            className={`cursor-pointer rounded-lg px-2 py-1.5 transition-all border ${
-                              isSelected
-                                ? "bg-slate-900 text-white border-slate-900 shadow-xs ring-1 ring-indigo-500/40"
-                                : "bg-slate-50/70 hover:bg-slate-100/80 border-slate-200"
-                            }`}
-                          >
-                            <div className="flex items-center justify-between gap-1">
-                              <div className="flex items-center gap-1 min-w-0">
-                                {isCard ? (
-                                  <CreditCard className={`w-3 h-3 shrink-0 ${isSelected ? "text-indigo-300" : "text-indigo-500"}`} />
-                                ) : (
-                                  <Landmark className={`w-3 h-3 shrink-0 ${isSelected ? "text-emerald-300" : "text-emerald-600"}`} />
-                                )}
-                                <span className={`text-[11px] font-semibold truncate ${isSelected ? "text-white" : "text-slate-800"}`}>
-                                  {acc.account_name}
-                                </span>
-                              </div>
-                              <span className={`text-[9.5px] font-medium px-1 py-0.2 rounded shrink-0 ${
-                                isSelected ? "bg-white/15 text-slate-100" : "bg-white text-slate-500 border border-slate-200"
-                              }`}>
-                                {acc.currency}
-                              </span>
+                      {openDropdown === "vault_cash" && (
+                        <div className="absolute left-0 top-full mt-1 z-40 w-80 max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden">
+                          <div className="px-3 py-2 bg-slate-50 border-b border-slate-200/80 flex items-center justify-between gap-2">
+                            <span className="text-[11px] font-bold text-slate-800">{isTr ? "Nakit Kasalar" : "Cash Vaults"}</span>
+                            <div className="flex items-center gap-1.5">
+                              {activeCashCurrencies.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    userTouchedVaultSelectionRef.current = true;
+                                    setSelectedCashCurrencies([...activeCashCurrencies]);
+                                    setSelectedAccountIds([]);
+                                    setCurrencyFilter("all");
+                                    setMethodFilter("all");
+                                  }}
+                                  className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-700 cursor-pointer"
+                                >
+                                  {isTr ? "Tümünü Seç" : "Select All"}
+                                </button>
+                              )}
+                              {selectedCashCurrencies.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    userTouchedVaultSelectionRef.current = true;
+                                    setSelectedCashCurrencies([]);
+                                  }}
+                                  className="text-[10px] font-semibold text-rose-600 hover:text-rose-700 cursor-pointer"
+                                >
+                                  {isTr ? "Temizle" : "Clear"}
+                                </button>
+                              )}
                             </div>
+                          </div>
 
-                            <div className="flex items-baseline justify-between gap-1 mt-0.5">
-                              <span className={`text-xs font-bold tracking-tight ${
-                                isSelected
-                                  ? (isAccNegative ? "text-rose-300" : "text-emerald-300")
-                                  : (isAccNegative ? "text-rose-600" : "text-emerald-700")
-                              }`}>
-                                {isAccNegative ? "-" : ""}{sym}{Math.abs(accSummary.closingBalance).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </span>
-                              <span className={`text-[9.5px] ${isSelected ? "text-slate-300" : "text-slate-400"}`}>
-                                {accSummary.txCount} {isTr ? "kayıt" : "tx"}
-                              </span>
-                            </div>
+                          <div className="max-h-72 overflow-y-auto divide-y divide-slate-100 p-1">
+                            {(showPassiveCashCurrencies ? [...activeCashCurrencies, ...passiveCashCurrencies] : activeCashCurrencies).map(cur => {
+                              const data = statementAnalysis.summaryByCurrency[cur] || {
+                                closingBalance: 0,
+                                periodIncome: 0,
+                                periodExpense: 0,
+                                txCount: 0
+                              };
+                              const sym = getCurrencySymbol(cur);
+                              const isNetNegative = data.closingBalance < 0;
+                              const isChecked = selectedCashCurrencies.includes(cur);
+                              const isDefaultCur = cur === normalizedDefaultCurrency;
+                              const isPassive = passiveCashCurrencies.includes(cur);
 
-                            <div className="flex items-center justify-between mt-1 pt-1 border-t border-slate-200/50 gap-1">
-                              <div className="flex items-center gap-1 text-[9.5px] truncate">
-                                <span className={isSelected ? "text-emerald-300" : "text-emerald-600"}>+{sym}{accSummary.periodIncome.toLocaleString("tr-TR", { maximumFractionDigits: 0 })}</span>
-                                <span className={isSelected ? "text-rose-300" : "text-rose-500"}>-{sym}{accSummary.periodExpense.toLocaleString("tr-TR", { maximumFractionDigits: 0 })}</span>
-                              </div>
-                              <div className="flex items-center gap-1 shrink-0">
-                                {!isCard && (
+                              return (
+                                <div
+                                  key={cur}
+                                  className={`flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors ${
+                                    isChecked ? "bg-indigo-50/90" : "hover:bg-slate-50"
+                                  }`}
+                                >
                                   <button
                                     type="button"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      handleOpenTransferModal({ account: acc });
+                                      toggleMultiCashVault(cur);
                                     }}
-                                    className={`px-1 py-0.5 rounded text-[9.5px] font-semibold flex items-center gap-0.5 cursor-pointer transition-colors ${
-                                      isSelected
-                                        ? "bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200"
-                                        : "bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80"
+                                    className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 cursor-pointer transition-colors ${
+                                      isChecked
+                                        ? "bg-indigo-600 border-indigo-600 text-white"
+                                        : "bg-white border-slate-300 hover:border-indigo-400"
                                     }`}
-                                    title={isTr ? `${acc.account_name} Hesabından Virman` : "Transfer from Bank"}
+                                    title={isTr ? "Çoklu seçime ekle / çıkar" : "Toggle multi-select"}
                                   >
-                                    <ArrowLeftRight className="w-2.5 h-2.5" />
-                                    <span>{isTr ? "Virman" : "Xfer"}</span>
+                                    {isChecked && <Check className="w-2.5 h-2.5" />}
                                   </button>
-                                )}
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleOpenAccountStatement({
-                                      accountId: acc.id,
-                                      label: acc.account_name
-                                    });
-                                  }}
-                                  className={`px-1 py-0.5 rounded text-[9.5px] font-semibold flex items-center gap-0.5 cursor-pointer transition-colors ${
-                                    isSelected
-                                      ? "bg-white/15 hover:bg-white/25 text-white"
-                                      : "bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/70"
-                                  }`}
-                                  title={isTr ? `${acc.account_name} Ekstresi` : "Open Statement"}
-                                >
-                                  <FileText className="w-2.5 h-2.5" />
-                                  <span>{isTr ? "Ekstre" : "Stmt"}</span>
-                                </button>
+
+                                  <div
+                                    onClick={() => selectSingleCashVault(cur)}
+                                    className="flex-1 min-w-0 cursor-pointer"
+                                  >
+                                    <div className="flex items-center justify-between gap-1.5">
+                                      <div className="flex items-center gap-1 min-w-0">
+                                        <span className="text-[11px] font-semibold text-slate-800 truncate">
+                                          {cur} {isTr ? "Kasa" : "Cash"}
+                                        </span>
+                                        {isDefaultCur && (
+                                          <span className="px-1 py-0.2 rounded bg-indigo-100 text-indigo-700 text-[9px] font-semibold shrink-0">
+                                            {isTr ? "Varsayılan" : "Default"}
+                                          </span>
+                                        )}
+                                        {isPassive && (
+                                          <span className="px-1 py-0.2 rounded bg-slate-100 text-slate-500 text-[9px] font-medium shrink-0">
+                                            {isTr ? "Pasif" : "Unused"}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <span className={`text-[11px] font-bold shrink-0 ${
+                                        isNetNegative ? "text-rose-600" : "text-emerald-700"
+                                      }`}>
+                                        {isNetNegative ? "-" : ""}{sym}{Math.abs(data.closingBalance).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-[9.5px] text-slate-400 mt-0.5">
+                                      <span>{data.txCount} {isTr ? "işlem" : "tx"}</span>
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="text-emerald-600">+{sym}{data.periodIncome.toLocaleString("tr-TR", { maximumFractionDigits: 0 })}</span>
+                                        <span className="text-rose-500">-{sym}{data.periodExpense.toLocaleString("tr-TR", { maximumFractionDigits: 0 })}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-0.5 shrink-0">
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setOpenDropdown(null);
+                                        handleOpenTransferModal({ cashCurrency: cur });
+                                      }}
+                                      className="p-1 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/70 cursor-pointer"
+                                      title={isTr ? `${cur} Nakit Kasadan Bankaya Virman` : "Transfer"}
+                                    >
+                                      <ArrowLeftRight className="w-3 h-3" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setOpenDropdown(null);
+                                        handleOpenAccountStatement({
+                                          cashCurrency: cur,
+                                          label: `${cur} ${isTr ? "Nakit Kasa" : "Cash Vault"}`
+                                        });
+                                      }}
+                                      className="p-1 rounded bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/70 cursor-pointer"
+                                      title={isTr ? `${cur} Nakit Kasa Ekstresi` : "Statement"}
+                                    >
+                                      <FileText className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {passiveCashCurrencies.length > 0 && (
+                            <div className="px-2.5 py-1.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+                              <button
+                                type="button"
+                                onClick={() => setShowPassiveCashCurrencies(prev => !prev)}
+                                className="text-[10px] font-medium text-slate-500 hover:text-slate-800 cursor-pointer"
+                              >
+                                {showPassiveCashCurrencies
+                                  ? (isTr ? "Pasif para birimlerini gizle" : "Hide unused currencies")
+                                  : (isTr ? `Pasif para birimlerini göster (${passiveCashCurrencies.join(", ")})` : `Show unused (${passiveCashCurrencies.join(", ")})`)}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 3B. Banka & Kredi Kartları Dropdown */}
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setOpenDropdown(prev => prev === "vault_bank" ? null : "vault_bank")}
+                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold transition-colors cursor-pointer ${
+                          selectedBankIds.length > 0
+                            ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
+                            : "bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200"
+                        }`}
+                      >
+                        <Landmark className={`w-3.5 h-3.5 shrink-0 ${selectedBankIds.length > 0 ? "text-emerald-300" : "text-emerald-600"}`} />
+                        <span>{isTr ? "Banka & Kartlar" : "Banks & Cards"}</span>
+                        {selectedBankIds.length === 1 ? (() => {
+                          const acc = bankCardAccounts.find(a => String(a.id) === selectedBankIds[0]);
+                          const bal = acc ? (statementAnalysis.summaryByAccount[String(acc.id)]?.closingBalance ?? Number(acc.initial_balance || 0)) : 0;
+                          const sym = getCurrencySymbol(acc?.currency || "TRY");
+                          return (
+                            <span className={`px-1.5 py-0.2 rounded text-[10px] font-bold max-w-[160px] truncate ${
+                              bal < 0 ? "bg-rose-500/25 text-rose-200" : "bg-emerald-500/25 text-emerald-200"
+                            }`}>
+                              {acc?.account_name} • {bal < 0 ? "-" : ""}{sym}{Math.abs(bal).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                          );
+                        })() : selectedBankIds.length > 1 ? (
+                          <span className="px-1.5 py-0.2 rounded bg-emerald-500/30 text-emerald-100 text-[10px] font-bold">
+                            {selectedBankIds.length} {isTr ? "seçili" : "selected"}
+                          </span>
+                        ) : (
+                          <span className="px-1.5 py-0.2 rounded bg-white text-slate-600 border border-slate-200 text-[10px] font-semibold">
+                            {bankCardAccounts.length}
+                          </span>
+                        )}
+                        <ChevronDown className={`w-3 h-3 shrink-0 transition-transform ${openDropdown === "vault_bank" ? "rotate-180" : ""}`} />
+                      </button>
+
+                      {openDropdown === "vault_bank" && (
+                        <div className="absolute left-0 top-full mt-1 z-40 w-80 sm:w-96 max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden">
+                          <div className="px-3 py-2 bg-slate-50 border-b border-slate-200/80 flex items-center justify-between gap-2">
+                            <span className="text-[11px] font-bold text-slate-800">
+                              {isTr ? "Banka Hesapları & Kredi Kartları" : "Banks & Credit Cards"} ({bankCardAccounts.length})
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenDropdown(null);
+                                setShowAccountsModal(true);
+                              }}
+                              className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-0.5 cursor-pointer"
+                            >
+                              <Plus className="w-3 h-3" />
+                              <span>{isTr ? "Hesap Ekle" : "Add"}</span>
+                            </button>
+                          </div>
+
+                          {bankCardAccounts.length > 4 && (
+                            <div className="p-2 border-b border-slate-100 bg-white">
+                              <div className="relative">
+                                <Search className="w-3 h-3 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                                <input
+                                  type="text"
+                                  value={bankSearchQuery}
+                                  onChange={(e) => setBankSearchQuery(e.target.value)}
+                                  placeholder={isTr ? "Banka, kart veya döviz ara..." : "Search bank or card..."}
+                                  className="w-full pl-7 pr-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[11px] text-slate-800 placeholder-slate-400 focus:outline-none"
+                                />
                               </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                          )}
 
-                      {/* Çek / Senet Kasası (Portföydeki Bekleyen Çekler -> Tahsil / Virman Kısayolu) */}
-                      <div
-                        onClick={() => setViewTab("checks_notes")}
-                        className="cursor-pointer rounded-lg px-2 py-1.5 transition-all border bg-violet-50/50 hover:bg-violet-50 border-violet-200/80"
-                        title={isTr ? "Vadesi gelen çekleri nakit kasa veya banka hesabına virman etmek için tıklayın" : "Open Checks & Notes Portfolio"}
-                      >
-                        <div className="flex items-center justify-between gap-1">
-                          <div className="flex items-center gap-1 min-w-0">
-                            <FileCheck2 className="w-3 h-3 text-violet-600 shrink-0" />
-                            <span className="text-[11px] font-semibold text-slate-800 truncate">
-                              {isTr ? "Çek / Senet Kasası" : "Check Vault"}
-                            </span>
-                          </div>
-                          <span className="text-[9.5px] font-semibold px-1 py-0.2 rounded bg-white text-violet-700 border border-violet-200 shrink-0">
-                            {checksKpis.portfolioCount} {isTr ? "evrak" : "items"}
-                          </span>
-                        </div>
+                          {filteredBankCardAccounts.length === 0 ? (
+                            <div className="p-4 text-center text-[11px] text-slate-500">
+                              {bankCardAccounts.length === 0
+                                ? (isTr ? "Henüz tanımlı banka veya kredi kartı yok." : "No banks or cards defined yet.")
+                                : (isTr ? "Aramaya uygun banka hesabı bulunamadı." : "No matching accounts.")}
+                            </div>
+                          ) : (
+                            <div className="max-h-72 overflow-y-auto divide-y divide-slate-100 p-1">
+                              {filteredBankCardAccounts.map(acc => {
+                                const accSummary = statementAnalysis.summaryByAccount[String(acc.id)] || {
+                                  closingBalance: Number(acc.initial_balance || 0),
+                                  periodIncome: 0,
+                                  periodExpense: 0,
+                                  txCount: 0
+                                };
+                                const sym = getCurrencySymbol(acc.currency);
+                                const isChecked = selectedAccountIds.includes(String(acc.id));
+                                const isCard = acc.account_type === "credit_card";
+                                const isAccNegative = accSummary.closingBalance < 0;
 
-                        <div className="text-xs font-bold text-violet-800 truncate mt-0.5">
-                          {checksKpis.receivedLabel || "₺0,00"}
-                        </div>
+                                return (
+                                  <div
+                                    key={acc.id}
+                                    className={`flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors ${
+                                      isChecked ? "bg-indigo-50/90" : "hover:bg-slate-50"
+                                    }`}
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleMultiAccountVault(String(acc.id));
+                                      }}
+                                      className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 cursor-pointer transition-colors ${
+                                        isChecked
+                                          ? "bg-indigo-600 border-indigo-600 text-white"
+                                          : "bg-white border-slate-300 hover:border-indigo-400"
+                                      }`}
+                                      title={isTr ? "Çoklu seçime ekle / çıkar" : "Toggle multi-select"}
+                                    >
+                                      {isChecked && <Check className="w-2.5 h-2.5" />}
+                                    </button>
 
-                        <div className="flex items-center justify-between mt-1 pt-1 border-t border-violet-200/50 gap-1">
-                          <span className="text-[9.5px] text-slate-500 truncate">
-                            {checksKpis.upcomingDueCount > 0
-                              ? `${checksKpis.upcomingDueCount} ${isTr ? "vadesi yakın" : "due soon"}`
-                              : (isTr ? "Portföy takibi" : "Portfolio")}
-                          </span>
-                          <span className="px-1 py-0.5 rounded text-[9.5px] font-semibold bg-violet-100 text-violet-800 flex items-center gap-0.5 shrink-0">
-                            <ArrowLeftRight className="w-2.5 h-2.5" />
-                            <span>{isTr ? "Tahsil / Virman" : "Settle"}</span>
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
+                                    <div
+                                      onClick={() => selectSingleAccountVault(String(acc.id))}
+                                      className="flex-1 min-w-0 cursor-pointer"
+                                    >
+                                      <div className="flex items-center justify-between gap-1.5">
+                                        <div className="flex items-center gap-1 min-w-0">
+                                          {isCard ? (
+                                            <CreditCard className="w-3 h-3 text-indigo-500 shrink-0" />
+                                          ) : (
+                                            <Landmark className="w-3 h-3 text-emerald-600 shrink-0" />
+                                          )}
+                                          <span className="text-[11px] font-semibold text-slate-800 truncate">
+                                            {acc.account_name}
+                                          </span>
+                                          <span className="px-1 py-0.2 rounded bg-slate-100 text-slate-600 text-[9px] font-semibold shrink-0">
+                                            {acc.currency}
+                                          </span>
+                                        </div>
+                                        <span className={`text-[11px] font-bold shrink-0 ${
+                                          isAccNegative ? "text-rose-600" : "text-emerald-700"
+                                        }`}>
+                                          {isAccNegative ? "-" : ""}{sym}{Math.abs(accSummary.closingBalance).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center justify-between text-[9.5px] text-slate-400 mt-0.5">
+                                        <span className="truncate">{acc.bank_name ? `${acc.bank_name} • ` : ""}{accSummary.txCount} {isTr ? "kayıt" : "tx"}</span>
+                                        <div className="flex items-center gap-1.5 shrink-0">
+                                          <span className="text-emerald-600">+{sym}{accSummary.periodIncome.toLocaleString("tr-TR", { maximumFractionDigits: 0 })}</span>
+                                          <span className="text-rose-500">-{sym}{accSummary.periodExpense.toLocaleString("tr-TR", { maximumFractionDigits: 0 })}</span>
+                                        </div>
+                                      </div>
+                                    </div>
 
-              {/* 3C. E-Market Kasaları (HB, TY, N11, AMZ, PZRM) - STRICTLY shopLP ONLY (AGENTS.md Rule 0) */}
-              {isShopLPSector && (() => {
-                const mpOrder: Record<string, number> = { hepsiburada: 0, trendyol: 1, n11: 2, amazon: 3, pazarama: 4 };
-                const mpVaults = accounts
-                  .filter(a => isMarketplaceAccount(a))
-                  .sort((a, b) => {
-                    const ka = String(a.account_number || a.account_name || "").toLowerCase();
-                    const kb = String(b.account_number || b.account_name || "").toLowerCase();
-                    const oa = Object.entries(mpOrder).find(([k]) => ka.includes(k))?.[1] ?? 99;
-                    const ob = Object.entries(mpOrder).find(([k]) => kb.includes(k))?.[1] ?? 99;
-                    return oa !== ob ? oa - ob : a.id - b.id;
-                  });
-                const totalNetReceivable = mpVaults.reduce((sum, acc) => {
-                  const bal = statementAnalysis.summaryByAccount[String(acc.id)]?.closingBalance ?? Number(acc.initial_balance || 0);
-                  return sum + bal;
-                }, 0);
+                                    <div className="flex items-center gap-0.5 shrink-0">
+                                      {!isCard && (
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setOpenDropdown(null);
+                                            handleOpenTransferModal({ account: acc });
+                                          }}
+                                          className="p-1 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/70 cursor-pointer"
+                                          title={isTr ? `${acc.account_name} Virman` : "Transfer"}
+                                        >
+                                          <ArrowLeftRight className="w-3 h-3" />
+                                        </button>
+                                      )}
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setOpenDropdown(null);
+                                          handleOpenAccountStatement({
+                                            accountId: acc.id,
+                                            label: acc.account_name
+                                          });
+                                        }}
+                                        className="p-1 rounded bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/70 cursor-pointer"
+                                        title={isTr ? `${acc.account_name} Ekstresi` : "Statement"}
+                                      >
+                                        <FileText className="w-3 h-3" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
 
-                return (
-                  <div className="pt-1.5 border-t border-slate-200/70">
-                    <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-tight mb-1 flex flex-wrap items-center justify-between gap-1.5">
-                      <div className="flex items-center gap-1.5">
-                        <Store className="w-3 h-3 text-amber-600" />
-                        <span>{isTr ? "E-Market Kasaları (HB • TY • N11 • AMZ • PZRM)" : "Marketplace Vaults (Net Receivables)"}</span>
-                        {mpVaults.length > 0 && (
-                          <span className={`px-1.5 py-0.2 rounded font-semibold ${
-                            totalNetReceivable < 0 ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700"
-                          }`}>
-                            {isTr ? "Net Alacak:" : "Total Net:"} {totalNetReceivable < 0 ? "-" : ""}₺{Math.abs(totalNetReceivable).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {mpVaults.length > 0 && (
-                          <button
-                            type="button"
-                            onClick={() => handleOpenTransferModal({ preferMarketplace: true })}
-                            className="px-1.5 py-0.5 rounded bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-semibold flex items-center gap-1 cursor-pointer transition-colors"
-                          >
-                            <ArrowLeftRight className="w-2.5 h-2.5" />
-                            <span>{isTr ? "Hakediş Virmanı" : "Payout"}</span>
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          disabled={syncingMarketplaces}
-                          onClick={() => handleSyncMarketplaces(false)}
-                          className="px-1.5 py-0.5 rounded bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-[10px] font-semibold flex items-center gap-1 cursor-pointer transition-colors disabled:opacity-50"
-                          title={isTr ? "Tüm e-market kasalarını, sipariş tarihlerini, iptalleri ve gider faturalarını yeniden eşitle" : "Sync marketplace vaults & orders"}
-                        >
-                          <RefreshCw className={`w-2.5 h-2.5 ${syncingMarketplaces ? "animate-spin" : ""}`} />
-                          <span>{syncingMarketplaces ? (isTr ? "Eşitleniyor..." : "Syncing...") : (isTr ? "Eşitle" : "Sync")}</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    {mpVaults.length === 0 ? (
-                      <div className="rounded-lg border border-dashed border-amber-200 bg-amber-50/40 px-2.5 py-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600">
-                        <span>
-                          {isTr
-                            ? "Hepsiburada, Trendyol, N11, Amazon ve Pazarama kasalarını oluşturmak ve siparişleri eşitlemek için tıklayın."
-                            : "Click to initialize Hepsiburada, Trendyol, N11, Amazon & Pazarama vaults."}
-                        </span>
-                        <button
-                          type="button"
-                          disabled={syncingMarketplaces}
-                          onClick={() => handleSyncMarketplaces(false)}
-                          className="px-2 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-semibold cursor-pointer"
-                        >
-                          {isTr ? "Kasaları Oluştur & Eşitle" : "Initialize & Sync"}
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1.5">
-                        {mpVaults.map(acc => {
-                          const accSummary = statementAnalysis.summaryByAccount[String(acc.id)] || {
-                            closingBalance: Number(acc.initial_balance || 0),
-                            periodIncome: 0,
-                            periodExpense: 0,
-                            txCount: 0
-                          };
-                          const sym = getCurrencySymbol(acc.currency);
-                          const isSelected = selectedAccountId === String(acc.id);
-                          const isAccNegative = accSummary.closingBalance < 0;
-
-                          return (
-                            <div
-                              key={acc.id}
-                              onClick={() => {
-                                if (selectedAccountId === String(acc.id)) {
-                                  setSelectedAccountId("all");
-                                } else {
-                                  setSelectedAccountId(String(acc.id));
-                                  setCashVaultFilter("all");
+                          {bankCardAccounts.length > 0 && (
+                            <div className="px-2.5 py-1.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  userTouchedVaultSelectionRef.current = true;
+                                  setSelectedAccountIds(bankCardAccounts.map(a => String(a.id)));
+                                  setSelectedCashCurrencies([]);
                                   setCurrencyFilter("all");
                                   setMethodFilter("all");
-                                }
-                              }}
-                              className={`cursor-pointer rounded-lg px-2 py-1.5 transition-all border ${
-                                isSelected
-                                  ? "bg-slate-900 text-white border-slate-900 shadow-xs ring-1 ring-amber-400/50"
-                                  : "bg-amber-50/40 hover:bg-amber-50/90 border-amber-200/80"
-                              }`}
-                            >
-                              <div className="flex items-center justify-between gap-1">
-                                <div className="flex items-center gap-1 min-w-0">
-                                  <Store className={`w-3 h-3 shrink-0 ${isSelected ? "text-amber-300" : "text-amber-600"}`} />
-                                  <span className={`text-[11px] font-semibold truncate ${isSelected ? "text-white" : "text-slate-900"}`}>
-                                    {acc.account_name}
-                                  </span>
-                                </div>
-                                <span className={`text-[9.5px] font-medium px-1 py-0.2 rounded shrink-0 ${
-                                  isSelected ? "bg-white/15 text-slate-100" : "bg-white text-slate-600 border border-amber-200"
-                                }`}>
-                                  {accSummary.txCount}
-                                </span>
-                              </div>
-
-                              <div className="flex items-baseline justify-between gap-1 mt-0.5">
-                                <span className={`text-xs font-bold tracking-tight ${
-                                  isSelected
-                                    ? (isAccNegative ? "text-rose-300" : "text-emerald-300")
-                                    : (isAccNegative ? "text-rose-600" : "text-emerald-700")
-                                }`}>
-                                  {isAccNegative ? "-" : ""}{sym}{Math.abs(accSummary.closingBalance).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </span>
-                                <div className="flex items-center gap-1 text-[9.5px]">
-                                  <span className={isSelected ? "text-emerald-300" : "text-emerald-700"}>+{sym}{accSummary.periodIncome.toLocaleString("tr-TR", { maximumFractionDigits: 0 })}</span>
-                                  <span className={isSelected ? "text-rose-300" : "text-rose-600"}>-{sym}{accSummary.periodExpense.toLocaleString("tr-TR", { maximumFractionDigits: 0 })}</span>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center justify-between mt-1 pt-1 border-t border-slate-200/50 gap-1">
+                                }}
+                                className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-700 cursor-pointer"
+                              >
+                                {isTr ? "Tüm Bankaları Seç" : "Select All Banks"}
+                              </button>
+                              {selectedBankIds.length > 0 && (
                                 <button
                                   type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleOpenTransferModal({ account: acc });
+                                  onClick={() => {
+                                    userTouchedVaultSelectionRef.current = true;
+                                    setSelectedAccountIds(prev => prev.filter(id => !selectedBankIds.includes(id)));
                                   }}
-                                  className={`px-1 py-0.5 rounded text-[9.5px] font-semibold flex items-center gap-0.5 cursor-pointer transition-colors ${
-                                    isSelected
-                                      ? "bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200"
-                                      : "bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80"
-                                  }`}
-                                  title={isTr ? "Bu pazaryeri hakedişini banka hesabına virman et" : "Transfer payout to bank"}
+                                  className="text-[10px] font-semibold text-rose-600 hover:text-rose-700 cursor-pointer"
                                 >
-                                  <ArrowLeftRight className="w-2.5 h-2.5" />
-                                  <span>{isTr ? "Virman" : "Payout"}</span>
+                                  {isTr ? "Banka Seçimini Temizle" : "Clear Banks"}
                                 </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 3C. E-Market Kasaları Dropdown - STRICTLY shopLP ONLY (AGENTS.md Rule 0) */}
+                    {isShopLPSector && (
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setOpenDropdown(prev => prev === "vault_marketplace" ? null : "vault_marketplace")}
+                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold transition-colors cursor-pointer ${
+                            selectedMpIds.length > 0
+                              ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
+                              : "bg-amber-50/70 hover:bg-amber-100/70 text-amber-900 border-amber-200/90"
+                          }`}
+                        >
+                          <Store className={`w-3.5 h-3.5 shrink-0 ${selectedMpIds.length > 0 ? "text-amber-300" : "text-amber-600"}`} />
+                          <span>{isTr ? "E-Market Kasaları" : "Marketplace Vaults"}</span>
+                          {selectedMpIds.length === 1 ? (() => {
+                            const acc = marketplaceVaultAccounts.find(a => String(a.id) === selectedMpIds[0]);
+                            const bal = acc ? (statementAnalysis.summaryByAccount[String(acc.id)]?.closingBalance ?? Number(acc.initial_balance || 0)) : 0;
+                            const sym = getCurrencySymbol(acc?.currency || "TRY");
+                            return (
+                              <span className={`px-1.5 py-0.2 rounded text-[10px] font-bold max-w-[165px] truncate ${
+                                bal < 0 ? "bg-rose-500/25 text-rose-200" : "bg-amber-500/25 text-amber-200"
+                              }`}>
+                                {acc?.account_name} • {bal < 0 ? "-" : ""}{sym}{Math.abs(bal).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
+                            );
+                          })() : selectedMpIds.length > 1 ? (
+                            <span className="px-1.5 py-0.2 rounded bg-amber-500/30 text-amber-100 text-[10px] font-bold">
+                              {selectedMpIds.length} {isTr ? "seçili" : "selected"}
+                            </span>
+                          ) : marketplaceVaultAccounts.length > 0 ? (
+                            <span className={`px-1.5 py-0.2 rounded text-[10px] font-bold ${
+                              totalMpNetReceivable < 0 ? "bg-rose-100 text-rose-700" : "bg-white text-emerald-700 border border-amber-200"
+                            }`}>
+                              {totalMpNetReceivable < 0 ? "-" : ""}₺{Math.abs(totalMpNetReceivable).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                          ) : (
+                            <span className="px-1.5 py-0.2 rounded bg-white text-amber-700 border border-amber-200 text-[10px] font-semibold">0</span>
+                          )}
+                          <ChevronDown className={`w-3 h-3 shrink-0 transition-transform ${openDropdown === "vault_marketplace" ? "rotate-180" : ""}`} />
+                        </button>
+
+                        {openDropdown === "vault_marketplace" && (
+                          <div className="absolute left-0 sm:left-auto sm:right-0 lg:left-0 lg:right-auto top-full mt-1 z-40 w-80 sm:w-96 max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden">
+                            <div className="px-3 py-2 bg-amber-50/80 border-b border-amber-200/70 flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <Store className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                                <span className="text-[11px] font-bold text-slate-800 truncate">{isTr ? "E-Market Kasaları" : "Marketplace Vaults"}</span>
+                              </div>
+                              <div className="flex items-center gap-1 shrink-0">
                                 <button
                                   type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleOpenAccountStatement({
-                                      accountId: acc.id,
-                                      label: acc.account_name
-                                    });
-                                  }}
-                                  className={`px-1 py-0.5 rounded text-[9.5px] font-semibold flex items-center gap-0.5 cursor-pointer transition-colors ${
-                                    isSelected
-                                      ? "bg-white/15 hover:bg-white/25 text-white"
-                                      : "bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/70"
-                                  }`}
-                                  title={isTr ? `${acc.account_name} Ekstresi` : "Open Statement"}
+                                  disabled={syncingMarketplaces}
+                                  onClick={() => handleSyncMarketplaces(false)}
+                                  className="px-1.5 py-0.5 rounded bg-white hover:bg-amber-100 text-amber-800 border border-amber-200 text-[10px] font-semibold flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                                  title={isTr ? "Tüm e-market kasalarını ve sipariş/gider kayıtlarını eşitle" : "Sync marketplace vaults"}
                                 >
-                                  <FileText className="w-2.5 h-2.5" />
-                                  <span>{isTr ? "Ekstre" : "Stmt"}</span>
+                                  <RefreshCw className={`w-2.5 h-2.5 ${syncingMarketplaces ? "animate-spin" : ""}`} />
+                                  <span>{syncingMarketplaces ? (isTr ? "Eşitleniyor..." : "Syncing...") : (isTr ? "Eşitle" : "Sync")}</span>
                                 </button>
                               </div>
                             </div>
-                          );
-                        })}
+
+                            {marketplaceVaultAccounts.length === 0 ? (
+                              <div className="p-3.5 text-center space-y-2">
+                                <p className="text-[11px] text-slate-600">
+                                  {isTr
+                                    ? "E-market kasalarını oluşturmak ve sipariş/gider kayıtlarını eşitlemek için tıklayın."
+                                    : "Click below to initialize & sync marketplace vaults."}
+                                </p>
+                                <button
+                                  type="button"
+                                  disabled={syncingMarketplaces}
+                                  onClick={() => handleSyncMarketplaces(false)}
+                                  className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-semibold cursor-pointer"
+                                >
+                                  {isTr ? "Kasaları Oluştur & Eşitle" : "Initialize & Sync"}
+                                </button>
+                              </div>
+                            ) : (
+                              <>
+                                <div className="max-h-72 overflow-y-auto divide-y divide-slate-100 p-1">
+                                  {marketplaceVaultAccounts.map(acc => {
+                                    const accSummary = statementAnalysis.summaryByAccount[String(acc.id)] || {
+                                      closingBalance: Number(acc.initial_balance || 0),
+                                      periodIncome: 0,
+                                      periodExpense: 0,
+                                      txCount: 0
+                                    };
+                                    const sym = getCurrencySymbol(acc.currency);
+                                    const isChecked = selectedAccountIds.includes(String(acc.id));
+                                    const isAccNegative = accSummary.closingBalance < 0;
+
+                                    return (
+                                      <div
+                                        key={acc.id}
+                                        className={`flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors ${
+                                          isChecked ? "bg-amber-50/90" : "hover:bg-slate-50"
+                                        }`}
+                                      >
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            toggleMultiAccountVault(String(acc.id));
+                                          }}
+                                          className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 cursor-pointer transition-colors ${
+                                            isChecked
+                                              ? "bg-amber-600 border-amber-600 text-white"
+                                              : "bg-white border-slate-300 hover:border-amber-400"
+                                          }`}
+                                          title={isTr ? "Çoklu seçime ekle / çıkar" : "Toggle multi-select"}
+                                        >
+                                          {isChecked && <Check className="w-2.5 h-2.5" />}
+                                        </button>
+
+                                        <div
+                                          onClick={() => selectSingleAccountVault(String(acc.id))}
+                                          className="flex-1 min-w-0 cursor-pointer"
+                                        >
+                                          <div className="flex items-center justify-between gap-1.5">
+                                            <span className="text-[11px] font-semibold text-slate-900 truncate">
+                                              {acc.account_name}
+                                            </span>
+                                            <span className={`text-[11px] font-bold shrink-0 ${
+                                              isAccNegative ? "text-rose-600" : "text-emerald-700"
+                                            }`}>
+                                              {isAccNegative ? "-" : ""}{sym}{Math.abs(accSummary.closingBalance).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </span>
+                                          </div>
+                                          <div className="flex items-center justify-between text-[9.5px] text-slate-400 mt-0.5">
+                                            <span>{accSummary.txCount} {isTr ? "kayıt" : "tx"}</span>
+                                            <div className="flex items-center gap-1.5">
+                                              <span className="text-emerald-600">+{sym}{accSummary.periodIncome.toLocaleString("tr-TR", { maximumFractionDigits: 0 })}</span>
+                                              <span className="text-rose-500">-{sym}{accSummary.periodExpense.toLocaleString("tr-TR", { maximumFractionDigits: 0 })}</span>
+                                            </div>
+                                          </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-0.5 shrink-0">
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setOpenDropdown(null);
+                                              handleOpenTransferModal({ account: acc });
+                                            }}
+                                            className="p-1 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/70 cursor-pointer"
+                                            title={isTr ? "Hakedişi Bankaya Virman Et" : "Transfer Payout"}
+                                          >
+                                            <ArrowLeftRight className="w-3 h-3" />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setOpenDropdown(null);
+                                              handleOpenAccountStatement({
+                                                accountId: acc.id,
+                                                label: acc.account_name
+                                              });
+                                            }}
+                                            className="p-1 rounded bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/70 cursor-pointer"
+                                            title={isTr ? `${acc.account_name} Ekstresi` : "Statement"}
+                                          >
+                                            <FileText className="w-3 h-3" />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+
+                                <div className="px-2.5 py-1.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      userTouchedVaultSelectionRef.current = true;
+                                      setSelectedAccountIds(marketplaceVaultAccounts.map(a => String(a.id)));
+                                      setSelectedCashCurrencies([]);
+                                      setCurrencyFilter("all");
+                                      setMethodFilter("all");
+                                    }}
+                                    className="text-[10px] font-semibold text-amber-700 hover:text-amber-800 cursor-pointer"
+                                  >
+                                    {isTr ? "Tüm E-Marketleri Seç" : "Select All"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenDropdown(null);
+                                      handleOpenTransferModal({ preferMarketplace: true });
+                                    }}
+                                    className="px-2 py-0.5 rounded bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-semibold flex items-center gap-1 cursor-pointer"
+                                  >
+                                    <ArrowLeftRight className="w-2.5 h-2.5" />
+                                    <span>{isTr ? "Hakediş Virmanı" : "Payout"}</span>
+                                  </button>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
-                );
-              })()}
-            </div>
-          )}
 
-          {/* Active Isolated Ledger Banner */}
-          {(cashVaultFilter !== "all" || selectedAccountId !== "all") && (() => {
-            const activeAcc = selectedAccountId !== "all" ? accounts.find(a => String(a.id) === selectedAccountId) : null;
-            const activeLabel = activeAcc
-              ? activeAcc.account_name
-              : `${cashVaultFilter} ${isTr ? "Nakit Kasa (Sadece Nakit Hareketler)" : "Physical Cash Vault (Cash Only)"}`;
-            return (
-              <div className="bg-slate-900 text-white rounded-lg px-3 py-1.5 flex flex-wrap items-center justify-between gap-2 text-[11px]">
-                <div className="flex items-center gap-1.5">
-                  <Wallet className="w-3.5 h-3.5 text-indigo-300 shrink-0" />
-                  <span className="text-slate-300">{isTr ? "Aktif İzole Ekstre:" : "Active Isolated Ledger:"}</span>
-                  <span className="font-semibold text-white">{activeLabel}</span>
-                  <span className="text-slate-400">({filteredTransactions.length} {isTr ? "hareket" : "rows"})</span>
+                  {/* Right: Active Selection Quick Actions & Summary */}
+                  <div className="flex flex-wrap items-center gap-1.5 ml-auto">
+                    {singleSelectedCash && (() => {
+                      const data = statementAnalysis.summaryByCurrency[singleSelectedCash] || {
+                        closingBalance: 0,
+                        periodIncome: 0,
+                        periodExpense: 0,
+                        txCount: 0
+                      };
+                      const sym = getCurrencySymbol(singleSelectedCash);
+                      return (
+                        <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200/90 rounded-lg px-2 py-1 text-[10.5px]">
+                          <span className="text-emerald-600 font-semibold">+{sym}{data.periodIncome.toLocaleString("tr-TR", { maximumFractionDigits: 0 })}</span>
+                          <span className="text-rose-500 font-semibold">-{sym}{data.periodExpense.toLocaleString("tr-TR", { maximumFractionDigits: 0 })}</span>
+                          <span className="text-slate-300">|</span>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenTransferModal({ cashCurrency: singleSelectedCash })}
+                            className="text-emerald-700 hover:text-emerald-800 font-semibold flex items-center gap-0.5 cursor-pointer"
+                          >
+                            <ArrowLeftRight className="w-2.5 h-2.5" />
+                            <span>{isTr ? "Virman" : "Xfer"}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenAccountStatement({ cashCurrency: singleSelectedCash, label: `${singleSelectedCash} ${isTr ? "Nakit Kasa" : "Cash Vault"}` })}
+                            className="text-indigo-700 hover:text-indigo-800 font-semibold flex items-center gap-0.5 cursor-pointer"
+                          >
+                            <FileText className="w-2.5 h-2.5" />
+                            <span>{isTr ? "Ekstre" : "Stmt"}</span>
+                          </button>
+                        </div>
+                      );
+                    })()}
+
+                    {singleSelectedAccount && (() => {
+                      const accSummary = statementAnalysis.summaryByAccount[String(singleSelectedAccount.id)] || {
+                        closingBalance: Number(singleSelectedAccount.initial_balance || 0),
+                        periodIncome: 0,
+                        periodExpense: 0,
+                        txCount: 0
+                      };
+                      const sym = getCurrencySymbol(singleSelectedAccount.currency);
+                      return (
+                        <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200/90 rounded-lg px-2 py-1 text-[10.5px]">
+                          <span className="text-emerald-600 font-semibold">+{sym}{accSummary.periodIncome.toLocaleString("tr-TR", { maximumFractionDigits: 0 })}</span>
+                          <span className="text-rose-500 font-semibold">-{sym}{accSummary.periodExpense.toLocaleString("tr-TR", { maximumFractionDigits: 0 })}</span>
+                          <span className="text-slate-300">|</span>
+                          {singleSelectedAccount.account_type !== "credit_card" && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenTransferModal({ account: singleSelectedAccount })}
+                              className="text-emerald-700 hover:text-emerald-800 font-semibold flex items-center gap-0.5 cursor-pointer"
+                            >
+                              <ArrowLeftRight className="w-2.5 h-2.5" />
+                              <span>{isTr ? "Virman" : "Xfer"}</span>
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleOpenAccountStatement({ accountId: singleSelectedAccount.id, label: singleSelectedAccount.account_name })}
+                            className="text-indigo-700 hover:text-indigo-800 font-semibold flex items-center gap-0.5 cursor-pointer"
+                          >
+                            <FileText className="w-2.5 h-2.5" />
+                            <span>{isTr ? "Ekstre" : "Stmt"}</span>
+                          </button>
+                        </div>
+                      );
+                    })()}
+
+                    {totalSelectedCount > 0 ? (
+                      <button
+                        type="button"
+                        onClick={clearAllVaultSelections}
+                        className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10.5px] font-semibold cursor-pointer transition-colors"
+                      >
+                        {isTr ? "Tüm Hesaplar" : "All Accounts"}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => selectSingleCashVault(normalizedDefaultCurrency)}
+                        className="px-2 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/70 text-[10.5px] font-semibold cursor-pointer transition-colors"
+                      >
+                        {normalizedDefaultCurrency} {isTr ? "Kasa (Varsayılan)" : "Default Cash"}
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCashVaultFilter("all");
-                    setSelectedAccountId("all");
-                    setCurrencyFilter("all");
-                    setMethodFilter("all");
-                  }}
-                  className="px-2 py-0.5 rounded bg-white/15 hover:bg-white/25 text-white text-[10px] font-semibold cursor-pointer transition-colors"
-                >
-                  {isTr ? "Tüm Hesapları Göster" : "Show All Ledgers"}
-                </button>
+
+                {/* Multi-select Removable Chips (shown only when > 1 vaults are selected together) */}
+                {totalSelectedCount > 1 && (
+                  <div className="flex flex-wrap items-center gap-1 pt-1 border-t border-slate-100">
+                    <span className="text-[10px] font-medium text-slate-400 mr-0.5">{isTr ? "Seçili:" : "Active:"}</span>
+                    {selectedCashCurrencies.map(cur => (
+                      <span
+                        key={`chip-cash-${cur}`}
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-800 border border-indigo-200/80 text-[10px] font-semibold"
+                      >
+                        <span>{cur} {isTr ? "Kasa" : "Cash"}</span>
+                        <button
+                          type="button"
+                          onClick={() => toggleMultiCashVault(cur)}
+                          className="text-indigo-500 hover:text-indigo-800 cursor-pointer"
+                        >
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                      </span>
+                    ))}
+                    {selectedAccountIds.map(accId => {
+                      const acc = accounts.find(a => String(a.id) === accId);
+                      if (!acc) return null;
+                      return (
+                        <span
+                          key={`chip-acc-${accId}`}
+                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 text-slate-800 border border-slate-200 text-[10px] font-semibold"
+                        >
+                          <span>{acc.account_name}</span>
+                          <button
+                            type="button"
+                            onClick={() => toggleMultiAccountVault(accId)}
+                            className="text-slate-500 hover:text-slate-900 cursor-pointer"
+                          >
+                            <X className="w-2.5 h-2.5" />
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             );
           })()}
@@ -3133,20 +3590,20 @@ export default function PortfolioFinancesTab({
                           key={opt.id}
                           type="button"
                           onClick={() => {
+                            userTouchedVaultSelectionRef.current = true;
                             setMethodFilter(opt.id);
-                            if (opt.id !== "cash") setCashVaultFilter("all");
-                            if (opt.id !== "all" && selectedAccountId !== "all") {
-                              const acc = accounts.find(a => String(a.id) === selectedAccountId);
-                              if (
-                                !acc ||
-                                (opt.id === "bank_transfer" && acc.account_type !== "bank") ||
-                                (opt.id === "credit_card" && acc.account_type !== "credit_card") ||
-                                (opt.id === "marketplace_vault" && acc.account_type !== "marketplace") ||
-                                opt.id === "cash" ||
-                                opt.id === "check_promissory"
-                              ) {
-                                setSelectedAccountId("all");
-                              }
+                            if (opt.id !== "cash") setSelectedCashCurrencies([]);
+                            if (opt.id !== "all" && selectedAccountIds.length > 0) {
+                              setSelectedAccountIds(prev =>
+                                prev.filter(id => {
+                                  const acc = accounts.find(a => String(a.id) === id);
+                                  if (!acc) return false;
+                                  if (opt.id === "bank_transfer") return acc.account_type === "bank";
+                                  if (opt.id === "credit_card") return acc.account_type === "credit_card";
+                                  if (opt.id === "marketplace_vault") return isMarketplaceAccount(acc);
+                                  return false;
+                                })
+                              );
                             }
                             setOpenDropdown(null);
                           }}
@@ -3340,9 +3797,9 @@ export default function PortfolioFinancesTab({
                       <th className="py-2 px-2.5 text-[10px] font-semibold text-emerald-700 uppercase tracking-wider text-right">{isTr ? "GİRİŞ (GELİR +)" : "CREDIT (+)"}</th>
                       <th className="py-2 px-2.5 text-[10px] font-semibold text-rose-700 uppercase tracking-wider text-right">{isTr ? "ÇIKIŞ (GİDER -)" : "DEBIT (-)"}</th>
                       <th className="py-2 px-2.5 text-[10px] font-semibold text-slate-700 uppercase tracking-wider text-right">
-                        {selectedAccountId !== "all"
+                        {selectedAccountIds.length > 0 && selectedCashCurrencies.length === 0
                           ? (isTr ? "HESAP BAKİYESİ" : "ACCOUNT BALANCE")
-                          : (cashVaultFilter !== "all" || (methodFilter === "cash" && selectedAccountId === "all"))
+                          : (selectedCashCurrencies.length > 0 && selectedAccountIds.length === 0) || (methodFilter === "cash" && selectedAccountIds.length === 0)
                           ? (isTr ? "KASA BAKİYESİ" : "CASH BALANCE")
                           : (methodFilter !== "all" || typeFilter !== "all" || categoryFilter !== "all" || selectedPropertyFilter !== "all" || searchQuery)
                           ? (isTr ? "DÖNEM BAKİYESİ" : "NET BALANCE")
@@ -3352,7 +3809,7 @@ export default function PortfolioFinancesTab({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-xs">
-                    {filteredTransactions.map((t) => {
+                    {paginatedTransactions.map((t) => {
                       const sym = getCurrencySymbol(t.currency);
                       const isIncome = t.type === "income";
                       const dateStr = t.date ? new Date(t.date).toLocaleDateString(isTr ? "tr-TR" : "en-US", { year: "numeric", month: "2-digit", day: "2-digit" }) : "-";
@@ -3527,14 +3984,20 @@ export default function PortfolioFinancesTab({
                   <tfoot className="bg-slate-900 text-white">
                     {Object.entries(filteredTotalsByCurrency).map(([cur, tot]) => {
                       const sym = getCurrencySymbol(cur);
-                      const isAccountScope = selectedAccountId !== "all" && Boolean(statementAnalysis.summaryByAccount[selectedAccountId]);
-                      const isCashScope = cashVaultFilter !== "all" || (methodFilter === "cash" && selectedAccountId === "all");
-                      const selectedAccSummary = isAccountScope ? statementAnalysis.summaryByAccount[selectedAccountId] : null;
-                      const closingBal = selectedAccSummary && selectedAccSummary.currency === cur
-                        ? selectedAccSummary.closingBalance
-                        : isCashScope
-                        ? (statementAnalysis.summaryByCurrency[cur]?.closingBalance ?? tot.net)
-                        : tot.net;
+                      const matchingSelectedAccounts = selectedAccountIds
+                        .map(id => statementAnalysis.summaryByAccount[id])
+                        .filter((s): s is NonNullable<typeof s> => Boolean(s) && s.currency.toUpperCase() === cur.toUpperCase());
+                      const includesCashCur = selectedCashCurrencies.includes(cur.toUpperCase()) || (methodFilter === "cash" && selectedAccountIds.length === 0);
+                      let closingBal = tot.net;
+                      if (matchingSelectedAccounts.length > 0 || includesCashCur) {
+                        closingBal = 0;
+                        if (includesCashCur) {
+                          closingBal += statementAnalysis.summaryByCurrency[cur.toUpperCase()]?.closingBalance ?? 0;
+                        }
+                        matchingSelectedAccounts.forEach(s => {
+                          closingBal += s.closingBalance;
+                        });
+                      }
                       return (
                         <tr key={`foot-${cur}`} className="border-t border-slate-800 text-[11px]">
                           <td colSpan={3} className="py-2 px-2.5 font-medium text-slate-300">
@@ -3558,6 +4021,82 @@ export default function PortfolioFinancesTab({
                 </table>
               )}
             </div>
+
+            {/* Pagination Bar (Max 25 Records Per Page) */}
+            {!loadingFinances && filteredTransactions.length > 0 && (() => {
+              const startRow = (safeCurrentPage - 1) * LEDGER_PAGE_SIZE + 1;
+              const endRow = Math.min(safeCurrentPage * LEDGER_PAGE_SIZE, filteredTransactions.length);
+              const pageItems: Array<number | "..."> = [];
+              if (totalPages <= 7) {
+                for (let i = 1; i <= totalPages; i++) pageItems.push(i);
+              } else {
+                pageItems.push(1);
+                if (safeCurrentPage > 3) pageItems.push("...");
+                const from = Math.max(2, safeCurrentPage - 1);
+                const to = Math.min(totalPages - 1, safeCurrentPage + 1);
+                for (let i = from; i <= to; i++) pageItems.push(i);
+                if (safeCurrentPage < totalPages - 2) pageItems.push("...");
+                pageItems.push(totalPages);
+              }
+
+              return (
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-[11px] text-slate-500">
+                  <div>
+                    {isTr
+                      ? `Gösterilen: ${startRow}–${endRow} / ${filteredTransactions.length} kayıt`
+                      : `Showing ${startRow}–${endRow} of ${filteredTransactions.length} records`}
+                    {totalPages > 1 && (
+                      <span className="ml-1.5 text-slate-400">
+                        ({isTr ? "Sayfa" : "Page"} {safeCurrentPage} / {totalPages})
+                      </span>
+                    )}
+                  </div>
+
+                  {totalPages > 1 && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        disabled={safeCurrentPage <= 1}
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        className="inline-flex items-center gap-0.5 px-2 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-medium disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                      >
+                        <ChevronLeft className="w-3 h-3" />
+                        <span>{isTr ? "Önceki" : "Prev"}</span>
+                      </button>
+
+                      {pageItems.map((item, idx) =>
+                        item === "..." ? (
+                          <span key={`dots-${idx}`} className="px-1.5 text-slate-400 select-none">…</span>
+                        ) : (
+                          <button
+                            key={`pg-${item}`}
+                            type="button"
+                            onClick={() => setCurrentPage(item)}
+                            className={`min-w-[26px] px-1.5 py-1 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer ${
+                              safeCurrentPage === item
+                                ? "bg-indigo-600 text-white shadow-2xs"
+                                : "bg-white hover:bg-slate-100 text-slate-700 border border-slate-200"
+                            }`}
+                          >
+                            {item}
+                          </button>
+                        )
+                      )}
+
+                      <button
+                        type="button"
+                        disabled={safeCurrentPage >= totalPages}
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        className="inline-flex items-center gap-0.5 px-2 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-medium disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                      >
+                        <span>{isTr ? "Sonraki" : "Next"}</span>
+                        <ChevronRight className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </>
       )}
@@ -5517,7 +6056,7 @@ export default function PortfolioFinancesTab({
                       className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800"
                     >
                       <option value="">{isTr ? "— Kaynak Seçin —" : "— Select Source —"}</option>
-                      <optgroup label={isTr ? "Nakit Kasalar (Elden Kasa)" : "Physical Cash Vaults"}>
+                      <optgroup label={isTr ? "Nakit Kasalar" : "Cash Vaults"}>
                         {SUPPORTED_CURRENCIES.map(cur => {
                           const bal = statementAnalysis.summaryByCurrency[cur]?.closingBalance ?? 0;
                           return (
@@ -5540,7 +6079,7 @@ export default function PortfolioFinancesTab({
                         </optgroup>
                       )}
                       {isShopLPSector && accounts.filter(a => isMarketplaceAccount(a)).length > 0 && (
-                        <optgroup label={isTr ? "E-Market Kasaları (Hakediş)" : "Marketplace Vaults"}>
+                        <optgroup label={isTr ? "E-Market Kasaları" : "Marketplace Vaults"}>
                           {accounts.filter(a => isMarketplaceAccount(a)).map(acc => {
                             const bal = statementAnalysis.summaryByAccount[String(acc.id)]?.closingBalance ?? 0;
                             return (
@@ -5574,7 +6113,7 @@ export default function PortfolioFinancesTab({
                           ))}
                         </optgroup>
                       )}
-                      <optgroup label={isTr ? "Nakit Kasalar (Elden Kasa)" : "Physical Cash Vaults"}>
+                      <optgroup label={isTr ? "Nakit Kasalar" : "Cash Vaults"}>
                         {SUPPORTED_CURRENCIES.map(cur => (
                           <option key={cur} value={`cash:${cur}`}>{cur} {isTr ? "Nakit Kasa" : "Cash"}</option>
                         ))}

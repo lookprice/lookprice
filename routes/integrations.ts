@@ -97,7 +97,7 @@ router.get("/amazon/auth-url", authenticate, async (req: any, res) => {
 // 2. Save Amazon Settings (Manual or Central OAuth)
 router.post("/amazon/settings", authenticate, async (req: any, res) => {
   const storeId = getAuthorizedStoreId(req, req.body?.storeId || req.query?.storeId);
-  const { appId, clientId, clientSecret, refreshToken, sellerId, categoryMappings, categoryAttributes, categoryMarkups, defaultCommissionRate, defaultFixedFee, isSandbox } = req.body;
+  const { appId, clientId, clientSecret, refreshToken, sellerId, categoryMappings, categoryMappingLabels, categoryAttributes, categoryMarkups, defaultCommissionRate, defaultFixedFee, isSandbox } = req.body;
 
   try {
     const storeRes = await pool.query("SELECT amazon_settings, branding FROM stores WHERE id = $1", [storeId]);
@@ -129,6 +129,7 @@ router.post("/amazon/settings", authenticate, async (req: any, res) => {
       defaultCommissionRate: defaultCommissionRate !== undefined ? Number(defaultCommissionRate) : (prevMerged.defaultCommissionRate ?? 15),
       defaultFixedFee: defaultFixedFee !== undefined ? Number(defaultFixedFee) : (prevMerged.defaultFixedFee ?? 20),
       categoryMappings: categoryMappings !== undefined ? categoryMappings : (prevMerged.categoryMappings || {}),
+      categoryMappingLabels: categoryMappingLabels !== undefined ? categoryMappingLabels : (prevMerged.categoryMappingLabels || {}),
       categoryAttributes: categoryAttributes !== undefined ? categoryAttributes : (prevMerged.categoryAttributes || {}),
       categoryMarkups: categoryMarkups !== undefined ? categoryMarkups : (prevMerged.categoryMarkups || {}),
       last_sync: prevMerged.last_sync || null
@@ -804,6 +805,7 @@ router.post("/n11/settings", authenticate, async (req: any, res) => {
     shipmentTemplate,
     preparingDay,
     categoryMappings,
+    categoryMappingLabels,
     categoryAttributes,
     categoryMarkups,
     defaultCommissionRate,
@@ -840,6 +842,7 @@ router.post("/n11/settings", authenticate, async (req: any, res) => {
       defaultCommissionRate: defaultCommissionRate !== undefined ? Number(defaultCommissionRate) : (prevMerged.defaultCommissionRate ?? 18),
       defaultFixedFee: defaultFixedFee !== undefined ? Number(defaultFixedFee) : (prevMerged.defaultFixedFee ?? 20),
       categoryMappings: categoryMappings !== undefined ? categoryMappings : (prevMerged.categoryMappings || {}),
+      categoryMappingLabels: categoryMappingLabels !== undefined ? categoryMappingLabels : (prevMerged.categoryMappingLabels || {}),
       categoryAttributes: categoryAttributes !== undefined ? categoryAttributes : (prevMerged.categoryAttributes || {}),
       categoryMarkups: categoryMarkups !== undefined ? categoryMarkups : (prevMerged.categoryMarkups || {}),
       last_sync: prevMerged.last_sync || null
@@ -1864,6 +1867,7 @@ router.post("/hepsiburada/settings", authenticate, async (req: any, res) => {
     autoStockSync,
     webhookSecret,
     categoryMappings,
+    categoryMappingLabels,
     categoryAttributes,
     categoryMarkups,
     defaultCommissionRate,
@@ -1904,6 +1908,7 @@ router.post("/hepsiburada/settings", authenticate, async (req: any, res) => {
     const rawCatMappings = categoryMappings !== undefined ? categoryMappings : (prevMerged.categoryMappings || {});
     const { sanitizeCategoryMappings, deepScrubPoisonedCategoryIds } = await import("../src/services/backend/systemGuardService");
     const cleanCatMappings = sanitizeCategoryMappings(rawCatMappings);
+    const rawCatLabels = categoryMappingLabels !== undefined ? categoryMappingLabels : (prevMerged.categoryMappingLabels || {});
     const rawCatAttrs = categoryAttributes !== undefined ? categoryAttributes : (prevMerged.categoryAttributes || {});
     const rawCatMarkups = categoryMarkups !== undefined ? categoryMarkups : (prevMerged.categoryMarkups || {});
 
@@ -1923,6 +1928,7 @@ router.post("/hepsiburada/settings", authenticate, async (req: any, res) => {
       autoStockSync: autoStockSync !== undefined ? Boolean(autoStockSync) : (prevMerged.autoStockSync ?? true),
       webhookSecret: webhookSecret || prevMerged.webhookSecret || `hb_wh_${Math.random().toString(36).substring(2, 12)}`,
       categoryMappings: cleanCatMappings,
+      categoryMappingLabels: rawCatLabels,
       categoryAttributes: rawCatAttrs,
       categoryMarkups: rawCatMarkups
     });
@@ -3726,13 +3732,11 @@ router.post("/hepsiburada/revise-catalog", authenticate, async (req: any, res) =
     const storeRes = await pool.query("SELECT hepsiburada_settings, currency_rates, branding FROM stores WHERE id = $1", [storeId]);
     if (storeRes.rows.length === 0) return res.status(404).json({ error: "Mağaza bulunamadı" });
 
-    let settings = storeRes.rows[0]?.hepsiburada_settings;
-    if (typeof settings === "string") { try { settings = JSON.parse(settings); } catch { settings = {}; } }
-    let branding = storeRes.rows[0]?.branding;
+    let hbDb = storeRes.rows[0]?.hepsiburada_settings || {};
+    if (typeof hbDb === "string") { try { hbDb = JSON.parse(hbDb); } catch { hbDb = {}; } }
+    let branding = storeRes.rows[0]?.branding || {};
     if (typeof branding === "string") { try { branding = JSON.parse(branding); } catch { branding = {}; } }
-    if (!settings || !settings.merchantId || !settings.apiSecret) {
-      settings = branding?.hepsiburada_settings || settings || {};
-    }
+    const settings = { ...(branding?.hepsiburada_settings || {}), ...(hbDb || {}) };
     const rates = storeRes.rows[0]?.currency_rates || branding?.currency_rates || {};
 
     const merchantId = String(settings?.merchantId || "").trim();
@@ -3748,9 +3752,9 @@ router.post("/hepsiburada/revise-catalog", authenticate, async (req: any, res) =
       merchantId,
       apiKey,
       apiSecret,
-      baseUrl: settings?.baseUrl || "https://oms-external.hepsiburada.com",
+      isTestMode: Boolean(settings?.isTestMode),
     };
-    const hbService = new HepsiburadaService(cleanSettings);
+    const hbService = new HepsiburadaService(cleanSettings, storeId);
 
     const prodsRes = await pool.query(
       `SELECT * FROM products WHERE store_id = $1 AND id = ANY($2::int[])`,
@@ -3793,8 +3797,8 @@ router.post("/hepsiburada/revise-catalog", authenticate, async (req: any, res) =
       if ((curr === "USD" || curr === "$") && Number(rates.USD) > 0) rawPrice *= Number(rates.USD);
       else if ((curr === "EUR" || curr === "€") && Number(rates.EUR) > 0) rawPrice *= Number(rates.EUR);
       else if ((curr === "GBP" || curr === "£") && Number(rates.GBP) > 0) rawPrice *= Number(rates.GBP);
-      const effectivePriceStr = HepsiburadaService.calculateMarketplacePrice(rawPrice, p.category, p.sub_category, cleanSettings);
-      const numericEffectivePrice = Math.max(1, parseFloat(String(effectivePriceStr).replace(",", ".")) || 1);
+      const effectivePrice = hbService.calculateMarketplacePrice(rawPrice, p.category, p.sub_category);
+      const numericEffectivePrice = Math.max(1, Number((Number.isFinite(effectivePrice) ? effectivePrice : (rawPrice || 1)).toFixed(2)));
 
       // Resolve leaf categoryId (store mappings -> product override -> live HB catalog lookup fallback)
       const catResolution = await resolveHepsiburadaCategoryIdForProduct(p, mpData, hbData, cleanSettings, storeId, liveCategoriesCache);
@@ -3952,6 +3956,7 @@ router.post("/hepsiburada/revise-catalog", authenticate, async (req: any, res) =
       message,
     });
   } catch (error: any) {
+    console.error("[HB Revise Catalog] Error:", error?.message || error);
     res.status(400).json({ error: error.message || "Hepsiburada katalog görsel revizyonu başarısız." });
   }
 });
@@ -4344,76 +4349,120 @@ router.post("/pazarama/unpublish", authenticate, async (req: any, res) => {
   }
 });
 
-// Global cache for merged live Hepsiburada categories
-let hbLiveCategoryCache: { categories: any[]; timestamp: number } | null = null;
+// Global cache & pre-normalized search index for merged live Hepsiburada categories
+type IndexedMarketplaceCategory = {
+  id: string | number;
+  name: string;
+  displayName: string;
+  paths: string[];
+  leaf: boolean;
+  available: boolean;
+  status: string;
+  sector: string;
+  _normName: string;
+  _normFull: string;
+  _idStr: string;
+};
 
-async function getMergedHepsiburadaCategories(storeId?: number) {
-  const { HEPSIBURADA_DEFAULT_CATEGORIES, detectCategorySector } = await import("../src/data/marketplaceCategoriesData");
-  let categories: any[] = [...HEPSIBURADA_DEFAULT_CATEGORIES];
+let hbLiveCategoryCache: { categories: IndexedMarketplaceCategory[]; byId: Map<string, IndexedMarketplaceCategory>; timestamp: number } | null = null;
+let hbCategoryFetchPromise: Promise<IndexedMarketplaceCategory[]> | null = null;
+
+function stripCategoryIndexFields(c: IndexedMarketplaceCategory) {
+  return {
+    id: c.id,
+    name: c.name,
+    displayName: c.displayName,
+    paths: c.paths,
+    leaf: c.leaf,
+    available: c.available,
+    status: c.status,
+    sector: c.sector
+  };
+}
+
+async function getMergedHepsiburadaCategories(storeId?: number): Promise<IndexedMarketplaceCategory[]> {
+  const { HEPSIBURADA_DEFAULT_CATEGORIES, detectCategorySector, normalizeCategoryText } = await import("../src/data/marketplaceCategoriesData");
+
+  const indexCategory = (c: any): IndexedMarketplaceCategory => {
+    const id = c.categoryId ?? c.id;
+    const paths = Array.isArray(c.paths) ? c.paths : (c.parentName ? [c.parentName, c.name] : []);
+    const name = String(c.name || c.displayName || "");
+    const displayName = String(c.displayName || (paths.length > 0 ? `${paths.join(" > ")} > ${name}` : name));
+    const idStr = String(id ?? "");
+    return {
+      id,
+      name,
+      displayName,
+      paths,
+      leaf: c.leaf !== false,
+      available: c.available !== false,
+      status: c.status || "ACTIVE",
+      sector: c.sector || detectCategorySector(name || displayName, paths),
+      _normName: normalizeCategoryText(name),
+      _normFull: normalizeCategoryText(`${name} ${displayName} ${paths.join(" ")}`),
+      _idStr: idStr
+    };
+  };
 
   // Use cache ONLY if it holds live categories (> 500 items) and is fresh (< 2 hours)
   if (hbLiveCategoryCache && (Date.now() - hbLiveCategoryCache.timestamp) < 7200000 && hbLiveCategoryCache.categories.length > 500) {
     return hbLiveCategoryCache.categories;
   }
 
-  // Try live API if storeId provided (supporting both hepsiburada_settings column & branding.hepsiburada_settings)
-  if (storeId) {
-    try {
-      const storeRes = await pool.query("SELECT hepsiburada_settings, branding FROM stores WHERE id = $1", [storeId]);
-      let hbDb = storeRes.rows[0]?.hepsiburada_settings || {};
-      if (typeof hbDb === 'string') { try { hbDb = JSON.parse(hbDb); } catch { hbDb = {}; } }
-      let branding = storeRes.rows[0]?.branding || {};
-      if (typeof branding === 'string') { try { branding = JSON.parse(branding); } catch { branding = {}; } }
-      const settings = { ...(branding?.hepsiburada_settings || {}), ...hbDb };
-      if (settings?.apiSecret && settings?.merchantId) {
-        const hbService = new HepsiburadaService(settings, storeId);
-        const rawLive = await hbService.getAllCategories();
-        if (Array.isArray(rawLive) && rawLive.length > 0) {
-          const liveNormalized = rawLive
-            .filter((c: any) => c.leaf !== false && c.available !== false && c.status !== "INACTIVE")
-            .map((c: any) => {
-              const paths = Array.isArray(c.paths) ? c.paths : (c.parentName ? [c.parentName, c.name] : []);
-              const displayName = c.displayName || (paths.length > 0 ? `${paths.join(" > ")} > ${c.name}` : c.name);
-              return {
-                id: c.categoryId || c.id,
-                name: c.name || c.displayName,
-                displayName: displayName,
-                paths: paths,
-                leaf: true,
-                available: true,
-                status: "ACTIVE",
-                sector: c.sector || detectCategorySector(c.name || displayName, paths)
-              };
-            });
-
-          if (liveNormalized.length > 0) {
-            const existingIds = new Set(liveNormalized.map((c: any) => String(c.id)));
-            // Merge defaults if not in live
-            for (const def of HEPSIBURADA_DEFAULT_CATEGORIES) {
-              if (!existingIds.has(String(def.id))) {
-                liveNormalized.push({
-                  ...def,
-                  displayName: def.displayName || def.name,
-                  paths: def.paths || [],
-                  leaf: def.leaf ?? true,
-                  available: def.available ?? true,
-                  status: def.status || "ACTIVE",
-                  sector: def.sector || "general"
-                });
-                existingIds.add(String(def.id));
-              }
-            }
-            categories = liveNormalized;
-            hbLiveCategoryCache = { categories: liveNormalized, timestamp: Date.now() };
-          }
-        }
-      }
-    } catch (err: any) {
-      console.warn("[HB Categories] Live API fetch warning:", err.message);
-    }
+  // Coalesce concurrent requests so opening modal + typing never fires duplicate multi-page API calls
+  if (hbCategoryFetchPromise) {
+    return hbCategoryFetchPromise;
   }
 
-  return categories;
+  hbCategoryFetchPromise = (async () => {
+    let categories: IndexedMarketplaceCategory[] = HEPSIBURADA_DEFAULT_CATEGORIES.map(indexCategory);
+
+    // Try live API if storeId provided (supporting both hepsiburada_settings column & branding.hepsiburada_settings)
+    if (storeId) {
+      try {
+        const storeRes = await pool.query("SELECT hepsiburada_settings, branding FROM stores WHERE id = $1", [storeId]);
+        let hbDb = storeRes.rows[0]?.hepsiburada_settings || {};
+        if (typeof hbDb === 'string') { try { hbDb = JSON.parse(hbDb); } catch { hbDb = {}; } }
+        let branding = storeRes.rows[0]?.branding || {};
+        if (typeof branding === 'string') { try { branding = JSON.parse(branding); } catch { branding = {}; } }
+        const settings = { ...(branding?.hepsiburada_settings || {}), ...hbDb };
+        if (settings?.apiSecret && settings?.merchantId) {
+          const hbService = new HepsiburadaService(settings, storeId);
+          const rawLive = await hbService.getAllCategories();
+          if (Array.isArray(rawLive) && rawLive.length > 0) {
+            const liveNormalized = rawLive
+              .filter((c: any) => c.leaf !== false && c.available !== false && c.status !== "INACTIVE")
+              .map(indexCategory);
+
+            if (liveNormalized.length > 0) {
+              const existingIds = new Set(liveNormalized.map((c) => c._idStr));
+              // Merge defaults if not in live
+              for (const def of HEPSIBURADA_DEFAULT_CATEGORIES) {
+                const defId = String(def.id);
+                if (!existingIds.has(defId)) {
+                  liveNormalized.push(indexCategory(def));
+                  existingIds.add(defId);
+                }
+              }
+              liveNormalized.sort((a, b) => (a.displayName || a.name).localeCompare(b.displayName || b.name, 'tr'));
+              const byId = new Map<string, IndexedMarketplaceCategory>();
+              for (const item of liveNormalized) byId.set(item._idStr, item);
+              categories = liveNormalized;
+              hbLiveCategoryCache = { categories: liveNormalized, byId, timestamp: Date.now() };
+            }
+          }
+        }
+      } catch (err: any) {
+        console.warn("[HB Categories] Live API fetch warning:", err.message);
+      }
+    }
+
+    return categories;
+  })().finally(() => {
+    hbCategoryFetchPromise = null;
+  });
+
+  return hbCategoryFetchPromise;
 }
 
 // 7. Get Catalog Categories (Sector-Organized & Filtered)
@@ -4425,51 +4474,74 @@ router.get("/hepsiburada/categories", authenticate, async (req: any, res) => {
     let result = await getMergedHepsiburadaCategories(storeId);
 
     if (sector && sector !== "all") {
-      result = result.filter((c: any) => c.sector === sector);
+      result = result.filter((c) => c.sector === sector);
     }
 
-    // Sort active retail leaf categories neatly
-    result.sort((a: any, b: any) => (a.displayName || a.name).localeCompare(b.displayName || b.name, 'tr'));
-
-    res.json({ success: true, categories: result, total: result.length, source: hbLiveCategoryCache ? "live_api_cache" : "verified_catalog" });
+    res.json({
+      success: true,
+      categories: result.map(stripCategoryIndexFields),
+      total: result.length,
+      source: hbLiveCategoryCache ? "live_api_cache" : "verified_catalog"
+    });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// 7b. Live Category Search Endpoint
+// 7b. Live Category Search Endpoint (Pre-indexed, Instant Multi-Word Token Search + Batch ID Lookup)
 router.get("/hepsiburada/categories/search", authenticate, async (req: any, res) => {
   const q = String(req.query.q || "").trim();
+  const idsParam = String(req.query.ids || "").trim();
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
 
   try {
-    const { normalizeCategoryText, matchCategorySearchToken } = await import("../src/data/marketplaceCategoriesData");
+    const { normalizeCategoryText, scoreCategorySearchMatch } = await import("../src/data/marketplaceCategoriesData");
     const allCategories = await getMergedHepsiburadaCategories(storeId);
-    
+
+    // Fast batch ID resolution (used to resolve labels for previously saved mapped category IDs)
+    if (idsParam) {
+      const requestedIds = new Set(idsParam.split(",").map((id) => id.trim()).filter(Boolean));
+      const found: any[] = [];
+      if (hbLiveCategoryCache?.byId) {
+        for (const id of requestedIds) {
+          const hit = hbLiveCategoryCache.byId.get(id);
+          if (hit) found.push(stripCategoryIndexFields(hit));
+        }
+      } else {
+        for (const c of allCategories) {
+          if (requestedIds.has(c._idStr)) found.push(stripCategoryIndexFields(c));
+        }
+      }
+      return res.json({ success: true, categories: found, total: found.length });
+    }
+
     if (!q) {
-      return res.json({ success: true, categories: allCategories.slice(0, 100), total: allCategories.length });
+      return res.json({ success: true, categories: allCategories.slice(0, 100).map(stripCategoryIndexFields), total: allCategories.length });
     }
 
     const normQ = normalizeCategoryText(q);
     const tokens = normQ.split(" ").filter((t: string) => t.length > 0);
 
-    const matches = allCategories.filter((c: any) => {
-      const catIdStr = String(c.id || c.categoryId || "");
-      if (catIdStr === q) return true;
+    const scored: { cat: IndexedMarketplaceCategory; score: number }[] = [];
+    for (let i = 0; i < allCategories.length; i++) {
+      const c = allCategories[i];
+      const score = scoreCategorySearchMatch(c._normName, c._normFull, c._idStr, q, normQ, tokens);
+      if (score > 0) {
+        scored.push({ cat: c, score });
+      }
+    }
 
-      const catText = normalizeCategoryText(`${c.name || ''} ${c.displayName || ''} ${(c.paths || []).join(' ')}`);
-      return tokens.every(token => matchCategorySearchToken(catText, token));
+    scored.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return (a.cat.displayName || a.cat.name).localeCompare(b.cat.displayName || b.cat.name, 'tr');
     });
 
-    matches.sort((a: any, b: any) => {
-      const aName = normalizeCategoryText(a.name || a.displayName || '');
-      const bName = normalizeCategoryText(b.name || b.displayName || '');
-      if (aName.startsWith(normQ) && !bName.startsWith(normQ)) return -1;
-      if (!aName.startsWith(normQ) && bName.startsWith(normQ)) return 1;
-      return (a.displayName || a.name).localeCompare(b.displayName || b.name, 'tr');
+    res.json({
+      success: true,
+      categories: scored.slice(0, 120).map((s) => stripCategoryIndexFields(s.cat)),
+      total: scored.length,
+      query: q
     });
-
-    res.json({ success: true, categories: matches.slice(0, 150), total: matches.length, query: q });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -4841,7 +4913,7 @@ router.post("/hepsiburada/webhook/:storeId", async (req: any, res) => {
 // 1. Save Trendyol Settings
 router.post("/trendyol/settings", authenticate, async (req: any, res) => {
   const storeId = getAuthorizedStoreId(req, req.body?.storeId || req.query?.storeId);
-  const { apiKey, apiSecret, merchantId, categoryMappings, categoryAttributes, categoryMarkups, defaultCommissionRate, defaultFixedFee } = req.body;
+  const { apiKey, apiSecret, merchantId, categoryMappings, categoryMappingLabels, categoryAttributes, categoryMarkups, defaultCommissionRate, defaultFixedFee } = req.body;
 
   try {
     const storeRes = await pool.query("SELECT trendyol_settings, branding FROM stores WHERE id = $1", [storeId]);
@@ -4866,6 +4938,7 @@ router.post("/trendyol/settings", authenticate, async (req: any, res) => {
       defaultCommissionRate: defaultCommissionRate !== undefined ? Number(defaultCommissionRate) : (prevMerged.defaultCommissionRate ?? 18),
       defaultFixedFee: defaultFixedFee !== undefined ? Number(defaultFixedFee) : (prevMerged.defaultFixedFee ?? 20),
       categoryMappings: categoryMappings !== undefined ? categoryMappings : (prevMerged.categoryMappings || {}),
+      categoryMappingLabels: categoryMappingLabels !== undefined ? categoryMappingLabels : (prevMerged.categoryMappingLabels || {}),
       categoryAttributes: categoryAttributes !== undefined ? categoryAttributes : (prevMerged.categoryAttributes || {}),
       categoryMarkups: categoryMarkups !== undefined ? categoryMarkups : (prevMerged.categoryMarkups || {}),
       last_sync: prevMerged.last_sync || null
@@ -5903,46 +5976,64 @@ router.post("/trendyol/match-listings", authenticate, async (req: any, res) => {
   }
 });
 
-// 6. Get Trendyol Categories (Live API + Verified Child Category Catalog Fallback)
+let trendyolLiveCategoryCache: { categories: any[]; timestamp: number } | null = null;
+let trendyolCategoryFetchPromise: Promise<any[]> | null = null;
+
+// 6. Get Trendyol Categories (Cached Live API + Verified Child Category Catalog Fallback)
 router.get("/trendyol/categories", authenticate, async (req: any, res) => {
   const { TRENDYOL_DEFAULT_CATEGORIES, detectCategorySector } = await import("../src/data/marketplaceCategoriesData");
+  if (trendyolLiveCategoryCache && (Date.now() - trendyolLiveCategoryCache.timestamp) < 7200000 && trendyolLiveCategoryCache.categories.length > 200) {
+    return res.json(trendyolLiveCategoryCache.categories);
+  }
   try {
-    const response = await axios.get("https://apigw.trendyol.com/integration/product/product-categories", {
-      headers: { "User-Agent": "LookPrice - SelfIntegration", "Accept": "application/json" },
-      timeout: 8000
-    });
-    const rawTree = response.data?.categories || [];
-    const flattened: any[] = [];
-    const walk = (nodes: any[], parentPaths: string[] = []) => {
-      for (const node of nodes) {
-        if (!node) continue;
-        const currentPaths = [...parentPaths, node.name].filter(Boolean);
-        if (Array.isArray(node.subCategories) && node.subCategories.length > 0) {
-          walk(node.subCategories, currentPaths);
-        } else {
-          flattened.push({
-            id: node.id,
-            name: node.name,
-            displayName: currentPaths.join(" > "),
-            paths: currentPaths,
-            leaf: true,
-            available: true,
-            status: "ACTIVE",
-            sector: detectCategorySector(node.name, currentPaths)
-          });
+    if (!trendyolCategoryFetchPromise) {
+      trendyolCategoryFetchPromise = (async () => {
+        const response = await axios.get("https://apigw.trendyol.com/integration/product/product-categories", {
+          headers: { "User-Agent": "LookPrice - SelfIntegration", "Accept": "application/json" },
+          timeout: 8000
+        });
+        const rawTree = response.data?.categories || [];
+        const flattened: any[] = [];
+        const walk = (nodes: any[], parentPaths: string[] = []) => {
+          for (const node of nodes) {
+            if (!node) continue;
+            const currentPaths = [...parentPaths, node.name].filter(Boolean);
+            if (Array.isArray(node.subCategories) && node.subCategories.length > 0) {
+              walk(node.subCategories, currentPaths);
+            } else {
+              flattened.push({
+                id: node.id,
+                name: node.name,
+                displayName: currentPaths.join(" > "),
+                paths: currentPaths,
+                leaf: true,
+                available: true,
+                status: "ACTIVE",
+                sector: detectCategorySector(node.name, currentPaths)
+              });
+            }
+          }
+        };
+        if (Array.isArray(rawTree) && rawTree.length > 0) {
+          walk(rawTree);
         }
-      }
-    };
-    if (Array.isArray(rawTree) && rawTree.length > 0) {
-      walk(rawTree);
+        const existingIds = new Set(flattened.map((c: any) => String(c.id)));
+        for (const def of TRENDYOL_DEFAULT_CATEGORIES) {
+          if (!existingIds.has(String(def.id))) {
+            flattened.push(def);
+          }
+        }
+        const result = flattened.length > 0 ? flattened : TRENDYOL_DEFAULT_CATEGORIES;
+        if (result.length > 200) {
+          trendyolLiveCategoryCache = { categories: result, timestamp: Date.now() };
+        }
+        return result;
+      })().finally(() => {
+        trendyolCategoryFetchPromise = null;
+      });
     }
-    const existingIds = new Set(flattened.map((c: any) => String(c.id)));
-    for (const def of TRENDYOL_DEFAULT_CATEGORIES) {
-      if (!existingIds.has(String(def.id))) {
-        flattened.push(def);
-      }
-    }
-    res.json(flattened.length > 0 ? flattened : TRENDYOL_DEFAULT_CATEGORIES);
+    const categories = await trendyolCategoryFetchPromise;
+    res.json(categories);
   } catch (error: any) {
     console.warn("[Trendyol Categories] Falling back to verified TRENDYOL_DEFAULT_CATEGORIES:", error?.message);
     res.json(TRENDYOL_DEFAULT_CATEGORIES);
@@ -5968,7 +6059,7 @@ router.get("/trendyol/brands", authenticate, async (req: any, res) => {
 // 1. Save Pazarama Settings
 router.post("/pazarama/settings", authenticate, async (req: any, res) => {
   const storeId = getAuthorizedStoreId(req, req.body?.storeId || req.query?.storeId);
-  const { apiKey, apiSecret, merchantId, commissionRate, defaultCommissionRate, defaultFixedFee, categoryMappings, categoryAttributes, categoryMarkups, brandMappings } = req.body;
+  const { apiKey, apiSecret, merchantId, commissionRate, defaultCommissionRate, defaultFixedFee, categoryMappings, categoryMappingLabels, categoryAttributes, categoryMarkups, brandMappings } = req.body;
 
   try {
     const prevRes = await pool.query("SELECT pazarama_settings, branding FROM stores WHERE id = $1", [storeId]);
@@ -5998,6 +6089,7 @@ router.post("/pazarama/settings", authenticate, async (req: any, res) => {
       defaultCommissionRate: effectiveComm,
       defaultFixedFee: defaultFixedFee !== undefined ? Number(defaultFixedFee) : (prevMerged.defaultFixedFee ?? 20),
       categoryMappings: categoryMappings !== undefined ? categoryMappings : (prevMerged.categoryMappings || {}),
+      categoryMappingLabels: categoryMappingLabels !== undefined ? categoryMappingLabels : (prevMerged.categoryMappingLabels || {}),
       categoryAttributes: categoryAttributes !== undefined ? categoryAttributes : (prevMerged.categoryAttributes || {}),
       categoryMarkups: categoryMarkups !== undefined ? categoryMarkups : (prevMerged.categoryMarkups || {}),
       brandMappings: brandMappings !== undefined ? brandMappings : (prevMerged.brandMappings || {})

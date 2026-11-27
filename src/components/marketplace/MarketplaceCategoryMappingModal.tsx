@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { 
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import {
   AlertCircle, Save, Info
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/services/api';
-import { 
-  MarketplaceCategory, 
+import {
+  MarketplaceCategory,
   MarketplaceAttribute,
   detectCategorySector,
   HEPSIBURADA_DEFAULT_CATEGORIES,
@@ -14,7 +14,9 @@ import {
   PAZARAMA_DEFAULT_CATEGORIES,
   N11_DEFAULT_CATEGORIES,
   getAttributesForCategory,
-  suggestMarketplaceCategory
+  suggestMarketplaceCategory,
+  normalizeCategoryText,
+  matchCategorySearchToken
 } from '@/data/marketplaceCategoriesData';
 
 import { MarketplaceType, LocalCategoryItem } from './categoryMapping/types';
@@ -22,7 +24,11 @@ import { CategoryAttributeModal } from './categoryMapping/CategoryAttributeModal
 import { CommissionSettingsBar } from './categoryMapping/CommissionSettingsBar';
 import { SectorFilterBar } from './categoryMapping/SectorFilterBar';
 import { CategoryMappingHeader } from './categoryMapping/CategoryMappingHeader';
-import { CategoryMappingRow } from './categoryMapping/CategoryMappingRow';
+import {
+  CategoryMappingRow,
+  IndexedMarketplaceCategory,
+  MappedCategoryLabel
+} from './categoryMapping/CategoryMappingRow';
 
 export type { MarketplaceType, LocalCategoryItem };
 
@@ -37,6 +43,46 @@ interface MarketplaceCategoryMappingModalProps {
   onBrandingChange?: (field: string, value: any) => void;
   onRefresh?: () => void;
   lang?: string;
+}
+
+function normalizeMappingId(val: any): string {
+  if (val === null || val === undefined) return '';
+  if (typeof val === 'string' || typeof val === 'number') return String(val).trim();
+  if (typeof val === 'object') {
+    return String(val.id || val.categoryId || val.hepsiburada || val.trendyol || val.n11 || val.amazon || val.pazarama || '').trim();
+  }
+  return '';
+}
+
+function normalizeMappingsRecord(raw: any): Record<string, string> {
+  if (!raw || typeof raw !== 'object') return {};
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    const cleanKey = String(k || '').trim();
+    const idStr = normalizeMappingId(v);
+    if (cleanKey && idStr) {
+      out[cleanKey] = idStr;
+    }
+  }
+  return out;
+}
+
+function mergeCategoryLists(existing: MarketplaceCategory[], incoming: MarketplaceCategory[]): MarketplaceCategory[] {
+  const byId = new Map<string, MarketplaceCategory>();
+  for (const c of existing) {
+    const idStr = String(c.id ?? '');
+    if (idStr) byId.set(idStr, c);
+  }
+  for (const c of incoming) {
+    const idStr = String(c.id ?? '');
+    if (!idStr) continue;
+    const prev = byId.get(idStr);
+    // Prefer richer record (e.g. one with paths/displayName)
+    if (!prev || ((c.paths?.length || 0) >= (prev.paths?.length || 0))) {
+      byId.set(idStr, c);
+    }
+  }
+  return Array.from(byId.values());
 }
 
 export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappingModalProps> = ({
@@ -74,11 +120,13 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
   }, [isOpen, activeMarketplace]);
 
   const [saving, setSaving] = useState(false);
+  const [loadingCategories, setLoadingCategories] = useState(false);
+  const [searchingRemote, setSearchingRemote] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
 
   // Sector Filtering State
   const [selectedSector, setSelectedSector] = useState<string>('all');
-  
+
   // Local Category Scope Filter
   const [localScopeFilter, setLocalScopeFilter] = useState<'all' | 'sub' | 'main' | 'unmapped'>('all');
 
@@ -97,11 +145,20 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
 
   // Local mappings copy per marketplace
   const [mappings, setMappings] = useState<Record<MarketplaceType, Record<string, string>>>({
-    hepsiburada: branding.hepsiburada_settings?.categoryMappings || {},
-    trendyol: branding.trendyol_settings?.categoryMappings || {},
-    n11: branding.n11_settings?.categoryMappings || {},
-    amazon: branding.amazon_settings?.categoryMappings || {},
-    pazarama: branding.pazarama_settings?.categoryMappings || {}
+    hepsiburada: normalizeMappingsRecord(branding.hepsiburada_settings?.categoryMappings),
+    trendyol: normalizeMappingsRecord(branding.trendyol_settings?.categoryMappings),
+    n11: normalizeMappingsRecord(branding.n11_settings?.categoryMappings),
+    amazon: normalizeMappingsRecord(branding.amazon_settings?.categoryMappings),
+    pazarama: normalizeMappingsRecord(branding.pazarama_settings?.categoryMappings)
+  });
+
+  // Saved human-readable marketplace category labels/paths per marketplace (prevents blank counterparts before live API loads)
+  const [mappingLabels, setMappingLabels] = useState<Record<MarketplaceType, Record<string, MappedCategoryLabel>>>({
+    hepsiburada: branding.hepsiburada_settings?.categoryMappingLabels || {},
+    trendyol: branding.trendyol_settings?.categoryMappingLabels || {},
+    n11: branding.n11_settings?.categoryMappingLabels || {},
+    amazon: branding.amazon_settings?.categoryMappingLabels || {},
+    pazarama: branding.pazarama_settings?.categoryMappingLabels || {}
   });
 
   // Local category attributes configuration per marketplace
@@ -139,26 +196,36 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
     pazarama: branding.pazarama_settings?.defaultFixedFee ?? 20
   });
 
-  const prevIsOpenRef = React.useRef(false);
+  const prevIsOpenRef = useRef(false);
+  const resolvedMissingIdsRef = useRef<Set<string>>(new Set());
 
-  // Sync state whenever modal opens or branding changes
+  // Initialize state ONLY when modal transitions from closed -> open.
+  // Never wipe in-progress or freshly-saved modal state when parent `branding` re-fetches in the background!
   useEffect(() => {
-    if (isOpen) {
-      if (!prevIsOpenRef.current) {
-        const saved = typeof window !== 'undefined' ? (localStorage.getItem('categoryMappingModalTab') as MarketplaceType) : null;
-        if (initialMarketplace) {
-          setActiveMarketplace(initialMarketplace);
-        } else if (saved) {
-          setActiveMarketplace(saved);
-        }
-      }
+    if (isOpen && !prevIsOpenRef.current) {
       prevIsOpenRef.current = true;
+      resolvedMissingIdsRef.current.clear();
+
+      const saved = typeof window !== 'undefined' ? (localStorage.getItem('categoryMappingModalTab') as MarketplaceType) : null;
+      if (initialMarketplace) {
+        setActiveMarketplace(initialMarketplace);
+      } else if (saved) {
+        setActiveMarketplace(saved);
+      }
+
       setMappings({
-        hepsiburada: branding.hepsiburada_settings?.categoryMappings || {},
-        trendyol: branding.trendyol_settings?.categoryMappings || {},
-        n11: branding.n11_settings?.categoryMappings || {},
-        amazon: branding.amazon_settings?.categoryMappings || {},
-        pazarama: branding.pazarama_settings?.categoryMappings || {}
+        hepsiburada: normalizeMappingsRecord(branding.hepsiburada_settings?.categoryMappings),
+        trendyol: normalizeMappingsRecord(branding.trendyol_settings?.categoryMappings),
+        n11: normalizeMappingsRecord(branding.n11_settings?.categoryMappings),
+        amazon: normalizeMappingsRecord(branding.amazon_settings?.categoryMappings),
+        pazarama: normalizeMappingsRecord(branding.pazarama_settings?.categoryMappings)
+      });
+      setMappingLabels({
+        hepsiburada: branding.hepsiburada_settings?.categoryMappingLabels || {},
+        trendyol: branding.trendyol_settings?.categoryMappingLabels || {},
+        n11: branding.n11_settings?.categoryMappingLabels || {},
+        amazon: branding.amazon_settings?.categoryMappingLabels || {},
+        pazarama: branding.pazarama_settings?.categoryMappingLabels || {}
       });
       setAttributesConfig({
         hepsiburada: branding.hepsiburada_settings?.categoryAttributes || {},
@@ -188,13 +255,15 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
         amazon: branding.amazon_settings?.defaultFixedFee ?? 20,
         pazarama: branding.pazarama_settings?.defaultFixedFee ?? 20
       });
-    } else {
+    } else if (!isOpen) {
       prevIsOpenRef.current = false;
+      setOpenDropdownFor(null);
+      setCatSearchTerm('');
     }
   }, [isOpen, branding, initialMarketplace]);
 
   // Helper to update specific category's markup
-  const handleUpdateCategoryMarkup = (localCatKey: string, field: 'commissionRate' | 'fixedFee', val: number | undefined) => {
+  const handleUpdateCategoryMarkup = useCallback((localCatKey: string, field: 'commissionRate' | 'fixedFee', val: number | undefined) => {
     setCategoryMarkups((prev) => {
       const currentMarketMarkups = prev[activeMarketplace] || {};
       const existing = currentMarketMarkups[localCatKey] || {};
@@ -212,15 +281,15 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
         }
       };
     });
-  };
+  }, [activeMarketplace]);
 
   // Helper to compute sample price
-  const calculateSimulatedPrice = (basePrice: number, commRate: number, fixedFee: number) => {
+  const calculateSimulatedPrice = useCallback((basePrice: number, commRate: number, fixedFee: number) => {
     if (basePrice <= 0) return 0;
     const safeRate = commRate >= 100 ? 99.9 : Math.max(0, commRate);
     const divisor = 1 - (safeRate / 100);
     return Math.round(((basePrice + fixedFee) / divisor) * 100) / 100;
-  };
+  }, []);
 
   // Available marketplace categories from API / Fallback
   const [marketCategories, setMarketCategories] = useState<Record<MarketplaceType, MarketplaceCategory[]>>({
@@ -231,125 +300,210 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
     pazarama: PAZARAMA_DEFAULT_CATEGORIES
   });
 
-  // Fetch live categories when modal opens or active marketplace changes
+  // Fetch live categories when modal opens or active marketplace changes (merge so we never drop searched/resolved items)
   useEffect(() => {
     if (!isOpen) return;
+    let cancelled = false;
 
-    if (activeMarketplace === 'hepsiburada') {
-      api.getHepsiburadaCategories(currentStoreId)
-        .then((res) => {
+    const loadCategories = async () => {
+      setLoadingCategories(true);
+      try {
+        if (activeMarketplace === 'hepsiburada') {
+          const res = await api.getHepsiburadaCategories(currentStoreId);
           const list = res.data?.categories || res.data || res.categories;
-          if (Array.isArray(list) && list.length > 0) {
+          if (!cancelled && Array.isArray(list) && list.length > 0) {
+            const incoming: MarketplaceCategory[] = list.map((c: any) => ({
+              id: c.categoryId || c.id,
+              name: c.name || c.displayName,
+              displayName: c.displayName || c.name,
+              paths: c.paths || (c.parentName ? [c.parentName, c.name] : []),
+              leaf: c.leaf !== false,
+              sector: c.sector || detectCategorySector(c.name || c.displayName, c.paths || [])
+            }));
             setMarketCategories((prev) => ({
               ...prev,
-              hepsiburada: list.map((c: any) => ({
-                id: c.categoryId || c.id,
-                name: c.name || c.displayName,
-                displayName: c.displayName || c.name,
-                paths: c.paths || (c.parentName ? [c.parentName, c.name] : []),
-                leaf: c.leaf !== false,
-                sector: c.sector || detectCategorySector(c.name || c.displayName, c.paths || [])
-              }))
+              hepsiburada: mergeCategoryLists(prev.hepsiburada || [], incoming)
             }));
           }
-        })
-        .catch(() => {});
-    } else if (activeMarketplace === 'trendyol') {
-      api.getTrendyolCategories()
-        .then((res) => {
-          const list = res.data?.categories || res.data;
-          if (Array.isArray(list) && list.length > 0) {
+        } else if (activeMarketplace === 'trendyol') {
+          const res = await api.getTrendyolCategories();
+          const list = res.data?.categories || res.data || res;
+          if (!cancelled && Array.isArray(list) && list.length > 0) {
+            const incoming: MarketplaceCategory[] = list.map((c: any) => ({
+              id: c.id,
+              name: c.name,
+              displayName: c.displayName || c.name,
+              paths: Array.isArray(c.paths) ? c.paths : (c.subCategories ? [c.name] : []),
+              sector: c.sector || detectCategorySector(c.name, Array.isArray(c.paths) ? c.paths : [])
+            }));
             setMarketCategories((prev) => ({
               ...prev,
-              trendyol: list.map((c: any) => ({
-                id: c.id,
-                name: c.name,
-                displayName: c.name,
-                paths: c.subCategories ? [c.name] : [],
-                sector: c.sector || detectCategorySector(c.name, c.subCategories ? [c.name] : [])
-              }))
+              trendyol: mergeCategoryLists(prev.trendyol || [], incoming)
             }));
           }
-        })
-        .catch(() => {});
-    } else if (activeMarketplace === 'n11') {
-      api.getN11Categories(currentStoreId)
-        .then((res) => {
+        } else if (activeMarketplace === 'n11') {
+          const res = await api.getN11Categories(currentStoreId);
           const list = res.data?.categories || res.data || res.categories;
-          if (Array.isArray(list) && list.length > 0) {
+          if (!cancelled && Array.isArray(list) && list.length > 0) {
+            const incoming: MarketplaceCategory[] = list.map((c: any) => ({
+              id: c.id || c.categoryId,
+              name: c.name || c.displayName,
+              displayName: c.displayName || c.name,
+              paths: c.paths || [c.name],
+              leaf: c.leaf !== false,
+              sector: c.sector || detectCategorySector(c.name || c.displayName, c.paths || [])
+            }));
             setMarketCategories((prev) => ({
               ...prev,
-              n11: list.map((c: any) => ({
-                id: c.id || c.categoryId,
-                name: c.name || c.displayName,
-                displayName: c.displayName || c.name,
-                paths: c.paths || [c.name],
-                leaf: c.leaf !== false,
-                sector: c.sector || detectCategorySector(c.name || c.displayName, c.paths || [])
-              }))
+              n11: mergeCategoryLists(prev.n11 || [], incoming)
             }));
           }
-        })
-        .catch(() => {});
-    } else if (activeMarketplace === 'pazarama') {
-      api.getPazaramaCategories(currentStoreId)
-        .then((res) => {
+        } else if (activeMarketplace === 'pazarama') {
+          const res = await api.getPazaramaCategories(currentStoreId);
           const list = res.data?.categories || res.data || res.categories;
-          if (Array.isArray(list) && list.length > 0) {
+          if (!cancelled && Array.isArray(list) && list.length > 0) {
+            const incoming: MarketplaceCategory[] = list.map((c: any) => ({
+              id: c.id || c.categoryId,
+              name: c.name || c.categoryName,
+              displayName: c.displayName || c.name || c.categoryName,
+              paths: c.paths || [],
+              sector: c.sector || detectCategorySector(c.name || c.categoryName)
+            }));
             setMarketCategories((prev) => ({
               ...prev,
-              pazarama: list.map((c: any) => ({
-                id: c.id || c.categoryId,
-                name: c.name || c.categoryName,
-                displayName: c.name || c.categoryName,
-                sector: c.sector || detectCategorySector(c.name || c.categoryName)
-              }))
+              pazarama: mergeCategoryLists(prev.pazarama || [], incoming)
             }));
           }
-        })
-        .catch(() => {});
-    }
+        }
+      } catch {
+        // Fallback default catalog remains available
+      } finally {
+        if (!cancelled) setLoadingCategories(false);
+      }
+    };
+
+    loadCategories();
+    return () => { cancelled = true; };
   }, [isOpen, activeMarketplace, currentStoreId]);
 
-  // Live Category Search when user types in category search box
+  // Pre-index all available categories for active marketplace ONCE per list update (O(1) lookup + instant search)
+  const currentAvailableMarketCats = useMemo<IndexedMarketplaceCategory[]>(() => {
+    const rawList = marketCategories[activeMarketplace] || [];
+    return rawList.map((c) => {
+      const name = String(c.name || c.displayName || '');
+      const displayName = String(c.displayName || c.name || '');
+      const paths = Array.isArray(c.paths) ? c.paths : [];
+      const idStr = String(c.id ?? '');
+      return {
+        ...c,
+        name,
+        displayName,
+        paths,
+        sector: c.sector || detectCategorySector(name || displayName, paths),
+        _normName: normalizeCategoryText(name),
+        _normFull: normalizeCategoryText(`${name} ${displayName} ${paths.join(' ')}`),
+        _idStr: idStr
+      };
+    });
+  }, [marketCategories, activeMarketplace]);
+
+  // O(1) lookup map by category ID
+  const marketCatById = useMemo(() => {
+    const map = new Map<string, IndexedMarketplaceCategory>();
+    for (let i = 0; i < currentAvailableMarketCats.length; i++) {
+      const c = currentAvailableMarketCats[i];
+      if (c._idStr) map.set(c._idStr, c);
+    }
+    return map;
+  }, [currentAvailableMarketCats]);
+
+  const sectorFilteredMarketCats = useMemo(() => {
+    if (selectedSector === 'all') return currentAvailableMarketCats;
+    return currentAvailableMarketCats.filter((c) => c.sector === selectedSector);
+  }, [currentAvailableMarketCats, selectedSector]);
+
+  // Auto-resolve any saved Hepsiburada mapped category IDs not yet present in loaded catalog
   useEffect(() => {
-    if (!isOpen || !catSearchTerm || catSearchTerm.trim().length < 2) return;
+    if (!isOpen || activeMarketplace !== 'hepsiburada') return;
+    const activeMap = mappings.hepsiburada || {};
+    const missingIds = Array.from(
+      new Set(
+        Object.values(activeMap)
+          .map((v) => String(v || '').trim())
+          .filter((id) => id && !marketCatById.has(id) && !resolvedMissingIdsRef.current.has(id))
+      )
+    );
+    if (missingIds.length === 0) return;
+
+    missingIds.forEach((id) => resolvedMissingIdsRef.current.add(id));
+    api.get(`/api/integrations/hepsiburada/categories/search?ids=${encodeURIComponent(missingIds.join(','))}${currentStoreId ? `&storeId=${currentStoreId}` : ''}`)
+      .then((res: any) => {
+        const list = res.data?.categories || res.categories || [];
+        if (Array.isArray(list) && list.length > 0) {
+          const incoming: MarketplaceCategory[] = list.map((c: any) => ({
+            id: c.id || c.categoryId,
+            name: c.name || c.displayName,
+            displayName: c.displayName || c.name,
+            paths: c.paths || [],
+            leaf: c.leaf !== false,
+            sector: c.sector || detectCategorySector(c.name || c.displayName, c.paths || [])
+          }));
+          setMarketCategories((prev) => ({
+            ...prev,
+            hepsiburada: mergeCategoryLists(prev.hepsiburada || [], incoming)
+          }));
+        }
+      })
+      .catch(() => {});
+  }, [isOpen, activeMarketplace, mappings.hepsiburada, marketCatById, currentStoreId]);
+
+  // Live Category Search fallback on backend when user types in HB search box (only when live catalog isn't fully loaded yet)
+  useEffect(() => {
+    if (!isOpen || !openDropdownFor || !catSearchTerm || catSearchTerm.trim().length < 2) {
+      setSearchingRemote(false);
+      return;
+    }
+    if (activeMarketplace !== 'hepsiburada') return;
+    // If full live catalog (> 500 items) is already loaded locally, client-side pre-indexed search is instant (< 2ms) with zero network latency!
+    if ((marketCategories.hepsiburada?.length || 0) > 500) {
+      setSearchingRemote(false);
+      return;
+    }
 
     const term = catSearchTerm.trim();
+    let cancelled = false;
+    setSearchingRemote(true);
     const timer = setTimeout(() => {
-      if (activeMarketplace === 'hepsiburada') {
-        api.get(`/api/integrations/hepsiburada/categories/search?q=${encodeURIComponent(term)}${currentStoreId ? `&storeId=${currentStoreId}` : ''}`)
-          .then((res: any) => {
-            const list = res.data?.categories || res.categories || [];
-            if (Array.isArray(list) && list.length > 0) {
-              setMarketCategories((prev) => {
-                const existing = prev.hepsiburada || [];
-                const existingIds = new Set(existing.map((c) => String(c.id)));
-                const newItems = list
-                  .map((c: any) => ({
-                    id: c.id || c.categoryId,
-                    name: c.name || c.displayName,
-                    displayName: c.displayName || c.name,
-                    paths: c.paths || [],
-                    leaf: c.leaf !== false,
-                    sector: c.sector || detectCategorySector(c.name || c.displayName, c.paths || [])
-                  }))
-                  .filter((c: any) => !existingIds.has(String(c.id)));
+      api.get(`/api/integrations/hepsiburada/categories/search?q=${encodeURIComponent(term)}${currentStoreId ? `&storeId=${currentStoreId}` : ''}`)
+        .then((res: any) => {
+          if (cancelled) return;
+          const list = res.data?.categories || res.categories || [];
+          if (Array.isArray(list) && list.length > 0) {
+            const incoming: MarketplaceCategory[] = list.map((c: any) => ({
+              id: c.id || c.categoryId,
+              name: c.name || c.displayName,
+              displayName: c.displayName || c.name,
+              paths: c.paths || [],
+              leaf: c.leaf !== false,
+              sector: c.sector || detectCategorySector(c.name || c.displayName, c.paths || [])
+            }));
+            setMarketCategories((prev) => ({
+              ...prev,
+              hepsiburada: mergeCategoryLists(prev.hepsiburada || [], incoming)
+            }));
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (!cancelled) setSearchingRemote(false);
+        });
+    }, 180);
 
-                if (newItems.length === 0) return prev;
-                return {
-                  ...prev,
-                  hepsiburada: [...existing, ...newItems]
-                };
-              });
-            }
-          })
-          .catch(() => {});
-      }
-    }, 250);
-
-    return () => clearTimeout(timer);
-  }, [isOpen, catSearchTerm, activeMarketplace, currentStoreId]);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [isOpen, openDropdownFor, catSearchTerm, activeMarketplace, currentStoreId, marketCategories.hepsiburada?.length]);
 
   // Extract all unique local categories and sub-categories from store's products
   const localCategoryItems = useMemo<LocalCategoryItem[]>(() => {
@@ -429,32 +583,91 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
   }, [localCategoryItems]);
 
   const currentMappings = mappings[activeMarketplace] || {};
+  const currentLabels = mappingLabels[activeMarketplace] || {};
 
-  const handleSelectMapping = (localCat: string, marketplaceCatId: string) => {
-    setMappings((prev) => ({
-      ...prev,
-      [activeMarketplace]: {
-        ...(prev[activeMarketplace] || {}),
-        [localCat]: marketplaceCatId
+  // Resolve mapped ID for a local category item (supporting both "Main > Sub" and legacy leaf-only "Sub" keys)
+  const resolveMappedIdForItem = useCallback((item: LocalCategoryItem, mapObj: Record<string, string>): string | undefined => {
+    if (mapObj[item.key]) return mapObj[item.key];
+    // Handle minor spacing differences around ">" (e.g., "Ana>Alt" vs "Ana > Alt")
+    if (item.isSubCategory && item.subCategory) {
+      const compactKey = `${item.mainCategory}>${item.subCategory}`;
+      if (mapObj[compactKey]) return mapObj[compactKey];
+      if (mapObj[item.subCategory]) return mapObj[item.subCategory];
+    }
+    return undefined;
+  }, []);
+
+  const handleSelectMapping = useCallback((localCat: string, marketCat: MarketplaceCategory) => {
+    const idStr = String(marketCat.id);
+    const leafSub = localCat.includes('>') ? localCat.split('>').pop()?.trim() : undefined;
+    const labelPayload: MappedCategoryLabel = {
+      id: idStr,
+      name: marketCat.name || marketCat.displayName || `Kategori #${idStr}`,
+      displayName: marketCat.displayName || marketCat.name || `Kategori #${idStr}`,
+      paths: Array.isArray(marketCat.paths) ? marketCat.paths : []
+    };
+
+    setMappings((prev) => {
+      const nextMarket = { ...(prev[activeMarketplace] || {}), [localCat]: idStr };
+      // Keep legacy leaf-only alias in sync if it already existed so product resolvers stay 100% consistent
+      if (leafSub && nextMarket[leafSub] !== undefined) {
+        nextMarket[leafSub] = idStr;
       }
-    }));
+      return {
+        ...prev,
+        [activeMarketplace]: nextMarket
+      };
+    });
+
+    setMappingLabels((prev) => {
+      const nextLabels = { ...(prev[activeMarketplace] || {}), [localCat]: labelPayload };
+      if (leafSub && nextLabels[leafSub] !== undefined) {
+        nextLabels[leafSub] = labelPayload;
+      }
+      return {
+        ...prev,
+        [activeMarketplace]: nextLabels
+      };
+    });
+
     setOpenDropdownFor(null);
     setCatSearchTerm('');
-  };
+  }, [activeMarketplace]);
 
-  const handleRemoveMapping = (localCat: string) => {
+  const handleRemoveMapping = useCallback((localCat: string) => {
+    const leafSub = localCat.includes('>') ? localCat.split('>').pop()?.trim() : undefined;
+    const compactKey = localCat.includes(' > ') ? localCat.replace(/\s*>\s*/g, '>') : undefined;
+
     setMappings((prev) => {
       const copy = { ...(prev[activeMarketplace] || {}) };
       delete copy[localCat];
+      if (compactKey) delete copy[compactKey];
+      // If a legacy leaf-only alias existed and no other subcategory shares it, remove it so the row cleanly unmaps
+      if (leafSub && copy[leafSub] !== undefined) {
+        const sharedByOther = localCategoryItems.some((it) => it.isSubCategory && it.key !== localCat && it.subCategory === leafSub);
+        if (!sharedByOther) {
+          delete copy[leafSub];
+        }
+      }
       return {
         ...prev,
         [activeMarketplace]: copy
       };
     });
-  };
+
+    setMappingLabels((prev) => {
+      const copy = { ...(prev[activeMarketplace] || {}) };
+      delete copy[localCat];
+      if (compactKey) delete copy[compactKey];
+      return {
+        ...prev,
+        [activeMarketplace]: copy
+      };
+    });
+  }, [activeMarketplace, localCategoryItems]);
 
   const handleAutoMatch = () => {
-    const availableCats = marketCategories[activeMarketplace] || [];
+    const availableCats = currentAvailableMarketCats;
     if (availableCats.length === 0) {
       toast.error('Bu pazaryeri için henüz kategori listesi yüklenmedi.');
       return;
@@ -462,27 +675,31 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
 
     let newlyMatched = 0;
     const updated = { ...currentMappings };
+    const updatedLabels = { ...currentLabels };
 
     localCategoryItems.forEach((item) => {
-      if (!updated[item.key]) {
-        let pool = availableCats;
-        if (selectedSector !== 'all') {
-          const sectorPool = availableCats.filter((c) => c.sector === selectedSector);
-          if (sectorPool.length > 0) {
-            pool = sectorPool;
+      if (!resolveMappedIdForItem(item, updated)) {
+        const pool = sectorFilteredMarketCats.length > 0 ? sectorFilteredMarketCats : availableCats;
+        const { bestMatch, score } = suggestMarketplaceCategory(item.key, pool);
+        let winner = bestMatch && score >= 35 ? bestMatch : null;
+
+        if (!winner && pool !== availableCats) {
+          const fallback = suggestMarketplaceCategory(item.key, availableCats);
+          if (fallback.bestMatch && fallback.score >= 35) {
+            winner = fallback.bestMatch;
           }
         }
 
-        const { bestMatch, score } = suggestMarketplaceCategory(item.key, pool);
-        if (bestMatch && score >= 35) {
-          updated[item.key] = String(bestMatch.id);
+        if (winner) {
+          const idStr = String(winner.id);
+          updated[item.key] = idStr;
+          updatedLabels[item.key] = {
+            id: idStr,
+            name: winner.name || winner.displayName || `Kategori #${idStr}`,
+            displayName: winner.displayName || winner.name || `Kategori #${idStr}`,
+            paths: Array.isArray(winner.paths) ? winner.paths : []
+          };
           newlyMatched++;
-        } else if (pool !== availableCats) {
-          const fallback = suggestMarketplaceCategory(item.key, availableCats);
-          if (fallback.bestMatch && fallback.score >= 35) {
-            updated[item.key] = String(fallback.bestMatch.id);
-            newlyMatched++;
-          }
         }
       }
     });
@@ -492,16 +709,22 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
         ...prev,
         [activeMarketplace]: updated
       }));
+      setMappingLabels((prev) => ({
+        ...prev,
+        [activeMarketplace]: updatedLabels
+      }));
       toast.success(`${newlyMatched} adet kategori (özellikle alt kategoriler) otomatik bağlandı!`);
     } else {
       toast.info('Eşleşecek yeni kategori bulunamadı veya tüm kategoriler zaten eşleşmiş.');
     }
   };
 
-  const handleOpenAttributes = async (localCat: string, marketCatId: string | number) => {
-    const availableCats = marketCategories[activeMarketplace] || [];
-    const matched = availableCats.find((c) => String(c.id) === String(marketCatId));
-    const catName = matched?.name || `Kategori #${marketCatId}`;
+  const handleOpenAttributes = useCallback(async (localCat: string, marketCatId: string | number) => {
+    const idStr = String(marketCatId);
+    const matched = marketCatById.get(idStr);
+    const savedLabel = currentLabels[localCat];
+    const catName = matched?.name || savedLabel?.name || `Kategori #${marketCatId}`;
+    const catPaths = matched?.paths || savedLabel?.paths || [];
 
     setAttributeModalCategory({
       localCat,
@@ -512,7 +735,7 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
     setLoadingAttributes(true);
     try {
       if (activeMarketplace === 'hepsiburada') {
-        const res = await api.getHepsiburadaCategoryAttributes(marketCatId, currentStoreId, matched?.paths?.[0] || catName, matched?.name || catName);
+        const res = await api.getHepsiburadaCategoryAttributes(marketCatId, currentStoreId, catPaths?.[0] || catName, catName);
         const attrs = res.data?.attributes || res.data || res.attributes;
         if (Array.isArray(attrs) && attrs.length > 0) {
           setCurrentCategoryAttributes(attrs.map((a: any) => ({
@@ -525,7 +748,7 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
             defaultValue: a.defaultValue
           })));
         } else {
-          setCurrentCategoryAttributes(getAttributesForCategory(catName, matched?.paths || [], marketCatId));
+          setCurrentCategoryAttributes(getAttributesForCategory(catName, catPaths, marketCatId));
         }
       } else if (activeMarketplace === 'n11') {
         const res = await api.getN11CategoryAttributes(marketCatId, currentStoreId);
@@ -541,10 +764,10 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
             defaultValue: a.defaultValue
           })));
         } else {
-          setCurrentCategoryAttributes(getAttributesForCategory(catName, matched?.paths || [], marketCatId));
+          setCurrentCategoryAttributes(getAttributesForCategory(catName, catPaths, marketCatId));
         }
       } else if (activeMarketplace === 'trendyol') {
-        const res = await api.getTrendyolCategoryAttributes(marketCatId, catName, matched?.paths?.[matched.paths.length - 1]);
+        const res = await api.getTrendyolCategoryAttributes(marketCatId, catName, catPaths?.[catPaths.length - 1]);
         const attrs = res.data?.attributes || res.data || res.attributes;
         if (Array.isArray(attrs) && attrs.length > 0) {
           setCurrentCategoryAttributes(attrs.map((a: any) => ({
@@ -553,23 +776,23 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
             description: a.description,
             mandatory: !!(a.mandatory || a.required),
             type: (a.values?.length || a.attributeValues?.length) ? 'select' : 'text',
-            values: Array.isArray(a.values) 
+            values: Array.isArray(a.values)
               ? a.values.map((v: any) => typeof v === 'object' ? `${v.id}: ${v.name}` : String(v))
               : (Array.isArray(a.attributeValues) ? a.attributeValues.map((v: any) => typeof v === 'object' ? `${v.id}: ${v.name}` : String(v)) : undefined),
             defaultValue: a.defaultValue
           })));
         } else {
-          setCurrentCategoryAttributes(getAttributesForCategory(catName, matched?.paths || [], marketCatId));
+          setCurrentCategoryAttributes(getAttributesForCategory(catName, catPaths, marketCatId));
         }
       } else {
-        setCurrentCategoryAttributes(getAttributesForCategory(catName, matched?.paths || [], marketCatId));
+        setCurrentCategoryAttributes(getAttributesForCategory(catName, catPaths, marketCatId));
       }
-    } catch (e) {
-      setCurrentCategoryAttributes(getAttributesForCategory(catName, matched?.paths || [], marketCatId));
+    } catch {
+      setCurrentCategoryAttributes(getAttributesForCategory(catName, catPaths, marketCatId));
     } finally {
       setLoadingAttributes(false);
     }
-  };
+  }, [activeMarketplace, currentStoreId, marketCatById, currentLabels]);
 
   const handleUpdateAttributeValue = (attrId: string, mode: 'fixed' | 'field', value: string) => {
     if (!attributeModalCategory) return;
@@ -652,13 +875,33 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
   const handleSaveAll = async () => {
     setSaving(true);
     try {
-      const activeMappings = mappings[activeMarketplace];
-      const activeAttrs = attributesConfig[activeMarketplace];
+      const activeMappings = mappings[activeMarketplace] || {};
+      const activeAttrs = attributesConfig[activeMarketplace] || {};
       const activeMarkups = categoryMarkups[activeMarketplace] || {};
       const activeDefComm = defaultCommissionRates[activeMarketplace] ?? 18;
       const activeDefFee = defaultFixedFees[activeMarketplace] ?? 20;
 
+      // Enrich categoryMappingLabels from currently loaded live catalog so every saved mapping retains its full display name & path
+      const enrichedLabels: Record<string, MappedCategoryLabel> = { ...(mappingLabels[activeMarketplace] || {}) };
+      for (const [localKey, catId] of Object.entries(activeMappings)) {
+        const idStr = String(catId || '').trim();
+        if (!idStr) continue;
+        const liveCat = marketCatById.get(idStr);
+        if (liveCat) {
+          enrichedLabels[localKey] = {
+            id: idStr,
+            name: liveCat.name || liveCat.displayName || `Kategori #${idStr}`,
+            displayName: liveCat.displayName || liveCat.name || `Kategori #${idStr}`,
+            paths: Array.isArray(liveCat.paths) ? liveCat.paths : []
+          };
+        }
+      }
+
+      let savedSettings: any = null;
+      let brandingField = '';
+
       if (activeMarketplace === 'hepsiburada') {
+        brandingField = 'hepsiburada_settings';
         const prevHb = branding.hepsiburada_settings || {};
         const payload = {
           apiKey: prevHb.apiKey || 'lookprice_dev',
@@ -670,13 +913,15 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
           defaultCommissionRate: activeDefComm,
           defaultFixedFee: activeDefFee,
           categoryMappings: activeMappings,
+          categoryMappingLabels: enrichedLabels,
           categoryAttributes: activeAttrs,
           categoryMarkups: activeMarkups,
           storeId: currentStoreId
         };
-        await api.saveHepsiburadaSettings(payload as any);
-        if (onBrandingChange) onBrandingChange('hepsiburada_settings', { ...prevHb, ...payload });
+        const res: any = await api.saveHepsiburadaSettings(payload as any);
+        savedSettings = res?.data?.settings || res?.settings || { ...prevHb, ...payload };
       } else if (activeMarketplace === 'trendyol') {
+        brandingField = 'trendyol_settings';
         const prevTy = branding.trendyol_settings || {};
         const payload = {
           apiKey: prevTy.apiKey || '',
@@ -685,13 +930,15 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
           defaultCommissionRate: activeDefComm,
           defaultFixedFee: activeDefFee,
           categoryMappings: activeMappings,
+          categoryMappingLabels: enrichedLabels,
           categoryAttributes: activeAttrs,
           categoryMarkups: activeMarkups,
           storeId: currentStoreId
         };
-        await api.saveTrendyolSettings(payload as any);
-        if (onBrandingChange) onBrandingChange('trendyol_settings', { ...prevTy, ...payload });
+        const res: any = await api.saveTrendyolSettings(payload as any);
+        savedSettings = res?.data?.settings || res?.settings || { ...prevTy, ...payload };
       } else if (activeMarketplace === 'n11') {
+        brandingField = 'n11_settings';
         const prevN11 = branding.n11_settings || {};
         const payload = {
           appKey: prevN11.appKey || '',
@@ -699,14 +946,16 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
           defaultCommissionRate: activeDefComm,
           defaultFixedFee: activeDefFee,
           categoryMappings: activeMappings,
+          categoryMappingLabels: enrichedLabels,
           categoryAttributes: activeAttrs,
           categoryMarkups: activeMarkups,
           connected: prevN11.connected,
           storeId: currentStoreId
         };
-        await api.saveN11Settings(payload as any);
-        if (onBrandingChange) onBrandingChange('n11_settings', { ...prevN11, ...payload });
+        const res: any = await api.saveN11Settings(payload as any);
+        savedSettings = res?.data?.settings || res?.settings || { ...prevN11, ...payload };
       } else if (activeMarketplace === 'amazon') {
+        brandingField = 'amazon_settings';
         const prevAmz = branding.amazon_settings || {};
         const payload = {
           clientId: prevAmz.clientId || '',
@@ -716,13 +965,15 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
           defaultCommissionRate: activeDefComm,
           defaultFixedFee: activeDefFee,
           categoryMappings: activeMappings,
+          categoryMappingLabels: enrichedLabels,
           categoryAttributes: activeAttrs,
           categoryMarkups: activeMarkups,
           storeId: currentStoreId
         };
-        await api.saveAmazonSettings(payload as any);
-        if (onBrandingChange) onBrandingChange('amazon_settings', { ...prevAmz, ...payload });
+        const res: any = await api.saveAmazonSettings(payload as any);
+        savedSettings = res?.data?.settings || res?.settings || { ...prevAmz, ...payload };
       } else if (activeMarketplace === 'pazarama') {
+        brandingField = 'pazarama_settings';
         const prevPz = branding.pazarama_settings || {};
         const payload = {
           apiKey: prevPz.apiKey || '',
@@ -731,13 +982,29 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
           commissionRate: activeDefComm,
           defaultFixedFee: activeDefFee,
           categoryMappings: activeMappings,
+          categoryMappingLabels: enrichedLabels,
           categoryAttributes: activeAttrs,
           categoryMarkups: activeMarkups,
           brandMappings: prevPz.brandMappings || {},
           storeId: currentStoreId
         };
-        await api.savePazaramaSettings(payload as any);
-        if (onBrandingChange) onBrandingChange('pazarama_settings', { ...prevPz, ...payload });
+        const res: any = await api.savePazaramaSettings(payload as any);
+        savedSettings = res?.data?.settings || res?.settings || { ...prevPz, ...payload };
+      }
+
+      // Sync local modal state strictly from the authoritative persisted server response
+      if (savedSettings) {
+        setMappings((prev) => ({
+          ...prev,
+          [activeMarketplace]: normalizeMappingsRecord(savedSettings.categoryMappings ?? activeMappings)
+        }));
+        setMappingLabels((prev) => ({
+          ...prev,
+          [activeMarketplace]: savedSettings.categoryMappingLabels || enrichedLabels
+        }));
+        if (onBrandingChange && brandingField) {
+          onBrandingChange(brandingField, savedSettings);
+        }
       }
 
       toast.success(`${activeMarketplace.toUpperCase()} kategori ve özellik eşleştirmeleri başarıyla kaydedildi!`);
@@ -750,40 +1017,65 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
     }
   };
 
-  if (!isOpen) return null;
+  // Multi-word Turkish search on local category list (matches local name, subcategory, mapped ID, and mapped marketplace category name)
+  const filteredLocalCategoryItems = useMemo(() => {
+    const rawSearch = searchFilter.trim();
+    const normSearch = rawSearch ? normalizeCategoryText(rawSearch) : '';
+    const tokens = normSearch ? normSearch.split(' ').filter(Boolean) : [];
 
-  const currentAvailableMarketCats = (marketCategories[activeMarketplace] || []).map((c) => ({
-    ...c,
-    sector: c.sector || detectCategorySector(c.name || c.displayName || '', c.paths || [])
-  }));
+    return localCategoryItems.filter((item) => {
+      const mappedId = resolveMappedIdForItem(item, currentMappings);
 
-  const sectorFilteredMarketCats = selectedSector === 'all' 
-    ? currentAvailableMarketCats 
-    : currentAvailableMarketCats.filter((c) => c.sector === selectedSector);
+      if (rawSearch) {
+        const mappedCat = mappedId ? marketCatById.get(String(mappedId)) : undefined;
+        const savedLabel = currentLabels[item.key] || (item.subCategory ? currentLabels[item.subCategory] : undefined);
+        const combinedText = normalizeCategoryText(
+          `${item.key} ${mappedId || ''} ${mappedCat?.displayName || mappedCat?.name || ''} ${(mappedCat?.paths || []).join(' ')} ${savedLabel?.displayName || savedLabel?.name || ''}`
+        );
+        const exactIdHit = mappedId && String(mappedId).includes(rawSearch);
+        const tokensHit = tokens.length > 0 && tokens.every((t) => matchCategorySearchToken(combinedText, t));
+        if (!exactIdHit && !tokensHit) return false;
+      }
 
-  const filteredLocalCategoryItems = localCategoryItems.filter((item) => {
-    const mappedId = currentMappings[item.key];
+      if (localScopeFilter === 'sub' && !item.isSubCategory) return false;
+      if (localScopeFilter === 'main' && item.isSubCategory) return false;
+      if (localScopeFilter === 'unmapped' && !!mappedId) return false;
 
-    if (searchFilter.trim()) {
-      const s = searchFilter.toLowerCase();
-      const matchKey = item.key.toLowerCase().includes(s);
-      const matchMapped = mappedId && String(mappedId).includes(s);
-      if (!matchKey && !matchMapped) return false;
-    }
+      return true;
+    });
+  }, [localCategoryItems, currentMappings, currentLabels, marketCatById, searchFilter, localScopeFilter, resolveMappedIdForItem]);
 
-    if (localScopeFilter === 'sub' && !item.isSubCategory) return false;
-    if (localScopeFilter === 'main' && item.isSubCategory) return false;
-    if (localScopeFilter === 'unmapped' && !!mappedId) return false;
+  // Compute header counts accurately (including legacy sub-category key fallback)
+  const { totalCount, subCategoryCount, mainCategoryCount, mappedCount, unmappedCount, completionPercent } = useMemo(() => {
+    const total = localCategoryItems.length;
+    const sub = localCategoryItems.filter((i) => i.isSubCategory).length;
+    const main = total - sub;
+    const mapped = localCategoryItems.filter((item) => !!resolveMappedIdForItem(item, currentMappings)).length;
+    const unmapped = total - mapped;
+    const pct = total > 0 ? Math.round((mapped / total) * 100) : 0;
+    return { totalCount: total, subCategoryCount: sub, mainCategoryCount: main, mappedCount: mapped, unmappedCount: unmapped, completionPercent: pct };
+  }, [localCategoryItems, currentMappings, resolveMappedIdForItem]);
 
-    return true;
-  });
-
-  const totalCount = localCategories.length;
-  const subCategoryCount = localCategoryItems.filter((i) => i.isSubCategory).length;
-  const mainCategoryCount = localCategoryItems.filter((i) => !i.isSubCategory).length;
-  const mappedCount = localCategories.filter((c) => !!currentMappings[c]).length;
-  const unmappedCount = totalCount - mappedCount;
-  const completionPercent = totalCount > 0 ? Math.round((mappedCount / totalCount) * 100) : 0;
+  // Build normalized mappings map for header tab badges so legacy subCategory keys are also counted accurately
+  const headerMappingsForCounts = useMemo(() => {
+    const out: Record<MarketplaceType, Record<string, string>> = {
+      hepsiburada: {},
+      trendyol: {},
+      n11: {},
+      amazon: {},
+      pazarama: {}
+    };
+    (['hepsiburada', 'trendyol', 'n11', 'amazon', 'pazarama'] as MarketplaceType[]).forEach((mp) => {
+      const mpMap = mappings[mp] || {};
+      const resolved: Record<string, string> = {};
+      localCategoryItems.forEach((item) => {
+        const hit = resolveMappedIdForItem(item, mpMap);
+        if (hit) resolved[item.key] = hit;
+      });
+      out[mp] = resolved;
+    });
+    return out;
+  }, [mappings, localCategoryItems, resolveMappedIdForItem]);
 
   const MARKETPLACE_CONFIGS: Record<MarketplaceType, {
     title: string;
@@ -792,7 +1084,7 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
     ringColor: string;
     accentColor: string;
     tag: string;
-  }> = {
+  }> = useMemo(() => ({
     hepsiburada: {
       title: 'Hepsiburada',
       badgeBg: 'bg-orange-50 text-orange-700 border-orange-200',
@@ -833,7 +1125,9 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
       accentColor: 'text-emerald-600',
       tag: 'Pazarama API'
     }
-  };
+  }), []);
+
+  if (!isOpen) return null;
 
   const activeMarketplaceConfig = MARKETPLACE_CONFIGS[activeMarketplace] || {
     title: activeMarketplace ? String(activeMarketplace).toUpperCase() : 'Pazaryeri',
@@ -844,16 +1138,25 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
     tag: 'Pazaryeri Entegratör'
   };
 
+  const activeDefaultCommission = defaultCommissionRates[activeMarketplace] ?? 18;
+  const activeDefaultFixedFee = defaultFixedFees[activeMarketplace] ?? 20;
+  const activeMarkupsMap = categoryMarkups[activeMarketplace] || {};
+  const activeAttrsMap = attributesConfig[activeMarketplace] || {};
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-1.5 sm:p-3 md:p-4 overflow-hidden animate-fade-in">
       <div className="bg-white w-full max-w-6xl xl:max-w-7xl rounded-2xl shadow-2xl border border-slate-200 flex flex-col h-[94dvh] max-h-[94dvh] sm:h-auto sm:max-h-[92vh] overflow-hidden my-auto">
-        
+
         {/* HEADER & TABS */}
         <CategoryMappingHeader
           onClose={onClose}
           activeMarketplace={activeMarketplace}
-          setActiveMarketplace={setActiveMarketplace}
-          mappings={mappings}
+          setActiveMarketplace={(m) => {
+            setOpenDropdownFor(null);
+            setCatSearchTerm('');
+            setActiveMarketplace(m);
+          }}
+          mappings={headerMappingsForCounts}
           localCategories={localCategories}
           handleAutoMatch={handleAutoMatch}
           localScopeFilter={localScopeFilter}
@@ -901,8 +1204,8 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
                 {lang === 'tr' ? 'Envanterinizde henüz kategorize edilmiş ürün bulunmuyor.' : 'No categorized products found.'}
               </p>
               <p className="text-[11px] text-slate-500 mt-0.5 max-w-sm mx-auto">
-                {lang === 'tr' 
-                  ? 'Ürünlerinizi içeri aktardıktan sonra kategorileri buradan pazaryeri kataloglarına bağlayabilirsiniz.' 
+                {lang === 'tr'
+                  ? 'Ürünlerinizi içeri aktardıktan sonra kategorileri buradan pazaryeri kataloglarına bağlayabilirsiniz.'
                   : 'After importing products, map your store categories here.'}
               </p>
             </div>
@@ -913,11 +1216,11 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
           ) : (
             filteredLocalCategoryItems.map((item) => {
               const localCat = item.key;
-              const mappedId = currentMappings[localCat];
-              const mappedCat = currentAvailableMarketCats.find((c) => String(c.id) === String(mappedId));
+              const mappedId = resolveMappedIdForItem(item, currentMappings);
+              const mappedCat = mappedId ? marketCatById.get(String(mappedId)) : undefined;
+              const savedLabel = currentLabels[localCat] || (item.subCategory ? currentLabels[item.subCategory] : undefined);
               const isDropdownOpen = openDropdownFor === localCat;
-
-              const currentCatAttrs = (attributesConfig[activeMarketplace] || {})[String(mappedId)] || {};
+              const currentCatAttrs = mappedId ? (activeAttrsMap[String(mappedId)] || {}) : {};
 
               return (
                 <CategoryMappingRow
@@ -925,10 +1228,13 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
                   item={item}
                   mappedId={mappedId}
                   matchedMarketCat={mappedCat}
+                  mappedLabel={savedLabel}
+                  loadingCategories={loadingCategories}
+                  searchingRemote={isDropdownOpen ? searchingRemote : false}
                   currentCatAttrs={currentCatAttrs}
-                  openDropdownFor={openDropdownFor}
-                  setOpenDropdownFor={setOpenDropdownFor}
-                  catSearchTerm={catSearchTerm}
+                  isDropdownOpen={isDropdownOpen}
+                  onToggleDropdown={setOpenDropdownFor}
+                  catSearchTerm={isDropdownOpen ? catSearchTerm : ''}
                   setCatSearchTerm={setCatSearchTerm}
                   sectorFilteredMarketCats={sectorFilteredMarketCats}
                   currentAvailableMarketCats={currentAvailableMarketCats}
@@ -936,9 +1242,9 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
                   setSelectedSector={setSelectedSector}
                   activeMarketplace={activeMarketplace}
                   activeMarketplaceConfig={activeMarketplaceConfig}
-                  categoryMarkups={categoryMarkups}
-                  defaultCommissionRates={defaultCommissionRates}
-                  defaultFixedFees={defaultFixedFees}
+                  categoryMarkup={activeMarkupsMap[localCat]}
+                  defaultCommissionRate={activeDefaultCommission}
+                  defaultFixedFee={activeDefaultFixedFee}
                   calculateSimulatedPrice={calculateSimulatedPrice}
                   handleSelectMapping={handleSelectMapping}
                   handleRemoveMapping={handleRemoveMapping}
@@ -956,8 +1262,8 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
           <div className="flex items-center space-x-1.5 text-[11px] text-slate-500">
             <Info className="h-3.5 w-3.5 text-slate-400 shrink-0" />
             <span className="truncate">
-              {lang === 'tr' 
-                ? 'Eşleştirmeler kaydedildiğinde ürün senkronizasyonlarında otomatik olarak kullanılır.' 
+              {lang === 'tr'
+                ? 'Eşleştirmeler kaydedildiğinde ürün senkronizasyonlarında otomatik olarak kullanılır.'
                 : 'Saved mappings are automatically applied during product synchronization.'}
             </span>
           </div>

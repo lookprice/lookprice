@@ -38,7 +38,7 @@ export function sanitizeHtml(dirty: string | null | undefined): string {
   if (!dirty) return "";
   return DOMPurify.sanitize(String(dirty), {
     FORBID_TAGS: [...FORBIDDEN_TAGS, "style"],
-    FORBID_ATTR,
+    FORBID_ATTR: FORBIDDEN_ATTR,
     ADD_ATTR: ["target", "rel", "class", "style"]
   });
 }
@@ -52,7 +52,7 @@ export function sanitizeContractHtml(dirty: string | null | undefined): string {
   return DOMPurify.sanitize(String(dirty), {
     ADD_TAGS: ["style"],
     FORBID_TAGS: FORBIDDEN_TAGS,
-    FORBID_ATTR,
+    FORBID_ATTR: FORBIDDEN_ATTR,
     ADD_ATTR: ["target", "rel", "class", "style"],
     FORCE_BODY: true
   });

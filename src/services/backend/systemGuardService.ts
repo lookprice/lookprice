@@ -34,6 +34,11 @@ export function sanitizeCategoryMappings(rawMappings: any): Record<string, any> 
       .replace(/I/g, "ı")
       .toLowerCase();
 
+    const keyLower = cleanKey
+      .replace(/İ/g, "i")
+      .replace(/I/g, "ı")
+      .toLowerCase();
+
     const extractId = (v: any): string => {
       if (!v) return "";
       if (typeof v === "string" || typeof v === "number") return String(v).trim();
@@ -56,13 +61,27 @@ export function sanitizeCategoryMappings(rawMappings: any): Record<string, any> 
       rawId === "1000125" ||
       rawId === "1000129";
 
-    // Child-First Invariant: A bag/sleeve/case child category can NEVER be mapped to Laptop (98) or Car Seat Cover (2147483647)
-    if (leafLower.includes("çanta") || leafLower.includes("canta") || leafLower.includes("kılıf") || leafLower.includes("kilif") || leafLower.includes("sleeve")) {
+    const isGenericLaptopParent = rawId === "98" || rawId === "3000500" || rawId === "103165";
+    const isLaptopContext = /(notebook|laptop|diz[uü]st[uü]|macbook|bilgisayar)/i.test(keyLower);
+
+    // Child-First Invariant: A laptop/notebook bag/sleeve/case child category can NEVER be mapped to
+    // Laptop parent (98/3000500/103165) or poisoned Car Seat Cover (2147483647).
+    // IMPORTANT: Never overwrite valid user-selected non-bogus category IDs for other sectors
+    // (e.g., Ev Tekstili "Yastık Kılıfı", "Valiz Kılıfı", "Makyaj Çantası", "Bardak Altlığı", "Takı Standı").
+    if (
+      isLaptopContext &&
+      (isBogus || isGenericLaptopParent) &&
+      (leafLower.includes("çanta") || leafLower.includes("canta") || leafLower.includes("kılıf") || leafLower.includes("kilif") || leafLower.includes("sleeve"))
+    ) {
       cleaned[cleanKey] = typeof val === "object" && val !== null ? { ...val, id: "676", categoryId: "676", hepsiburada: "676" } : "676";
       continue;
     }
 
-    if (leafLower.includes("soğutucu") || leafLower.includes("sogutucu") || leafLower.includes("stand") || leafLower.includes("altlık")) {
+    if (
+      isLaptopContext &&
+      (isBogus || isGenericLaptopParent) &&
+      (leafLower.includes("soğutucu") || leafLower.includes("sogutucu") || leafLower.includes("stand") || leafLower.includes("altlık") || leafLower.includes("altlik"))
+    ) {
       cleaned[cleanKey] = typeof val === "object" && val !== null ? { ...val, id: "106861", categoryId: "106861", hepsiburada: "106861" } : "106861";
       continue;
     }

@@ -1,16 +1,30 @@
-import React from 'react';
-import { 
-  CheckCircle2, ChevronRight, Sparkles, SlidersHorizontal, 
-  Trash2, Search, Percent, FolderTree 
+import React, { useMemo, useState } from 'react';
+import {
+  CheckCircle2, ChevronRight, Sparkles, SlidersHorizontal,
+  Trash2, Search, Percent, FolderTree, Loader2
 } from 'lucide-react';
-import { 
-  MarketplaceCategory, 
+import {
+  MarketplaceCategory,
   MARKETPLACE_SECTORS,
   suggestMarketplaceCategory,
   normalizeCategoryText,
-  matchCategorySearchToken
+  scoreCategorySearchMatch
 } from '@/data/marketplaceCategoriesData';
 import { LocalCategoryItem, MarketplaceType } from './types';
+
+export interface IndexedMarketplaceCategory extends MarketplaceCategory {
+  sector?: string;
+  _normName: string;
+  _normFull: string;
+  _idStr: string;
+}
+
+export interface MappedCategoryLabel {
+  id: string;
+  name: string;
+  displayName?: string;
+  paths?: string[];
+}
 
 interface CategoryMappingRowProps {
   item: LocalCategoryItem;
@@ -24,40 +38,47 @@ interface CategoryMappingRowProps {
     tag: string;
   };
   mappedId?: string;
-  matchedMarketCat?: MarketplaceCategory;
+  matchedMarketCat?: IndexedMarketplaceCategory;
+  mappedLabel?: MappedCategoryLabel;
+  loadingCategories?: boolean;
+  searchingRemote?: boolean;
   currentCatAttrs: Record<string, any>;
-  categoryMarkups: Record<MarketplaceType, Record<string, { commissionRate?: number; fixedFee?: number }>>;
-  defaultCommissionRates: Record<MarketplaceType, number>;
-  defaultFixedFees: Record<MarketplaceType, number>;
+  categoryMarkup?: { commissionRate?: number; fixedFee?: number };
+  defaultCommissionRate: number;
+  defaultFixedFee: number;
   calculateSimulatedPrice: (basePrice: number, commissionRate: number, fixedFee: number) => number;
-  openDropdownFor: string | null;
-  setOpenDropdownFor: (val: string | null) => void;
+  isDropdownOpen: boolean;
+  onToggleDropdown: (localCat: string | null) => void;
   catSearchTerm: string;
   setCatSearchTerm: (val: string) => void;
   selectedSector: string;
   setSelectedSector: (sector: string) => void;
-  sectorFilteredMarketCats: (MarketplaceCategory & { sector?: string })[];
-  currentAvailableMarketCats: (MarketplaceCategory & { sector?: string })[];
-  handleSelectMapping: (localCat: string, marketCatId: string | number) => void;
+  sectorFilteredMarketCats: IndexedMarketplaceCategory[];
+  currentAvailableMarketCats: IndexedMarketplaceCategory[];
+  handleSelectMapping: (localCat: string, marketCat: MarketplaceCategory) => void;
   handleRemoveMapping: (localCat: string) => void;
   handleOpenAttributes: (localCat: string, marketCatId: string | number) => void;
   handleUpdateCategoryMarkup: (localCat: string, field: 'commissionRate' | 'fixedFee', val: number | undefined) => void;
   lang?: string;
 }
 
-export const CategoryMappingRow: React.FC<CategoryMappingRowProps> = ({
+const INITIAL_DROPDOWN_LIMIT = 60;
+
+export const CategoryMappingRow: React.FC<CategoryMappingRowProps> = React.memo(({
   item,
-  activeMarketplace,
   activeMarketplaceConfig,
   mappedId,
   matchedMarketCat,
+  mappedLabel,
+  loadingCategories = false,
+  searchingRemote = false,
   currentCatAttrs,
-  categoryMarkups,
-  defaultCommissionRates,
-  defaultFixedFees,
+  categoryMarkup,
+  defaultCommissionRate,
+  defaultFixedFee,
   calculateSimulatedPrice,
-  openDropdownFor,
-  setOpenDropdownFor,
+  isDropdownOpen,
+  onToggleDropdown,
   catSearchTerm,
   setCatSearchTerm,
   selectedSector,
@@ -72,53 +93,99 @@ export const CategoryMappingRow: React.FC<CategoryMappingRowProps> = ({
 }) => {
   const localCat = item.key;
   const prodCount = item.productCount;
-  const isDropdownOpen = openDropdownFor === localCat;
   const configuredAttrCount = Object.keys(currentCatAttrs).length;
+  const [visibleLimit, setVisibleLimit] = useState(INITIAL_DROPDOWN_LIMIT);
 
-  // Suggestion pill if unmapped (prioritizes active sector pool if available)
-  const suggestionPool = sectorFilteredMarketCats.length > 0 ? sectorFilteredMarketCats : currentAvailableMarketCats;
-  const suggestion = !mappedId ? suggestMarketplaceCategory(localCat, suggestionPool).bestMatch : null;
+  // Memoize suggestion ONLY for unmapped rows (never re-runs while typing in another row's search!)
+  const suggestion = useMemo(() => {
+    if (mappedId) return null;
+    const pool = sectorFilteredMarketCats.length > 0 ? sectorFilteredMarketCats : currentAvailableMarketCats;
+    if (pool.length === 0) return null;
+    // Cap scan pool to keep initial mount snappy even with 5,000+ live categories
+    const cappedPool = pool.length > 400 ? pool.slice(0, 400) : pool;
+    const res = suggestMarketplaceCategory(localCat, cappedPool);
+    return res.score >= 30 ? res.bestMatch : null;
+  }, [mappedId, localCat, sectorFilteredMarketCats, currentAvailableMarketCats]);
 
-  // Filter marketplace categories for dropdown (sector filtered first, fallback to all if search term used)
-  const primaryPool = sectorFilteredMarketCats.length > 0 ? sectorFilteredMarketCats : currentAvailableMarketCats;
+  // Multi-word token search & relevance ranking — ONLY runs when THIS row's dropdown is open!
+  const filteredMarketCats = useMemo(() => {
+    if (!isDropdownOpen) return [];
 
-  let filteredMarketCats = primaryPool.filter((c) => {
-    if (!catSearchTerm.trim()) return true;
-    const normSearch = normalizeCategoryText(catSearchTerm);
-    if (!normSearch) return true;
+    const primaryPool = sectorFilteredMarketCats.length > 0 ? sectorFilteredMarketCats : currentAvailableMarketCats;
+    const rawTrimmed = catSearchTerm.trim();
 
-    const catIdStr = String(c.id || (c as any).categoryId || '');
-    if (catIdStr === catSearchTerm.trim()) return true;
+    if (!rawTrimmed) {
+      return primaryPool;
+    }
 
-    const fullTextNorm = normalizeCategoryText(`${c.name || ''} ${c.displayName || ''} ${(c.paths || []).join(' ')}`);
-    const tokens = normSearch.split(' ').filter(Boolean);
-    return tokens.every((token) => matchCategorySearchToken(fullTextNorm, token));
-  });
+    const normQuery = normalizeCategoryText(rawTrimmed);
+    const tokens = normQuery.split(' ').filter(Boolean);
 
-  // Smart Fallback: If sector search returned zero results, search across all categories
-  if (filteredMarketCats.length === 0 && catSearchTerm.trim() && selectedSector !== 'all') {
-    filteredMarketCats = currentAvailableMarketCats.filter((c) => {
-      const normSearch = normalizeCategoryText(catSearchTerm);
-      if (!normSearch) return true;
-      const catIdStr = String(c.id || (c as any).categoryId || '');
-      if (catIdStr === catSearchTerm.trim()) return true;
+    const runScoredSearch = (pool: IndexedMarketplaceCategory[]) => {
+      const scored: { cat: IndexedMarketplaceCategory; score: number }[] = [];
+      for (let i = 0; i < pool.length; i++) {
+        const c = pool[i];
+        const score = scoreCategorySearchMatch(
+          c._normName,
+          c._normFull,
+          c._idStr,
+          rawTrimmed,
+          normQuery,
+          tokens
+        );
+        if (score > 0) {
+          scored.push({ cat: c, score });
+        }
+      }
+      scored.sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return (a.cat.displayName || a.cat.name).localeCompare(b.cat.displayName || b.cat.name, 'tr');
+      });
+      return scored.map((s) => s.cat);
+    };
 
-      const fullTextNorm = normalizeCategoryText(`${c.name || ''} ${c.displayName || ''} ${(c.paths || []).join(' ')}`);
-      const tokens = normSearch.split(' ').filter(Boolean);
-      return tokens.every((token) => matchCategorySearchToken(fullTextNorm, token));
-    });
-  }
+    let results = runScoredSearch(primaryPool);
+
+    // Smart fallback: if active sector has 0 matches, search across all sectors automatically
+    if (results.length === 0 && selectedSector !== 'all') {
+      results = runScoredSearch(currentAvailableMarketCats);
+    }
+
+    return results;
+  }, [isDropdownOpen, catSearchTerm, sectorFilteredMarketCats, currentAvailableMarketCats, selectedSector]);
+
+  // Resolve display name and full breadcrumb path even if live catalog hasn't loaded yet
+  const resolvedDisplayName =
+    matchedMarketCat?.displayName ||
+    matchedMarketCat?.name ||
+    mappedLabel?.displayName ||
+    mappedLabel?.name ||
+    (mappedId ? `${lang === 'tr' ? 'Eşleştirilmiş Kategori' : 'Mapped Category'} #${mappedId}` : '');
+
+  const resolvedPaths =
+    (matchedMarketCat?.paths && matchedMarketCat.paths.length > 0 ? matchedMarketCat.paths : undefined) ||
+    (mappedLabel?.paths && mappedLabel.paths.length > 0 ? mappedLabel.paths : undefined);
+
+  const visibleCats = isDropdownOpen ? filteredMarketCats.slice(0, visibleLimit) : [];
+  const hasMoreCats = isDropdownOpen && filteredMarketCats.length > visibleLimit;
+
+  const customComm = categoryMarkup?.commissionRate;
+  const customFee = categoryMarkup?.fixedFee;
+  const comm = customComm !== undefined && !isNaN(Number(customComm)) ? Number(customComm) : defaultCommissionRate;
+  const fee = customFee !== undefined && !isNaN(Number(customFee)) ? Number(customFee) : defaultFixedFee;
+  const sim = calculateSimulatedPrice(1000, comm, fee);
+  const hasCustom = customComm !== undefined || customFee !== undefined;
 
   return (
-    <div 
+    <div
       className={`p-2.5 rounded-xl border transition-all ${
-        mappedId 
-          ? 'bg-white border-slate-200 hover:border-slate-300 shadow-2xs' 
+        mappedId
+          ? 'bg-white border-slate-200 hover:border-slate-300 shadow-2xs'
           : 'bg-slate-50/60 border-slate-200/80'
       }`}
     >
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
-        
+
         {/* STORE CATEGORY COLUMN (HIERARCHICAL & SUBCATEGORY AWARE) */}
         <div className="lg:w-1/3 space-y-0.5">
           {item.isSubCategory ? (
@@ -128,7 +195,7 @@ export const CategoryMappingRow: React.FC<CategoryMappingRowProps> = ({
                 <span>{item.mainCategory}</span>
                 <span>&gt;</span>
               </div>
-              <div className="flex items-center space-x-1.5 mt-0.5">
+              <div className="flex items-center space-x-1.5 mt-0.5 flex-wrap gap-y-0.5">
                 <span className="font-black text-slate-900 text-xs">{item.subCategory}</span>
                 <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-purple-50 text-purple-700 border border-purple-200 shrink-0">
                   {lang === 'tr' ? 'Alt Kategori' : 'Sub-Category'}
@@ -140,7 +207,7 @@ export const CategoryMappingRow: React.FC<CategoryMappingRowProps> = ({
             </div>
           ) : (
             <div>
-              <div className="flex items-center space-x-1.5">
+              <div className="flex items-center space-x-1.5 flex-wrap gap-y-0.5">
                 <span className="font-bold text-slate-900 text-xs">{item.mainCategory}</span>
                 <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-blue-50 text-blue-700 border border-blue-200 shrink-0">
                   {lang === 'tr' ? 'Ana Kategori' : 'Main'}
@@ -158,22 +225,25 @@ export const CategoryMappingRow: React.FC<CategoryMappingRowProps> = ({
 
         {/* MARKETPLACE MAPPING SELECTOR COLUMN */}
         <div className="lg:w-1/2 relative">
-          {mappedId && matchedMarketCat ? (
+          {mappedId ? (
             <div className="flex items-center justify-between p-1.5 px-2.5 bg-slate-50/90 rounded-lg border border-slate-200">
               <div className="space-y-0.5 pr-2 min-w-0">
                 <div className="flex items-center space-x-1.5 truncate">
                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                  <span className="text-[11px] font-bold text-slate-900 truncate">
-                    {matchedMarketCat.displayName || matchedMarketCat.name}
+                  <span className="text-[11px] font-bold text-slate-900 truncate" title={resolvedDisplayName}>
+                    {resolvedDisplayName}
                   </span>
+                  {!matchedMarketCat && !mappedLabel && loadingCategories && (
+                    <Loader2 className="h-3 w-3 text-slate-400 animate-spin shrink-0" />
+                  )}
                 </div>
-                {matchedMarketCat.paths && matchedMarketCat.paths.length > 0 && (
-                  <p className="text-[9px] text-slate-500 font-medium pl-5 truncate max-w-xs md:max-w-md">
-                    {matchedMarketCat.paths.join(' > ')}
+                {resolvedPaths && resolvedPaths.length > 0 && (
+                  <p className="text-[9px] text-slate-500 font-medium pl-5 truncate max-w-xs md:max-w-md" title={resolvedPaths.join(' > ')}>
+                    {resolvedPaths.join(' > ')}
                   </p>
                 )}
               </div>
-              
+
               <div className="flex items-center space-x-1 shrink-0">
                 <span className="font-mono text-[9px] font-bold px-1.5 py-0.2 rounded bg-white text-slate-600 border border-slate-200">
                   #{mappedId}
@@ -181,7 +251,8 @@ export const CategoryMappingRow: React.FC<CategoryMappingRowProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    setOpenDropdownFor(localCat);
+                    setVisibleLimit(INITIAL_DROPDOWN_LIMIT);
+                    onToggleDropdown(isDropdownOpen ? null : localCat);
                     setCatSearchTerm('');
                   }}
                   className="text-[10px] text-indigo-600 font-bold hover:underline px-1.5 py-0.5 cursor-pointer"
@@ -203,7 +274,8 @@ export const CategoryMappingRow: React.FC<CategoryMappingRowProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  setOpenDropdownFor(isDropdownOpen ? null : localCat);
+                  setVisibleLimit(INITIAL_DROPDOWN_LIMIT);
+                  onToggleDropdown(isDropdownOpen ? null : localCat);
                   setCatSearchTerm('');
                 }}
                 className="w-full text-left px-3 py-1.5 bg-white border border-dashed border-slate-300 hover:border-indigo-400 rounded-lg text-[11px] font-bold text-slate-600 flex items-center justify-between cursor-pointer transition-all"
@@ -227,7 +299,7 @@ export const CategoryMappingRow: React.FC<CategoryMappingRowProps> = ({
                   </span>
                   <button
                     type="button"
-                    onClick={() => handleSelectMapping(localCat, suggestion.id)}
+                    onClick={() => handleSelectMapping(localCat, suggestion)}
                     className="px-2 py-0.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded font-bold flex items-center space-x-1 cursor-pointer transition-colors"
                   >
                     <Sparkles className="h-2.5 w-2.5 text-purple-600" />
@@ -240,15 +312,18 @@ export const CategoryMappingRow: React.FC<CategoryMappingRowProps> = ({
 
           {/* DROPDOWN SEARCH MENU WITH SECTOR QUICK SWITCH */}
           {isDropdownOpen && (
-            <div className="absolute top-full left-0 right-0 z-30 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl p-2.5 space-y-1.5 max-h-72 flex flex-col">
-              
+            <div className="absolute top-full left-0 right-0 z-30 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl p-2.5 space-y-1.5 max-h-80 flex flex-col">
+
               {/* Mini Sector Switcher inside dropdown */}
               <div className="flex items-center space-x-1 overflow-x-auto pb-1 text-[9px] font-bold border-b border-slate-100">
                 {MARKETPLACE_SECTORS.map((s) => (
                   <button
                     key={s.id}
                     type="button"
-                    onClick={() => setSelectedSector(s.id)}
+                    onClick={() => {
+                      setSelectedSector(s.id);
+                      setVisibleLimit(INITIAL_DROPDOWN_LIMIT);
+                    }}
                     className={`px-1.5 py-0.5 rounded cursor-pointer whitespace-nowrap ${
                       selectedSector === s.id
                         ? 'bg-slate-900 text-white'
@@ -264,19 +339,27 @@ export const CategoryMappingRow: React.FC<CategoryMappingRowProps> = ({
                 <input
                   type="text"
                   autoFocus
-                  placeholder={lang === 'tr' ? 'Kategori ara (örn: USB Bellek, Kart Okuyucu)...' : 'Search category...'}
+                  placeholder={lang === 'tr' ? 'Kelime kelime ara (örn: yastık hurç, çekmece düzenleyici)...' : 'Search by words...'}
                   value={catSearchTerm}
-                  onChange={(e) => setCatSearchTerm(e.target.value)}
-                  className="w-full pl-7 pr-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-medium focus:ring-2 focus:ring-indigo-500/20"
+                  onChange={(e) => {
+                    setCatSearchTerm(e.target.value);
+                    setVisibleLimit(INITIAL_DROPDOWN_LIMIT);
+                  }}
+                  className="w-full pl-7 pr-7 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-medium focus:ring-2 focus:ring-indigo-500/20 focus:outline-hidden"
                 />
                 <Search className="h-3 w-3 text-slate-400 absolute left-2 top-2" />
+                {(searchingRemote || loadingCategories) && (
+                  <Loader2 className="h-3 w-3 text-indigo-500 animate-spin absolute right-2 top-2" />
+                )}
               </div>
 
-              <div className="overflow-y-auto flex-1 space-y-1 max-h-48 pr-1">
-                {filteredMarketCats.length === 0 ? (
+              <div className="overflow-y-auto flex-1 space-y-1 max-h-52 pr-1">
+                {visibleCats.length === 0 ? (
                   <div className="text-center py-3 space-y-1">
                     <p className="text-[11px] text-slate-400">
-                      {lang === 'tr' ? 'Seçili sektörde uygun kategori bulunamadı' : 'No categories found'}
+                      {searchingRemote || loadingCategories
+                        ? (lang === 'tr' ? 'Kategoriler taranıyor...' : 'Searching categories...')
+                        : (lang === 'tr' ? 'Uygun kategori bulunamadı' : 'No categories found')}
                     </p>
                     {selectedSector !== 'all' && (
                       <button
@@ -289,34 +372,50 @@ export const CategoryMappingRow: React.FC<CategoryMappingRowProps> = ({
                     )}
                   </div>
                 ) : (
-                  filteredMarketCats.map((c) => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => handleSelectMapping(localCat, c.id)}
-                      className="w-full text-left p-1.5 hover:bg-slate-50 rounded-lg text-[11px] transition-colors flex items-center justify-between group cursor-pointer"
-                    >
-                      <div className="truncate pr-2">
-                        <p className="font-bold text-slate-900 group-hover:text-indigo-600 truncate">
-                          {c.displayName || c.name}
-                        </p>
-                        {c.paths && c.paths.length > 0 && (
-                          <p className="text-[9px] text-slate-400 truncate">{c.paths.join(' > ')}</p>
-                        )}
-                      </div>
-                      <span className="font-mono text-[9px] bg-slate-100 group-hover:bg-indigo-50 text-slate-600 group-hover:text-indigo-700 px-1.5 py-0.2 rounded border border-slate-200 shrink-0 ml-1">
-                        #{c.id}
-                      </span>
-                    </button>
-                  ))
+                  <>
+                    {visibleCats.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => handleSelectMapping(localCat, c)}
+                        className="w-full text-left p-1.5 hover:bg-slate-50 rounded-lg text-[11px] transition-colors flex items-center justify-between group cursor-pointer"
+                      >
+                        <div className="truncate pr-2">
+                          <p className="font-bold text-slate-900 group-hover:text-indigo-600 truncate">
+                            {c.displayName || c.name}
+                          </p>
+                          {c.paths && c.paths.length > 0 && (
+                            <p className="text-[9px] text-slate-400 truncate">{c.paths.join(' > ')}</p>
+                          )}
+                        </div>
+                        <span className="font-mono text-[9px] bg-slate-100 group-hover:bg-indigo-50 text-slate-600 group-hover:text-indigo-700 px-1.5 py-0.2 rounded border border-slate-200 shrink-0 ml-1">
+                          #{c.id}
+                        </span>
+                      </button>
+                    ))}
+                    {hasMoreCats && (
+                      <button
+                        type="button"
+                        onClick={() => setVisibleLimit((prev) => prev + 80)}
+                        className="w-full py-1.5 text-center text-[10px] font-bold text-indigo-600 bg-indigo-50/70 hover:bg-indigo-100 rounded-lg cursor-pointer transition-colors"
+                      >
+                        {lang === 'tr'
+                          ? `Daha fazla göster (${filteredMarketCats.length - visibleLimit} kategori daha)`
+                          : `Show more (${filteredMarketCats.length - visibleLimit} more)`}
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
 
               <div className="border-t border-slate-100 pt-1.5 flex justify-between items-center text-[10px] text-slate-400">
-                <span>{filteredMarketCats.length} {lang === 'tr' ? 'kategori' : 'categories'}</span>
+                <span>
+                  {filteredMarketCats.length} {lang === 'tr' ? 'kategori' : 'categories'}
+                  {filteredMarketCats.length > visibleLimit ? ` (${visibleLimit} gösteriliyor)` : ''}
+                </span>
                 <button
                   type="button"
-                  onClick={() => setOpenDropdownFor(null)}
+                  onClick={() => onToggleDropdown(null)}
                   className="text-[10px] font-bold text-slate-500 hover:text-slate-800 px-2 py-0.5 cursor-pointer"
                 >
                   {lang === 'tr' ? 'Kapat' : 'Close'}
@@ -333,8 +432,8 @@ export const CategoryMappingRow: React.FC<CategoryMappingRowProps> = ({
               type="button"
               onClick={() => handleOpenAttributes(localCat, mappedId)}
               title={
-                configuredAttrCount > 0 
-                  ? `${configuredAttrCount} özellik ayarlandı. Düzenlemek için tıklayın.` 
+                configuredAttrCount > 0
+                  ? `${configuredAttrCount} özellik ayarlandı. Düzenlemek için tıklayın.`
                   : 'Pazaryeri zorunlu özelliklerini ayarla'
               }
               className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all flex items-center space-x-1 cursor-pointer border ${
@@ -345,8 +444,8 @@ export const CategoryMappingRow: React.FC<CategoryMappingRowProps> = ({
             >
               <SlidersHorizontal className="h-3 w-3" />
               <span className="hidden sm:inline">
-                {configuredAttrCount > 0 
-                  ? `${configuredAttrCount} ${lang === 'tr' ? 'Özellik' : 'Attrs'}` 
+                {configuredAttrCount > 0
+                  ? `${configuredAttrCount} ${lang === 'tr' ? 'Özellik' : 'Attrs'}`
                   : (lang === 'tr' ? 'Özellikler' : 'Attributes')}
               </span>
               <span className={`text-[9px] px-1 py-0.2 rounded-full font-mono font-bold ${
@@ -371,7 +470,7 @@ export const CategoryMappingRow: React.FC<CategoryMappingRowProps> = ({
             <Percent className="h-2.5 w-2.5 text-indigo-500" />
             <span>{lang === 'tr' ? 'Özel Komisyon:' : 'Category Markup:'}</span>
           </span>
-          
+
           <div className="flex items-center space-x-1 bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5">
             <span className="text-[9px] font-bold text-slate-400 uppercase">{lang === 'tr' ? 'Kom' : 'Comm'}</span>
             <div className="flex items-center">
@@ -381,8 +480,8 @@ export const CategoryMappingRow: React.FC<CategoryMappingRowProps> = ({
                 min="0"
                 max="99"
                 step="0.5"
-                placeholder={String(defaultCommissionRates[activeMarketplace] ?? 18)}
-                value={categoryMarkups[activeMarketplace]?.[localCat]?.commissionRate ?? ''}
+                placeholder={String(defaultCommissionRate)}
+                value={customComm ?? ''}
                 onChange={(e) => handleUpdateCategoryMarkup(localCat, 'commissionRate', e.target.value === '' ? undefined : parseFloat(e.target.value))}
                 className="w-9 bg-transparent text-[10px] font-bold text-slate-800 focus:outline-hidden text-right"
               />
@@ -396,8 +495,8 @@ export const CategoryMappingRow: React.FC<CategoryMappingRowProps> = ({
                 type="number"
                 min="0"
                 step="1"
-                placeholder={String(defaultFixedFees[activeMarketplace] ?? 20)}
-                value={categoryMarkups[activeMarketplace]?.[localCat]?.fixedFee ?? ''}
+                placeholder={String(defaultFixedFee)}
+                value={customFee ?? ''}
                 onChange={(e) => handleUpdateCategoryMarkup(localCat, 'fixedFee', e.target.value === '' ? undefined : parseFloat(e.target.value))}
                 className="w-9 bg-transparent text-[10px] font-bold text-slate-800 focus:outline-hidden text-right"
               />
@@ -407,26 +506,18 @@ export const CategoryMappingRow: React.FC<CategoryMappingRowProps> = ({
         </div>
 
         <div className="flex items-center space-x-1.5 text-[9px]">
-          {(() => {
-            const customComm = categoryMarkups[activeMarketplace]?.[localCat]?.commissionRate;
-            const customFee = categoryMarkups[activeMarketplace]?.[localCat]?.fixedFee;
-            const comm = customComm !== undefined && !isNaN(Number(customComm)) ? Number(customComm) : (defaultCommissionRates[activeMarketplace] ?? 18);
-            const fee = customFee !== undefined && !isNaN(Number(customFee)) ? Number(customFee) : (defaultFixedFees[activeMarketplace] ?? 20);
-            const sim = calculateSimulatedPrice(1000, comm, fee);
-            const hasCustom = customComm !== undefined || customFee !== undefined;
-            return (
-              <span className={`px-1.5 py-0.5 rounded font-mono font-bold flex items-center space-x-1 border ${
-                hasCustom 
-                  ? 'bg-purple-50 text-purple-700 border-purple-200' 
-                  : 'bg-slate-100 text-slate-600 border-slate-200'
-              }`}>
-                <span className="text-[8px] uppercase">{hasCustom ? 'Özel:' : 'Varsayılan:'}</span>
-                <span>1.000 TL ➔ {sim.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL</span>
-              </span>
-            );
-          })()}
+          <span className={`px-1.5 py-0.5 rounded font-mono font-bold flex items-center space-x-1 border ${
+            hasCustom
+              ? 'bg-purple-50 text-purple-700 border-purple-200'
+              : 'bg-slate-100 text-slate-600 border-slate-200'
+          }`}>
+            <span className="text-[8px] uppercase">{hasCustom ? 'Özel:' : 'Varsayılan:'}</span>
+            <span>1.000 TL ➔ {sim.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL</span>
+          </span>
         </div>
       </div>
     </div>
   );
-};
+});
+
+CategoryMappingRow.displayName = 'CategoryMappingRow';

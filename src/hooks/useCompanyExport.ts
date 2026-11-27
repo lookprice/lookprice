@@ -884,9 +884,18 @@ export const useCompanyExport = (
     });
 
     const filteredTxs = enrichedExcelTxs;
-    
+    const normalizedSelectedCurrency = String(selectedCurrency || 'ALL').trim().toUpperCase();
+    const isDefaultOnlyExcel = normalizedSelectedCurrency !== 'ALL' && normalizedSelectedCurrency === defaultCurr;
+    const balanceColLabel = normalizedSelectedCurrency === 'ALL'
+      ? (isTr ? `Birleşik Bakiye (${defaultCurr})` : `Combined Balance (${defaultCurr})`)
+      : (isTr ? `Bakiye (${defaultCurr})` : `Balance (${defaultCurr})`);
+    const balanceDirColLabel = isTr ? `Bakiye Yönü (${defaultCurr})` : `Balance Dir (${defaultCurr})`;
+    const formatDirLabel = (val: number) =>
+      val > 0.005 ? (isTr ? 'Borç (B)' : 'DR') : val < -0.005 ? (isTr ? 'Alacak (A)' : 'CR') : (isTr ? '0,00 (Kapalı)' : '0.00');
+
     const runningBalancesByCurr: Record<string, number> = { ...openingBalances };
-    let runningStatementBal = Number(openingBalances[selectedCurrency] || 0);
+    const selectedOpeningBal = Number(openingBalances[selectedCurrency] ?? openingBalances[normalizedSelectedCurrency] ?? 0);
+    let runningStatementBal = selectedOpeningBal;
     let runningBaseBalance = 0;
     let totalBaseDebit = 0;
     let totalBaseCredit = 0;
@@ -927,7 +936,23 @@ export const useCompanyExport = (
       totalBaseDebit = Number((totalBaseDebit + baseDebit).toFixed(2));
       totalBaseCredit = Number((totalBaseCredit + baseCredit).toFixed(2));
 
-      const rowObj: Record<string, any> = {
+      if (isDefaultOnlyExcel) {
+        data.push({
+          [isTr ? 'Tarih' : 'Date']: transactionStartDate ? formatDateTR(transactionStartDate, false, '') : '-',
+          [isTr ? 'İşlem Türü' : 'Transaction Type']: isTr ? 'Devreden Bakiye' : 'Opening Balance',
+          [isTr ? 'Fatura / Belge No' : 'Invoice / Document No']: '-',
+          [isTr ? 'Kapattığı / İlişkili Fatura' : 'Closed / Linked Invoice']: '-',
+          [isTr ? 'Açıklama' : 'Description']: isTr ? `Önceki Dönemden Devreden Bakiye (${c})` : `Carry-Over Opening Balance (${c})`,
+          [isTr ? 'Para Birimi' : 'Currency']: c,
+          [isTr ? `Borç (${defaultCurr})` : `Debit (${defaultCurr})`]: baseDebit,
+          [isTr ? `Alacak (${defaultCurr})` : `Credit (${defaultCurr})`]: baseCredit,
+          [balanceColLabel]: runningBaseBalance,
+          [balanceDirColLabel]: formatDirLabel(runningBaseBalance)
+        });
+        return;
+      }
+
+      data.push({
         [isTr ? 'Tarih' : 'Date']: transactionStartDate ? formatDateTR(transactionStartDate, false, '') : '-',
         [isTr ? 'İşlem Türü' : 'Transaction Type']: isTr ? 'Devreden Bakiye' : 'Opening Balance',
         [isTr ? 'Fatura / Belge No' : 'Invoice / Document No']: '-',
@@ -938,23 +963,20 @@ export const useCompanyExport = (
         [isTr ? 'Döviz Borç' : 'FX Debit']: c !== defaultCurr ? origDebit : 0,
         [isTr ? 'Döviz Alacak' : 'FX Credit']: c !== defaultCurr ? origCredit : 0,
         [isTr ? 'Döviz Bakiye' : 'FX Balance']: c !== defaultCurr ? Number(ob.toFixed(2)) : 0,
-        [isTr ? 'Döviz Bakiye Yönü' : 'FX Balance Dir']: c !== defaultCurr ? (ob > 0.005 ? (isTr ? 'Borç (B)' : 'DR') : ob < -0.005 ? (isTr ? 'Alacak (A)' : 'CR') : (isTr ? '0,00 (Kapalı)' : '0.00')) : '-',
+        [isTr ? 'Döviz Bakiye Yönü' : 'FX Balance Dir']: c !== defaultCurr ? formatDirLabel(ob) : '-',
         [isTr ? `Borç (${defaultCurr})` : `Debit (${defaultCurr})`]: baseDebit,
-        [isTr ? `Alacak (${defaultCurr})` : `Credit (${defaultCurr})`]: baseCredit
-      };
-      if (selectedCurrency === 'ALL') {
-        rowObj[isTr ? `Birleşik Bakiye (${defaultCurr})` : `Combined Balance (${defaultCurr})`] = runningBaseBalance;
-        rowObj[isTr ? `Bakiye Yönü (${defaultCurr})` : `Balance Dir (${defaultCurr})`] = runningBaseBalance > 0.005 ? (isTr ? 'Borç (B)' : 'DR') : runningBaseBalance < -0.005 ? (isTr ? 'Alacak (A)' : 'CR') : (isTr ? '0,00 (Kapalı)' : '0.00');
-      }
-      data.push(rowObj);
+        [isTr ? `Alacak (${defaultCurr})` : `Credit (${defaultCurr})`]: baseCredit,
+        [balanceColLabel]: runningBaseBalance,
+        [balanceDirColLabel]: formatDirLabel(runningBaseBalance)
+      });
     };
 
-    if (selectedCurrency === 'ALL') {
+    if (normalizedSelectedCurrency === 'ALL') {
       Object.entries(openingBalances).forEach(([currKey, obVal]) => {
         pushOpeningRow(currKey, Number(obVal || 0));
       });
-    } else if (openingBalances[selectedCurrency]) {
-      pushOpeningRow(selectedCurrency, Number(openingBalances[selectedCurrency] || 0));
+    } else if (selectedOpeningBal) {
+      pushOpeningRow(normalizedSelectedCurrency, selectedOpeningBal);
     }
 
     filteredTxs.forEach(t_item => {
@@ -1000,10 +1022,10 @@ export const useCompanyExport = (
       }
 
       if (isDebt) {
-        runningStatementBal = Number((runningStatementBal + (selectedCurrency !== defaultCurr && selectedCurrency !== 'ALL' ? fxMovAmt : amt)).toFixed(2));
+        runningStatementBal = Number((runningStatementBal + (normalizedSelectedCurrency !== defaultCurr && normalizedSelectedCurrency !== 'ALL' ? fxMovAmt : amt)).toFixed(2));
         runningBaseBalance = Number((runningBaseBalance + baseAmt).toFixed(2));
       } else {
-        runningStatementBal = Number((runningStatementBal - (selectedCurrency !== defaultCurr && selectedCurrency !== 'ALL' ? fxMovAmt : amt)).toFixed(2));
+        runningStatementBal = Number((runningStatementBal - (normalizedSelectedCurrency !== defaultCurr && normalizedSelectedCurrency !== 'ALL' ? fxMovAmt : amt)).toFixed(2));
         runningBaseBalance = Number((runningBaseBalance - baseAmt).toFixed(2));
       }
 
@@ -1026,13 +1048,29 @@ export const useCompanyExport = (
 
       const activeFxBalance = fxTargetCurr
         ? Number((runningBalancesByCurr[fxTargetCurr] || 0).toFixed(2))
-        : (selectedCurrency !== defaultCurr && selectedCurrency !== 'ALL' ? Number(runningStatementBal.toFixed(2)) : 0);
+        : (normalizedSelectedCurrency !== defaultCurr && normalizedSelectedCurrency !== 'ALL' ? Number(runningStatementBal.toFixed(2)) : 0);
 
       const displayCurrLabel = (t_item.isCross && fxTargetCurr && curr === defaultCurr)
         ? `${defaultCurr} (${fxTargetCurr})`
         : curr;
 
-      const rowObj: Record<string, any> = {
+      if (isDefaultOnlyExcel) {
+        data.push({
+          [isTr ? 'Tarih' : 'Date']: formatDateTR(t_item.transaction_date || t_item.date, false, ''),
+          [isTr ? 'İşlem Türü' : 'Transaction Type']: txType,
+          [isTr ? 'Fatura / Belge No' : 'Invoice / Document No']: docNo || '-',
+          [isTr ? 'Kapattığı / İlişkili Fatura' : 'Closed / Linked Invoice']: closedInvNo || '-',
+          [isTr ? 'Açıklama' : 'Description']: formatCleanDescription(t_item.description || '', t_item.crossNote),
+          [isTr ? 'Para Birimi' : 'Currency']: displayCurrLabel,
+          [isTr ? `Borç (${defaultCurr})` : `Debit (${defaultCurr})`]: baseDebit,
+          [isTr ? `Alacak (${defaultCurr})` : `Credit (${defaultCurr})`]: baseCredit,
+          [balanceColLabel]: runningBaseBalance,
+          [balanceDirColLabel]: formatDirLabel(runningBaseBalance)
+        });
+        return;
+      }
+
+      data.push({
         [isTr ? 'Tarih' : 'Date']: formatDateTR(t_item.transaction_date || t_item.date, false, ''),
         [isTr ? 'İşlem Türü' : 'Transaction Type']: txType,
         [isTr ? 'Fatura / Belge No' : 'Invoice / Document No']: docNo || '-',
@@ -1043,94 +1081,141 @@ export const useCompanyExport = (
         [isTr ? 'Döviz Borç' : 'FX Debit']: fxDebit,
         [isTr ? 'Döviz Alacak' : 'FX Credit']: fxCredit,
         [isTr ? 'Döviz Bakiye' : 'FX Balance']: fxTargetCurr ? activeFxBalance : 0,
-        [isTr ? 'Döviz Bakiye Yönü' : 'FX Balance Dir']: fxTargetCurr
-          ? (activeFxBalance > 0.005 ? (isTr ? 'Borç (B)' : 'DR') : activeFxBalance < -0.005 ? (isTr ? 'Alacak (A)' : 'CR') : (isTr ? '0,00 (Kapalı)' : '0.00'))
-          : '-',
+        [isTr ? 'Döviz Bakiye Yönü' : 'FX Balance Dir']: fxTargetCurr ? formatDirLabel(activeFxBalance) : '-',
         [isTr ? `Borç (${defaultCurr})` : `Debit (${defaultCurr})`]: baseDebit,
-        [isTr ? `Alacak (${defaultCurr})` : `Credit (${defaultCurr})`]: baseCredit
-      };
-      if (selectedCurrency === 'ALL') {
-        rowObj[isTr ? `Birleşik Bakiye (${defaultCurr})` : `Combined Balance (${defaultCurr})`] = runningBaseBalance;
-        rowObj[isTr ? `Bakiye Yönü (${defaultCurr})` : `Balance Dir (${defaultCurr})`] = runningBaseBalance > 0.005 ? (isTr ? 'Borç (B)' : 'DR') : runningBaseBalance < -0.005 ? (isTr ? 'Alacak (A)' : 'CR') : (isTr ? '0,00 (Kapalı)' : '0.00');
-      }
-      data.push(rowObj);
+        [isTr ? `Alacak (${defaultCurr})` : `Credit (${defaultCurr})`]: baseCredit,
+        [balanceColLabel]: runningBaseBalance,
+        [balanceDirColLabel]: formatDirLabel(runningBaseBalance)
+      });
     });
 
-    if (data.length > 0 && selectedCurrency === 'ALL') {
-      data.push({
-        [isTr ? 'Tarih' : 'Date']: '',
-        [isTr ? 'İşlem Türü' : 'Transaction Type']: '',
-        [isTr ? 'Fatura / Belge No' : 'Invoice / Document No']: '',
-        [isTr ? 'Kapattığı / İlişkili Fatura' : 'Closed / Linked Invoice']: '',
-        [isTr ? 'Açıklama' : 'Description']: '',
-        [isTr ? 'Para Birimi' : 'Currency']: '',
-        [isTr ? 'Döviz Kuru' : 'Exchange Rate']: '',
-        [isTr ? 'Döviz Borç' : 'FX Debit']: '',
-        [isTr ? 'Döviz Alacak' : 'FX Credit']: '',
-        [isTr ? 'Döviz Bakiye' : 'FX Balance']: '',
-        [isTr ? 'Döviz Bakiye Yönü' : 'FX Balance Dir']: '',
-        [isTr ? `Borç (${defaultCurr})` : `Debit (${defaultCurr})`]: '',
-        [isTr ? `Alacak (${defaultCurr})` : `Credit (${defaultCurr})`]: '',
-        [isTr ? `Birleşik Bakiye (${defaultCurr})` : `Combined Balance (${defaultCurr})`]: '',
-        [isTr ? `Bakiye Yönü (${defaultCurr})` : `Balance Dir (${defaultCurr})`]: ''
-      });
+    if (data.length > 0) {
+      if (isDefaultOnlyExcel) {
+        data.push({
+          [isTr ? 'Tarih' : 'Date']: '',
+          [isTr ? 'İşlem Türü' : 'Transaction Type']: '',
+          [isTr ? 'Fatura / Belge No' : 'Invoice / Document No']: '',
+          [isTr ? 'Kapattığı / İlişkili Fatura' : 'Closed / Linked Invoice']: '',
+          [isTr ? 'Açıklama' : 'Description']: '',
+          [isTr ? 'Para Birimi' : 'Currency']: '',
+          [isTr ? `Borç (${defaultCurr})` : `Debit (${defaultCurr})`]: '',
+          [isTr ? `Alacak (${defaultCurr})` : `Credit (${defaultCurr})`]: '',
+          [balanceColLabel]: '',
+          [balanceDirColLabel]: ''
+        });
+        data.push({
+          [isTr ? 'Tarih' : 'Date']: '',
+          [isTr ? 'İşlem Türü' : 'Transaction Type']: isTr ? 'GENEL TOPLAM' : 'GRAND TOTAL',
+          [isTr ? 'Fatura / Belge No' : 'Invoice / Document No']: '-',
+          [isTr ? 'Kapattığı / İlişkili Fatura' : 'Closed / Linked Invoice']: '-',
+          [isTr ? 'Açıklama' : 'Description']: isTr ? `Cari Ekstre Toplamı (${defaultCurr})` : `Statement Total (${defaultCurr})`,
+          [isTr ? 'Para Birimi' : 'Currency']: defaultCurr,
+          [isTr ? `Borç (${defaultCurr})` : `Debit (${defaultCurr})`]: totalBaseDebit,
+          [isTr ? `Alacak (${defaultCurr})` : `Credit (${defaultCurr})`]: totalBaseCredit,
+          [balanceColLabel]: runningBaseBalance,
+          [balanceDirColLabel]: formatDirLabel(runningBaseBalance)
+        });
+      } else {
+        data.push({
+          [isTr ? 'Tarih' : 'Date']: '',
+          [isTr ? 'İşlem Türü' : 'Transaction Type']: '',
+          [isTr ? 'Fatura / Belge No' : 'Invoice / Document No']: '',
+          [isTr ? 'Kapattığı / İlişkili Fatura' : 'Closed / Linked Invoice']: '',
+          [isTr ? 'Açıklama' : 'Description']: '',
+          [isTr ? 'Para Birimi' : 'Currency']: '',
+          [isTr ? 'Döviz Kuru' : 'Exchange Rate']: '',
+          [isTr ? 'Döviz Borç' : 'FX Debit']: '',
+          [isTr ? 'Döviz Alacak' : 'FX Credit']: '',
+          [isTr ? 'Döviz Bakiye' : 'FX Balance']: '',
+          [isTr ? 'Döviz Bakiye Yönü' : 'FX Balance Dir']: '',
+          [isTr ? `Borç (${defaultCurr})` : `Debit (${defaultCurr})`]: '',
+          [isTr ? `Alacak (${defaultCurr})` : `Credit (${defaultCurr})`]: '',
+          [balanceColLabel]: '',
+          [balanceDirColLabel]: ''
+        });
 
-      const finalPrimaryFxBal = primaryFxCurr ? Number((runningBalancesByCurr[primaryFxCurr] || 0).toFixed(2)) : 0;
-      const finalPrimaryFxDeb = primaryFxCurr ? Number((totalOrigDebitByCurr[primaryFxCurr] || 0).toFixed(2)) : 0;
-      const finalPrimaryFxCred = primaryFxCurr ? Number((totalOrigCreditByCurr[primaryFxCurr] || 0).toFixed(2)) : 0;
+        const finalPrimaryFxBal = primaryFxCurr ? Number((runningBalancesByCurr[primaryFxCurr] || 0).toFixed(2)) : 0;
+        const finalPrimaryFxDeb = primaryFxCurr ? Number((totalOrigDebitByCurr[primaryFxCurr] || 0).toFixed(2)) : 0;
+        const finalPrimaryFxCred = primaryFxCurr ? Number((totalOrigCreditByCurr[primaryFxCurr] || 0).toFixed(2)) : 0;
 
-      data.push({
-        [isTr ? 'Tarih' : 'Date']: '',
-        [isTr ? 'İşlem Türü' : 'Transaction Type']: isTr ? 'GENEL TOPLAM' : 'GRAND TOTAL',
-        [isTr ? 'Fatura / Belge No' : 'Invoice / Document No']: '-',
-        [isTr ? 'Kapattığı / İlişkili Fatura' : 'Closed / Linked Invoice']: '-',
-        [isTr ? 'Açıklama' : 'Description']: isTr ? `Birleşik Cari Ekstre Toplamı (${primaryFxCurr ? `${primaryFxCurr} & ` : ''}${defaultCurr})` : `Combined Statement Total (${primaryFxCurr ? `${primaryFxCurr} & ` : ''}${defaultCurr})`,
-        [isTr ? 'Para Birimi' : 'Currency']: primaryFxCurr ? `${primaryFxCurr}/${defaultCurr}` : defaultCurr,
-        [isTr ? 'Döviz Kuru' : 'Exchange Rate']: '',
-        [isTr ? 'Döviz Borç' : 'FX Debit']: primaryFxCurr ? finalPrimaryFxDeb : '',
-        [isTr ? 'Döviz Alacak' : 'FX Credit']: primaryFxCurr ? finalPrimaryFxCred : '',
-        [isTr ? 'Döviz Bakiye' : 'FX Balance']: primaryFxCurr ? finalPrimaryFxBal : '',
-        [isTr ? 'Döviz Bakiye Yönü' : 'FX Balance Dir']: primaryFxCurr
-          ? (finalPrimaryFxBal > 0.005 ? (isTr ? 'Borç (B)' : 'DR') : finalPrimaryFxBal < -0.005 ? (isTr ? 'Alacak (A)' : 'CR') : (isTr ? '0,00 (Kapalı)' : '0.00'))
-          : '',
-        [isTr ? `Borç (${defaultCurr})` : `Debit (${defaultCurr})`]: totalBaseDebit,
-        [isTr ? `Alacak (${defaultCurr})` : `Credit (${defaultCurr})`]: totalBaseCredit,
-        [isTr ? `Birleşik Bakiye (${defaultCurr})` : `Combined Balance (${defaultCurr})`]: runningBaseBalance,
-        [isTr ? `Bakiye Yönü (${defaultCurr})` : `Balance Dir (${defaultCurr})`]: runningBaseBalance > 0.005 ? (isTr ? 'Borç (B)' : 'DR') : runningBaseBalance < -0.005 ? (isTr ? 'Alacak (A)' : 'CR') : (isTr ? '0,00 (Kapalı)' : '0.00')
-      });
+        data.push({
+          [isTr ? 'Tarih' : 'Date']: '',
+          [isTr ? 'İşlem Türü' : 'Transaction Type']: isTr ? 'GENEL TOPLAM' : 'GRAND TOTAL',
+          [isTr ? 'Fatura / Belge No' : 'Invoice / Document No']: '-',
+          [isTr ? 'Kapattığı / İlişkili Fatura' : 'Closed / Linked Invoice']: '-',
+          [isTr ? 'Açıklama' : 'Description']: normalizedSelectedCurrency === 'ALL'
+            ? (isTr ? `Birleşik Cari Ekstre Toplamı (${primaryFxCurr ? `${primaryFxCurr} & ` : ''}${defaultCurr})` : `Combined Statement Total (${primaryFxCurr ? `${primaryFxCurr} & ` : ''}${defaultCurr})`)
+            : (isTr ? `Cari Ekstre Toplamı (${primaryFxCurr || normalizedSelectedCurrency})` : `Statement Total (${primaryFxCurr || normalizedSelectedCurrency})`),
+          [isTr ? 'Para Birimi' : 'Currency']: normalizedSelectedCurrency === 'ALL'
+            ? (primaryFxCurr ? `${primaryFxCurr}/${defaultCurr}` : defaultCurr)
+            : (primaryFxCurr || normalizedSelectedCurrency),
+          [isTr ? 'Döviz Kuru' : 'Exchange Rate']: '',
+          [isTr ? 'Döviz Borç' : 'FX Debit']: primaryFxCurr ? finalPrimaryFxDeb : '',
+          [isTr ? 'Döviz Alacak' : 'FX Credit']: primaryFxCurr ? finalPrimaryFxCred : '',
+          [isTr ? 'Döviz Bakiye' : 'FX Balance']: primaryFxCurr ? finalPrimaryFxBal : '',
+          [isTr ? 'Döviz Bakiye Yönü' : 'FX Balance Dir']: primaryFxCurr ? formatDirLabel(finalPrimaryFxBal) : '',
+          [isTr ? `Borç (${defaultCurr})` : `Debit (${defaultCurr})`]: totalBaseDebit,
+          [isTr ? `Alacak (${defaultCurr})` : `Credit (${defaultCurr})`]: totalBaseCredit,
+          [balanceColLabel]: runningBaseBalance,
+          [balanceDirColLabel]: formatDirLabel(runningBaseBalance)
+        });
+      }
     }
 
     const ws = XLSX.utils.json_to_sheet(data);
-    const range = XLSX.utils.decode_range(ws['!ref'] || 'A1:O1');
+    const range = XLSX.utils.decode_range(ws['!ref'] || (isDefaultOnlyExcel ? 'A1:J1' : 'A1:O1'));
     for (let R = range.s.r + 1; R <= range.e.r; ++R) {
-      const rateCell = ws[XLSX.utils.encode_cell({ r: R, c: 6 })];
-      if (rateCell && rateCell.t === 'n') {
-        rateCell.z = '#,##0.0000';
-      }
-      for (const colIdx of [7, 8, 9, 11, 12, 13]) {
-        const cell = ws[XLSX.utils.encode_cell({ r: R, c: colIdx })];
-        if (cell && cell.t === 'n') {
-          cell.z = '#,##0.00';
+      if (isDefaultOnlyExcel) {
+        for (const colIdx of [6, 7, 8]) {
+          const cell = ws[XLSX.utils.encode_cell({ r: R, c: colIdx })];
+          if (cell && cell.t === 'n') {
+            cell.z = '#,##0.00';
+          }
+        }
+      } else {
+        const rateCell = ws[XLSX.utils.encode_cell({ r: R, c: 6 })];
+        if (rateCell && rateCell.t === 'n') {
+          rateCell.z = '#,##0.0000';
+        }
+        for (const colIdx of [7, 8, 9, 11, 12, 13]) {
+          const cell = ws[XLSX.utils.encode_cell({ r: R, c: colIdx })];
+          if (cell && cell.t === 'n') {
+            cell.z = '#,##0.00';
+          }
         }
       }
     }
 
-    ws['!cols'] = [
-      { wch: 13 },
-      { wch: 20 },
-      { wch: 20 },
-      { wch: 24 },
-      { wch: 52 },
-      { wch: 14 },
-      { wch: 13 },
-      { wch: 15 },
-      { wch: 15 },
-      { wch: 16 },
-      { wch: 16 },
-      { wch: 16 },
-      { wch: 16 },
-      ...(selectedCurrency === 'ALL' ? [{ wch: 20 }, { wch: 16 }] : [])
-    ];
+    ws['!cols'] = isDefaultOnlyExcel
+      ? [
+          { wch: 13 },
+          { wch: 20 },
+          { wch: 20 },
+          { wch: 24 },
+          { wch: 52 },
+          { wch: 12 },
+          { wch: 16 },
+          { wch: 16 },
+          { wch: 18 },
+          { wch: 16 }
+        ]
+      : [
+          { wch: 13 },
+          { wch: 20 },
+          { wch: 20 },
+          { wch: 24 },
+          { wch: 52 },
+          { wch: 14 },
+          { wch: 13 },
+          { wch: 15 },
+          { wch: 15 },
+          { wch: 16 },
+          { wch: 16 },
+          { wch: 16 },
+          { wch: 16 },
+          { wch: 20 },
+          { wch: 16 }
+        ];
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Cari Ekstre');

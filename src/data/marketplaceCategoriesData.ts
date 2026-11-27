@@ -3856,16 +3856,25 @@ export function normalizeCategoryText(str: string): string {
     .trim();
 }
 
-// Extracts root stem for Turkish suffix variations in category search
+// Extracts root stem for Turkish suffix variations & consonant softening in category search
 export function getCategorySearchStem(token: string): string {
   if (!token) return "";
   let stem = token.toLowerCase();
-  const suffixes = ["cilik", "çılık", "cilik", "culuk", "çülük", "lari", "leri", "lar", "ler", "sasi", "sasi", "sida", "sinde", "si", "si", "su", "su", "i", "i", "u", "u"];
+  const suffixes = [
+    "cilik", "culuk", "lari", "leri", "lik", "luk", "lar", "ler",
+    "sasi", "sida", "sinde", "sini", "sunu", "si", "su", "ci", "cu",
+    "gi", "gu", "i", "u", "a", "e"
+  ];
   for (const suf of suffixes) {
-    if (stem.length > 4 && stem.endsWith(suf)) {
+    if (stem.length - suf.length >= 3 && stem.endsWith(suf)) {
       stem = stem.slice(0, stem.length - suf.length);
       break;
     }
+  }
+  // Handle common Turkish consonant softening at stem boundary (e.g. dolab->dolap, kapag->kapak, yastig->yastik)
+  if (stem.length >= 4) {
+    if (stem.endsWith("g")) stem = stem.slice(0, -1) + "k";
+    else if (stem.endsWith("b")) stem = stem.slice(0, -1) + "p";
   }
   return stem;
 }
@@ -3880,8 +3889,90 @@ export function matchCategorySearchToken(catText: string, token: string): boolea
     return true;
   }
 
-  const words = catText.split(" ");
-  return words.some(w => w.startsWith(token) || (stem.length >= 3 && w.startsWith(stem)));
+  return false;
+}
+
+/**
+ * Fast, pre-normalized multi-word token scorer for marketplace category search.
+ * Matches EVERY query word independently (in any order) across leaf name and full breadcrumb path,
+ * returning 0 for non-matches or a relevance score > 0 for matches.
+ */
+export function scoreCategorySearchMatch(
+  normName: string,
+  normFull: string,
+  catIdStr: string,
+  rawQueryTrimmed: string,
+  normQuery: string,
+  queryTokens: string[]
+): number {
+  if (!rawQueryTrimmed) return 1;
+
+  // Exact ID match always ranks #1
+  if (catIdStr && catIdStr === rawQueryTrimmed) {
+    return 10000;
+  }
+  if (queryTokens.length === 0) {
+    return catIdStr && catIdStr.includes(rawQueryTrimmed) ? 5000 : 1;
+  }
+
+  // Every search word must match independently (full text = leaf name + displayName + paths + ID)
+  let score = 0;
+  let leafMatchCount = 0;
+  let leafPrefixCount = 0;
+
+  for (let i = 0; i < queryTokens.length; i++) {
+    const token = queryTokens[i];
+    const inFullDirect = normFull.includes(token);
+    let matchedToken = inFullDirect ? token : "";
+
+    if (!inFullDirect) {
+      const stem = getCategorySearchStem(token);
+      if (stem && stem.length >= 3 && normFull.includes(stem)) {
+        matchedToken = stem;
+      } else if (catIdStr && catIdStr.includes(token)) {
+        matchedToken = token;
+      } else {
+        return 0; // Multi-word AND semantics: every word must match
+      }
+    }
+
+    // Score boost when token matches directly in the leaf category name
+    if (normName.includes(matchedToken)) {
+      leafMatchCount++;
+      score += inFullDirect ? 120 : 85;
+      if (normName.startsWith(matchedToken) || normName.includes(` ${matchedToken}`)) {
+        leafPrefixCount++;
+        score += 45;
+      }
+    } else {
+      // Matched in parent breadcrumb path
+      score += inFullDirect ? 45 : 30;
+      if (normFull.startsWith(matchedToken) || normFull.includes(` ${matchedToken}`)) {
+        score += 15;
+      }
+    }
+  }
+
+  // Strong bonuses for exact / phrase / all-tokens-in-leaf matches
+  if (normName === normQuery) {
+    score += 2000;
+  } else if (normName.startsWith(normQuery)) {
+    score += 700;
+  } else if (normName.includes(normQuery)) {
+    score += 450;
+  }
+
+  if (leafMatchCount === queryTokens.length) {
+    score += 350;
+  }
+  if (leafPrefixCount === queryTokens.length) {
+    score += 150;
+  }
+
+  // Slightly favor concise, specific leaf category names over verbose paths
+  score += Math.max(0, 60 - normName.length);
+
+  return score;
 }
 
 // Smart Auto-Match Algorithm
