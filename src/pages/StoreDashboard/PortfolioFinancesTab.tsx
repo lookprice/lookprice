@@ -114,6 +114,18 @@ export default function PortfolioFinancesTab({
   const [loadingAccounts, setLoadingAccounts] = useState(false);
   const [showAccountsModal, setShowAccountsModal] = useState(false);
   const [showAccountsSummary, setShowAccountsSummary] = useState(true);
+  const [hrEmployees, setHrEmployees] = useState<Array<{ id: number; full_name: string; role_title?: string; salary_currency?: string }>>([]);
+
+  useEffect(() => {
+    if (!storeId) return;
+    const token = localStorage.getItem("token");
+    fetch(`/api/store/hr/employees?storeId=${storeId}&status=active`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((rows) => setHrEmployees(Array.isArray(rows) ? rows : []))
+      .catch(() => setHrEmployees([]));
+  }, [storeId]);
 
   // Store default currency & exchange rates for cross-currency portfolio P&L
   const [storeDefaultCurrency, setStoreDefaultCurrency] = useState<string>(
@@ -583,7 +595,9 @@ export default function PortfolioFinancesTab({
     account_name: "",
     reference_no: "",
     contact_name: "",
-    description: ""
+    description: "",
+    employee_id: "" as string | number,
+    payroll_item_type: "salary"
   });
 
   const paymentMethods = [
@@ -680,7 +694,9 @@ export default function PortfolioFinancesTab({
       account_name: `${defaultCur} Nakit Kasa`,
       reference_no: "",
       contact_name: "",
-      description: ""
+      description: "",
+      employee_id: "",
+      payroll_item_type: "salary"
     });
     setShowAddModal(true);
   };
@@ -708,7 +724,9 @@ export default function PortfolioFinancesTab({
       account_name: resolvedAccName,
       reference_no: tx.reference_no || "",
       contact_name: tx.contact_name || "",
-      description: tx.description || ""
+      description: tx.description || "",
+      employee_id: tx.employee_id ? String(tx.employee_id) : "",
+      payroll_item_type: tx.payroll_item_type || "salary"
     });
     setShowAddModal(true);
   };
@@ -816,7 +834,9 @@ export default function PortfolioFinancesTab({
       account_name: resolvedAccountName,
       reference_no: formData.reference_no.trim(),
       contact_name: formData.contact_name.trim(),
-      description: formData.description.trim()
+      description: formData.description.trim(),
+      employee_id: formData.type === "expense" && formData.category === "staff_payroll" && formData.employee_id ? Number(formData.employee_id) : null,
+      payroll_item_type: formData.type === "expense" && formData.category === "staff_payroll" && formData.employee_id ? formData.payroll_item_type : null
     };
 
     try {
@@ -5077,6 +5097,67 @@ export default function PortfolioFinancesTab({
                     </select>
                   </div>
                 </div>
+
+                {/* Bidirectional HR Payroll Linkage when category is staff_payroll */}
+                {formData.type === "expense" && formData.category === "staff_payroll" && (
+                  <div className="bg-emerald-50/70 border border-emerald-200 rounded-lg p-2.5 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-semibold text-emerald-900 uppercase">
+                        {isTr ? "Personel & Bordro Bağlantısı (Çift Yönlü Senkron)" : "Employee & Payroll Link"}
+                      </span>
+                      <span className="text-[10px] text-emerald-700">
+                        {isTr ? "Seçilen personelin İK bordrosuna otomatik işlenir" : "Syncs to HR payroll"}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                      <div className="sm:col-span-7">
+                        <select
+                          value={formData.employee_id}
+                          onChange={(e) => {
+                            const empId = e.target.value;
+                            const emp = hrEmployees.find((x) => String(x.id) === empId);
+                            const typeLabelMap: Record<string, string> = {
+                              salary: "Maaş",
+                              advance: "Avans",
+                              bonus: "Prim",
+                              sgk: "SGK & Vergi",
+                              meal_transport: "Yol & Yemek",
+                              overtime: "Fazla Mesai",
+                            };
+                            setFormData((p) => ({
+                              ...p,
+                              employee_id: empId,
+                              contact_name: emp ? emp.full_name : p.contact_name,
+                              title: emp && !p.title.trim() ? `${emp.full_name} — ${typeLabelMap[p.payroll_item_type] || "Ödeme"}` : p.title,
+                            }));
+                          }}
+                          className="w-full px-2.5 py-1.5 bg-white border border-emerald-200 rounded-lg font-medium text-xs text-slate-800 cursor-pointer"
+                        >
+                          <option value="">{isTr ? "— Personel Seçin (İsteğe Bağlı) —" : "— Select Employee —"}</option>
+                          {hrEmployees.map((emp) => (
+                            <option key={emp.id} value={emp.id}>
+                              {emp.full_name}{emp.role_title ? ` (${emp.role_title})` : ""}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="sm:col-span-5">
+                        <select
+                          value={formData.payroll_item_type}
+                          onChange={(e) => setFormData((p) => ({ ...p, payroll_item_type: e.target.value }))}
+                          className="w-full px-2 py-1.5 bg-white border border-emerald-200 rounded-lg font-medium text-xs text-slate-800 cursor-pointer"
+                        >
+                          <option value="salary">{isTr ? "Maaş Ödemesi" : "Salary"}</option>
+                          <option value="advance">{isTr ? "Avans Ödemesi" : "Advance"}</option>
+                          <option value="bonus">{isTr ? "Prim / İkramiye" : "Bonus"}</option>
+                          <option value="sgk">{isTr ? "SGK & Vergi" : "SGK / Tax"}</option>
+                          <option value="meal_transport">{isTr ? "Yol & Yemek" : "Meal & Transport"}</option>
+                          <option value="overtime">{isTr ? "Fazla Mesai" : "Overtime"}</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Specific Bank Account or Card Selection */}
                 {formData.payment_method === "bank_transfer" && (

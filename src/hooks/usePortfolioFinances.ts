@@ -18,6 +18,9 @@ export interface PortfolioTransaction {
   contact_name?: string;
   account_id?: number | null;
   account_name?: string | null;
+  employee_id?: number | null;
+  payroll_item_type?: string | null;
+  employee_name?: string | null;
   created_at?: string;
   updated_at?: string;
 }

@@ -114,6 +114,7 @@ const FaqTab = React.lazy(() => import("./FaqTab"));
 const HotelRoomManagement = React.lazy(() => import("../../components/horeca/HotelRoomManagement").then(m => ({ default: m.HotelRoomManagement })));
 const CorporateWebsiteStudioTab = React.lazy(() => import("./CorporateWebsiteStudioTab"));
 const DeveloperProjectSuite = React.lazy(() => import("../../components/developer/DeveloperProjectSuite").then(m => ({ default: m.DeveloperProjectSuite })));
+const HrPersonnelTab = React.lazy(() => import("./HrPersonnelTab"));
 
 import ShippingSlip from "../../components/ShippingSlip";
 import { ChangePasswordModal } from "../../components/ChangePasswordModal";
@@ -1006,6 +1007,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     ]},
     { type: 'category', key: "finance_operations", title: txt('Finans & Kasa', 'Finance & Cash', 'Οικονομικά & Ταμείο'), items: [
       { id: "portfolio_finances", label: txt('Gelir & Gider / Kasa', 'Finances & Cash Flow', 'Έσοδα & Έξοδα / Ταμείο'), icon: Wallet },
+      { id: "hr_personnel", label: txt('Personel & İK', 'HR & Personnel', 'Προσωπικό & HR'), icon: Users },
     ]},
     { type: 'category', key: "integrations", title: txt('Google, Meta & İstatistik', 'Google, Meta & Analytics', 'Google, Meta & Στατιστικά'), items: [
       { id: "meta", label: txt('Meta & Instagram Tanımları', 'Meta & Instagram Setup', 'Ρυθμίσεις Meta & Instagram'), icon: Facebook },
@@ -1021,6 +1023,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     ]},
     { type: 'category', key: "corporate_ops", title: txt('Ekip & Kurumsal', 'Team & Corporate', 'Ομάδα & Εταιρικά'), items: [
       { id: "dev_agencies", label: txt('Ekip & Yetkiler', 'Team & Permissions', 'Ομάδα & Δικαιώματα'), icon: Users },
+      { id: "hr_personnel", label: txt('Personel & İK', 'HR & Personnel', 'Προσωπικό & HR'), icon: Users },
       { id: "portfolio_finances", label: txt('Finans & Kasa', 'Finance & Cash', 'Ταμείο'), icon: Wallet },
       { id: "website-generator", label: txt('Web Vitrini', 'Web Showcase', 'Ιστοσελίδα'), icon: Globe },
       { id: "settings_yedekleme", label: txt('Yedekleme', 'Backup', 'Δημιουργία Αντιγράφων'), icon: Database },
@@ -1049,6 +1052,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       { id: "portfolio_finances", label: txt('Gelir & Gider / Kasa', 'Finances & Cash Flow', 'Έσοδα & Έξοδα / Ταμείο'), icon: Wallet },
     ]},
     { type: 'category', key: "team", title: txt('Personel & Şube', 'Staff & Branches', 'Προσωπικό & Υποκαταστήματα'), items: [
+      { id: "hr_personnel", label: txt('Personel & İK', 'HR & Personnel', 'Προσωπικό & HR'), icon: Users },
       { id: "team-crm", label: txt('Personel & Şube Yönetimi', 'Staff & Branch CRM', 'Διαχείριση Προσωπικού & Υποκαταστημάτων'), icon: Users },
       { id: "real_estate_crm", label: isAutomotive ? txt('Araç Sahibi & Müşteri CRM', 'Vehicle Owner & Buyer CRM', 'CRM Ιδιοκτητών & Αγοραστών Οχημάτων') : txt('Mülk Sahibi & Yatırımcı CRM', 'Property Owner & Investor CRM', 'CRM Ιδιοκτητών & Επενδυτών'), icon: Users, badge: webOwnerLeadsCount > 0 ? webOwnerLeadsCount : undefined, badgeType: 'error' },
       ...(isRealEstate ? [{ id: "authority_transfer", label: txt('Yetki Devri (Tapu)', 'Authority Transfer', 'Μεταβίβαση Εξουσιοδότησης'), icon: Briefcase }] : []),
@@ -1109,6 +1113,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         badgeType: Number(notifications?.reconciliations_disputed || 0) > 0 ? 'error' : 'normal'
       },
       { id: "portfolio_finances", label: txt('Gelir & Gider / Kasa', 'Finances & Cash Flow', 'Έσοδα & Έξοδα / Ταμείο'), icon: Wallet },
+      { id: "hr_personnel", label: txt('Personel & İK', 'HR & Personnel', 'Προσωπικό & HR'), icon: Users },
       ...(!(branding?.branch_type === 'WAREHOUSE' && branding?.has_pos === false) ? [{ id: "pos", label: t.pos, icon: CreditCard, badge: notifications.sales }] : []),
       ...(!(branding?.branch_type === 'WAREHOUSE' && branding?.has_pos === false) ? [{ id: "fast-pos", label: t.fastPos, icon: Scan }] : []),
     ]},
@@ -2162,6 +2167,14 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   isRealEstate={isRealEstate || isDeveloperProject}
                   domainId={domainId}
                   branding={branding}
+                />
+              )}
+              {activeTab === "hr_personnel" && permittedTabIds.has("hr_personnel") && (
+                <HrPersonnelTab
+                  storeId={currentStoreId!}
+                  branding={branding}
+                  users={users}
+                  domainId={domainId}
                 />
               )}
             </Suspense>

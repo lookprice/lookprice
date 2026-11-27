@@ -39,6 +39,7 @@ const AutoLanding = React.lazy(() => import("./pages/AutoLanding"));
 const REstateLanding = React.lazy(() => import("./pages/REstateLanding"));
 const ShopLanding = React.lazy(() => import("./pages/ShopLanding"));
 const PropertyTrackingPage = React.lazy(() => import("./pages/PropertyTrackingPage"));
+const EmployeePortalPage = React.lazy(() => import("./pages/EmployeePortalPage"));
 
 const SuspenseLoader = () => (
   <div className="flex items-center justify-center min-h-screen bg-slate-50">
@@ -143,7 +144,8 @@ export default function App() {
                              location.pathname.startsWith("/store/") ||
                              location.pathname.endsWith("-landing") ||
                              location.pathname.startsWith("/portal") ||
-                             location.pathname.startsWith("/digital-menu");
+                             location.pathname.startsWith("/digital-menu") ||
+                             location.pathname.startsWith("/personel");
     const isCustomDomain = detectedSlug && detectedSlug !== "__portal__";
 
     if (!isPortal && !isStoreOrListing && !isCustomDomain) {
@@ -299,6 +301,8 @@ export default function App() {
             <Route path="/contract/sign/:id" element={<ContractSignPage />} />
             <Route path="/digital-menu/:storeId" element={<DigitalMenuPage />} />
             <Route path="/digital-menu/:storeId/:tableId" element={<DigitalMenuPage />} />
+            <Route path="/personel/:slug" element={<EmployeePortalPage />} />
+            <Route path="/s/:slug/personel" element={<EmployeePortalPage />} />
             <Route path="/privacy" element={<LegalPage type="privacy" />} />
             <Route path="/terms" element={<LegalPage type="terms" />} />
             <Route path="/data-deletion" element={<LegalPage type="deletion" />} />
@@ -353,6 +357,8 @@ export default function App() {
             <Route path="/contract/sign/:id" element={<ContractSignPage />} />
             <Route path="/digital-menu/:storeId" element={<DigitalMenuPage />} />
             <Route path="/digital-menu/:storeId/:tableId" element={<DigitalMenuPage />} />
+            <Route path="/personel/:slug" element={<EmployeePortalPage />} />
+            <Route path="/s/:slug/personel" element={<EmployeePortalPage />} />
             <Route path="/privacy" element={<LegalPage type="privacy" />} />
             <Route path="/terms" element={<LegalPage type="terms" />} />
             <Route path="/data-deletion" element={<LegalPage type="deletion" />} />

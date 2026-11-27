@@ -27,6 +27,7 @@ import aiJobsRoutes from "./routes/ai_jobs.js";
 import aiSocialRoutes from "./routes/ai_social.js";
 import googleDriveRoutes from "./routes/googleDrive.js";
 import posBridgeRoutes, { attachPosBridgeWebSocket } from "./routes/posBridge";
+import hrPortalRoutes from "./routes/hrPortal";
 import { authenticate } from "./middleware/auth";
 import { domainMiddleware, extractDomainFromRequest, resolveStoreSlugForDomain, MAIN_DOMAINS } from "./middleware/domain";
 import { pool } from "./models/db";
@@ -1262,6 +1263,7 @@ function sanitizeFilename(originalName: string): string {
   app.use("/api/instagram", instagramRoutes);
   app.use("/api/ai-social", authenticate, aiSocialRoutes);
   app.use("/api/pos-bridge", posBridgeRoutes);
+  app.use("/api/hr-portal", hrPortalRoutes);
   app.use("/api", einvoiceRoutes);
 
   // Special case: Single Blog Post getter for dashboard

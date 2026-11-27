@@ -12,6 +12,11 @@ import {
   backfillMarketplaceVaults
 } from './store/treasurySync';
 import { isShopLPStore } from './store/invoiceMatching';
+import {
+  ensureHrSchema,
+  syncPortfolioTransactionToPayroll,
+  deleteHrLedgerForPortfolioTransaction
+} from '../src/services/backend/hrService';
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -1752,8 +1757,11 @@ async function ensurePortfolioTransactionsSchema() {
     await pool.query(`ALTER TABLE portfolio_transactions ADD COLUMN IF NOT EXISTS contact_name TEXT;`);
     await pool.query(`ALTER TABLE portfolio_transactions ADD COLUMN IF NOT EXISTS account_id INTEGER;`);
     await pool.query(`ALTER TABLE portfolio_transactions ADD COLUMN IF NOT EXISTS account_name TEXT;`);
+    await pool.query(`ALTER TABLE portfolio_transactions ADD COLUMN IF NOT EXISTS employee_id INTEGER;`);
+    await pool.query(`ALTER TABLE portfolio_transactions ADD COLUMN IF NOT EXISTS payroll_item_type TEXT;`);
     await pool.query(`ALTER TABLE portfolio_transactions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`);
     await ensureTreasurySchema(pool);
+    await ensureHrSchema(pool).catch(() => {});
     portfolioTransactionsSchemaReady = true;
   } catch (err) {
     console.warn("ensurePortfolioTransactionsSchema warning:", err);
@@ -1808,12 +1816,14 @@ router.get('/transactions', authenticate, async (req: any, res) => {
     try {
       const result = await pool.query(
         `SELECT t.*, 
+                e.full_name AS employee_name,
                 CASE 
                   WHEN p.id IS NOT NULL AND COALESCE(p.title, '') <> '' THEN p.title
                   WHEN v.id IS NOT NULL THEN TRIM(CONCAT(COALESCE(v.plate, ''), ' - ', COALESCE(v.brand, ''), ' ', COALESCE(v.model, '')))
                   ELSE NULL
                 END as property_title 
          FROM portfolio_transactions t
+         LEFT JOIN hr_employees e ON t.employee_id = e.id AND e.store_id = t.store_id
          LEFT JOIN real_estate_properties p ON t.property_id = p.id AND p.store_id = t.store_id
          LEFT JOIN vehicles v ON t.property_id = v.id AND v.store_id = t.store_id
          ${whereClause}
@@ -2719,7 +2729,7 @@ router.delete('/checks-notes/:id', authenticate, async (req: any, res) => {
 router.post('/transactions', authenticate, async (req: any, res) => {
   await ensurePortfolioTransactionsSchema();
   const storeId = resolveTransactionStoreId(req);
-  const { type, category, title, amount, currency, exchange_rate, date, property_id, company_id, description, payment_method, reference_no, contact_name, account_id, account_name } = req.body;
+  const { type, category, title, amount, currency, exchange_rate, date, property_id, company_id, description, payment_method, reference_no, contact_name, account_id, account_name, employee_id, payroll_item_type } = req.body;
 
   if (!storeId) {
     return res.status(400).json({ error: "Store ID is required." });
@@ -2736,6 +2746,8 @@ router.post('/transactions', authenticate, async (req: any, res) => {
   const parsedPropertyId = property_id ? (Number(property_id) || null) : null;
   const parsedCompanyId = company_id ? (Number(company_id) || null) : null;
   const parsedAccountId = account_id ? (Number(account_id) || null) : null;
+  const parsedEmployeeId = category === 'staff_payroll' && employee_id ? (Number(employee_id) || null) : null;
+  const cleanPayrollItemType = parsedEmployeeId && payroll_item_type ? String(payroll_item_type).trim() : null;
   const txCurr = (currency || 'TRY').toUpperCase();
   const txRate = Number(exchange_rate || 1) || 1;
   const txDate = date ? new Date(date).toISOString() : new Date().toISOString();
@@ -2747,8 +2759,8 @@ router.post('/transactions', authenticate, async (req: any, res) => {
 
   try {
     const result = await pool.query(
-      `INSERT INTO portfolio_transactions (store_id, type, category, title, amount, currency, exchange_rate, date, property_id, company_id, description, payment_method, reference_no, contact_name, account_id, account_name)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      `INSERT INTO portfolio_transactions (store_id, type, category, title, amount, currency, exchange_rate, date, property_id, company_id, description, payment_method, reference_no, contact_name, account_id, account_name, employee_id, payroll_item_type)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
        RETURNING *`,
       [
         storeId, 
@@ -2766,11 +2778,22 @@ router.post('/transactions', authenticate, async (req: any, res) => {
         reference_no || '',
         contact_name || '',
         finalAccountId,
-        resolvedAccName
+        resolvedAccName,
+        parsedEmployeeId,
+        cleanPayrollItemType
       ]
     );
     
     const inserted = result.rows[0];
+
+    // Bidirectional sync: Finance staff_payroll -> HR Payroll Ledger
+    if (parsedEmployeeId && type === 'expense' && category === 'staff_payroll') {
+      try {
+        await syncPortfolioTransactionToPayroll(pool, inserted);
+      } catch (hrSyncErr) {
+        console.warn("HR payroll sync on transaction create warning:", hrSyncErr);
+      }
+    }
 
     // Log the transaction in the audit log if property_id was provided
     if (parsedPropertyId) {
@@ -2803,7 +2826,7 @@ router.put('/transactions/:id', authenticate, async (req: any, res) => {
     return res.status(403).json({ error: "Unauthorized store context." });
   }
   const { id } = req.params;
-  const { type, category, title, amount, currency, exchange_rate, date, property_id, company_id, description, payment_method, reference_no, contact_name, account_id, account_name } = req.body;
+  const { type, category, title, amount, currency, exchange_rate, date, property_id, company_id, description, payment_method, reference_no, contact_name, account_id, account_name, employee_id, payroll_item_type } = req.body;
 
   if (!type || !category || !title || amount === undefined || amount === null) {
     return res.status(400).json({ error: "Type, category, title, and amount are required." });
@@ -2816,6 +2839,8 @@ router.put('/transactions/:id', authenticate, async (req: any, res) => {
   const parsedPropertyId = property_id ? (Number(property_id) || null) : null;
   const parsedCompanyId = company_id ? (Number(company_id) || null) : null;
   const parsedAccountId = account_id ? (Number(account_id) || null) : null;
+  const parsedEmployeeId = category === 'staff_payroll' && employee_id ? (Number(employee_id) || null) : null;
+  const cleanPayrollItemType = parsedEmployeeId && payroll_item_type ? String(payroll_item_type).trim() : null;
   const txCurr = (currency || 'TRY').toUpperCase();
   const txRate = Number(exchange_rate || 1) || 1;
   const txDate = date ? new Date(date).toISOString() : new Date().toISOString();
@@ -2843,8 +2868,10 @@ router.put('/transactions/:id', authenticate, async (req: any, res) => {
            contact_name = $13,
            account_id = $14,
            account_name = $15,
+           employee_id = $16,
+           payroll_item_type = $17,
            updated_at = CURRENT_TIMESTAMP
-       WHERE id = $16 AND store_id = $17
+       WHERE id = $18 AND store_id = $19
        RETURNING *`,
       [
         type,
@@ -2862,6 +2889,8 @@ router.put('/transactions/:id', authenticate, async (req: any, res) => {
         contact_name || '',
         finalAccountId,
         resolvedAccName,
+        parsedEmployeeId,
+        cleanPayrollItemType,
         Number(id),
         storeId
       ]
@@ -2869,6 +2898,13 @@ router.put('/transactions/:id', authenticate, async (req: any, res) => {
 
     if (result.rowCount === 0) {
       return res.status(404).json({ error: "Transaction not found or unauthorized." });
+    }
+
+    // Bidirectional sync: Finance -> HR Payroll Ledger
+    try {
+      await syncPortfolioTransactionToPayroll(pool, result.rows[0]);
+    } catch (hrSyncErr) {
+      console.warn("HR payroll sync on transaction update warning:", hrSyncErr);
     }
 
     res.json(result.rows[0]);
@@ -2898,6 +2934,9 @@ router.delete('/transactions/:id', authenticate, async (req: any, res) => {
     }
 
     const deleted = result.rows[0];
+    if (deleted?.employee_id || deleted?.source_type === 'hr_payroll_payment') {
+      await deleteHrLedgerForPortfolioTransaction(pool, storeId, Number(deleted.id));
+    }
     if (deleted?.source_type === 'internal_transfer' && deleted?.source_id) {
       await pool.query(
         `DELETE FROM portfolio_transactions WHERE store_id = $1 AND source_type = 'internal_transfer' AND source_id = $2`,
