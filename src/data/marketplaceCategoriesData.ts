@@ -3838,6 +3838,93 @@ export function getAttributesForCategory(catName: string, paths: string[] = [], 
   return COMMON_MARKETPLACE_ATTRIBUTES.general;
 }
 
+/**
+ * Builds an isolated per-local-category attribute storage key so two different store subcategories
+ * mapped to the same marketplace category ID NEVER overwrite each other's mandatory attributes
+ * (e.g., "Düzenleyiciler > Yastık Hurcu::60004981" vs "Düzenleyiciler > Çekmece Düzenleyici::60004981").
+ */
+export function buildScopedCategoryAttrKey(localCat: string, marketCatId: string | number): string {
+  const cleanLocal = String(localCat || "").trim();
+  const cleanId = String(marketCatId ?? "").trim();
+  if (cleanLocal && cleanId) return `${cleanLocal}::${cleanId}`;
+  return cleanLocal || cleanId;
+}
+
+/**
+ * Resolves configured marketplace attributes for a specific local category / subcategory
+ * with strict per-subcategory isolation and backward-compatible legacy fallback.
+ */
+export function resolveScopedCategoryAttributes(
+  attrMap: Record<string, Record<string, any>> | undefined | null,
+  localCat: string | undefined | null,
+  marketCatId: string | number | undefined | null,
+  options?: {
+    allowLegacyFallback?: boolean;
+    mainCategory?: string;
+    subCategory?: string;
+    includeMainFallback?: boolean;
+  }
+): Record<string, any> {
+  if (!attrMap || typeof attrMap !== "object") return {};
+  const cleanId = String(marketCatId ?? "").trim();
+  const cleanLocal = String(localCat || "").trim();
+  const allowLegacy = options?.allowLegacyFallback !== false;
+
+  const hasSeparator = cleanLocal.includes(">");
+  const subCat = String(
+    options?.subCategory || (hasSeparator ? cleanLocal.split(">").pop() : "")
+  ).trim();
+  const mainCat = String(
+    options?.mainCategory || (hasSeparator ? cleanLocal.split(">")[0] : cleanLocal)
+  ).trim();
+
+  // 1. Exact scoped local category + marketCatId (highest priority — 100% isolated per subcategory)
+  if (cleanLocal && cleanId) {
+    const exactScoped = `${cleanLocal}::${cleanId}`;
+    if (attrMap[exactScoped] && typeof attrMap[exactScoped] === "object") {
+      return attrMap[exactScoped];
+    }
+    if (hasSeparator && mainCat && subCat) {
+      const spacedScoped = `${mainCat} > ${subCat}::${cleanId}`;
+      if (attrMap[spacedScoped] && typeof attrMap[spacedScoped] === "object") {
+        return attrMap[spacedScoped];
+      }
+      const compactScoped = `${mainCat}>${subCat}::${cleanId}`;
+      if (attrMap[compactScoped] && typeof attrMap[compactScoped] === "object") {
+        return attrMap[compactScoped];
+      }
+    }
+  }
+
+  // 2. Scoped leaf subcategory + marketCatId (when resolved from product sub_category alone)
+  if (subCat && cleanId) {
+    const subScoped = `${subCat}::${cleanId}`;
+    if (attrMap[subScoped] && typeof attrMap[subScoped] === "object") {
+      return attrMap[subScoped];
+    }
+  }
+
+  // 3. Exact localCat key without ::id suffix (if stored without marketplace ID suffix)
+  if (cleanLocal && attrMap[cleanLocal] && typeof attrMap[cleanLocal] === "object") {
+    return attrMap[cleanLocal];
+  }
+
+  // 4. Optional parent main-category fallback (ONLY used during product publishing/editing, NEVER in category mapping modal)
+  if (options?.includeMainFallback && mainCat && subCat && cleanId) {
+    const mainScoped = `${mainCat}::${cleanId}`;
+    if (attrMap[mainScoped] && typeof attrMap[mainScoped] === "object") {
+      return attrMap[mainScoped];
+    }
+  }
+
+  // 5. Legacy shared bucket fallback (read-only for pre-existing stores; never mutated by new edits)
+  if (allowLegacy && cleanId && attrMap[cleanId] && typeof attrMap[cleanId] === "object") {
+    return attrMap[cleanId];
+  }
+
+  return {};
+}
+
 // Normalizes Turkish characters and punctuation for clean matching
 export function normalizeCategoryText(str: string): string {
   if (!str) return "";

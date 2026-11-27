@@ -715,7 +715,16 @@ export const api = {
   getTrendyolCategories: () => api.get("/api/integrations/trendyol/categories"),
   getTrendyolBrands: (page?: number, size?: number) => api.get(`/api/integrations/trendyol/brands${(page !== undefined || size !== undefined) ? `?${page !== undefined ? `page=${page}` : ''}${size !== undefined ? `&size=${size}` : ''}` : ''}`),
   getPazaramaCategories: (storeId?: number) => api.get(`/api/integrations/pazarama/categories${storeId ? `?storeId=${storeId}` : ""}`),
-  getPazaramaBrands: (storeId?: number) => api.get(`/api/integrations/pazarama/brands${storeId ? `?storeId=${storeId}` : ""}`),
+  searchPazaramaCategories: (q: string, storeId?: number) => api.get(`/api/integrations/pazarama/categories/search?q=${encodeURIComponent(q)}${storeId ? `&storeId=${storeId}` : ""}`),
+  getPazaramaCategoryAttributes: (categoryId: string | number, storeId?: number) =>
+    api.get(`/api/integrations/pazarama/categories/${encodeURIComponent(String(categoryId))}/attributes${storeId ? `?storeId=${storeId}` : ""}`),
+  getPazaramaBrands: (storeId?: number, name?: string) => {
+    const params = new URLSearchParams();
+    if (storeId) params.set("storeId", String(storeId));
+    if (name) params.set("name", name);
+    const qs = params.toString();
+    return api.get(`/api/integrations/pazarama/brands${qs ? `?${qs}` : ""}`);
+  },
   getN11Categories: (storeId?: number) => api.get(`/api/integrations/n11/categories${storeId ? `?storeId=${storeId}` : ""}`),
   getN11CategoryAttributes: (categoryId: string | number, storeId?: number, categoryName?: string, subCategoryName?: string) => {
     const params = new URLSearchParams();

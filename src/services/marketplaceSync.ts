@@ -928,70 +928,16 @@ export async function syncTrendyolOrders(client: any, storeId: number, settings:
     return response.data.content || [];
 }
 
-// Helper to get Pazarama Access Token
-async function getPazaramaToken(apiKey: string, apiSecret: string): Promise<string | null> {
-    const tokenPaths = [
-        "https://isortagimapi.pazarama.com/api/v1/Token",
-        "https://isortagimapi.pazarama.com/Order/Token",
-        "https://isortagimapi.pazarama.com/Token",
-        "https://isortagimapi.pazarama.com/auth/token"
-    ];
-
-    for (const url of tokenPaths) {
-        try {
-            const res = await axios.post(url, {
-                UserName: apiKey,
-                Password: apiSecret
-            }, { timeout: 10000 });
-            
-            if (res.data && res.data.isSuccess && res.data.data?.accessToken) {
-                return res.data.data.accessToken;
-            }
-        } catch (error) {
-            // Check next path
-        }
-    }
-    return null;
-}
-
 export async function syncPazaramaOrders(client: any, storeId: number, settings: any) {
-    const token = await getPazaramaToken(settings.apiKey, settings.apiSecret);
-    const authHeader = token ? `Bearer ${token}` : `Basic ${Buffer.from(`${settings.apiKey}:${settings.apiSecret}`).toString('base64')}`;
-    
-    const endpoints = [
-        "https://isortagimapi.pazarama.com/order/getOrdersForApi",
-        "https://isortagimapi.pazarama.com/api/v1/product/getOrdersForApi",
-        "https://isortagimapi.pazarama.com/order/api/getOrdersForApi",
-        "https://isortagimapi.pazarama.com/api/v1/Order/GetOrders"
-    ];
-
-    let lastError: any = null;
-    for (const url of endpoints) {
-        try {
-            const pzRes = await fetchWithRetry(async () => {
-                return await axios.post(url, {
-                    PageSize: 100, PageIndex: 1,
-                }, {
-                    headers: { 'Authorization': authHeader, 'MerchantId': settings.merchantId, 'Content-Type': 'application/json' },
-                    timeout: 30000
-                });
-            }, `Pazarama-${url.split('/').pop()}`, storeId);
-            
-            await logAction(storeId, null, "sync_pazarama", "marketplace_sync", null, `Pazarama Order Sync: ${url}`, null, pzRes.data);
-            
-            if (pzRes.data && (pzRes.data.isSuccess || pzRes.data.success)) {
-                const data = pzRes.data.data || pzRes.data.content || [];
-                return Array.isArray(data) ? data : (data.items || []);
-            }
-        } catch (e: any) {
-            lastError = e;
-            if (e.response?.status === 404) continue;
-            throw e;
-        }
-    }
-    
-    if (lastError) throw lastError;
-    return [];
+    const { PazaramaService } = await import("./backend/pazaramaService.js");
+    const pzService = new PazaramaService(settings || {});
+    const orders = await fetchWithRetry(
+        async () => pzService.getOrders({ pageSize: 100, pageNumber: 1 }),
+        "Pazarama-getOrdersForApi",
+        storeId
+    );
+    await logAction(storeId, null, "sync_pazarama", "marketplace_sync", null, "Pazarama Order Sync (getOrdersForApi)", null, { count: orders.length });
+    return orders;
 }
 
 
@@ -1046,20 +992,24 @@ export async function testTrendyolConnection(settings: any) {
     } catch (e) { return false; }
 }
 
-export async function testPazaramaConnection(settings: any) {
+export async function testPazaramaConnectionDetailed(settings: any): Promise<{ success: boolean; message: string; tokenOk: boolean; apiOk: boolean }> {
     try {
-        const token = await getPazaramaToken(settings.apiKey, settings.apiSecret);
-        const authHeader = token ? `Bearer ${token}` : `Basic ${Buffer.from(`${settings.apiKey}:${settings.apiSecret}`).toString('base64')}`;
-        const pzRes = await axios.post("https://isortagimapi.pazarama.com/api/v1/Order/GetOrders", { PageSize: 1, PageIndex: 1 }, {
-            headers: {
-              'Authorization': authHeader,
-              'MerchantId': settings.merchantId,
-              'Content-Type': 'application/json'
-            },
-            timeout: 10000
-          });
-        return pzRes.data.isSuccess === true;
-    } catch (e) { return false; }
+        const { PazaramaService } = await import("./backend/pazaramaService.js");
+        const pzService = new PazaramaService(settings || {});
+        return await pzService.testConnection();
+    } catch (e: any) {
+        return {
+            success: false,
+            tokenOk: false,
+            apiOk: false,
+            message: e?.message || "Pazarama bağlantı testi başarısız."
+        };
+    }
+}
+
+export async function testPazaramaConnection(settings: any) {
+    const result = await testPazaramaConnectionDetailed(settings);
+    return result.success;
 }
 
 export async function autoUnpublishIfZeroStock(productId: number, storeId: number, dbClient?: any) {
@@ -1137,7 +1087,7 @@ export async function autoUnpublishIfZeroStock(productId: number, storeId: numbe
       (async () => {
         try {
           const storeRes = await pool.query(
-            "SELECT hepsiburada_settings, amazon_settings, n11_settings, branding FROM stores WHERE id = $1", 
+            "SELECT hepsiburada_settings, amazon_settings, n11_settings, trendyol_settings, pazarama_settings, branding FROM stores WHERE id = $1", 
             [storeId]
           );
           const st = storeRes.rows[0];
@@ -1227,6 +1177,20 @@ export async function autoUnpublishIfZeroStock(productId: number, storeId: numbe
                   { items: [{ barcode: cleanBarcode, quantity: 0, salePrice: Math.max(1, Number(p.price || 1)), listPrice: Math.max(1, Number(p.price || 1)) }] },
                   { auth, headers, timeout: 8000 }
                 ).catch(e => console.warn(`[Auto-Unpublish Trendyol Warning]: ${e.message}`));
+              }
+            }
+          }
+
+          // 5. Pazarama Stock 0 (Official updateStock-v2 with OAuth2 Bearer Token)
+          if (p.is_pazarama_active || mpData?.pazarama?.code) {
+            const pzSettings = st?.pazarama_settings || st?.branding?.pazarama_settings;
+            if (pzSettings?.apiKey && pzSettings?.apiSecret) {
+              const pzCode = String(mpData?.pazarama?.code || p.barcode || p.sku || "").trim();
+              if (pzCode) {
+                const { PazaramaService } = await import("./backend/pazaramaService.js");
+                const pzService = new PazaramaService(pzSettings);
+                await pzService.updateStocks([{ code: pzCode, stockCount: 0 }])
+                  .catch(e => console.warn(`[Auto-Unpublish Pazarama Warning]: ${e.message}`));
               }
             }
           }
@@ -1513,6 +1477,60 @@ export async function syncProductStockToMarketplaces(
         } catch (n11Err: any) {
           errorsCount++;
           console.warn(`[Instant Marketplace Sync N11 Error] Store ${storeId}:`, n11Err?.message || n11Err);
+        }
+      }
+    }
+
+    // 6. Pazarama Real-Time Price & Stock Sync (Official updatePrice-v2 & updateStock-v2)
+    const pzSettings = store.pazarama_settings || branding.pazarama_settings;
+    if (pzSettings?.apiKey && pzSettings?.apiSecret) {
+      const pzProducts = products.filter(p => Boolean(p.is_pazarama_active));
+      if (pzProducts.length > 0) {
+        try {
+          const { PazaramaService } = await import("./backend/pazaramaService.js");
+          const { N11Service } = await import("./backend/n11Service.js");
+          const pzService = new PazaramaService(pzSettings);
+
+          const priceItems: Array<{ code: string; listPrice: number; salePrice: number }> = [];
+          const stockItems: Array<{ code: string; stockCount: number }> = [];
+
+          for (const p of pzProducts) {
+            let mpData = p.marketplace_data;
+            if (typeof mpData === "string") {
+              try { mpData = JSON.parse(mpData); } catch { mpData = {}; }
+            }
+            const code = String(mpData?.pazarama?.code || p.barcode || p.sku || "").trim();
+            if (!code) continue;
+
+            const priceInTry = getPriceInTry(p);
+            const effectivePrice = Math.round(N11Service.calculateMarketplacePrice(priceInTry, p.category, p.sub_category, pzSettings) * 100) / 100;
+            const currentStock = computeSellableStock(p.stock_quantity, p.reserved_stock);
+
+            if (effectivePrice > 0) {
+              priceItems.push({ code, listPrice: effectivePrice, salePrice: effectivePrice });
+            }
+            stockItems.push({ code, stockCount: currentStock });
+          }
+
+          if (stockItems.length > 0) {
+            await pzService.updateStocks(stockItems);
+          }
+          if (priceItems.length > 0) {
+            await pzService.updatePrices(priceItems);
+          }
+
+          if (stockItems.length > 0 || priceItems.length > 0) {
+            const pzIds = pzProducts.map(p => p.id);
+            await pool.query(
+              "UPDATE products SET pazarama_last_error = NULL WHERE id = ANY($1)",
+              [pzIds]
+            );
+            syncedCount += Math.max(stockItems.length, priceItems.length);
+            console.log(`[Instant Marketplace Sync] Successfully pushed ${stockItems.length} products to Pazarama for store ${storeId} (Reason: ${options?.reason || "stock_change"}).`);
+          }
+        } catch (pzErr: any) {
+          errorsCount++;
+          console.warn(`[Instant Marketplace Sync Pazarama Error] Store ${storeId}:`, pzErr?.message || pzErr);
         }
       }
     }

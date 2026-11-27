@@ -884,6 +884,76 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
         console.warn(`[CRON-CURRENCY] Store #${storeId} Trendyol sync error:`, tyCronErr.message);
       }
     }
+
+    // 5. Pazarama Live Price & Stock Push (Official OAuth2 updatePrice-v2 & updateStock-v2)
+    if (pzSettings?.apiKey && pzSettings?.apiSecret) {
+      try {
+        const pzProductsRes = await pool.query(
+          `SELECT id, name, category, sub_category, barcode, sku, pazarama_id, price, currency, stock_quantity, COALESCE(reserved_stock, 0) as reserved_stock, marketplace_data
+           FROM products
+           WHERE store_id = $1 AND (is_pazarama_active = true OR (marketplace_data->'pazarama'->>'status' = 'ACTIVE'))`,
+          [storeId]
+        );
+
+        if (pzProductsRes.rows.length > 0) {
+          const { PazaramaService } = await import("./backend/pazaramaService.js");
+          const pzService = new PazaramaService(pzSettings);
+
+          const pzItems: Array<{ id: number; mpData: any; code: string; price: number; stock: number }> = [];
+          for (const p of pzProductsRes.rows) {
+            let mpData: any = p.marketplace_data;
+            if (typeof mpData === "string") {
+              try { mpData = JSON.parse(mpData); } catch { mpData = {}; }
+            }
+            mpData = mpData || {};
+
+            const code = String(mpData?.pazarama?.code || p.barcode || p.sku || p.pazarama_id || "").trim();
+            if (!code) continue;
+
+            let rawPrice = parseFloat(p.price || "0");
+            const curr = (p.currency || "TRY").toUpperCase();
+            if (curr === "USD" && effectiveRates.USD) rawPrice *= Number(effectiveRates.USD);
+            else if (curr === "EUR" && effectiveRates.EUR) rawPrice *= Number(effectiveRates.EUR);
+            else if (curr === "GBP" && effectiveRates.GBP) rawPrice *= Number(effectiveRates.GBP);
+
+            const effectivePrice = Math.round(N11Service.calculateMarketplacePrice(rawPrice, p.category, p.sub_category, pzSettings) * 100) / 100;
+            const stock = computeSellableStock(p.stock_quantity, p.reserved_stock);
+
+            if (!mpData.pazarama) mpData.pazarama = {};
+            if (!mpData.pazarama.attributes) mpData.pazarama.attributes = {};
+            mpData.pazarama.attributes.price = String(effectivePrice);
+            mpData.pazarama.price = effectivePrice;
+            mpData.pazarama.lastSync = new Date().toISOString();
+
+            pzItems.push({ id: p.id, mpData, code, price: effectivePrice, stock });
+          }
+
+          const PZ_CHUNK = 100;
+          for (let i = 0; i < pzItems.length; i += PZ_CHUNK) {
+            const chunk = pzItems.slice(i, i + PZ_CHUNK);
+            const pricePayload = chunk.filter(c => c.price > 0).map(c => ({ code: c.code, listPrice: c.price, salePrice: c.price }));
+            const stockPayload = chunk.map(c => ({ code: c.code, stockCount: c.stock }));
+            if (pricePayload.length > 0) {
+              await pzService.updatePrices(pricePayload).catch(e => console.warn(`[CRON-CURRENCY-PZ] Price batch warning:`, e.message));
+            }
+            if (stockPayload.length > 0) {
+              await pzService.updateStocks(stockPayload).catch(e => console.warn(`[CRON-CURRENCY-PZ] Stock batch warning:`, e.message));
+            }
+            for (const c of chunk) {
+              await pool.query(
+                "UPDATE products SET pazarama_last_error = NULL, marketplace_data = $1 WHERE id = $2",
+                [JSON.stringify(c.mpData), c.id]
+              );
+            }
+          }
+          if (pzItems.length > 0) {
+            console.log(`[CRON-CURRENCY] Store #${storeId} (${store.name}): Pazarama ${pzItems.length} ürünün döviz bazlı fiyat ve stoğu güncellendi.`);
+          }
+        }
+      } catch (pzCronErr: any) {
+        console.warn(`[CRON-CURRENCY] Store #${storeId} Pazarama sync error:`, pzCronErr.message);
+      }
+    }
   } catch (err: any) {
     console.error(`[CRON-CURRENCY] Store #${storeId} pazaryeri fiyat revizyonu hatası:`, err.message || err);
   }

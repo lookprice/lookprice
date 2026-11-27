@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Search, ChevronDown, CheckCircle2, Layers, Sparkles, SlidersHorizontal, Info, X, Loader2, Zap, ExternalLink, Lock, Check, Images } from "lucide-react";
 import { toast } from "sonner";
-import { getAttributesForCategory, suggestMarketplaceCategory, HEPSIBURADA_DEFAULT_CATEGORIES, MarketplaceAttribute } from "@/data/marketplaceCategoriesData";
+import { getAttributesForCategory, suggestMarketplaceCategory, HEPSIBURADA_DEFAULT_CATEGORIES, MarketplaceAttribute, resolveScopedCategoryAttributes } from "@/data/marketplaceCategoriesData";
 import { autoHydrateTargetAttributes, getCanonicalKey, unwrapMarketplaceAttrValue, pruneCanonicalAliases } from "@/services/crossMarketplaceAttributeMapper";
 import { api } from "@/services/api";
 import { getMarketplaceListingUrl, buildHepsiburadaProductUrl } from "@/utils/marketplaceUrls";
@@ -305,13 +305,22 @@ export const MarketplaceProductFields = ({
     ? dynamicAttributes 
     : (activeCategory ? getAttributesForCategory(activeCategory.name || activeCategory.displayName || "", activeCategory.paths || [], effectiveCatId) : []);
 
+  const prodMainCat = String(product?.category || "").trim();
+  const prodSubCat = String(product?.sub_category || "").trim();
+  const prodLocalCatKey = prodMainCat && prodSubCat ? `${prodMainCat} > ${prodSubCat}` : prodMainCat;
+  const scopedAttrOpts = {
+    mainCategory: prodMainCat,
+    subCategory: prodSubCat,
+    includeMainFallback: true
+  };
+
   const storeCategoryAttrs: Record<string, any> = {
-    ...(branding?.pazarama_settings?.categoryAttributes?.[String(effectiveCatId)] || {}),
-    ...(branding?.amazon_settings?.categoryAttributes?.[String(effectiveCatId)] || {}),
-    ...(branding?.n11_settings?.categoryAttributes?.[String(effectiveCatId)] || {}),
-    ...(branding?.trendyol_settings?.categoryAttributes?.[String(effectiveCatId)] || {}),
-    ...(branding?.hepsiburada_settings?.categoryAttributes?.[String(effectiveCatId)] || {}),
-    ...(storeSettings?.categoryAttributes?.[String(effectiveCatId)] || {}),
+    ...resolveScopedCategoryAttributes(branding?.pazarama_settings?.categoryAttributes, prodLocalCatKey, effectiveCatId, scopedAttrOpts),
+    ...resolveScopedCategoryAttributes(branding?.amazon_settings?.categoryAttributes, prodLocalCatKey, effectiveCatId, scopedAttrOpts),
+    ...resolveScopedCategoryAttributes(branding?.n11_settings?.categoryAttributes, prodLocalCatKey, effectiveCatId, scopedAttrOpts),
+    ...resolveScopedCategoryAttributes(branding?.trendyol_settings?.categoryAttributes, prodLocalCatKey, effectiveCatId, scopedAttrOpts),
+    ...resolveScopedCategoryAttributes(branding?.hepsiburada_settings?.categoryAttributes, prodLocalCatKey, effectiveCatId, scopedAttrOpts),
+    ...resolveScopedCategoryAttributes(storeSettings?.categoryAttributes, prodLocalCatKey, effectiveCatId, scopedAttrOpts),
   };
 
   const findStoreCategoryAttrConfig = (attr: any): any => {

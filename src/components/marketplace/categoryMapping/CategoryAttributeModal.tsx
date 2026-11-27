@@ -1,6 +1,6 @@
 import React from 'react';
 import { X, SlidersHorizontal, Sparkles, RefreshCw } from 'lucide-react';
-import { MarketplaceAttribute } from '@/data/marketplaceCategoriesData';
+import { MarketplaceAttribute, resolveScopedCategoryAttributes } from '@/data/marketplaceCategoriesData';
 import { MarketplaceType, PRODUCT_FIELD_OPTIONS } from './types';
 
 interface CategoryAttributeModalProps {
@@ -67,8 +67,8 @@ export const CategoryAttributeModal: React.FC<CategoryAttributeModalProps> = ({
             <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-indigo-600 shrink-0" />
             <span className="text-[11px] sm:text-xs truncate">
               {lang === 'tr' 
-                ? 'Zorunlu alanları sabit değer veya ürün alanıyla bağlayın.' 
-                : 'Map required attributes to static values or product fields.'}
+                ? 'Zorunlu alanları sabit değer veya ürün alanıyla bağlayın. Ayarlar yalnızca bu kategoriye özel kaydedilir.' 
+                : 'Map required attributes to static values or product fields. Settings apply only to this category.'}
             </span>
           </div>
           <button
@@ -94,9 +94,13 @@ export const CategoryAttributeModal: React.FC<CategoryAttributeModalProps> = ({
               </p>
             </div>
           ) : (
-            currentCategoryAttributes.map((attr) => {
-              const catId = String(attributeModalCategory.marketCatId);
-              const catCfg = attributesConfig[activeMarketplace]?.[catId] || {};
+            (() => {
+              const catCfg = resolveScopedCategoryAttributes(
+                attributesConfig[activeMarketplace],
+                attributeModalCategory.localCat,
+                attributeModalCategory.marketCatId
+              );
+              return currentCategoryAttributes.map((attr) => {
               const rawSetting = catCfg[attr.id] !== undefined ? catCfg[attr.id] : (attr.name ? catCfg[attr.name] : undefined);
               const existingSetting = typeof rawSetting === 'object' && rawSetting !== null
                 ? rawSetting
@@ -173,7 +177,9 @@ export const CategoryAttributeModal: React.FC<CategoryAttributeModalProps> = ({
                       value={matchedSelectVal}
                       onChange={(e) => {
                         const rawSelected = e.target.value;
-                        const finalVal = activeMarketplace === 'trendyol' && /^\d+:\s/.test(rawSelected)
+                        const isTrendyolIdPrefix = activeMarketplace === 'trendyol' && /^\d+:\s/.test(rawSelected);
+                        const isPazaramaUuidPrefix = activeMarketplace === 'pazarama' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:\s/i.test(rawSelected);
+                        const finalVal = (isTrendyolIdPrefix || isPazaramaUuidPrefix)
                           ? rawSelected.split(':')[0].trim()
                           : rawSelected;
                         onUpdateAttributeValue(attr.id, 'fixed', finalVal);
@@ -181,9 +187,14 @@ export const CategoryAttributeModal: React.FC<CategoryAttributeModalProps> = ({
                       className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500/20"
                     >
                       <option value="">{lang === 'tr' ? '-- Değer Seçin --' : '-- Select Value --'}</option>
-                      {optionValues.map((v) => (
-                        <option key={v} value={v}>{v}</option>
-                      ))}
+                      {optionValues.map((v) => {
+                        const displayLabel = activeMarketplace === 'pazarama' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:\s/i.test(v)
+                          ? v.split(':').slice(1).join(':').trim()
+                          : v;
+                        return (
+                          <option key={v} value={v}>{displayLabel}</option>
+                        );
+                      })}
                     </select>
                   ) : (
                     <input
@@ -196,7 +207,8 @@ export const CategoryAttributeModal: React.FC<CategoryAttributeModalProps> = ({
                   )}
                 </div>
               );
-            })
+            });
+            })()
           )}
         </div>
 

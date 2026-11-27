@@ -6,6 +6,7 @@ import { IntegrationService } from "../src/services/IntegrationService";
 import { HepsiburadaService } from "../src/services/backend/hepsiburadaService";
 import { HepsiburadaServiceV3 } from "../src/services/backend/HepsiburadaServiceV3";
 import { AmazonService } from "../src/services/backend/amazonService";
+import { PazaramaService, isPazaramaUuid } from "../src/services/backend/pazaramaService";
 import { isHepsiburadaMasterCatalogId, slugifyText, buildHepsiburadaProductUrl } from "../src/utils/marketplaceUrls";
 import { 
   processMarketplaceOrderLines, 
@@ -18,6 +19,7 @@ import {
   testHepsiburadaConnection,
   testTrendyolConnection,
   testPazaramaConnection,
+  testPazaramaConnectionDetailed,
   computeSellableStock
 } from "../src/services/marketplaceSync";
 import { syncMarketplaceOrderTreasury } from "./store/treasurySync";
@@ -2601,6 +2603,42 @@ function extractProductMarketplaceImages(
   return resolved;
 }
 
+function resolveProductScopedCategoryAttrs(
+  attrMap: Record<string, Record<string, any>> | undefined | null,
+  p: any,
+  categoryId: string | number | ""
+): Record<string, any> {
+  if (!attrMap || typeof attrMap !== "object" || !categoryId) return {};
+  const cleanId = String(categoryId).trim();
+  const cat1 = String(p?.category || "").trim();
+  const sub1 = String(p?.sub_category || "").trim();
+  const cat2 = String(p?.category_2 || "").trim();
+  const sub2 = String(p?.sub_category_2 || "").trim();
+
+  const candidateKeys: string[] = [];
+  if (cat1 && sub1) {
+    candidateKeys.push(`${cat1} > ${sub1}::${cleanId}`, `${cat1}>${sub1}::${cleanId}`, `${sub1}::${cleanId}`, `${cat1} > ${sub1}`);
+  }
+  if (cat2 && sub2) {
+    candidateKeys.push(`${cat2} > ${sub2}::${cleanId}`, `${cat2}>${sub2}::${cleanId}`, `${sub2}::${cleanId}`, `${cat2} > ${sub2}`);
+  }
+  if (cat1) {
+    candidateKeys.push(`${cat1}::${cleanId}`, cat1);
+  }
+  if (cat2) {
+    candidateKeys.push(`${cat2}::${cleanId}`, cat2);
+  }
+  candidateKeys.push(cleanId);
+
+  for (const key of candidateKeys) {
+    const bucket = attrMap[key];
+    if (bucket && typeof bucket === "object") {
+      return bucket;
+    }
+  }
+  return {};
+}
+
 function buildHepsiburadaCatalogAttributes(
   p: any,
   mpData: any,
@@ -2610,7 +2648,9 @@ function buildHepsiburadaCatalogAttributes(
   req: any,
   settings?: any
 ): Record<string, any> {
-  const catDefaultsRaw = categoryId ? (settings?.categoryAttributes?.[String(categoryId)] || {}) : {};
+  const catDefaultsRaw = categoryId
+    ? resolveProductScopedCategoryAttrs(settings?.categoryAttributes, p, categoryId)
+    : {};
   const resolvedDefaults: Record<string, any> = {};
   Object.entries(catDefaultsRaw).forEach(([k, v]) => {
     const resolved = resolveCategoryAttributeValue(v, p);
@@ -4339,11 +4379,51 @@ router.post("/n11/unpublish", authenticate, async (req: any, res) => {
 });
 
 router.post("/pazarama/unpublish", authenticate, async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
-  const productId = req.body.productId;
+  const storeId = getAuthorizedStoreId(req, req.body?.storeId || req.query?.storeId);
+  const productId = Number(req.body?.productId);
+  if (!productId || isNaN(productId)) {
+    return res.status(400).json({ error: "Geçersiz ürün ID." });
+  }
   try {
-    await pool.query("UPDATE products SET is_pazarama_active = false WHERE id = $1 AND store_id = $2", [productId, storeId]);
-    res.json({ success: true, message: "Ürün Pazarama'da yayından kaldırıldı." });
+    const [prodRes, storeRes] = await Promise.all([
+      pool.query("SELECT id, barcode, sku, pazarama_id, marketplace_data FROM products WHERE id = $1 AND store_id = $2", [productId, storeId]),
+      pool.query("SELECT pazarama_settings, branding FROM stores WHERE id = $1", [storeId])
+    ]);
+    if (prodRes.rows.length === 0) {
+      return res.status(404).json({ error: "Ürün bulunamadı." });
+    }
+    const p = prodRes.rows[0];
+    let mpData = p.marketplace_data || {};
+    if (typeof mpData === "string") { try { mpData = JSON.parse(mpData); } catch { mpData = {}; } }
+    if (!mpData.pazarama) mpData.pazarama = {};
+    mpData.pazarama.status = "INACTIVE";
+    mpData.pazarama.manuallyUnpublished = true;
+    mpData.pazarama.unpublishedAt = new Date().toISOString();
+
+    const stRow = storeRes.rows[0] || {};
+    let pzDb = stRow.pazarama_settings || {};
+    if (typeof pzDb === "string") { try { pzDb = JSON.parse(pzDb); } catch { pzDb = {}; } }
+    let br = stRow.branding || {};
+    if (typeof br === "string") { try { br = JSON.parse(br); } catch { br = {}; } }
+    const pzSettings = { ...(br.pazarama_settings || {}), ...pzDb };
+
+    let apiNote = "";
+    const pzCode = String(mpData?.pazarama?.code || p.barcode || p.sku || p.pazarama_id || "").trim();
+    if (pzSettings?.apiKey && pzSettings?.apiSecret && pzCode) {
+      try {
+        const pzService = new PazaramaService(pzSettings);
+        const stockRes = await pzService.updateStocks([{ code: pzCode, stockCount: 0 }]);
+        apiNote = stockRes.success ? " (Pazarama stoğu 0 olarak güncellendi)" : ` (${stockRes.message})`;
+      } catch (apiErr: any) {
+        console.warn("[Pazarama Unpublish] Stock 0 push warning:", apiErr?.message || apiErr);
+      }
+    }
+
+    await pool.query(
+      "UPDATE products SET is_pazarama_active = false, marketplace_data = $1 WHERE id = $2 AND store_id = $3",
+      [JSON.stringify(mpData), productId, storeId]
+    );
+    res.json({ success: true, message: `Ürün Pazarama'da yayından kaldırıldı${apiNote}.` });
   } catch (e: any) {
     res.status(400).json({ error: e.message });
   }
@@ -5502,8 +5582,8 @@ router.post("/trendyol/publish", authenticate, async (req: any, res) => {
     // Resolve Attributes for Trendyol Product v2 API
     const tyAttributes: Array<{ attributeId: number; attributeValueId?: number; customAttributeValue?: string }> = [];
     const sourceAttrs = {
-      ...(settings.categoryAttributes?.[String(resolvedCatId)] || {}),
-      ...(settings.categoryAttributes?.[String(rawCatId)] || {}),
+      ...resolveProductScopedCategoryAttrs(settings.categoryAttributes, p, resolvedCatId),
+      ...resolveProductScopedCategoryAttrs(settings.categoryAttributes, p, rawCatId),
       ...(mpData?.attributes || {}),
       ...(mpData?.trendyol?.attributes || {})
     };
@@ -6352,15 +6432,15 @@ router.post("/pazarama/test", authenticate, async (req: any, res) => {
     }
 
     if (!settings || !settings.apiKey || !settings.apiSecret) {
-      return res.status(400).json({ error: "Pazarama API bilgileri eksik" });
+      return res.status(400).json({ error: "Pazarama Client ID (API Key) ve Client Secret bilgileri eksik." });
     }
-    const success = await testPazaramaConnection(settings);
-    res.json({ success });
+    const result = await testPazaramaConnectionDetailed(settings);
+    res.json(result);
   } catch (error: any) { 
     if (await checkIsDemoStore(storeId)) {
       return res.json({ success: true, simulated: true, message: "Demo mağaza simülasyonu: Pazarama bağlantısı başarılı." });
     }
-    res.status(500).json({ error: error.message }); 
+    res.status(500).json({ success: false, error: error.message }); 
   }
 });
 router.post("/pazarama/disconnect", authenticate, async (req: any, res) => {
@@ -6377,10 +6457,9 @@ router.post("/pazarama/disconnect", authenticate, async (req: any, res) => {
   }
 });
 
-// 5. Publish Product to Pazarama
+// 5. Publish Product to Pazarama (Official OAuth2 POST /product/create)
 router.post("/pazarama/publish", authenticate, async (req: any, res) => {
-  const rawStoreId = req.body?.storeId || req.query?.storeId || req.headers?.["x-store-id"] || req.user?.store_id;
-  const storeId = req.user.role === "superadmin" ? Number(rawStoreId || req.user?.store_id || 1) : Number(req.user?.store_id || rawStoreId);
+  const storeId = getAuthorizedStoreId(req, req.body?.storeId || req.query?.storeId || req.headers?.["x-store-id"]);
   const productId = Number(req.body?.productId || req.query?.productId);
 
   if (!productId || isNaN(productId)) {
@@ -6391,11 +6470,14 @@ router.post("/pazarama/publish", authenticate, async (req: any, res) => {
     // 1. Get Integration Settings and Store Branding
     const storeRes = await pool.query("SELECT pazarama_settings, currency_rates, branding FROM stores WHERE id = $1", [storeId]);
     const storeRow = storeRes.rows[0] || {};
-    const settings = storeRow?.pazarama_settings || storeRow?.branding?.pazarama_settings;
-    const branding = storeRow?.branding || {};
+    let pzDb = storeRow?.pazarama_settings || {};
+    if (typeof pzDb === "string") { try { pzDb = JSON.parse(pzDb); } catch { pzDb = {}; } }
+    let branding = storeRow?.branding || {};
+    if (typeof branding === "string") { try { branding = JSON.parse(branding); } catch { branding = {}; } }
+    const settings = { ...(branding?.pazarama_settings || {}), ...pzDb };
 
     if (!settings || !settings.apiKey || !settings.apiSecret) {
-      return res.status(400).json({ error: "Pazarama API bilgileri yapılandırılmamış. Lütfen Ayarlar > Entegrasyonlar sekmesinden ayarlayınız." });
+      return res.status(400).json({ error: "Pazarama API (Client ID / Client Secret) bilgileri yapılandırılmamış. Lütfen Ayarlar > E-Mağazalar sekmesinden bağlayın." });
     }
 
     // 2. Fetch Local Product Data
@@ -6403,7 +6485,7 @@ router.post("/pazarama/publish", authenticate, async (req: any, res) => {
     if (productRes.rows.length === 0) {
       return res.status(404).json({ error: "Ürün bulunamadı veya bu mağazaya ait değil." });
     }
-    
+
     const product = productRes.rows[0];
 
     if (String(product.product_type || "").toLowerCase() === "service" || /^servis$|^hizmet$/i.test(String(product.category || "").trim())) {
@@ -6418,10 +6500,54 @@ router.post("/pazarama/publish", authenticate, async (req: any, res) => {
       return res.status(400).json({ error: `"${product.name}" ürününün ${reasons.join(" ve ")} olduğu için Pazarama'da satışa açılamaz. Lütfen fiyat ve stoğu güncelleyin.` });
     }
 
-    // --- Price Calculation Logic (Currency Conversion + Pazarama Commission & Fixed Fee Markup) ---
+    // 3. Resolve Leaf Category GUID (Strict subcategory-first priority, never Number(...)!)
+    const mappings = settings.categoryMappings || {};
+    const extractMappedId = (val: any): string => {
+      if (val === null || val === undefined) return "";
+      if (typeof val === "object") return String(val.pazarama || val.id || val.categoryId || "").trim();
+      return String(val).trim();
+    };
+    const cat1 = String(product.category || "").trim();
+    const sub1 = String(product.sub_category || "").trim();
+    const cat2 = String(product.category_2 || "").trim();
+    const sub2 = String(product.sub_category_2 || "").trim();
+
+    const candidateKeys = [
+      cat1 && sub1 ? `${cat1} > ${sub1}` : "",
+      cat1 && sub1 ? `${cat1}>${sub1}` : "",
+      sub1,
+      cat2 && sub2 ? `${cat2} > ${sub2}` : "",
+      cat2 && sub2 ? `${cat2}>${sub2}` : "",
+      sub2,
+      cat1,
+      cat2
+    ].filter(Boolean);
+
+    let pzCategoryId = "";
+    for (const k of candidateKeys) {
+      const found = extractMappedId(mappings[k]);
+      if (found) {
+        pzCategoryId = found;
+        break;
+      }
+    }
+
+    if (!pzCategoryId) {
+      return res.status(400).json({
+        error: `"${cat1}${sub1 ? ` > ${sub1}` : ""}" kategorisi için Pazarama yaprak kategori eşleştirmesi yapılmamış. Lütfen "Kategori & Nitelik Eşle" ekranından Pazarama alt kategorisini eşleştirin.`
+      });
+    }
+
+    if (!isPazaramaUuid(pzCategoryId)) {
+      return res.status(400).json({
+        error: `Seçili Pazarama kategori ID'si ("${pzCategoryId}") eski/geçersiz formatta. Pazarama canlı yaprak kategorileri UUID formatındadır — lütfen "Kategori & Nitelik Eşle > Pazarama" ekranından güncel yaprak kategoriyi yeniden seçin.`
+      });
+    }
+
+    // 4. Price Calculation Logic (Currency Conversion + Pazarama Commission & Fixed Fee Markup)
     let webPriceTRY = parseFloat(product.price || "0");
-    const currency = String(product.currency || 'TRY').toUpperCase();
-    if (currency !== 'TRY' && currency !== 'TL') {
+    const currency = String(product.currency || "TRY").toUpperCase();
+    if (currency !== "TRY" && currency !== "TL") {
       const rates = { ...(branding.currency_rates || {}), ...(storeRow.currency_rates || {}) };
       const rate = Number(rates[currency] || 1);
       if (rate > 1) {
@@ -6431,290 +6557,426 @@ router.post("/pazarama/publish", authenticate, async (req: any, res) => {
 
     const { N11Service } = await import("../src/services/backend/n11Service");
     const finalPriceTRY = N11Service.calculateMarketplacePrice(webPriceTRY, product.category, product.sub_category, settings);
-
-    // Round to 2 decimal places
     const listPrice = Math.round(finalPriceTRY * 100) / 100;
     const salePrice = listPrice;
 
-    // 3. Prepare standard Pazarama POST structure
-    const mappings = settings.categoryMappings || {};
-    const pzCategoryId = (product.category && mappings[product.category]) 
-      ? Number(mappings[product.category]) 
-      : 1; // Default to 1 if no mapping exists
+    // 5. Initialize Official OAuth2 PazaramaService & Resolve Brand GUID
+    const pzService = new PazaramaService(settings);
+    let mpData = product.marketplace_data || {};
+    if (typeof mpData === "string") { try { mpData = JSON.parse(mpData); } catch { mpData = {}; } }
+    const pzMpAttrs = mpData?.pazarama?.attributes || {};
 
-    const payload = {
-      productCode: `PRD-${product.id}`,
-      barcode: product.barcode || `PRD-BARCODE-${product.id}`,
-      name: product.name,
-      description: product.description || product.name,
-      vatRate: product.tax_rate || 20,
-      listPrice: listPrice,
-      salePrice: salePrice,
-      stockCount: computeSellableStock(product.stock_quantity, product.reserved_stock),
-      brandId: 1, 
-      categoryId: pzCategoryId, 
-      images: [] as any[]
-    };
-
-    const pazaramaImages = extractProductMarketplaceImages(product, req, {
-      maxCount: 8,
-      mpData: typeof product.marketplace_data === "string"
-        ? (() => { try { return JSON.parse(product.marketplace_data); } catch { return {}; } })()
-        : (product.marketplace_data || {}),
-    });
-    pazaramaImages.forEach((url, idx) => {
-      payload.images.push({ url, order: idx + 1 });
-    });
-
-    // --- REAL API CALL ---
-    let apiSuccess = false;
-    let apiMessage = "Ürün başarıyla Pazarama'ya aktarıldı.";
-    let pazaramaResponseData: any = null;
-
-    try {
-      const apiKey = (settings.apiKey || "").trim();
-      const apiSecret = (settings.apiSecret || "").trim();
-      const merchantId = (settings.merchantId || "").trim();
-
-      if (!merchantId) {
-        throw new Error("Pazarama Satıcı ID (Merchant ID) ayarı eksik. Lütfen ayarlar bölümünden kaydedin.");
-      }
-
-      // Pazarama API integration typically uses Basic Auth with Key and Secret
-      const authHeader = Buffer.from(`${apiKey}:${apiSecret}`).toString('base64');
-      
-      const pzResponse = await axios.post(`https://isortagimapi.pazarama.com/api/v1/product/upsert`, payload, {
-        headers: {
-          'Authorization': `Basic ${authHeader}`,
-          'SellerId': merchantId,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json, text/plain, */*',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Origin': 'https://isortagim.pazarama.com',
-          'Referer': 'https://isortagim.pazarama.com/'
-        },
-        timeout: 20000 // 20 seconds timeout for upsert
+    const brandCandidate = String(product.brand || pzMpAttrs.brand || pzMpAttrs.Marka || "").trim();
+    const resolvedBrandId = await pzService.resolveBrandId(brandCandidate, settings.brandMappings);
+    if (!resolvedBrandId) {
+      return res.status(400).json({
+        error: brandCandidate
+          ? `"${brandCandidate}" markası Pazarama marka listesinde bulunamadı. Lütfen ürün markasını Pazarama'da tanımlı bir marka adıyla güncelleyin.`
+          : "Pazarama'da ürün açmak için geçerli bir Marka bilgisi zorunludur. Lütfen ürüne marka ekleyin."
       });
-
-      pazaramaResponseData = pzResponse.data;
-      
-      // Pazarama usually returns success in the body
-      if (pzResponse.status === 200 && (pazaramaResponseData?.success === true || pazaramaResponseData?.isSuccess === true)) {
-        apiSuccess = true;
-      } else {
-        apiSuccess = false;
-        apiMessage = pazaramaResponseData?.message || pazaramaResponseData?.error || "Pazarama API bir hata döndürdü.";
-      }
-    } catch (apiErr: any) {
-      console.error("Pazarama API Connection Error:", apiErr.response?.data || apiErr.message);
-      apiSuccess = false;
-      apiMessage = apiErr.response?.data?.message || apiErr.response?.data?.error || "Pazarama API bağlantı hatası: " + apiErr.message;
     }
 
-    // 4. Update local product status if successful
-    if (apiSuccess) {
+    // 6. Resolve Category Attributes (Per-Subcategory Isolated Settings + Product Attributes + Live Schema Matching)
+    const scopedCatAttrs = resolveProductScopedCategoryAttrs(settings.categoryAttributes, product, pzCategoryId);
+    const mergedAttrInputs: Record<string, any> = { ...scopedCatAttrs, ...pzMpAttrs };
+
+    const resolveDynamicValue = (rawSetting: any): string => {
+      if (rawSetting === null || rawSetting === undefined) return "";
+      let mode = "fixed";
+      let val = "";
+      if (typeof rawSetting === "object") {
+        mode = rawSetting.mode || "fixed";
+        val = String(rawSetting.value ?? "").trim();
+      } else {
+        val = String(rawSetting).trim();
+        if (val.startsWith("$product.")) mode = "field";
+      }
+      if (!val) return "";
+      if (mode === "field" || val.startsWith("$product.")) {
+        const fieldKey = val.replace("$product.", "");
+        const fieldMap: Record<string, any> = {
+          brand: product.brand,
+          name: product.name,
+          sku: product.sku,
+          barcode: product.barcode,
+          description: product.description,
+          category: product.category,
+          sub_category: product.sub_category,
+          color: product.color || mpData?.color || pzMpAttrs?.color,
+          size: product.size || mpData?.size || pzMpAttrs?.size,
+          weight: product.weight,
+          warranty: product.warranty || "24 Ay"
+        };
+        return String(fieldMap[fieldKey] ?? product[fieldKey] ?? "").trim();
+      }
+      return val;
+    };
+
+    const liveSchema = await pzService.getCategoryAttributes(pzCategoryId).catch(() => []);
+    const resolvedAttributes: Array<{ attributeId: string; attributeValueId: string }> = [];
+    const missingRequiredNames: string[] = [];
+
+    for (const schemaAttr of liveSchema) {
+      const rawInput = mergedAttrInputs[schemaAttr.id] !== undefined
+        ? mergedAttrInputs[schemaAttr.id]
+        : (mergedAttrInputs[schemaAttr.name] !== undefined ? mergedAttrInputs[schemaAttr.name] : undefined);
+
+      const resolvedStr = resolveDynamicValue(rawInput);
+      let matchedValueId = "";
+
+      if (resolvedStr) {
+        // Case A: Saved as exact GUID or `${GUID}: Label`
+        const prefixToken = resolvedStr.includes(":") ? resolvedStr.split(":")[0].trim() : resolvedStr.trim();
+        if (isPazaramaUuid(prefixToken)) {
+          matchedValueId = prefixToken;
+        } else if (schemaAttr.values.length > 0) {
+          // Case B: Match by Turkish case-insensitive value label
+          const targetLower = resolvedStr.toLocaleLowerCase("tr");
+          const exactVal = schemaAttr.values.find((v) => v.value.toLocaleLowerCase("tr") === targetLower);
+          const partialVal = exactVal || schemaAttr.values.find((v) => v.value.toLocaleLowerCase("tr").includes(targetLower));
+          if (partialVal) {
+            matchedValueId = partialVal.id;
+          }
+        }
+      }
+
+      if (matchedValueId) {
+        resolvedAttributes.push({ attributeId: schemaAttr.id, attributeValueId: matchedValueId });
+      } else if (schemaAttr.mandatory) {
+        missingRequiredNames.push(schemaAttr.name);
+      }
+    }
+
+    if (missingRequiredNames.length > 0) {
+      return res.status(400).json({
+        error: `Pazarama kategorisi için zorunlu özellikler eksik: ${missingRequiredNames.join(", ")}. Lütfen "Kategori & Nitelik Eşle > Pazarama > Özellikler" bölümünden bu alanları doldurun.`
+      });
+    }
+
+    // 7. Build Official Pazarama `POST /product/create` Payload
+    const productCode = String(product.barcode || product.sku || `PRD-${product.id}`).trim();
+    const stockCode = String(product.sku || productCode).trim();
+    const pazaramaImages = extractProductMarketplaceImages(product, req, {
+      maxCount: 8,
+      mpData,
+    });
+
+    if (pazaramaImages.length === 0) {
+      return res.status(400).json({
+        error: `"${product.name}" ürününde Pazarama'ya gönderilecek geçerli bir ürün görseli (HTTPS URL) bulunamadı.`
+      });
+    }
+
+    const validVatRates = [0, 1, 10, 20];
+    const rawVat = Math.round(Number(product.tax_rate ?? 20));
+    const vatRate = validVatRates.includes(rawVat) ? rawVat : 20;
+
+    const createItem = {
+      code: productCode,
+      name: String(product.name || "").trim().slice(0, 100),
+      displayName: String(product.name || "").trim().slice(0, 250),
+      description: String(product.description || product.name || "").trim(),
+      brandId: resolvedBrandId,
+      categoryId: pzCategoryId,
+      stockCount: sellablePzStock,
+      stockCode,
+      groupCode: stockCode,
+      listPrice,
+      salePrice,
+      vatRate,
+      desi: Number(product.desi || mpData?.pazarama?.desi || 1) || 1,
+      images: pazaramaImages.map((imageUrl) => ({ imageUrl })),
+      attributes: resolvedAttributes
+    };
+
+    const createRes = await pzService.createProducts([createItem]);
+
+    if (createRes.success) {
       try {
         await pool.query(`
-          ALTER TABLE products ADD COLUMN IF NOT EXISTS pazarama_id VARCHAR(50);
+          ALTER TABLE products ADD COLUMN IF NOT EXISTS pazarama_id VARCHAR(100);
           ALTER TABLE products ADD COLUMN IF NOT EXISTS is_pazarama_active BOOLEAN DEFAULT FALSE;
           ALTER TABLE products ADD COLUMN IF NOT EXISTS pazarama_last_error TEXT;
         `);
-        await pool.query("UPDATE products SET pazarama_id = $1, is_pazarama_active = TRUE, pazarama_last_error = NULL WHERE id = $2", [payload.productCode, productId]);
+        if (!mpData.pazarama) mpData.pazarama = {};
+        mpData.pazarama = {
+          ...mpData.pazarama,
+          status: "ACTIVE",
+          code: productCode,
+          batchRequestId: createRes.batchRequestId || null,
+          categoryId: pzCategoryId,
+          brandId: resolvedBrandId,
+          price: salePrice,
+          lastSync: new Date().toISOString()
+        };
+        await pool.query(
+          "UPDATE products SET pazarama_id = $1, is_pazarama_active = TRUE, pazarama_last_error = NULL, marketplace_data = $2 WHERE id = $3 AND store_id = $4",
+          [productCode, JSON.stringify(mpData), productId, storeId]
+        );
       } catch (dbErr) {
-        console.warn("DB Update Error (non-fatal):", dbErr);
+        console.warn("Pazarama DB Update Warning (non-fatal):", dbErr);
       }
-      
-      res.json({ 
-        success: true, 
-        message: apiMessage, 
-        pazaramaCode: payload.productCode
+
+      return res.json({
+        success: true,
+        message: createRes.message,
+        pazaramaCode: productCode,
+        batchRequestId: createRes.batchRequestId || null
       });
     } else {
-      // Even if API failed, we might want to log the error in the product
       try {
-        await pool.query("UPDATE products SET pazarama_last_error = $1 WHERE id = $2", [apiMessage, productId]);
-      } catch (e) {}
+        await pool.query("UPDATE products SET pazarama_last_error = $1 WHERE id = $2 AND store_id = $3", [createRes.message, productId, storeId]);
+      } catch {}
 
-      res.status(400).json({ 
-        success: false, 
-        error: apiMessage,
-        details: pazaramaResponseData 
+      return res.status(400).json({
+        success: false,
+        error: createRes.message,
+        details: createRes.raw
+      });
+    }
+  } catch (error: any) {
+    const errMsg = error?.response?.data?.userMessage || error?.response?.data?.message || error?.message || "Pazarama'ya ürün aktarılırken hata oluştu.";
+    console.error("Pazarama Publish Error:", errMsg);
+    try {
+      await pool.query("UPDATE products SET pazarama_last_error = $1 WHERE id = $2 AND store_id = $3", [errMsg, productId, storeId]);
+    } catch {}
+    res.status(400).json({ success: false, error: errMsg });
+  }
+});
+
+// Global pre-indexed cache for Pazarama live leaf categories (`GET /category/getCategoryTree`)
+let pzLiveCategoryCache: { categories: IndexedMarketplaceCategory[]; byId: Map<string, IndexedMarketplaceCategory>; timestamp: number } | null = null;
+let pzCategoryFetchPromise: Promise<{ categories: IndexedMarketplaceCategory[]; isLive: boolean; liveError?: string }> | null = null;
+
+async function resolveStorePazaramaSettings(storeId?: number): Promise<any> {
+  if (!storeId) return {};
+  const storeRes = await pool.query("SELECT pazarama_settings, branding FROM stores WHERE id = $1", [storeId]);
+  const row = storeRes.rows[0] || {};
+  let pzDb = row.pazarama_settings || {};
+  if (typeof pzDb === "string") { try { pzDb = JSON.parse(pzDb); } catch { pzDb = {}; } }
+  let br = row.branding || {};
+  if (typeof br === "string") { try { br = JSON.parse(br); } catch { br = {}; } }
+  return { ...(br?.pazarama_settings || {}), ...pzDb };
+}
+
+async function getMergedPazaramaCategories(storeId?: number): Promise<{ categories: IndexedMarketplaceCategory[]; isLive: boolean; liveError?: string }> {
+  const { PAZARAMA_DEFAULT_CATEGORIES, detectCategorySector, normalizeCategoryText } = await import("../src/data/marketplaceCategoriesData");
+
+  const indexCategory = (c: any): IndexedMarketplaceCategory => {
+    const id = c.id ?? c.categoryId;
+    const paths = Array.isArray(c.paths) ? c.paths : (c.displayName ? String(c.displayName).split(" > ") : []);
+    const name = String(c.name || c.displayName || "");
+    const displayName = String(c.displayName || (paths.length > 0 ? paths.join(" > ") : name));
+    const idStr = String(id ?? "");
+    return {
+      id,
+      name,
+      displayName,
+      paths,
+      leaf: c.leaf !== false,
+      available: c.isActive !== false && c.available !== false,
+      status: "ACTIVE",
+      sector: c.sector || detectCategorySector(name || displayName, paths),
+      _normName: normalizeCategoryText(name),
+      _normFull: normalizeCategoryText(`${name} ${displayName} ${paths.join(" ")}`),
+      _idStr: idStr
+    };
+  };
+
+  // Fresh live cache (> 100 real leaf categories, < 2 hours old)
+  if (pzLiveCategoryCache && (Date.now() - pzLiveCategoryCache.timestamp) < 7_200_000 && pzLiveCategoryCache.categories.length > 100) {
+    return { categories: pzLiveCategoryCache.categories, isLive: true };
+  }
+
+  if (pzCategoryFetchPromise) {
+    return pzCategoryFetchPromise;
+  }
+
+  pzCategoryFetchPromise = (async () => {
+    let liveError: string | undefined;
+
+    if (storeId) {
+      try {
+        const settings = await resolveStorePazaramaSettings(storeId);
+        if (settings?.apiKey && settings?.apiSecret) {
+          const pzService = new PazaramaService(settings);
+          const leafNodes = await pzService.getLeafCategories();
+          if (leafNodes.length > 0) {
+            const indexed = leafNodes.map(indexCategory);
+            const byId = new Map<string, IndexedMarketplaceCategory>();
+            for (const item of indexed) byId.set(item._idStr, item);
+            pzLiveCategoryCache = { categories: indexed, byId, timestamp: Date.now() };
+            return { categories: indexed, isLive: true };
+          }
+        } else {
+          liveError = "Pazarama Client ID / Client Secret girilmediği için canlı yaprak kategoriler çekilemedi.";
+        }
+      } catch (err: any) {
+        liveError = err?.message || "Pazarama canlı kategori ağacı çekilemedi.";
+        console.warn("[Pazarama Categories] Live API fetch warning:", liveError);
+      }
+    }
+
+    return {
+      categories: PAZARAMA_DEFAULT_CATEGORIES.map(indexCategory),
+      isLive: false,
+      liveError
+    };
+  })().finally(() => {
+    pzCategoryFetchPromise = null;
+  });
+
+  return pzCategoryFetchPromise;
+}
+
+// 4. Get Pazarama Leaf Categories (Official OAuth2 `GET /category/getCategoryTree` with 2h cache)
+router.get("/pazarama/categories", authenticate, async (req: any, res) => {
+  const storeId = getAuthorizedStoreId(req, req.query?.storeId);
+  const sector = req.query.sector;
+
+  try {
+    const { categories: allCats, isLive, liveError } = await getMergedPazaramaCategories(storeId);
+    let result = allCats;
+    if (sector && sector !== "all") {
+      result = result.filter((c) => c.sector === sector);
+    }
+
+    res.json({
+      success: true,
+      categories: result.map(stripCategoryIndexFields),
+      total: result.length,
+      source: isLive ? "live_api_cache" : "fallback_catalog",
+      requiresCredentials: !isLive,
+      warning: liveError || null
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: "Pazarama kategorileri çekilemedi: " + error.message });
+  }
+});
+
+// 4b. Pazarama Leaf Category Search & Batch ID Lookup (Multi-Word Turkish Token Search)
+router.get("/pazarama/categories/search", authenticate, async (req: any, res) => {
+  const q = String(req.query.q || "").trim();
+  const idsParam = String(req.query.ids || "").trim();
+  const storeId = getAuthorizedStoreId(req, req.query?.storeId);
+
+  try {
+    const { normalizeCategoryText, scoreCategorySearchMatch } = await import("../src/data/marketplaceCategoriesData");
+    const { categories: allCategories, isLive } = await getMergedPazaramaCategories(storeId);
+
+    if (idsParam) {
+      const requestedIds = new Set(idsParam.split(",").map((id) => id.trim()).filter(Boolean));
+      const found: any[] = [];
+      if (pzLiveCategoryCache?.byId) {
+        for (const id of requestedIds) {
+          const hit = pzLiveCategoryCache.byId.get(id);
+          if (hit) found.push(stripCategoryIndexFields(hit));
+        }
+      } else {
+        for (const c of allCategories) {
+          if (requestedIds.has(c._idStr)) found.push(stripCategoryIndexFields(c));
+        }
+      }
+      return res.json({ success: true, categories: found, total: found.length, source: isLive ? "live_api_cache" : "fallback_catalog" });
+    }
+
+    if (!q) {
+      return res.json({
+        success: true,
+        categories: allCategories.slice(0, 100).map(stripCategoryIndexFields),
+        total: allCategories.length,
+        source: isLive ? "live_api_cache" : "fallback_catalog"
       });
     }
 
+    const normQ = normalizeCategoryText(q);
+    const tokens = normQ.split(" ").filter((t: string) => t.length > 0);
+    const scored: { cat: IndexedMarketplaceCategory; score: number }[] = [];
+    for (let i = 0; i < allCategories.length; i++) {
+      const c = allCategories[i];
+      const score = scoreCategorySearchMatch(c._normName, c._normFull, c._idStr, q, normQ, tokens);
+      if (score > 0) scored.push({ cat: c, score });
+    }
+
+    scored.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return (a.cat.displayName || a.cat.name).localeCompare(b.cat.displayName || b.cat.name, "tr");
+    });
+
+    res.json({
+      success: true,
+      categories: scored.slice(0, 100).map((s) => stripCategoryIndexFields(s.cat)),
+      total: scored.length,
+      source: isLive ? "live_api_cache" : "fallback_catalog"
+    });
   } catch (error: any) {
-    console.error("Pazarama Publish Error:", error.message);
-    res.status(500).json({ error: "Pazarama'ya ürün aktarılırken bir hata oluştu: " + error.message });
+    res.status(500).json({ error: error.message });
   }
 });
 
-// 4. Get Pazarama Categories
-router.get("/pazarama/categories", authenticate, async (req: any, res) => {
-  console.log("HIT: /api/integrations/pazarama/categories", { storeId: req.query.storeId, user: req.user.id });
-  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+// 4c. Get Pazarama Leaf Category Attributes (Official OAuth2 `GET /category/getCategoryWithAttributes?Id=`)
+router.get("/pazarama/categories/:categoryId/attributes", authenticate, async (req: any, res) => {
+  const categoryId = String(req.params.categoryId || "").trim();
+  const storeId = getAuthorizedStoreId(req, req.query?.storeId);
+
   try {
-    const storeRes = await pool.query("SELECT pazarama_settings FROM stores WHERE id = $1", [storeId]);
-    const settings = storeRes.rows[0]?.pazarama_settings || {};
-    
-    const apiKey = (settings.apiKey || "").trim();
-    const apiSecret = (settings.apiSecret || "").trim();
-    const merchantId = (settings.merchantId || "").trim();
-
-    if (!apiKey || !apiSecret) {
-      return res.status(400).json({ error: "Pazarama API ayarları eksik." });
+    const settings = await resolveStorePazaramaSettings(storeId);
+    if (!settings?.apiKey || !settings?.apiSecret) {
+      return res.json({
+        success: true,
+        attributes: [],
+        source: "missing_credentials",
+        warning: "Pazarama canlı kategori özelliklerini çekmek için Client ID ve Client Secret bilgilerini girin."
+      });
     }
 
-    const authHeader = Buffer.from(`${apiKey}:${apiSecret}`).toString('base64');
-    
-    // Attempt with fallbacks for endpoints
-    let pzRes;
-    let lastError;
-
-    const endpoints = [
-      "https://api.pazarama.com/isortagim/api/v1/Category/all",
-      "https://isortagimapi.pazarama.com/api/v1/product/category/all",
-      "https://isortagimapi.pazarama.com/api/v1.0/Category/all",
-      "https://isortagimapi.pazarama.com/api/v1/Category/all",
-      "https://api.pazarama.com/v1/Marketplace/Category/all",
-      "https://isortagimapi.pazarama.com/api/v2/product/category/all"
-    ];
-
-    for (const endpoint of endpoints) {
-      try {
-        console.log(`Trying Pazarama Categories Endpoint: ${endpoint}`);
-        pzRes = await axios.get(endpoint, {
-          headers: { 
-            'Authorization': `Basic ${authHeader}`,
-            'SellerId': merchantId,
-            'MerchantId': merchantId,
-            'Version': '1',
-            'X-Version': '1',
-            'Content-Type': 'application/json',
-            'Accept': 'application/json, text/plain, */*',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Origin': 'https://isortagim.pazarama.com',
-            'Referer': 'https://isortagim.pazarama.com/'
-          },
-          timeout: 15000
-        });
-        if (pzRes.status === 200) {
-          if (pzRes.data && pzRes.data.isSuccess === false) {
-             lastError = new Error(pzRes.data.message || pzRes.data.error || "Pazarama API error (isSuccess: false)");
-             continue;
-          }
-          break;
-        }
-      } catch (e: any) {
-        console.error(`Pazarama Category Endpoint Fail: ${endpoint}`, {
-          status: e.response?.status,
-          message: e.message,
-          data: e.response?.data && typeof e.response.data === 'string' ? "HTML content received" : e.response?.data
-        });
-        lastError = e;
-      }
+    if (!isPazaramaUuid(categoryId)) {
+      return res.json({
+        success: true,
+        attributes: [],
+        source: "non_uuid_category",
+        warning: "Seçili kategori eski/varsayılan kategori kimliği içeriyor. Lütfen güncel Pazarama yaprak kategorisini seçin."
+      });
     }
 
-    if (!pzRes || (pzRes.data && pzRes.data.isSuccess === false)) {
-       throw lastError || new Error("Endpoint connection failed or API returned error");
-    }
-
-    // Pazarama usually returns { isSuccess: true, data: [...], message: "..." }
-    const data = pzRes.data.data || (Array.isArray(pzRes.data) ? pzRes.data : []);
-    res.json(data);
+    const pzService = new PazaramaService(settings);
+    const attributes = await pzService.getCategoryAttributes(categoryId);
+    res.json({
+      success: true,
+      attributes,
+      total: attributes.length,
+      source: "live_pazarama_api"
+    });
   } catch (error: any) {
-    console.error("Pazarama Categories Fetch Error Body:", error.response?.data);
-    console.error("Pazarama Categories Fetch Error Message:", error.message);
-    let status = error.response?.status || 500;
-    // Map 403 to 400 to avoid Nginx intercepting our custom error response
-    if (status === 403) status = 400;
-    
-    const rawMsg = error.response?.data?.message || error.response?.data?.error || error.message;
-    const msg = typeof rawMsg === 'string' ? rawMsg : JSON.stringify(rawMsg);
-    res.status(status).json({ error: "Pazarama Kategorileri çekilemedi: " + msg.substring(0, 200) });
+    console.warn(`[Pazarama Attributes] Failed for category ${categoryId}:`, error?.message || error);
+    res.status(200).json({
+      success: false,
+      attributes: [],
+      source: "error_fallback",
+      error: error?.message || "Pazarama kategori özellikleri çekilemedi."
+    });
   }
 });
 
-// 5. Get Pazarama Brands
+// 5. Get Pazarama Brands (Official OAuth2 `GET /brand/getBrands`)
 router.get("/pazarama/brands", authenticate, async (req: any, res) => {
-  console.log("HIT: /api/integrations/pazarama/brands", { storeId: req.query.storeId, user: req.user.id });
-  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  const storeId = getAuthorizedStoreId(req, req.query?.storeId);
+  const name = req.query.name ? String(req.query.name) : undefined;
+  const page = req.query.page ? Number(req.query.page) : 1;
+  const size = req.query.size ? Number(req.query.size) : 100;
+
   try {
-    const storeRes = await pool.query("SELECT pazarama_settings FROM stores WHERE id = $1", [storeId]);
-    const settings = storeRes.rows[0]?.pazarama_settings || {};
-    
-    const apiKey = (settings.apiKey || "").trim();
-    const apiSecret = (settings.apiSecret || "").trim();
-    const merchantId = (settings.merchantId || "").trim();
-
-    if (!apiKey || !apiSecret) {
-      return res.status(400).json({ error: "Pazarama API ayarları eksik." });
+    const settings = await resolveStorePazaramaSettings(storeId);
+    if (!settings?.apiKey || !settings?.apiSecret) {
+      return res.status(400).json({ error: "Pazarama API (Client ID / Client Secret) ayarları eksik." });
     }
 
-    const authHeader = Buffer.from(`${apiKey}:${apiSecret}`).toString('base64');
-    
-    let pzRes;
-    let lastError;
-
-    const endpoints = [
-      "https://api.pazarama.com/isortagim/api/v1/Brand/all",
-      "https://isortagimapi.pazarama.com/api/v1/product/brand/all",
-      "https://isortagimapi.pazarama.com/api/v1/brand/all",
-      "https://isortagimapi.pazarama.com/api/v1.0/Brand/all",
-      "https://isortagimapi.pazarama.com/api/v1/brand/brands",
-      "https://api.pazarama.com/v1/brand/all"
-    ];
-
-    for (const endpoint of endpoints) {
-      try {
-        console.log(`Trying Pazarama Brands Endpoint: ${endpoint}`);
-        pzRes = await axios.get(endpoint, {
-          headers: { 
-            'Authorization': `Basic ${authHeader}`,
-            'SellerId': merchantId,
-            'MerchantId': merchantId,
-            'Version': '1',
-            'X-Version': '1',
-            'Content-Type': 'application/json',
-            'Accept': 'application/json, text/plain, */*',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Origin': 'https://isortagim.pazarama.com',
-            'Referer': 'https://isortagim.pazarama.com/'
-          },
-          timeout: 15000
-        });
-        if (pzRes.status === 200) {
-          if (pzRes.data && pzRes.data.isSuccess === false) {
-             lastError = new Error(pzRes.data.message || pzRes.data.error || "Pazarama API error (isSuccess: false)");
-             continue;
-          }
-          break;
-        }
-      } catch (e: any) {
-        console.error(`Pazarama Brand Endpoint Fail: ${endpoint}`, {
-          status: e.response?.status,
-          message: e.message,
-          data: e.response?.data && typeof e.response.data === 'string' ? "HTML content received" : e.response?.data
-        });
-        lastError = e;
-      }
-    }
-
-    if (!pzRes || (pzRes.data && pzRes.data.isSuccess === false)) {
-       throw lastError || new Error("Endpoint connection failed or API returned error");
-    }
-
-    const data = pzRes.data.data || (Array.isArray(pzRes.data) ? pzRes.data : []);
-    res.json(data);
+    const pzService = new PazaramaService(settings);
+    const brands = await pzService.getBrands({ name, page, size });
+    res.json(brands);
   } catch (error: any) {
-    console.error("Pazarama Brands Fetch Error Body:", error.response?.data);
-    console.error("Pazarama Brands Fetch Error Message:", error.message);
-    let status = error.response?.status || 500;
-    // Map 403 to 400 to avoid Nginx intercepting our custom error response
-    if (status === 403) status = 400;
-
-    const rawMsg = error.response?.data?.message || error.response?.data?.error || error.message;
-    const msg = typeof rawMsg === 'string' ? rawMsg : JSON.stringify(rawMsg);
-    res.status(status).json({ error: "Pazarama Markaları çekilemedi: " + msg.substring(0, 200) });
+    const msg = error?.message || "Pazarama markaları çekilemedi.";
+    res.status(400).json({ error: "Pazarama Markaları çekilemedi: " + msg.substring(0, 200) });
   }
 });
 

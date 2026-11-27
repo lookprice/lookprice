@@ -904,7 +904,7 @@ export const SettingsEStoresTab = ({
         merchantId: pzMerchantId
       });
       if (res.success) {
-        toast.success(lang === 'tr' ? 'Pazarama Bağlantısı Başarılı!' : 'Pazarama Connection Successful!');
+        toast.success(res.message || (lang === 'tr' ? 'Pazarama Bağlantısı Başarılı!' : 'Pazarama Connection Successful!'));
         onBrandingChange('pazarama_settings', {
           ...branding.pazarama_settings,
           apiKey: pzApiKey,
@@ -913,10 +913,10 @@ export const SettingsEStoresTab = ({
           connected: true
         });
       } else {
-        toast.error(`${lang === 'tr' ? 'Pazarama Bağlantı Hatası' : 'Pazarama Connection Error'}: ${res.error || 'Bilinmeyen hata'}`);
+        toast.error(`${lang === 'tr' ? 'Pazarama Bağlantı Hatası' : 'Pazarama Connection Error'}: ${res.message || res.error || 'Bilinmeyen hata'}`);
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.error || t.errorOccurred || 'Bir hata oluştu');
+      toast.error(error.response?.data?.message || error.response?.data?.error || t.errorOccurred || 'Bir hata oluştu');
     }
   };
 

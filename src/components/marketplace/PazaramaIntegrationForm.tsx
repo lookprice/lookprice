@@ -61,7 +61,11 @@ export const PazaramaIntegrationForm: React.FC<PazaramaIntegrationFormProps> = (
           </div>
           <div>
             <h3 className="text-sm font-semibold text-slate-900">{lang === 'tr' ? 'Pazarama Entegrasyonu' : 'Pazarama Integration'}</h3>
-            <p className="text-xs text-slate-500">{lang === 'tr' ? 'İş Bankası Pazarama API bağlantısı' : 'Isbank Pazarama API connection'}</p>
+            <p className="text-xs text-slate-500">
+              {lang === 'tr'
+                ? 'İş Bankası Pazarama OAuth2 API (isortagim.pazarama.com/auth/integration)'
+                : 'Isbank Pazarama OAuth2 API (isortagim.pazarama.com/auth/integration)'}
+            </p>
           </div>
         </div>
 
@@ -82,7 +86,7 @@ export const PazaramaIntegrationForm: React.FC<PazaramaIntegrationFormProps> = (
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
         <div>
-          <label className="block text-[11px] font-semibold text-slate-600 mb-1">Pazarama API Key</label>
+          <label className="block text-[11px] font-semibold text-slate-600 mb-1">Client ID (API Key)</label>
           <input 
             type="text" 
             id="pz-api-key-input"
@@ -102,11 +106,11 @@ export const PazaramaIntegrationForm: React.FC<PazaramaIntegrationFormProps> = (
                 merchantId: pzMerchantId
               });
             }}
-            placeholder="API Key"
+            placeholder="Client ID"
           />
         </div>
         <div>
-          <label className="block text-[11px] font-semibold text-slate-600 mb-1">Pazarama API Secret</label>
+          <label className="block text-[11px] font-semibold text-slate-600 mb-1">Client Secret (API Secret)</label>
           <div className="relative">
             <input 
               type={showPzSecret ? "text" : "password"} 
@@ -127,7 +131,7 @@ export const PazaramaIntegrationForm: React.FC<PazaramaIntegrationFormProps> = (
                   merchantId: pzMerchantId
                 });
               }}
-              placeholder="API Secret"
+              placeholder="Client Secret"
             />
             <button
               type="button"
@@ -140,7 +144,9 @@ export const PazaramaIntegrationForm: React.FC<PazaramaIntegrationFormProps> = (
           </div>
         </div>
         <div>
-          <label className="block text-[11px] font-semibold text-slate-600 mb-1">Pazarama Merchant ID</label>
+          <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+            {lang === 'tr' ? 'Satıcı Kodu / Merchant ID (Opsiyonel)' : 'Merchant ID (Optional)'}
+          </label>
           <input 
             type="text" 
             id="pz-merchant-id-input"
@@ -160,7 +166,7 @@ export const PazaramaIntegrationForm: React.FC<PazaramaIntegrationFormProps> = (
                 merchantId: val
               });
             }}
-            placeholder="Satıcı Kodu"
+            placeholder={lang === 'tr' ? 'Opsiyonel Satıcı Kodu' : 'Optional Merchant ID'}
           />
         </div>
       </div>
