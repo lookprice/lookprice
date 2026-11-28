@@ -2,6 +2,7 @@ import express from "express";
 import { pool, processSaleAutomation } from "../models/db";
 import crypto from "crypto";
 import { authenticate, JWT_SECRET } from "../middleware/auth";
+import { resolveLegalDocumentContent, resolveStoreLegalProfile } from "../src/utils/shopLegalGenerator";
 
 const router = express.Router();
 
@@ -1091,7 +1092,7 @@ router.get("/store/:slug", async (req, res) => {
       hero_title, hero_subtitle, hero_image_url, about_text, description,
       instagram_url, facebook_url, twitter_url, whatsapp_number,
       address, phone, email, emails, phones, footer_links, parent_id, payment_settings, meta_settings, shipping_profiles, custom_domain,
-      branding, page_layout, menu_links, status, is_approved
+      branding, page_layout, menu_links, legal_pages, einvoice_settings, status, is_approved
     `;
     let store = await findPublicStoreRow(slug, storeSelectCols);
 
@@ -1103,18 +1104,24 @@ router.get("/store/:slug", async (req, res) => {
         return res.status(403).json({ error: 'store_pending', message: 'Bu mağaza onay sürecindedir. Lütfen daha sonra tekrar deneyiniz.' });
       }
 
-      const jsonFields = ['emails', 'phones', 'footer_links', 'shipping_profiles', 'branding', 'meta_settings', 'page_layout', 'menu_links', 'working_hours', 'page_layout_settings', 'currency_rates'];
+      const jsonFields = ['emails', 'phones', 'footer_links', 'shipping_profiles', 'branding', 'meta_settings', 'page_layout', 'menu_links', 'working_hours', 'page_layout_settings', 'currency_rates', 'legal_pages', 'einvoice_settings'];
       jsonFields.forEach(field => {
         if (typeof store[field] === 'string') {
           try {
             store[field] = JSON.parse(store[field]);
           } catch (e) {
-            store[field] = field === 'branding' || field === 'meta_settings' || field === 'working_hours' || field === 'page_layout_settings' || field === 'currency_rates' ? {} : [];
+            store[field] = field === 'branding' || field === 'meta_settings' || field === 'working_hours' || field === 'page_layout_settings' || field === 'currency_rates' || field === 'legal_pages' || field === 'einvoice_settings' ? {} : [];
           }
         } else if (!store[field]) {
-          store[field] = field === 'branding' || field === 'meta_settings' || field === 'working_hours' || field === 'page_layout_settings' || field === 'currency_rates' ? {} : [];
+          store[field] = field === 'branding' || field === 'meta_settings' || field === 'working_hours' || field === 'page_layout_settings' || field === 'currency_rates' || field === 'legal_pages' || field === 'einvoice_settings' ? {} : [];
         }
       });
+
+      const einvCol = (store.einvoice_settings && typeof store.einvoice_settings === 'object') ? store.einvoice_settings : {};
+      const einvBr = (store.branding?.einvoice_settings && typeof store.branding.einvoice_settings === 'object') ? store.branding.einvoice_settings : {};
+      const einvMerged = { ...einvCol, ...einvBr };
+      const lpCol = (store.legal_pages && typeof store.legal_pages === 'object') ? store.legal_pages : {};
+      const lpBr = (store.branding?.legal_pages && typeof store.branding.legal_pages === 'object') ? store.branding.legal_pages : {};
 
       if (store.branding && typeof store.branding === 'object') {
         const dbPublicId = Number(store.id);
@@ -1138,6 +1145,7 @@ router.get("/store/:slug", async (req, res) => {
           parent_id: dbPublicParentId
         };
         delete brandingCopy.branding;
+        delete brandingCopy.einvoice_settings;
         Object.assign(store, brandingCopy);
         store.id = dbPublicId;
         store.slug = dbPublicSlug;
@@ -1148,6 +1156,29 @@ router.get("/store/:slug", async (req, res) => {
         store.working_hours = { ...whFromCol, ...whFromBr };
         store.page_layout_settings = { ...plsFromCol, ...plsFromBr };
       }
+
+      // Resolve official company legal credentials from branding & einvoice_settings for iyzico / distance sales compliance
+      store.legal_name = store.legal_name || store.branding?.legal_name || einvMerged.title || einvMerged.company_title || store.branding?.store_name || store.name || "";
+      store.legal_tax_office = store.legal_tax_office || store.branding?.legal_tax_office || einvMerged.tax_office || "";
+      store.legal_tax_number = store.legal_tax_number || store.branding?.legal_tax_number || einvMerged.vkn || einvMerged.tax_number || "";
+      store.legal_mersis = store.legal_mersis || store.branding?.legal_mersis || einvMerged.mersis_no || einvMerged.mersis || "";
+      store.legal_address = store.legal_address || store.branding?.legal_address || einvMerged.address || store.address || "";
+      store.legal_phone = store.legal_phone || store.branding?.legal_phone || einvMerged.phone || store.phone || "";
+      store.legal_email = store.legal_email || store.branding?.legal_email || einvMerged.email || store.email || "";
+      store.legal_pages = { ...lpCol, ...lpBr };
+      if (store.branding && typeof store.branding === 'object') {
+        store.branding.legal_name = store.legal_name;
+        store.branding.legal_tax_office = store.legal_tax_office;
+        store.branding.legal_tax_number = store.legal_tax_number;
+        store.branding.legal_mersis = store.legal_mersis;
+        store.branding.legal_address = store.legal_address;
+        store.branding.legal_phone = store.legal_phone;
+        store.branding.legal_email = store.legal_email;
+        store.branding.legal_pages = store.legal_pages;
+        delete store.branding.einvoice_settings;
+      }
+      // Never leak raw e-invoice integrator passwords/keys to public storefront payload
+      delete store.einvoice_settings;
 
       if (!store.whatsapp_number || store.whatsapp_number === "905428655000") {
         store.whatsapp_number = "905488902309";
@@ -2063,121 +2094,144 @@ router.get("/customers/cart/:customerId", async (req, res) => {
   }
 });
 
-// Public: Store Return Policy HTML for Google Merchant Center
+// Helper to load store with official legal fields for public standalone legal pages
+async function loadPublicStoreForLegalPage(slug: string) {
+  const storeRes = await pool.query(
+    `SELECT id, name, slug, address, phone, email, emails, phones, whatsapp_number, custom_domain, branding, legal_pages, einvoice_settings
+     FROM stores WHERE LOWER(slug) = LOWER($1) LIMIT 1`,
+    [slug]
+  );
+  if (storeRes.rows.length === 0) return null;
+  const s = storeRes.rows[0];
+  const parseObj = (val: any) => {
+    if (!val) return {};
+    if (typeof val === 'string') {
+      try { return JSON.parse(val); } catch { return {}; }
+    }
+    return typeof val === 'object' ? val : {};
+  };
+  s.branding = parseObj(s.branding);
+  s.legal_pages = { ...parseObj(s.legal_pages), ...parseObj(s.branding?.legal_pages) };
+  s.einvoice_settings = { ...parseObj(s.einvoice_settings), ...parseObj(s.branding?.einvoice_settings) };
+  return s;
+}
+
+function renderStandaloneLegalHtml(store: any, docTitle: string, content: string) {
+  const profile = resolveStoreLegalProfile(store);
+  const safeContent = String(content || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return `<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${profile.brandName} - ${docTitle}</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.65; color: #0f172a; background: #f8fafc; margin: 0; padding: 24px 16px; }
+    .card { max-width: 860px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 32px; box-shadow: 0 4px 20px rgba(15, 23, 42, 0.04); }
+    h1 { font-size: 22px; margin: 0 0 8px 0; color: #0f172a; }
+    .sub { font-size: 13px; color: #475569; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 2px solid #e2e8f0; }
+    .meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 16px; font-size: 12px; margin-bottom: 24px; }
+    .meta strong { color: #334155; display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .content { white-space: pre-wrap; font-size: 13.5px; color: #1e293b; }
+    .badges { margin-top: 28px; padding-top: 18px; border-top: 1px solid #e2e8f0; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; font-size: 12px; color: #64748b; font-weight: 600; }
+    .badge-row { display: flex; align-items: center; gap: 8px; }
+    .pill { display: inline-flex; align-items: center; padding: 5px 12px; border-radius: 8px; font-weight: 800; font-size: 12px; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; }
+    .pill-iyzico { background: #1E64FF; color: #fff; border-color: #1E64FF; }
+    .pill-visa { color: #1A1F71; }
+    .pill-mc { color: #EB001B; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>${profile.brandName} — ${docTitle}</h1>
+    <div class="sub">Resmi Satıcı Ünvanı: <strong>${profile.legalName}</strong></div>
+    <div class="meta">
+      <div><strong>Satıcı Resmi Ünvanı</strong>${profile.legalName}</div>
+      ${profile.taxOffice || profile.taxNumber ? `<div><strong>Vergi Dairesi / VKN</strong>${[profile.taxOffice, profile.taxNumber].filter(Boolean).join(" - ")}</div>` : ""}
+      ${profile.mersisNo ? `<div><strong>MERSİS No</strong>${profile.mersisNo}</div>` : ""}
+      <div><strong>Tebligat & İade Adresi</strong>${profile.address}</div>
+      <div><strong>Telefon & E-Posta</strong>${profile.phone} / ${profile.email}</div>
+    </div>
+    <div class="content">${safeContent}</div>
+    <div class="badges">
+      <span>256-Bit SSL & 3D Secure Güvenli Ödeme Altyapısı</span>
+      <div class="badge-row">
+        <span class="pill pill-iyzico">iyzico ile Öde</span>
+        <span class="pill pill-visa">VISA</span>
+        <span class="pill pill-mc">MasterCard</span>
+        <span class="pill">TROY</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+// Public: Store Return & Delivery Policy HTML for iyzico & Google Merchant Center
 router.get("/store/:slug/return-policy", async (req, res) => {
   const { slug } = req.params;
   try {
-    const storeRes = await pool.query("SELECT name, legal_pages FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
-    if (storeRes.rows.length === 0) return res.status(404).send("Store not found");
-    
-    const store = storeRes.rows[0];
-    const legalPages = typeof store.legal_pages === 'string' ? JSON.parse(store.legal_pages) : (store.legal_pages || {});
-    
-    const returnContentRaw = legalPages?.return_policy;
-    const returnContent = (typeof returnContentRaw === 'object' ? returnContentRaw?.content : returnContentRaw) || legalPages?.sales_agreement?.content || (typeof legalPages?.sales_agreement === 'string' ? legalPages?.sales_agreement : null) || `İade ve İptal Politikası. Detaylar için lütfen bizimle iletişime geçin.`;
-    
-    const html = `
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${store.name} - İade Politikası</title>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 2rem; }
-    h1 { border-bottom: 2px solid #eaeaea; padding-bottom: 0.5rem; }
-    .content { white-space: pre-wrap; margin-top: 2rem; }
-  </style>
-</head>
-<body>
-  <h1>${store.name} - İade Politikası</h1>
-  <div class="content">${returnContent}</div>
-</body>
-</html>
-    `;
-    
+    const store = await loadPublicStoreForLegalPage(slug);
+    if (!store) return res.status(404).send("Store not found");
+    const doc = resolveLegalDocumentContent("delivery_return", store, "tr");
     res.header('Content-Type', 'text/html; charset=utf-8');
-    res.send(html);
+    res.send(renderStandaloneLegalHtml(store, doc.title, doc.content));
   } catch (e: any) {
     res.status(500).send(e.message);
   }
 });
 
-// Public: Store Shipping Policy HTML for Google Merchant Center
+// Public: Store Shipping & Delivery Policy HTML for iyzico & Google Merchant Center
 router.get("/store/:slug/shipping-policy", async (req, res) => {
   const { slug } = req.params;
   try {
-    const storeRes = await pool.query("SELECT name, legal_pages FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
-    if (storeRes.rows.length === 0) return res.status(404).send("Store not found");
-    
-    const store = storeRes.rows[0];
-    const legalPages = typeof store.legal_pages === 'string' ? JSON.parse(store.legal_pages) : (store.legal_pages || {});
-    
-    const shippingContentRaw = legalPages?.shipping_policy;
-    const shippingContent = (typeof shippingContentRaw === 'object' ? shippingContentRaw?.content : shippingContentRaw) || `Teslimat ve Kargo Politikası. Tüm siparişleriniz en kısa sürede kargoya verilir.`;
-    
-    const html = `
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${store.name} - Teslimat Politikası</title>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 2rem; }
-    h1 { border-bottom: 2px solid #eaeaea; padding-bottom: 0.5rem; }
-    .content { white-space: pre-wrap; margin-top: 2rem; }
-  </style>
-</head>
-<body>
-  <h1>${store.name} - Teslimat Politikası</h1>
-  <div class="content">${shippingContent}</div>
-</body>
-</html>
-    `;
-    
+    const store = await loadPublicStoreForLegalPage(slug);
+    if (!store) return res.status(404).send("Store not found");
+    const doc = resolveLegalDocumentContent("delivery_return", store, "tr");
     res.header('Content-Type', 'text/html; charset=utf-8');
-    res.send(html);
+    res.send(renderStandaloneLegalHtml(store, "Teslimat ve İade Koşulları", doc.content));
   } catch (e: any) {
     res.status(500).send(e.message);
   }
 });
 
-// GET Catalog XML (Facebook & Google Merchant Center Feed)
+// Public: Store Delivery & Return Policy HTML (/delivery-return)
+router.get("/store/:slug/delivery-return", async (req, res) => {
+  const { slug } = req.params;
+  try {
+    const store = await loadPublicStoreForLegalPage(slug);
+    if (!store) return res.status(404).send("Store not found");
+    const doc = resolveLegalDocumentContent("delivery_return", store, "tr");
+    res.header('Content-Type', 'text/html; charset=utf-8');
+    res.send(renderStandaloneLegalHtml(store, doc.title, doc.content));
+  } catch (e: any) {
+    res.status(500).send(e.message);
+  }
+});
+
+// Public: Store Distance Sales Agreement HTML (/distance-sales-agreement)
+router.get("/store/:slug/distance-sales-agreement", async (req, res) => {
+  const { slug } = req.params;
+  try {
+    const store = await loadPublicStoreForLegalPage(slug);
+    if (!store) return res.status(404).send("Store not found");
+    const doc = resolveLegalDocumentContent("sales", store, "tr");
+    res.header('Content-Type', 'text/html; charset=utf-8');
+    res.send(renderStandaloneLegalHtml(store, doc.title, doc.content));
+  } catch (e: any) {
+    res.status(500).send(e.message);
+  }
+});
+
+// Public: Store Privacy Policy & KVKK HTML for iyzico, Meta & Google Merchant Center
 router.get("/store/:slug/privacy", async (req, res) => {
   const { slug } = req.params;
   try {
-    const storeRes = await pool.query("SELECT name, legal_pages FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
-    if (storeRes.rows.length === 0) return res.status(404).send("Store not found");
-    
-    const store = storeRes.rows[0];
-    const legalPages = typeof store.legal_pages === 'string' ? JSON.parse(store.legal_pages) : (store.legal_pages || {});
-    
-    // Facebook wants a privacy policy. We'll use the 'kvkk' (PDPL) content or fallback
-    const privacyContent = legalPages?.kvkk?.content || legalPages?.pre_info?.content || `${store.name} Gizlilik Politikası (Privacy Policy). Bu sayfa Meta Katalog entegrasyonu için oluşturulmuştur.`;
-    
-    const html = `
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${store.name} - Gizlilik Politikası</title>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 2rem; }
-    h1 { border-bottom: 2px solid #eaeaea; padding-bottom: 0.5rem; }
-    .content { white-space: pre-wrap; margin-top: 2rem; }
-  </style>
-</head>
-<body>
-  <h1>${store.name} - Gizlilik Politikası</h1>
-  <div class="content">${privacyContent}</div>
-</body>
-</html>
-    `;
-    
+    const store = await loadPublicStoreForLegalPage(slug);
+    if (!store) return res.status(404).send("Store not found");
+    const doc = resolveLegalDocumentContent("privacy", store, "tr");
     res.header('Content-Type', 'text/html; charset=utf-8');
-    res.send(html);
+    res.send(renderStandaloneLegalHtml(store, doc.title, doc.content));
   } catch (e: any) {
     res.status(500).send(e.message);
   }

@@ -40,6 +40,7 @@ import { DiscoverModal } from '../components/showcase/DiscoverModal';
 import { FAQModal } from '../components/showcase/FAQModal';
 import { BlogModal } from '../components/showcase/BlogModal';
 import { LegalModal } from '../components/showcase/LegalModal';
+import { LegalDocType } from '../utils/shopLegalGenerator';
 import { AboutModal } from '../components/showcase/AboutModal';
 import { StoreHeader } from '../components/showcase/StoreHeader';
 import { StoreFooter } from '../components/showcase/StoreFooter';
@@ -157,7 +158,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   const [showFaq, setShowFaq] = useState(false);
   const [showBlog, setShowBlog] = useState(false);
   const [selectedBlogPost, setSelectedBlogPost] = useState<BlogPost | null>(null);
-  const [showLegal, setShowLegal] = useState<"sales" | "kvkk" | "pre_info" | null>(null);
+  const [showLegal, setShowLegal] = useState<LegalDocType | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const ITEMS_PER_PAGE = 21;
@@ -443,11 +444,23 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
       if (modalParam === "checkout" && !isCheckoutModalOpen) setIsCheckoutModalOpen(true);
       if (modalParam === "auth" && !showAuthModal) setShowAuthModal(true);
       if (modalParam.startsWith("legal_")) {
-        const type = modalParam.replace("legal_", "") as "sales" | "kvkk" | "pre_info";
+        const type = modalParam.replace("legal_", "") as LegalDocType;
         if (showLegal !== type) setShowLegal(type);
       }
     }
   }, [modalParam, store?.blog_posts]);
+
+  // Listen for global 'open-store-legal-modal' events from StoreFooter, CheckoutModal, ShopNetflixLayout, etc.
+  useEffect(() => {
+    const handleOpenLegal = (e: Event) => {
+      const customEvent = e as CustomEvent<LegalDocType>;
+      if (customEvent.detail) {
+        setShowLegal(customEvent.detail);
+      }
+    };
+    window.addEventListener("open-store-legal-modal", handleOpenLegal);
+    return () => window.removeEventListener("open-store-legal-modal", handleOpenLegal);
+  }, []);
 
   // Sync cart with DB on change
   useEffect(() => {
@@ -1300,6 +1313,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
               lang={lang} 
               setShowAboutModal={setShowAboutModal} 
               setShowStoreLocatorModal={setShowStoreLocatorModal} 
+              onOpenLegal={(type) => setShowLegal(type)}
               onOpenProfile={(tab) => {
                 setProfileModalTab(tab as any);
                 setShowProfileModal(true);
@@ -1360,13 +1374,38 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
           }} lang={lang} isTr={isTr}
           selectedBlogPost={selectedBlogPost} setSelectedBlogPost={setSelectedBlogPost} blogPosts={store?.blog_posts}
         />
-        <LegalModal isOpen={showLegal} onClose={() => {
-          if (searchParams.get("modal")?.startsWith("legal_")) {
-            window.history.back();
-          } else {
-            setShowLegal(null);
-          }
-        }} lang={lang} legalPages={store?.legal_pages} />
+        <LegalModal
+          isOpen={showLegal}
+          onClose={() => setShowLegal(null)}
+          onSwitchTab={(tab) => setShowLegal(tab)}
+          lang={lang}
+          store={store}
+          legalPages={store?.legal_pages}
+          buyerContext={{
+            buyerName: [customerInfo.name, customerInfo.surname].filter(Boolean).join(" ").trim() || undefined,
+            buyerEmail: customerInfo.email || undefined,
+            buyerPhone: customerInfo.phone || undefined,
+            buyerAddress: [customerInfo.address, customerInfo.city, customerInfo.country].filter(Boolean).join(" / ").trim() || undefined,
+            items: basket.map((item) => ({
+              name: item.name || (item as any).title || "Ürün",
+              quantity: item.quantity || 1,
+              price: Number(basketItemPrices[item.id] ?? item.price ?? 0),
+              currency: store?.default_currency || store?.currency || "TRY",
+            })),
+            subtotal: basketSubtotal,
+            shipping: basketShippingTotal,
+            total: basketTotal,
+            currency: store?.default_currency || store?.currency || "TRY",
+            paymentMethod:
+              paymentMethod === "credit_card" || paymentMethod === "iyzico"
+                ? "Kredi / Banka Kartı (iyzico Güvenli Ödeme)"
+                : paymentMethod === "bank_transfer"
+                ? "Banka Havalesi / EFT"
+                : paymentMethod === "cash_on_delivery"
+                ? "Kapıda Ödeme"
+                : "Online Ödeme",
+          }}
+        />
 
         <AnimatePresence>
           {showAuthModal && (

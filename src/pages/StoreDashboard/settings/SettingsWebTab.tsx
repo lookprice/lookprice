@@ -25,7 +25,17 @@ import {
   Trash2,
   CheckCircle2,
   Globe,
+  ShieldCheck,
+  Sparkles,
 } from "lucide-react";
+import {
+  generateDefaultPrivacyPolicy,
+  generateDefaultDeliveryAndReturnPolicy,
+  generateDefaultDistanceSalesAgreement,
+  generateDefaultPreInfoForm,
+  resolveStoreLegalProfile,
+} from "../../../utils/shopLegalGenerator";
+import { IyzicoPaymentBadges } from "../../../components/showcase/IyzicoPaymentBadges";
 
 interface SettingsWebTabProps {
   branding: any;
@@ -489,116 +499,243 @@ export const SettingsWebTab = ({
       {/* SUB-TAB 2: HAKKIMIZDA VE YASAL POLİTİKALAR */}
       {activeSubTab === 'legal' && !isPortfolio && !isCafeRestaurant && !isCorporateWebsite && (
         <div className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {/* 1. HAKKIMIZDA METNİ */}
+          {/* iyzico & Sanal POS Yasal Uyumluluk Başlığı + Resmi Firma Bilgilerinden Otomatik Doldur */}
+          <div className="bg-gradient-to-r from-blue-50 via-indigo-50/70 to-slate-50 dark:from-slate-900 dark:via-indigo-950/30 dark:to-slate-900 p-4 rounded-2xl border border-blue-200/80 dark:border-indigo-900/60 shadow-xs flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                  {txt(
+                    'iyzico Sanal POS & E-Ticaret Yasal Uyumluluk Paketi',
+                    'iyzico Virtual POS & E-Commerce Legal Compliance Suite',
+                    'Πακέτο Νομικής Συμμόρφωσης iyzico & E-Commerce'
+                  )}
+                </h3>
+                <span className="text-[9px] font-black px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 rounded-md border border-emerald-300 dark:border-emerald-800">
+                  {txt('Aktif & Resmi Bilgilerden Beslenir', 'Active & Synced with Official Info', 'Ενεργό')}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                {txt(
+                  'Gizlilik Politikası, Teslimat ve İade, Mesafeli Satış Sözleşmesi, Ön Bilgilendirme Formu ile "iyzico ile Öde", Visa ve MasterCard logoları mağaza vitrininizde ve ödeme adımında resmi firma bilgilerinizden (Ünvan, Vergi Dairesi/VKN, MERSİS, Adres, Telefon) otomatik olarak beslenir.',
+                  'Privacy Policy, Delivery & Return, Distance Sales Agreement, Pre-Information Form and "Pay with iyzico", Visa & MasterCard logos are automatically populated on your storefront and checkout from your official company credentials.',
+                  'Οι νομικές σελίδες και τα λογότυπα πληρωμών ενημερώνονται αυτόματα από τα επίσημα στοιχεία της εταιρείας σας.'
+                )}
+              </p>
+              <div className="pt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-slate-600 dark:text-slate-400">
+                <span>
+                  <strong className="text-slate-800 dark:text-slate-200">Resmi Ünvan:</strong>{" "}
+                  {resolveStoreLegalProfile(branding).legalName}
+                </span>
+                {resolveStoreLegalProfile(branding).taxNumber && (
+                  <span>
+                    <strong className="text-slate-800 dark:text-slate-200">VKN / VD:</strong>{" "}
+                    {[resolveStoreLegalProfile(branding).taxOffice, resolveStoreLegalProfile(branding).taxNumber].filter(Boolean).join(" / ")}
+                  </span>
+                )}
+                <span>
+                  <strong className="text-slate-800 dark:text-slate-200">Adres:</strong>{" "}
+                  {resolveStoreLegalProfile(branding).address}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  const privacyText = generateDefaultPrivacyPolicy(branding, lang);
+                  const deliveryReturnText = generateDefaultDeliveryAndReturnPolicy(branding, lang);
+                  const salesAgreementText = generateDefaultDistanceSalesAgreement(branding, lang);
+                  const preInfoText = generateDefaultPreInfoForm(branding, lang);
+                  onBrandingChange("legal_pages", {
+                    ...(branding?.legal_pages || {}),
+                    privacy_policy: privacyText,
+                    kvkk: privacyText,
+                    delivery_return: deliveryReturnText,
+                    return_policy: deliveryReturnText,
+                    shipping_policy: deliveryReturnText,
+                    sales_agreement: salesAgreementText,
+                    pre_info: preInfoText,
+                  });
+                }}
+                className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                {txt(
+                  'Resmi Firma Bilgilerinden Sözleşmeleri Oluştur / Yenile',
+                  'Generate / Refresh Contracts from Official Info',
+                  'Δημιουργία Συμβάσεων από Επίσημα Στοιχεία'
+                )}
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* 1. GİZLİLİK POLİTİKASI & KVKK */}
             <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-2">
               <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
                 <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                  {txt('Hakkımızda Metni', 'About Store Text', 'Κείμενο Σχετικά με Εμάς')}
+                  {txt('Gizlilik Politikası ve KVKK Aydınlatma Metni', 'Privacy Policy & KVKK Notice', 'Πολιτική Απορρήτου')}
                 </h3>
                 <span className="text-[9px] font-bold px-2 py-0.5 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-md border border-blue-200 dark:border-blue-800">
-                  Kurumsal
+                  iyzico & Yasal Zorunlu
                 </span>
               </div>
               <textarea
-                className="w-full h-32 p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20 resize-none"
+                className="w-full h-40 p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20 resize-y"
+                value={
+                  (typeof branding?.legal_pages?.privacy_policy === 'string'
+                    ? branding?.legal_pages?.privacy_policy
+                    : branding?.legal_pages?.privacy_policy?.content) ||
+                  (typeof branding?.legal_pages?.kvkk === 'string'
+                    ? branding?.legal_pages?.kvkk
+                    : branding?.legal_pages?.kvkk?.content) ||
+                  generateDefaultPrivacyPolicy(branding, lang)
+                }
+                onChange={(e) =>
+                  onBrandingChange("legal_pages", {
+                    ...branding?.legal_pages,
+                    privacy_policy: e.target.value,
+                    kvkk: e.target.value,
+                  })
+                }
+              />
+              <div className="p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
+                <div className="min-w-0 pr-2">
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                    {txt('Doğrudan Yasal Sayfa URL', 'Direct Legal Page URL', 'Σύνδεσμος')}
+                  </p>
+                  <code className="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono break-all font-bold">
+                    {window.location.origin}/api/public/store/{branding?.slug}/privacy
+                  </code>
+                </div>
+                <a
+                  href={`${window.location.origin}/api/public/store/${branding?.slug}/privacy`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-500 hover:text-indigo-600 transition-colors shrink-0"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            </div>
+
+            {/* 2. TESLİMAT VE İADE KOŞULLARI */}
+            <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-2">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                  {txt('Teslimat ve İade Koşulları', 'Delivery & Return Conditions', 'Όροι Παράδοσης & Επιστροφής')}
+                </h3>
+                <span className="text-[9px] font-bold px-2 py-0.5 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-md border border-blue-200 dark:border-blue-800">
+                  iyzico & Merchant Zorunlu
+                </span>
+              </div>
+              <textarea
+                className="w-full h-40 p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20 resize-y"
+                value={
+                  (typeof branding?.legal_pages?.delivery_return === 'string'
+                    ? branding?.legal_pages?.delivery_return
+                    : branding?.legal_pages?.delivery_return?.content) ||
+                  (typeof branding?.legal_pages?.return_policy === 'string'
+                    ? branding?.legal_pages?.return_policy
+                    : branding?.legal_pages?.return_policy?.content) ||
+                  generateDefaultDeliveryAndReturnPolicy(branding, lang)
+                }
+                onChange={(e) =>
+                  onBrandingChange("legal_pages", {
+                    ...branding?.legal_pages,
+                    delivery_return: e.target.value,
+                    return_policy: e.target.value,
+                  })
+                }
+              />
+              <div className="p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
+                <div className="min-w-0 pr-2">
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                    {txt('Doğrudan Yasal Sayfa URL', 'Direct Legal Page URL', 'Σύνδεσμος')}
+                  </p>
+                  <code className="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono break-all font-bold">
+                    {window.location.origin}/api/public/store/{branding?.slug}/delivery-return
+                  </code>
+                </div>
+                <a
+                  href={`${window.location.origin}/api/public/store/${branding?.slug}/delivery-return`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-500 hover:text-indigo-600 transition-colors shrink-0"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            </div>
+
+            {/* 3. MESAFELİ SATIŞ SÖZLEŞMESİ (TARAFLAR, YASAL MEVZUAT, TESLİMAT-İADE) */}
+            <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-2">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                  {txt('Mesafeli Satış Sözleşmesi (Taraflar & Yasal Mevzuat)', 'Distance Sales Agreement', 'Σύμβαση Πώλησης εξ Αποστάσεως')}
+                </h3>
+                <span className="text-[9px] font-bold px-2 py-0.5 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-md border border-blue-200 dark:border-blue-800">
+                  iyzico & 6502 Kanun Zorunlu
+                </span>
+              </div>
+              <textarea
+                className="w-full h-40 p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20 resize-y"
+                value={
+                  (typeof branding?.legal_pages?.sales_agreement === 'string'
+                    ? branding?.legal_pages?.sales_agreement
+                    : branding?.legal_pages?.sales_agreement?.content) ||
+                  generateDefaultDistanceSalesAgreement(branding, lang)
+                }
+                onChange={(e) =>
+                  onBrandingChange("legal_pages", {
+                    ...branding?.legal_pages,
+                    sales_agreement: e.target.value,
+                  })
+                }
+              />
+              <div className="p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
+                <div className="min-w-0 pr-2">
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                    {txt('Doğrudan Yasal Sayfa URL', 'Direct Legal Page URL', 'Σύνδεσμος')}
+                  </p>
+                  <code className="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono break-all font-bold">
+                    {window.location.origin}/api/public/store/{branding?.slug}/distance-sales-agreement
+                  </code>
+                </div>
+                <a
+                  href={`${window.location.origin}/api/public/store/${branding?.slug}/distance-sales-agreement`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-500 hover:text-indigo-600 transition-colors shrink-0"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            </div>
+
+            {/* 4. HAKKIMIZDA METNİ VE LOGOLAR */}
+            <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-2">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                  {txt('Hakkımızda Metni & Ödeme Logoları Önizleme', 'About Store & Payment Logos Preview', 'Σχετικά με Εμάς & Λογότυπα')}
+                </h3>
+                <span className="text-[9px] font-bold px-2 py-0.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-md border border-emerald-200 dark:border-emerald-800">
+                  Kurumsal & Logolar
+                </span>
+              </div>
+              <textarea
+                className="w-full h-24 p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20 resize-y"
                 value={branding?.about_text || ""}
                 onChange={(e) => onBrandingChange("about_text", e.target.value)}
                 placeholder={txt('Mağazanız hakkında kurumsal bilgi metni yazın...', 'Write company background information...', 'Γράψτε πληροφορίες σχετικά με το κατάστημά σας...')}
               />
-              <div className="p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
-                <div className="min-w-0 pr-2">
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-                    {txt('Google Merchant Sayfa URL', 'Google Merchant URL', 'Google Merchant URL')}
-                  </p>
-                  <code className="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono break-all font-bold">
-                    {window.location.origin}/store/{branding?.slug}/about-us
-                  </code>
-                </div>
-                <a
-                  href={`${window.location.origin}/store/${branding?.slug}/about-us`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-500 hover:text-indigo-600 transition-colors shrink-0"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
-              </div>
-            </div>
-
-            {/* 2. İADE POLİTİKASI */}
-            <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-2">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-                <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                  {txt('İade Politikası', 'Return Policy', 'Πολιτική Επιστροφών')}
-                </h3>
-                <span className="text-[9px] font-bold px-2 py-0.5 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-md border border-amber-200 dark:border-amber-800">
-                  Merchant Zorunlu
-                </span>
-              </div>
-              <textarea
-                className="w-full h-32 p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20 resize-none"
-                value={branding?.legal_pages?.return_policy || ""}
-                onChange={(e) =>
-                  onBrandingChange("legal_pages", { ...branding?.legal_pages, return_policy: e.target.value })
-                }
-                placeholder={txt('İade şartları ve cayma hakkı metnini girin...', 'Enter return policy and withdrawal conditions...', 'Εισάγετε την πολιτική επιστροφών...')}
-              />
-              <div className="p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
-                <div className="min-w-0 pr-2">
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-                    {txt('Sayfa Linki', 'Page Link', 'Σύνδεσμος')}
-                  </p>
-                  <code className="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono break-all font-bold">
-                    {window.location.origin}/store/{branding?.slug}/return-policy
-                  </code>
-                </div>
-                <a
-                  href={`${window.location.origin}/store/${branding?.slug}/return-policy`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-500 hover:text-indigo-600 transition-colors shrink-0"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
-              </div>
-            </div>
-
-            {/* 3. KARGO POLİTİKASI */}
-            <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-2">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-                <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                  {txt('Kargo Politikası', 'Shipping Policy', 'Πολιτική Αποστολής')}
-                </h3>
-                <span className="text-[9px] font-bold px-2 py-0.5 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-md border border-amber-200 dark:border-amber-800">
-                  Merchant Zorunlu
-                </span>
-              </div>
-              <textarea
-                className="w-full h-32 p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20 resize-none"
-                value={branding?.legal_pages?.shipping_policy || ""}
-                onChange={(e) =>
-                  onBrandingChange("legal_pages", { ...branding?.legal_pages, shipping_policy: e.target.value })
-                }
-                placeholder={txt('Kargo, teslimat süreleri ve süreç metnini girin...', 'Enter shipping options & delivery times...', 'Εισάγετε την πολιτική αποστολής...')}
-              />
-              <div className="p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
-                <div className="min-w-0 pr-2">
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-                    {txt('Sayfa Linki', 'Page Link', 'Σύνδεσμος')}
-                  </p>
-                  <code className="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono break-all font-bold">
-                    {window.location.origin}/store/{branding?.slug}/shipping-policy
-                  </code>
-                </div>
-                <a
-                  href={`${window.location.origin}/store/${branding?.slug}/shipping-policy`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-500 hover:text-indigo-600 transition-colors shrink-0"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
+              <div className="pt-1">
+                <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                  {txt('Vitrinde ve Ödeme Ekranında Gösterilen Resmi Logolar', 'Official Logos Displayed on Storefront & Checkout', 'Επίσημα Λογότυπα')}
+                </p>
+                <IyzicoPaymentBadges variant="checkout" lang={lang} />
               </div>
             </div>
           </div>

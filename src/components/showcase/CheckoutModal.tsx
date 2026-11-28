@@ -3,8 +3,10 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   X, AlertCircle, ShoppingBasket, Truck, MapPin, CheckCircle2,
   ShieldCheck, CreditCard, Building2,
-  Loader2, RotateCcw, Plus, Minus, Trash2
+  Loader2, RotateCcw, Plus, Minus, Trash2, FileText
 } from 'lucide-react';
+import { IyzicoPaymentBadges } from './IyzicoPaymentBadges';
+import { LegalDocType } from '../../utils/shopLegalGenerator';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -374,8 +376,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                                     {paymentMethod === 'credit_card' && <div className="w-2 h-2 bg-slate-900 rounded-full" />}
                                   </div>
                                   <div>
-                                    <span className="block text-xs font-bold text-slate-900">{lang === 'tr' ? 'Kredi Kartı (Iyzico)' : 'Credit Card (Iyzico)'}</span>
-                                    <span className="block text-[9px] text-slate-500 font-medium">Güvenli Online Ödeme</span>
+                                    <span className="block text-xs font-bold text-slate-900">{lang === 'tr' ? 'Kredi / Banka Kartı (iyzico ile Öde)' : 'Credit / Debit Card (Pay with iyzico)'}</span>
+                                    <span className="block text-[9px] text-slate-500 font-medium">{lang === 'tr' ? '256-Bit SSL & 3D Secure Güvenli Ödeme' : '256-Bit SSL & 3D Secure Payment'}</span>
                                   </div>
                                 </div>
                               </label>
@@ -395,8 +397,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                                     {paymentMethod === 'credit_card' && <div className="w-2 h-2 bg-slate-900 rounded-full" />}
                                   </div>
                                   <div>
-                                    <span className="block text-xs font-bold text-slate-900">{lang === 'tr' ? 'Kredi Kartı' : 'Credit Card'}</span>
-                                    <span className="block text-[9px] text-slate-500 font-medium">Secure Payment</span>
+                                    <span className="block text-xs font-bold text-slate-900">{lang === 'tr' ? 'Kredi / Banka Kartı' : 'Credit / Debit Card'}</span>
+                                    <span className="block text-[9px] text-slate-500 font-medium">{lang === 'tr' ? '3D Secure Güvenli Ödeme' : 'Secure Payment'}</span>
                                   </div>
                                 </div>
                               </label>
@@ -465,6 +467,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                                </label>
                             )}
                          </div>
+
+                         {/* Official iyzico ile Öde, Visa & MasterCard Badges */}
+                         <IyzicoPaymentBadges variant="checkout" lang={lang} className="mt-3" />
                       </div>
 
                     </form>
@@ -571,6 +576,88 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                            <div className="flex justify-between items-end pt-2 text-sm font-black text-slate-900 border-t border-slate-100">
                              <span className="text-xs uppercase tracking-wider">{lang === 'tr' ? 'Genel Toplam' : 'Total'}</span>
                              <span className="text-base" style={{ color: theme?.primaryColor || '#0ea5e9' }}>{currency} {basketTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</span>
+                           </div>
+                         </div>
+
+                         {/* Statutory Legal Agreements & Policies Notice */}
+                         <div className="mt-3 pt-3 border-t border-slate-100 bg-slate-50/80 rounded-lg p-2.5 text-[10px] text-slate-600 leading-relaxed">
+                           <div className="flex items-start gap-1.5">
+                             <FileText className="w-3.5 h-3.5 text-blue-600 shrink-0 mt-0.5" />
+                             <div>
+                               {lang === 'tr' ? (
+                                 <>
+                                   Siparişi tamamlayarak{' '}
+                                   <button
+                                     type="button"
+                                     onClick={() => window.dispatchEvent(new CustomEvent('open-store-legal-modal', { detail: 'pre_info' }))}
+                                     className="font-bold text-blue-600 hover:underline cursor-pointer"
+                                   >
+                                     Ön Bilgilendirme Formu
+                                   </button>
+                                   ,{' '}
+                                   <button
+                                     type="button"
+                                     onClick={() => window.dispatchEvent(new CustomEvent('open-store-legal-modal', { detail: 'sales' }))}
+                                     className="font-bold text-blue-600 hover:underline cursor-pointer"
+                                   >
+                                     Mesafeli Satış Sözleşmesi
+                                   </button>
+                                   ,{' '}
+                                   <button
+                                     type="button"
+                                     onClick={() => window.dispatchEvent(new CustomEvent('open-store-legal-modal', { detail: 'delivery_return' }))}
+                                     className="font-bold text-blue-600 hover:underline cursor-pointer"
+                                   >
+                                     Teslimat ve İade Koşulları
+                                   </button>
+                                   {' '}ve{' '}
+                                   <button
+                                     type="button"
+                                     onClick={() => window.dispatchEvent(new CustomEvent('open-store-legal-modal', { detail: 'privacy' }))}
+                                     className="font-bold text-blue-600 hover:underline cursor-pointer"
+                                   >
+                                     Gizlilik Politikası
+                                   </button>
+                                   {' '}metinlerini okuduğunuzu ve kabul ettiğinizi onaylarsınız.
+                                 </>
+                               ) : (
+                                 <>
+                                   By completing your order, you confirm that you have read and agreed to the{' '}
+                                   <button
+                                     type="button"
+                                     onClick={() => window.dispatchEvent(new CustomEvent('open-store-legal-modal', { detail: 'pre_info' }))}
+                                     className="font-bold text-blue-600 hover:underline cursor-pointer"
+                                   >
+                                     Pre-Information Form
+                                   </button>
+                                   ,{' '}
+                                   <button
+                                     type="button"
+                                     onClick={() => window.dispatchEvent(new CustomEvent('open-store-legal-modal', { detail: 'sales' }))}
+                                     className="font-bold text-blue-600 hover:underline cursor-pointer"
+                                   >
+                                     Distance Sales Agreement
+                                   </button>
+                                   ,{' '}
+                                   <button
+                                     type="button"
+                                     onClick={() => window.dispatchEvent(new CustomEvent('open-store-legal-modal', { detail: 'delivery_return' }))}
+                                     className="font-bold text-blue-600 hover:underline cursor-pointer"
+                                   >
+                                     Delivery & Return Policy
+                                   </button>
+                                   , and{' '}
+                                   <button
+                                     type="button"
+                                     onClick={() => window.dispatchEvent(new CustomEvent('open-store-legal-modal', { detail: 'privacy' }))}
+                                     className="font-bold text-blue-600 hover:underline cursor-pointer"
+                                   >
+                                     Privacy Policy
+                                   </button>
+                                   .
+                                 </>
+                               )}
+                             </div>
                            </div>
                          </div>
                        </div>

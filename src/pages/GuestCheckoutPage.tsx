@@ -4,6 +4,7 @@ import { api } from "../services/api";
 import { useLanguage } from "../contexts/LanguageContext";
 import { useNavigate, useLocation } from "react-router-dom";
 import { ShieldCheck, CreditCard, Banknote, Truck, AlertCircle } from "lucide-react";
+import { IyzicoPaymentBadges } from "../components/showcase/IyzicoPaymentBadges";
 
 export default function GuestCheckoutPage() {
   const [name, setName] = useState("");
@@ -204,6 +205,9 @@ export default function GuestCheckoutPage() {
                   <span className="font-medium">{lang === 'tr' ? 'Kapıda Ödeme' : 'Cash on Delivery'}</span>
                 </div>
               </button>
+            </div>
+            <div className="pt-2">
+              <IyzicoPaymentBadges variant="compact" lang={lang} />
             </div>
           </div>
 

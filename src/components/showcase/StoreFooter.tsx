@@ -12,9 +12,14 @@ import {
   Clock,
   ExternalLink,
   Youtube,
-  Linkedin
+  Linkedin,
+  FileText,
+  Truck,
+  Building2
 } from 'lucide-react';
 import { LookPriceFooterBadge } from '../common/LookPriceFooterBadge';
+import { IyzicoPaymentBadges } from './IyzicoPaymentBadges';
+import { LegalDocType, resolveStoreLegalProfile } from '../../utils/shopLegalGenerator';
 
 interface StoreFooterProps {
   store: any;
@@ -23,6 +28,7 @@ interface StoreFooterProps {
   setShowStoreLocatorModal?: (show: boolean) => void;
   onOpenProfile?: (tab?: string) => void;
   setShowAuthModal?: (show: boolean) => void;
+  onOpenLegal?: (type: LegalDocType) => void;
 }
 
 const getDisplayStoreName = (store: any) => {
@@ -34,7 +40,7 @@ const getDisplayStoreName = (store: any) => {
     } else if (type === 'motor_vehicle' || type === 'automotive') {
       return "Seçkin Otomotiv";
     }
-    return "Seçkin Kitabevi";
+    return "Seçkin Mağaza";
   }
   return rawName;
 };
@@ -45,10 +51,21 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({
   setShowAboutModal,
   setShowStoreLocatorModal,
   onOpenProfile,
-  setShowAuthModal
+  setShowAuthModal,
+  onOpenLegal
 }) => {
   const isTr = lang === "tr";
   const displayName = getDisplayStoreName(store);
+  const legalProfile = resolveStoreLegalProfile(store);
+
+  const triggerLegalModal = (type: LegalDocType) => {
+    if (onOpenLegal) {
+      onOpenLegal(type);
+    }
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("open-store-legal-modal", { detail: type }));
+    }
+  };
 
   // Accurate address parsing: check locations array first, then direct store/branding address fields
   const firstLocation = (Array.isArray(store?.branding?.locations) && store?.branding?.locations[0]) ||
@@ -59,7 +76,7 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({
   const locationDistrict = firstLocation?.district || "";
   const locationCity = firstLocation?.city || "";
   
-  const rawAddress = (locationAddress || store?.address || store?.branding?.address || store?.branding?.store_address || store?.branding?.branch_address || "").trim();
+  const rawAddress = (locationAddress || store?.legal_address || store?.branding?.legal_address || store?.address || store?.branding?.address || store?.branding?.store_address || store?.branding?.branch_address || "").trim();
   const rawDistrict = (locationDistrict || store?.district || store?.branding?.district || "").trim();
   const rawCity = (locationCity || store?.city || store?.branding?.city || "").trim();
   const rawCountry = (store?.country || store?.branding?.country || "").trim();
@@ -117,17 +134,17 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({
 
   // Contact info (no fake dummy numbers if empty)
   const isDemo = store?.branding?.is_demo || store?.slug?.includes('demo');
-  const storePhone = (store?.phone || store?.branding?.phone || "").trim();
-  const storeEmail = (store?.email || store?.branding?.email || "").trim();
+  const storePhone = (store?.legal_phone || store?.branding?.legal_phone || store?.phone || store?.branding?.phone || "").trim();
+  const storeEmail = (store?.legal_email || store?.branding?.legal_email || store?.email || store?.branding?.email || (Array.isArray(store?.emails) && store.emails[0]) || "").trim();
   const rawWhatsapp = (store?.whatsapp_number || store?.branding?.whatsapp_number || storePhone || "").trim();
   const whatsappSanitized = rawWhatsapp.replace(/\D/g, '');
   const whatsappUrl = !isDemo && whatsappSanitized ? `https://wa.me/${whatsappSanitized.startsWith('90') ? whatsappSanitized : `90${whatsappSanitized}`}` : "";
 
   // Social media links
   const social = store?.branding?.social_media || {};
-  const instagramUrl = social.instagram || "https://instagram.com";
-  const facebookUrl = social.facebook || "https://facebook.com";
-  const twitterUrl = social.twitter || social.x || "https://x.com";
+  const instagramUrl = social.instagram || store?.instagram_url || "https://instagram.com";
+  const facebookUrl = social.facebook || store?.facebook_url || "https://facebook.com";
+  const twitterUrl = social.twitter || social.x || store?.twitter_url || "https://x.com";
   const youtubeUrl = social.youtube || "https://youtube.com";
   const linkedinUrl = social.linkedin || "https://linkedin.com";
 
@@ -135,10 +152,10 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({
     <footer id="store-footer" className="bg-slate-950 text-slate-300 border-t border-slate-800/80 pt-8 pb-6 select-none scroll-mt-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
-        {/* Main Footer Grid - 4 Columns, Compact & Dense */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6 lg:gap-8 pb-6 border-b border-slate-800/80">
+        {/* Main Footer Grid - 12 Columns, Compact & High Information Density */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6 lg:gap-7 pb-6 border-b border-slate-800/80">
           
-          {/* Col 1: Store Brand & About (4 cols) */}
+          {/* Col 1: Store Brand, Official Company Identity & Social (4 cols) */}
           <div className="lg:col-span-4 space-y-3">
             <div className="flex items-center gap-3">
               {store?.logo_url || store?.branding?.logo_url ? (
@@ -153,9 +170,16 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({
                   {displayName.charAt(0)}
                 </div>
               )}
-              <span className="text-lg font-black tracking-tight text-white">
-                {displayName}
-              </span>
+              <div>
+                <span className="text-lg font-black tracking-tight text-white block leading-tight">
+                  {displayName}
+                </span>
+                {legalProfile.legalName && legalProfile.legalName !== displayName && (
+                  <span className="text-[11px] font-semibold text-slate-400 block">
+                    {legalProfile.legalName}
+                  </span>
+                )}
+              </div>
             </div>
 
             <p className="text-slate-400 text-xs leading-relaxed max-w-sm">
@@ -166,8 +190,31 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({
               )}
             </p>
 
+            {/* Official Company Credentials Box (Fed from Store Legal & Tax Settings) */}
+            <div className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800/90 text-[11px] space-y-1 text-slate-300">
+              <div className="flex items-center gap-1.5 text-slate-200 font-bold">
+                <Building2 className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                <span className="truncate">{legalProfile.legalName}</span>
+              </div>
+              {(legalProfile.taxOffice || legalProfile.taxNumber) && (
+                <div className="text-[10.5px] text-slate-400 pl-5">
+                  {[
+                    legalProfile.taxOffice ? `${legalProfile.taxOffice} V.D.` : "",
+                    legalProfile.taxNumber ? `VKN/TCKN: ${legalProfile.taxNumber}` : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </div>
+              )}
+              {legalProfile.mersisNo && (
+                <div className="text-[10.5px] text-slate-400 pl-5">
+                  MERSİS No: {legalProfile.mersisNo}
+                </div>
+              )}
+            </div>
+
             {/* Social Media Buttons */}
-            <div className="pt-1">
+            <div className="pt-0.5">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">
                 {isTr ? "Bizi Takip Edin" : "Follow Us"}
               </span>
@@ -182,16 +229,18 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({
                 >
                   <Instagram className="w-4 h-4" />
                 </a>
-                <a
-                  href={whatsappUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="WhatsApp"
-                  className="w-8 h-8 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-300 hover:text-white hover:bg-emerald-600 hover:border-emerald-600 transition-all shadow-sm"
-                  title="WhatsApp"
-                >
-                  <MessageCircle className="w-4 h-4" />
-                </a>
+                {whatsappUrl && (
+                  <a
+                    href={whatsappUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="WhatsApp"
+                    className="w-8 h-8 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-300 hover:text-white hover:bg-emerald-600 hover:border-emerald-600 transition-all shadow-sm"
+                    title="WhatsApp"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                  </a>
+                )}
                 <a
                   href={facebookUrl}
                   target="_blank"
@@ -236,8 +285,8 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({
             </div>
           </div>
 
-          {/* Col 2: Adres, Harita ve Çalışma Saatleri (4 cols) */}
-          <div className="lg:col-span-4 space-y-2.5">
+          {/* Col 2: Adres, Harita ve Çalışma Saatleri (3 cols) */}
+          <div className="lg:col-span-3 space-y-2.5">
             <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
               <MapPin className="w-3.5 h-3.5 text-red-500" />
               <span>{isTr ? "Adres & Çalışma Saatleri" : "Location & Hours"}</span>
@@ -269,7 +318,7 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({
                 )}
               </div>
 
-              {/* Direct Google Maps Action Button (only if address or custom URL is configured) */}
+              {/* Direct Google Maps Action Button */}
               <a
                 href={mapSearchUrl}
                 target="_blank"
@@ -277,99 +326,135 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({
                 className="mt-2 w-full py-1.5 px-3 bg-slate-800 hover:bg-red-600 hover:text-white text-slate-200 text-xs font-bold rounded-lg border border-slate-700/80 hover:border-red-500 transition-all flex items-center justify-center gap-1.5 shadow-sm group"
               >
                 <Navigation className="w-3.5 h-3.5 text-red-400 group-hover:text-white transition-colors" />
-                <span>{isTr ? "Haritada Göster & Yol Tarifi Al" : "View on Google Maps"}</span>
+                <span>{isTr ? "Haritada Göster & Yol Tarifi" : "View on Google Maps"}</span>
                 <ExternalLink className="w-3 h-3 opacity-60 ml-0.5" />
               </a>
             </div>
           </div>
 
-          {/* Col 3: İletişim & Hızlı Erişim (4 cols) */}
-          <div className="lg:col-span-4 grid grid-cols-2 gap-4">
-            {/* Contact */}
+          {/* Col 3: Yasal & Sözleşmeler + İletişim & Hızlı Erişim (5 cols) */}
+          <div className="lg:col-span-5 grid grid-cols-1 sm:grid-cols-2 gap-5">
+            {/* Kurumsal & Yasal Sözleşmeler (iyzico & E-Ticaret Zorunlu Başlıklar) */}
             <div className="space-y-2.5">
-              <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-400">
-                {isTr ? "İletişim" : "Contact"}
+              <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5 text-blue-400" />
+                <span>{isTr ? "Kurumsal & Yasal Sözleşmeler" : "Legal & Policies"}</span>
               </h4>
-              <ul className="space-y-2 text-xs">
-                {storePhone ? (
-                  <li>
-                    <a 
-                      href={`tel:${storePhone}`} 
-                      className="text-slate-300 hover:text-white font-medium flex items-center gap-1.5 transition-colors"
-                    >
-                      <Phone className="w-3.5 h-3.5 text-slate-500" />
-                      <span>{storePhone}</span>
-                    </a>
-                  </li>
-                ) : null}
-                {storeEmail ? (
-                  <li>
-                    <a 
-                      href={`mailto:${storeEmail}`} 
-                      className="text-slate-300 hover:text-white font-medium flex items-center gap-1.5 transition-colors truncate max-w-[170px]"
-                      title={storeEmail}
-                    >
-                      <Mail className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                      <span className="truncate">{storeEmail}</span>
-                    </a>
-                  </li>
-                ) : null}
-                {whatsappUrl && (
-                  <li>
-                    <a 
-                      href={whatsappUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-emerald-400 hover:text-emerald-300 font-medium flex items-center gap-1.5 transition-colors"
-                    >
-                      <MessageCircle className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                      <span>{isTr ? "WhatsApp Destek" : "WhatsApp Chat"}</span>
-                    </a>
-                  </li>
-                )}
-                {!storePhone && !storeEmail && !whatsappUrl && (
-                  <li className="text-slate-500 text-[11px] italic">
-                    {isTr ? "İletişim için mesaj bırakınız." : "Leave a message for support."}
-                  </li>
-                )}
-              </ul>
-            </div>
-
-            {/* Quick Links */}
-            <div className="space-y-2.5">
-              <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-400">
-                {isTr ? "Hızlı Erişim" : "Quick Links"}
-              </h4>
-              <ul className="space-y-1.5 text-xs font-medium">
+              <ul className="space-y-2 text-xs font-semibold">
                 {setShowAboutModal && (
                   <li>
                     <button
                       type="button"
                       onClick={() => setShowAboutModal(true)}
-                      className="text-slate-400 hover:text-white transition-colors text-left cursor-pointer"
+                      className="text-slate-300 hover:text-white transition-colors text-left cursor-pointer flex items-center gap-1.5"
                     >
-                      {isTr ? "Hakkımızda" : "About Us"}
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-600" />
+                      <span>{isTr ? "Hakkımızda" : "About Us"}</span>
                     </button>
                   </li>
                 )}
-                {onOpenProfile && (
-                  <>
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => triggerLegalModal("privacy")}
+                    className="text-slate-300 hover:text-white transition-colors text-left cursor-pointer flex items-center gap-1.5"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    <span>{isTr ? "Gizlilik Politikası" : "Privacy Policy"}</span>
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => triggerLegalModal("delivery_return")}
+                    className="text-slate-300 hover:text-white transition-colors text-left cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Truck className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                    <span>{isTr ? "Teslimat ve İade" : "Delivery & Return"}</span>
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => triggerLegalModal("sales")}
+                    className="text-slate-300 hover:text-white transition-colors text-left cursor-pointer flex items-center gap-1.5"
+                  >
+                    <FileText className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                    <span>{isTr ? "Mesafeli Satış Sözleşmesi" : "Distance Sales Agreement"}</span>
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => triggerLegalModal("pre_info")}
+                    className="text-slate-300 hover:text-white transition-colors text-left cursor-pointer flex items-center gap-1.5"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-600 ml-1 mr-0.5" />
+                    <span>{isTr ? "Ön Bilgilendirme Formu" : "Pre-Information Form"}</span>
+                  </button>
+                </li>
+              </ul>
+            </div>
+
+            {/* İletişim & Müşteri Hizmetleri */}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-400">
+                  {isTr ? "İletişim" : "Contact"}
+                </h4>
+                <ul className="space-y-1.5 text-xs">
+                  {storePhone ? (
+                    <li>
+                      <a 
+                        href={`tel:${storePhone}`} 
+                        className="text-slate-300 hover:text-white font-medium flex items-center gap-1.5 transition-colors"
+                      >
+                        <Phone className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                        <span>{storePhone}</span>
+                      </a>
+                    </li>
+                  ) : null}
+                  {storeEmail ? (
+                    <li>
+                      <a 
+                        href={`mailto:${storeEmail}`} 
+                        className="text-slate-300 hover:text-white font-medium flex items-center gap-1.5 transition-colors truncate max-w-[200px]"
+                        title={storeEmail}
+                      >
+                        <Mail className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                        <span className="truncate">{storeEmail}</span>
+                      </a>
+                    </li>
+                  ) : null}
+                  {whatsappUrl && (
+                    <li>
+                      <a 
+                        href={whatsappUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-emerald-400 hover:text-emerald-300 font-medium flex items-center gap-1.5 transition-colors"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                        <span>{isTr ? "WhatsApp Destek Hattı" : "WhatsApp Chat"}</span>
+                      </a>
+                    </li>
+                  )}
+                </ul>
+              </div>
+
+              {onOpenProfile && (
+                <div className="space-y-1.5 pt-2 border-t border-slate-800/80">
+                  <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    {isTr ? "Müşteri İşlemleri" : "Customer Service"}
+                  </h4>
+                  <ul className="space-y-1 text-xs font-medium">
                     <li>
                       <button
                         type="button"
                         onClick={() => onOpenProfile('orders')}
                         className="text-slate-400 hover:text-white transition-colors text-left cursor-pointer"
                       >
-                        {isTr ? "Sipariş Takibi" : "Order Tracking"}
-                      </button>
-                    </li>
-                    <li>
-                      <button
-                        type="button"
-                        onClick={() => onOpenProfile('favorites')}
-                        className="text-slate-400 hover:text-white transition-colors text-left cursor-pointer"
-                      >
-                        {isTr ? "Favori Kitaplarım" : "My Favorites"}
+                        {isTr ? "Sipariş & Kargo Takibi" : "Order Tracking"}
                       </button>
                     </li>
                     <li>
@@ -378,25 +463,60 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({
                         onClick={() => onOpenProfile('profile')}
                         className="text-slate-400 hover:text-white transition-colors text-left cursor-pointer"
                       >
-                        {isTr ? "Müşteri Hesabı" : "Customer Account"}
+                        {isTr ? "Üyelik & Hesabım" : "Customer Account"}
                       </button>
                     </li>
-                  </>
-                )}
-              </ul>
+                  </ul>
+                </div>
+              )}
             </div>
           </div>
 
         </div>
 
-        {/* Bottom Bar: Copyright & Security */}
-        <div className="pt-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-slate-400">
-          <p>© {new Date().getFullYear()} {displayName}. {isTr ? "Tüm hakları saklıdır." : "All rights reserved."}</p>
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1.5 text-slate-400 font-medium">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              <span>{isTr ? "256-Bit SSL Güvenli Alışveriş" : "256-Bit SSL Encrypted"}</span>
+        {/* Payment Logos & Security Band ("iyzico ile Öde", Visa, MasterCard, Troy, 256-Bit SSL) */}
+        <div className="py-4 border-b border-slate-800/80 flex flex-col md:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-xs text-slate-300 font-semibold">
+            <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>
+              {isTr
+                ? "BDDK Lisanslı Güvenli Ödeme Altyapısı — Kart bilgileriniz 256-Bit SSL ile korunur."
+                : "Licensed Secure Payment Infrastructure — Protected by 256-Bit SSL."}
             </span>
+          </div>
+          <IyzicoPaymentBadges variant="footer" lang={lang} />
+        </div>
+
+        {/* Bottom Bar: Copyright & Official Title */}
+        <div className="pt-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-slate-400">
+          <p>
+            © {new Date().getFullYear()} <strong className="text-slate-200">{legalProfile.legalName}</strong>
+            {legalProfile.brandName && legalProfile.brandName !== legalProfile.legalName ? ` (${legalProfile.brandName})` : ""}. {isTr ? "Tüm hakları saklıdır." : "All rights reserved."}
+          </p>
+          <div className="flex flex-wrap items-center gap-3 text-[11px]">
+            <button
+              type="button"
+              onClick={() => triggerLegalModal("privacy")}
+              className="hover:text-white transition-colors cursor-pointer"
+            >
+              {isTr ? "Gizlilik Politikası" : "Privacy Policy"}
+            </button>
+            <span className="text-slate-700">•</span>
+            <button
+              type="button"
+              onClick={() => triggerLegalModal("delivery_return")}
+              className="hover:text-white transition-colors cursor-pointer"
+            >
+              {isTr ? "Teslimat ve İade" : "Delivery & Return"}
+            </button>
+            <span className="text-slate-700">•</span>
+            <button
+              type="button"
+              onClick={() => triggerLegalModal("sales")}
+              className="hover:text-white transition-colors cursor-pointer"
+            >
+              {isTr ? "Mesafeli Satış Sözleşmesi" : "Distance Sales Agreement"}
+            </button>
           </div>
         </div>
 
@@ -407,4 +527,3 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({
     </footer>
   );
 };
-
